@@ -4,43 +4,163 @@
   "deadline": "2026-09-02",
   "launch": "2026-08-26",
   "items": [
-    {"key": "scraper0",  "label": "① スクレイパ v0（骨格）",   "owner": "wang（阪大）", "target": 1, "done": 0,
-     "note": "8/13 に政岡へ引き渡す。渡らなければ政岡が引き取る", "updated": "2026-08-11"},
-    {"key": "syllabus",  "label": "② 科目データ（KOAN全件）",  "owner": "政岡（京大）", "target": 1112, "done": 0, "auto": true,
-     "note": "wang の v0 を引き継いで 8/14 取得", "updated": "2026-08-11"},
-    {"key": "fillrate",  "label": "└ 評価割合(%)の充足率",     "owner": "政岡（京大）", "target": 100, "done": 0, "unit": "%",
-     "note": "8/16 Go/NoGo の判定材料", "updated": "2026-08-11"},
-    {"key": "pipeline",  "label": "③ データ変換・投稿取り込み",  "owner": "王力明（京大）", "target": 1, "done": 0,
-     "note": "口コミは書けない立場。書く人の道具を作る", "updated": "2026-08-11"},
-    {"key": "top100",    "label": "④ 人気100科目の選定",       "owner": "しゅんや（阪大）", "target": 100, "done": 0,
-     "note": "ヒアリングの副産物。学内の肌感が要る", "updated": "2026-08-11"},
-    {"key": "reviews",   "label": "⑤ 口コミ（阪大4名のみ）",    "owner": "阪大4名", "target": 400, "done": 0,
-     "note": "自分120（4人×30科目）＋友人280（4人×7名×10件）", "updated": "2026-08-11"},
-    {"key": "reviews100","label": "└ 人気100科目ぶん",         "owner": "阪大4名", "target": 400, "done": 0,
-     "note": "1科目4件以上。ここが厚さの本体", "updated": "2026-08-11"},
-    {"key": "prod",      "label": "本番環境（Cloudflare Pages）", "owner": "政岡（京大）", "target": 1, "done": 0,
-     "note": "ドメイン未取得。PRプレビューURLも同時に付く", "updated": "2026-08-11"},
-    {"key": "line",      "label": "LINE公式アカウント＋APIチャネル", "owner": "笠井（阪大）", "target": 1, "done": 0,
-     "note": "即日発行できる。きむらの着手条件なので8/12中", "updated": "2026-08-11"},
-    {"key": "linemenu",  "label": "└ harness展開＋リッチメニュー", "owner": "きむら（阪大）", "target": 1, "done": 0,
-     "note": "npx create-line-harness → Cloudflare", "updated": "2026-08-11"},
-    {"key": "lineai",    "label": "└ AI応答（意図抽出→API→返信）", "owner": "きむら（阪大）", "target": 1, "done": 0,
-     "note": "8/21 疎通目標。数字はAPIの実データから組む", "updated": "2026-08-11"},
-    {"key": "mobile",    "label": "スマホ対応・表示速度",        "owner": "松下（京大）", "target": 1, "done": 0,
-     "note": "利用の大半はスマホ", "updated": "2026-08-11"},
-    {"key": "intake",    "label": "投稿導線（LIFFフォーム）",    "owner": "松下（京大）", "target": 1, "done": 0,
-     "note": "harness の LIFF なら認証実装が要らない", "updated": "2026-08-11"},
-    {"key": "spread",    "label": "拡散準備（SNS・ビラ）",      "owner": "しゅんや・笠井（阪大）", "target": 1, "done": 0,
-     "note": "8/26に山を作る。学内はこの2人しか動けない", "updated": "2026-08-11"},
-    {"key": "hearing",   "label": "阪大生ヒアリング",           "owner": "しゅんや（阪大）", "target": 15, "done": 0,
-     "note": "人気100科目リストの材料でもある", "updated": "2026-08-11"},
-    {"key": "weights",   "label": "スコア重みの実データ検証",     "owner": "wang（阪大）", "target": 1, "done": 0,
-     "note": "全件取得後に着手", "updated": "2026-08-11"},
-    {"key": "guideline", "label": "投稿ガイドライン・法務点検",   "owner": "wang（阪大）", "target": 1, "done": 0,
-     "note": "公開初日から必要", "updated": "2026-08-11"}
+    {
+      "key": "scraper0",
+      "label": "① スクレイパ v0（骨格）",
+      "owner": "wang（阪大）",
+      "target": 1,
+      "done": 0,
+      "note": "8/13 に政岡へ引き渡す。渡らなければ政岡が引き取る",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "syllabus",
+      "label": "② 科目データ（KOAN全件）",
+      "owner": "政岡（京大）",
+      "target": 1112,
+      "done": 0,
+      "auto": true,
+      "note": "wang の v0 を引き継いで 8/14 取得",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "fillrate",
+      "label": "└ 評価割合(%)の充足率",
+      "owner": "政岡（京大）",
+      "target": 100,
+      "done": 0,
+      "unit": "%",
+      "note": "8/16 Go/NoGo の判定材料",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "pipeline",
+      "label": "③ データ変換・投稿取り込み",
+      "owner": "王力明（京大）",
+      "target": 1,
+      "done": 0,
+      "note": "口コミは書けない立場。書く人の道具を作る",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "reviews",
+      "label": "⑤ 口コミ（阪大4名のみ）",
+      "owner": "阪大4名",
+      "target": 400,
+      "done": 0,
+      "note": "自分120（4人×30科目）＋友人280（4人×7名×10件）",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "reviews100",
+      "label": "└ よく取られる科目ぶん",
+      "owner": "阪大4名",
+      "target": 400,
+      "done": 0,
+      "note": "選定はしない。自分が取った科目を書けば自然に偏る",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "prod",
+      "label": "本番環境（Cloudflare Pages）",
+      "owner": "政岡（京大）",
+      "target": 1,
+      "done": 0,
+      "note": "ドメイン未取得。PRプレビューURLも同時に付く",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "line",
+      "label": "LINEトラック（笠井が責任者）",
+      "owner": "笠井（阪大）",
+      "target": 1,
+      "done": 0,
+      "note": "開設＋APIチャネルを8/12中に発行してきむらへ。以降の運用も笠井",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "linemenu",
+      "label": "└ harness展開＋リッチメニュー",
+      "owner": "きむら（阪大）",
+      "target": 1,
+      "done": 0,
+      "note": "npx create-line-harness → Cloudflare",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "lineai",
+      "label": "└ AI応答（意図抽出→API→返信）",
+      "owner": "きむら（阪大）",
+      "target": 1,
+      "done": 0,
+      "note": "8/21 疎通目標。数字はAPIの実データから組む",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "mobile",
+      "label": "スマホ対応・表示速度",
+      "owner": "松下（京大）",
+      "target": 1,
+      "done": 0,
+      "note": "利用の大半はスマホ",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "intake",
+      "label": "投稿導線（LIFFフォーム）",
+      "owner": "松下（京大）",
+      "target": 1,
+      "done": 0,
+      "note": "harness の LIFF なら認証実装が要らない",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "spread",
+      "label": "拡散準備（SNS・ビラ）",
+      "owner": "しゅんや・笠井（阪大）",
+      "target": 1,
+      "done": 0,
+      "note": "8/26に山を作る。学内はこの2人しか動けない",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "hearing",
+      "label": "阪大生ヒアリング",
+      "owner": "しゅんや（阪大）",
+      "target": 15,
+      "done": 0,
+      "note": "人気100科目リストの材料でもある",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "weights",
+      "label": "スコア重みの実データ検証",
+      "owner": "wang（阪大）",
+      "target": 1,
+      "done": 0,
+      "note": "全件取得後に着手",
+      "updated": "2026-08-11"
+    },
+    {
+      "key": "guideline",
+      "label": "投稿ガイドライン・法務点検",
+      "owner": "wang（阪大）",
+      "target": 1,
+      "done": 0,
+      "note": "公開初日から必要",
+      "updated": "2026-08-11"
+    }
   ],
   "postponed": [
-    {"label": "協賛営業", "owner": "笠井（阪大）", "note": "9/2 まで着手しない（2026/8/11 決定）。実際の開始は数字が揃う9/15を推奨"},
-    {"label": "教務へのシラバス利用問い合わせ", "owner": "―", "note": "取りやめ（2026/8/11 決定）。外部公開シラバスはログイン不要で取得できるため"}
+    {
+      "label": "協賛営業",
+      "owner": "笠井（阪大）",
+      "note": "9/2 まで着手しない（2026/8/11 決定）。実際の開始は数字が揃う9/15を推奨"
+    },
+    {
+      "label": "教務へのシラバス利用問い合わせ",
+      "owner": "―",
+      "note": "取りやめ（2026/8/11 決定）。外部公開シラバスはログイン不要で取得できるため"
+    }
   ]
 }
