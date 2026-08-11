@@ -2,322 +2,389 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>楽単DB（仮）— 阪大 全学教育科目の負荷プロファイル</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>楽単DB（仮）— 阪大の全学教育科目をあなたの優先度で並べる</title>
 <style>
 :root{
-  --ink:#16181d; --ink-soft:#3b4148; --muted:#6b736f;
-  --paper:#f4f6f3; --card:#ffffff; --dim:#e8ebe6; --rule:#d5dad3;
-  --accent:#0e7c66; --accent-soft:#e2efeb;
-  --warn:#b4532a; --warn-soft:#f6e9e3;
-  --mid:#b8862c;
-  --body:"Hiragino Sans","ヒラギノ角ゴシック","Yu Gothic",system-ui,sans-serif;
+  --ink:#16181d; --soft:#3b4148; --muted:#6b736f;
+  --paper:#f4f6f3; --card:#fff; --dim:#e8ebe6; --rule:#d7dcd6;
+  --go:#0e7c66; --go-soft:#e2efeb; --mid:#b8862c; --warn:#b4532a; --warn-soft:#f7eae3;
+  --body:"Hiragino Sans","ヒラギノ角ゴシック",system-ui,sans-serif;
   --data:"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --pad:16px;
 }
 @media (prefers-color-scheme: dark){
-  :root{
-    --ink:#eef1ec; --ink-soft:#c3c9c4; --muted:#8b938d;
-    --paper:#14161a; --card:#1c1f24; --dim:#22262c; --rule:#31363d;
-    --accent:#3fbfa1; --accent-soft:#16302b;
-    --warn:#e08356; --warn-soft:#33211a;
-    --mid:#d3a955;
-  }
+  :root{--ink:#eef1ec;--soft:#c3c9c4;--muted:#8b938d;--paper:#131519;--card:#1b1e23;
+        --dim:#23272d;--rule:#333941;--go:#3fbfa1;--go-soft:#15302b;--mid:#d3a955;
+        --warn:#e08356;--warn-soft:#33211a}
 }
-*{box-sizing:border-box}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);
-  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;padding:0 var(--pad) 96px}
 
-/* ── header ─────────────────────────────── */
-/* ヘッダは明暗どちらでも濃色地に固定する（トークンを使うと dark で地と文字が
-   同時に反転して読めなくなるため、ここだけ意図的に固定値） */
-header{background:#16181d;color:#f4f6f3;padding:22px 28px}
-@media (prefers-color-scheme: dark){header{background:#0d0f12}}
-.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
-.brand h1{margin:0;font-size:21px;letter-spacing:.04em;font-weight:700}
-.brand .tag{font-size:12px;color:#9aa39d;letter-spacing:.08em}
-.lede{margin:8px 0 0;font-size:13px;color:#a8b0aa;max-width:70ch}
+/* ── header ─────────────────────────── */
+.note{background:var(--warn-soft);color:var(--warn);font-size:11.5px;padding:7px var(--pad);
+  text-align:center;line-height:1.5}
+header{padding:14px var(--pad) 10px;max-width:560px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+h1{margin:0;font-size:19px;letter-spacing:.02em}
+h1 small{font-size:11px;color:var(--muted);font-weight:400;margin-left:5px}
+.badge{font-size:11px;color:var(--go);border:1px solid var(--go);border-radius:99px;
+  padding:3px 9px;white-space:nowrap}
 
-.banner{background:var(--warn-soft);border-bottom:1px solid var(--rule);
-  padding:10px 28px;font-size:12.5px;color:var(--warn);line-height:1.6}
+input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:9px;
+  background:var(--card);color:var(--ink);font:inherit;font-size:15px}
+input:focus-visible,button:focus-visible{outline:2px solid var(--go);outline-offset:1px}
 
-/* ── layout ─────────────────────────────── */
-.wrap{display:grid;grid-template-columns:264px 1fr;gap:28px;
-  max-width:1180px;margin:0 auto;padding:24px 28px 64px}
-@media (max-width:860px){.wrap{grid-template-columns:1fr;gap:20px}}
+section{margin-top:22px}
+h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-weight:700}
+h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 
-aside{display:flex;flex-direction:column;gap:20px;align-self:start;position:sticky;top:16px}
-@media (max-width:860px){aside{position:static}}
-.fgroup h2{margin:0 0 8px;font-size:11px;letter-spacing:.14em;color:var(--muted);
-  font-weight:700;text-transform:uppercase}
-input[type=search]{width:100%;padding:9px 11px;border:1px solid var(--rule);
-  border-radius:5px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
-input[type=search]:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-select{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:5px;
-  background:var(--card);color:var(--ink);font:inherit;font-size:13.5px}
+/* ── 空きコマグリッド ─────────────────── */
+.grid{display:grid;grid-template-columns:20px repeat(5,1fr);gap:4px}
+.grid .h{font-size:11px;color:var(--muted);text-align:center;font-family:var(--data);
+  align-self:center}
+.grid button{border:1px solid var(--rule);background:var(--card);border-radius:7px;
+  padding:9px 0;font:inherit;font-size:13px;font-family:var(--data);color:var(--soft);
+  cursor:pointer;font-variant-numeric:tabular-nums}
+.grid button.zero{color:var(--rule);background:transparent}
+.grid button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
+.hint{font-size:11.5px;color:var(--muted);margin-top:6px}
 
-/* 時間割グリッド — 履修登録時に学生が睨んでいるあの格子 */
-.grid{display:grid;grid-template-columns:22px repeat(5,1fr);gap:3px}
-.grid .h{font-size:11px;color:var(--muted);text-align:center;font-family:var(--data)}
-.grid button{border:1px solid var(--rule);background:var(--card);
-  height:22px;border-radius:3px;cursor:pointer;padding:0;
-  display:flex;align-items:center;justify-content:center}
-.grid button::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--rule)}
-.grid button:hover{border-color:var(--accent)}
-.grid button:hover::after{background:var(--accent)}
-.grid button.on{background:var(--accent);border-color:var(--accent)}
-.grid button.on::after{background:#fff}
-.clear{border:none;background:none;color:var(--muted);font:inherit;font-size:12px;
-  cursor:pointer;padding:0;text-decoration:underline}
+/* ── 優先度 ───────────────────────────── */
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--rule);background:var(--card);border-radius:99px;
+  padding:7px 13px;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
+.chip.on{background:var(--go);border-color:var(--go);color:#fff}
+.chip .n{font-family:var(--data);font-size:11.5px;opacity:.65;margin-left:4px}
+.sliders{margin-top:12px;display:none}
+.sliders.open{display:block}
+.sl{display:grid;grid-template-columns:88px 1fr 16px;gap:10px;align-items:center;margin-bottom:7px}
+.sl label{font-size:13px;color:var(--soft)}
+.sl input{width:100%;accent-color:var(--go)}
+.sl .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right}
+.toggle{background:none;border:none;color:var(--go);font:inherit;font-size:12.5px;
+  padding:8px 0 0;cursor:pointer;text-decoration:underline}
 
-/* ── results ────────────────────────────── */
-.bar{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
-  padding-bottom:10px;border-bottom:1px solid var(--rule);margin-bottom:14px;flex-wrap:wrap}
-.bar .n{font-family:var(--data);font-size:13px;color:var(--muted)}
-.bar .n b{color:var(--ink);font-size:17px;font-variant-numeric:tabular-nums}
+/* ── 結果 ─────────────────────────────── */
+.bar{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
+  margin:20px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+.bar b{font-size:19px;font-family:var(--data);font-variant-numeric:tabular-nums}
+.bar select{border:1px solid var(--rule);border-radius:7px;padding:6px 8px;
+  background:var(--card);color:var(--ink);font:inherit;font-size:13px}
 
-.card{background:var(--card);border:1px solid var(--rule);border-radius:7px;
+.card{background:var(--card);border:1px solid var(--rule);border-radius:11px;
   margin-bottom:10px;overflow:hidden}
-.head{display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px 16px;
-  cursor:pointer;align-items:center}
-.head:hover{background:var(--dim)}
-.title{font-size:16px;font-weight:700;margin:0 0 3px}
-.meta{font-size:12.5px;color:var(--muted);font-family:var(--data)}
-.meta span+span::before{content:"・";margin:0 2px}
+.head{padding:13px 14px;cursor:pointer;display:grid;grid-template-columns:1fr 58px;gap:12px}
+.title{font-size:16.5px;font-weight:700;margin:0 0 3px;line-height:1.35}
+.meta{font-size:12px;color:var(--muted);font-family:var(--data)}
+.meta span+span::before{content:"・";margin:0 3px}
+.fit{text-align:right}
+.fit b{font-size:25px;font-family:var(--data);font-weight:600;line-height:1;
+  font-variant-numeric:tabular-nums;color:var(--go)}
+.fit small{display:block;font-size:10px;color:var(--muted);letter-spacing:.06em}
+.reason{grid-column:1/3;font-size:13px;color:var(--soft);margin-top:7px;line-height:1.55}
+.tags{grid-column:1/3;display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.tag{font-size:11.5px;background:var(--go-soft);color:var(--go);border-radius:5px;padding:2px 7px}
+.tag.g{background:var(--dim);color:var(--muted)}
 
-.badge{display:flex;align-items:center;gap:10px}
-.val{font-family:var(--data);font-size:26px;font-weight:600;
-  font-variant-numeric:tabular-nums;line-height:1;text-align:right;min-width:52px}
-.band{font-size:11px;padding:3px 8px;border-radius:99px;white-space:nowrap;
-  border:1px solid currentColor;font-weight:700}
-.b-light{color:var(--accent)} .b-mid{color:var(--mid)} .b-heavy{color:var(--warn)}
-.b-none{color:var(--muted)}
-
-.conf{font-size:11px;font-family:var(--data);letter-spacing:.03em}
-.c-high{color:var(--accent)} .c-mid{color:var(--mid)} .c-low{color:var(--warn)}
-
-/* ── detail ─────────────────────────────── */
-.detail{display:none;border-top:1px solid var(--rule);padding:16px;background:var(--paper)}
+.detail{display:none;border-top:1px solid var(--rule);padding:13px 14px;background:var(--paper)}
 .card.open .detail{display:block}
-.axes{display:flex;flex-direction:column;gap:11px;margin-bottom:16px}
-.axis{display:grid;grid-template-columns:88px 1fr 40px;gap:10px;align-items:center}
-.axis .l{font-size:12.5px;color:var(--ink-soft);line-height:1.4}
-.axis .w{font-family:var(--data);font-size:10.5px;color:var(--muted)}
+.ax{display:grid;grid-template-columns:70px 1fr 30px;gap:9px;align-items:center;margin-bottom:9px}
+.ax .l{font-size:12.5px;color:var(--soft)}
 .track{height:7px;background:var(--dim);border-radius:99px;overflow:hidden}
-.fill{height:100%;border-radius:99px;background:var(--accent)}
-.fill.w{background:var(--warn)} .fill.m{background:var(--mid)}
-.axis .v{font-family:var(--data);font-size:12.5px;color:var(--muted);
-  text-align:right;font-variant-numeric:tabular-nums}
-.why{grid-column:2/4;font-size:12px;color:var(--muted);margin-top:-4px;line-height:1.6}
+.fill{height:100%;border-radius:99px;background:var(--go)}
+.fill.m{background:var(--mid)} .fill.w{background:var(--warn)}
+.ax .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right;
+  font-variant-numeric:tabular-nums}
+.why{grid-column:2/4;font-size:11.5px;color:var(--muted);margin-top:-3px;line-height:1.5}
+.miss{grid-column:2/4;font-size:11.5px;color:var(--warn)}
+.conf{font-size:11.5px;color:var(--muted);margin-top:4px;padding-top:9px;
+  border-top:1px dashed var(--rule)}
+.conf b{color:var(--warn)}
+.empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:14px}
 
-.sec{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:700;
-  text-transform:uppercase;margin:0 0 7px}
-.chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--dim);color:var(--ink-soft)}
-.block{margin-bottom:15px}
-.note{background:var(--warn-soft);border-left:3px solid var(--warn);padding:9px 12px;
-  font-size:12.5px;color:var(--ink-soft);border-radius:0 4px 4px 0;line-height:1.65}
-.miss{font-size:12px;color:var(--warn)}
-footer{border-top:1px solid var(--rule);padding:20px 28px 40px;font-size:12px;
-  color:var(--muted);max-width:1180px;margin:0 auto;line-height:1.8}
-code{font-family:var(--data);background:var(--dim);padding:1px 5px;border-radius:3px;font-size:12px}
-.empty{padding:40px;text-align:center;color:var(--muted);font-size:14px}
+/* ── 口コミ投稿（4タップ） ─────────────── */
+.fab{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:20;
+  background:var(--ink);color:var(--paper);border:none;border-radius:99px;
+  padding:12px 22px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;
+  box-shadow:0 6px 20px rgba(0,0,0,.22)}
+@media (prefers-color-scheme: dark){.fab{background:var(--go);color:#08120f}}
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:none;
+  align-items:flex-end;justify-content:center}
+.sheet.open{display:flex}
+.sheet .inner{background:var(--card);width:100%;max-width:560px;border-radius:16px 16px 0 0;
+  padding:18px var(--pad) 26px;max-height:86vh;overflow:auto}
+.sheet h3{margin:0 0 3px;font-size:17px}
+.sheet .q{margin-top:16px}
+.sheet .q p{margin:0 0 7px;font-size:13.5px;color:var(--soft)}
+.sheet .q p b{font-family:var(--data);color:var(--go);margin-right:6px}
+.sheet select,.sheet input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--rule);
+  border-radius:9px;background:var(--paper);color:var(--ink);font:inherit;font-size:15px}
+.row2{display:flex;gap:8px}
+.row2 button{flex:1;border:1px solid var(--rule);background:var(--paper);border-radius:9px;
+  padding:11px 0;font:inherit;font-size:14px;color:var(--soft);cursor:pointer}
+.row2 button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
+.send{width:100%;margin-top:20px;background:var(--go);color:#fff;border:none;border-radius:10px;
+  padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
+.send[disabled]{background:var(--rule);color:var(--muted);cursor:not-allowed}
+.close{background:none;border:none;color:var(--muted);font:inherit;font-size:13px;
+  padding:10px 0 0;cursor:pointer;width:100%}
+footer{font-size:11.5px;color:var(--muted);line-height:1.65;padding:24px 0 0;
+  border-top:1px solid var(--rule);margin-top:26px}
+code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius:3px;font-size:11.5px}
 </style>
 </head>
 <body>
 
+<div class="note" id="note">読み込み中…</div>
 <header>
-  <div class="brand">
-    <h1>楽単DB<span style="font-size:13px;font-weight:400;color:#9aa39d;margin-left:6px">（サービス名 未定）</span></h1>
-    <span class="tag">GUILD PROJECT / PROTOTYPE v0.1</span>
-  </div>
-  <p class="lede">阪大 全学教育科目の「重さ」を、シラバスの事実項目だけから4軸に分解して表示する。
-    総合評価の一文字は出さない ―― 根拠を全部見せられない数字は載せない、という方針。</p>
+  <h1>楽単DB<small>サービス名 未定</small></h1>
+  <span class="badge">登録・ログイン不要</span>
 </header>
 
-<div class="banner" id="banner">読み込み中…</div>
-
 <div class="wrap">
-  <aside>
-    <div class="fgroup">
-      <h2>科目名</h2>
-      <input type="search" id="q" placeholder="例：統計" autocomplete="off">
-    </div>
+  <input type="search" id="q" placeholder="科目名でさがす" autocomplete="off">
 
-    <div class="fgroup">
-      <h2>曜限</h2>
-      <div class="grid" id="grid"></div>
-      <div style="margin-top:7px"><button class="clear" id="clearDp">曜限の選択を解除</button></div>
-    </div>
+  <section>
+    <h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2>
+    <div class="grid" id="grid"></div>
+    <div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div>
+  </section>
 
-    <div class="fgroup">
-      <h2>区分</h2>
-      <select id="category"><option value="">すべて</option></select>
-    </div>
+  <section>
+    <h2>あなたの優先度 <span class="sub">同じ科目でも、人によって「楽」は違う</span></h2>
+    <div class="chips" id="presets"></div>
+    <button class="toggle" id="tog">スライダーで細かく調整する</button>
+    <div class="sliders" id="sliders"></div>
+  </section>
 
-    <div class="fgroup">
-      <h2>キャンパス / 学期</h2>
-      <select id="campus" style="margin-bottom:7px"><option value="">すべてのキャンパス</option></select>
-      <select id="term"><option value="">すべての学期</option></select>
-    </div>
+  <section>
+    <h2>条件</h2>
+    <div class="chips" id="conds"></div>
+  </section>
 
-    <div class="fgroup">
-      <h2>データの信頼度</h2>
-      <select id="min_confidence">
-        <option value="">すべて表示（低信頼も含む）</option>
-        <option value="mid">中以上のみ</option>
-        <option value="high">高のみ</option>
-      </select>
-    </div>
+  <div class="bar">
+    <div><b id="count">–</b> <span style="font-size:13px;color:var(--muted)">件</span></div>
+    <select id="sort">
+      <option value="fit">あなたとの相性順</option>
+      <option value="rakutan">全体の軽い順</option>
+      <option value="confidence">情報が揃っている順</option>
+      <option value="title">科目名順</option>
+    </select>
+  </div>
+  <div id="list"></div>
 
-    <div class="fgroup">
-      <h2>並び順</h2>
-      <select id="sort">
-        <option value="rakutan">軽い順</option>
-        <option value="confidence">信頼度が高い順</option>
-        <option value="title">科目名順</option>
-      </select>
-    </div>
-  </aside>
-
-  <main>
-    <div class="bar">
-      <div class="n"><b id="count">–</b> 件</div>
-      <div class="n">数値は高いほど負荷が軽い（0–100）。クリックで算出根拠が開く。</div>
-    </div>
-    <div id="list"></div>
-  </main>
+  <footer>
+    数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。
+    <b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b><br>
+    この画面は <code>/api/courses</code> を叩いているだけ ―― LINE も同じ API を使う。
+  </footer>
 </div>
 
-<footer>
-  <strong>この画面は <code>/api/courses</code> を叩いているだけ</strong> ―― 同じ API を LINE Bot も使う。
-  仕様は <code>/api/openapi.json</code>。<br>
-  掲載されている数値はシラバスの事実項目からの機械的な算出であり、単位取得を保証するものではありません。
-  <strong>履修の最終判断は必ず公式シラバス（KOAN）で確認してください。</strong>
-</footer>
+<button class="fab" id="fab">口コミを書く</button>
+
+<div class="sheet" id="sheet">
+  <div class="inner">
+    <h3>口コミを書く</h3>
+    <p style="margin:0;font-size:12.5px;color:var(--muted)">
+      自由記述は最後の一言だけ。<b>長文は書かれないし、推薦にも使えない</b>ので選択式で聞く。</p>
+
+    <div class="q"><p><b>1</b>どの科目？</p><select id="rvCourse"></select></div>
+    <div class="q"><p><b>2</b>出席は取られた？</p>
+      <div class="row2" data-k="attendance">
+        <button data-v="2">毎回</button><button data-v="1">たまに</button><button data-v="0">なし</button></div></div>
+    <div class="q"><p><b>3</b>課題の量は？</p>
+      <div class="row2" data-k="workload">
+        <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button></div></div>
+    <div class="q"><p><b>4</b>成績の付き方は？</p>
+      <div class="row2" data-k="grading">
+        <button data-v="2">厳しい</button><button data-v="1">ふつう</button><button data-v="0">甘い</button></div></div>
+    <div class="q"><p>一言（任意）</p>
+      <input type="text" id="rvNote" maxlength="60" placeholder="例：過去問があれば余裕"></div>
+
+    <button class="send" id="send" disabled>送信する</button>
+    <button class="close" id="close">閉じる</button>
+  </div>
+</div>
 
 <script>
 const $ = s => document.querySelector(s);
-const state = {q:"", day:"", period:"", category:"", campus:"", term:"", min_confidence:"", sort:"rakutan"};
-
-// ── 時間割グリッド（曜限フィルタ） ──────────────
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const DAYS = ["月","火","水","木","金"], PERIODS = ["1","2","3","4","5"];
-function buildGrid(){
+
+const state = { q:"", day:"", period:"", cond:new Set(), sort:"fit",
+                preset:"とにかく軽い", weights:null };
+let META = null;
+
+/* ── クエリ組み立て ───────────────────── */
+function qs(){
+  const p = new URLSearchParams();
+  if (state.q) p.set("q", state.q);
+  if (state.day) p.set("day", state.day);
+  if (state.period) p.set("period", state.period);
+  p.set("sort", state.sort);
+  state.cond.forEach(c => p.append("cond", c));
+  if (state.weights) for (const [k,v] of Object.entries(state.weights)) p.set("w_"+k, v);
+  else if (state.preset) p.set("preset", state.preset);
+  return p;
+}
+
+/* ── 空きコマグリッド ─────────────────── */
+function buildGrid(slots){
   const g = $("#grid");
   g.innerHTML = '<div class="h"></div>' + DAYS.map(d=>`<div class="h">${d}</div>`).join("");
   PERIODS.forEach(p => {
     g.insertAdjacentHTML("beforeend", `<div class="h">${p}</div>`);
     DAYS.forEach(d => {
+      const n = (slots?.[d]?.[p]) ?? 0;
+      const on = state.day===d && state.period===p;
       const b = document.createElement("button");
-      b.type = "button"; b.dataset.d = d; b.dataset.p = p;
-      b.setAttribute("aria-label", `${d}曜${p}限`);
-      b.textContent = "";
+      b.className = (n===0 ? "zero" : "") + (on ? " on" : "");
+      b.textContent = n === 0 ? "－" : n;
+      b.setAttribute("aria-label", `${d}曜${p}限 ${n}件`);
       b.onclick = () => {
-        const on = state.day === d && state.period === p;
+        if (n===0 && !on) return;
         state.day = on ? "" : d; state.period = on ? "" : p;
-        paintGrid(); load();
+        load();
       };
       g.appendChild(b);
     });
   });
-}
-function paintGrid(){
-  document.querySelectorAll("#grid button").forEach(b =>
-    b.classList.toggle("on", b.dataset.d === state.day && b.dataset.p === state.period));
+  $("#slotHint").textContent = (state.day)
+    ? `${state.day}曜${state.period}限で絞り込み中 ―― もう一度押すと解除`
+    : "「火3が空いてる、何取ろう」から始められる。検索語は要らない。";
 }
 
-// ── 表示ヘルパ ────────────────────────────
-const BAND_CLASS = {"軽め":"b-light","標準":"b-mid","やや重め":"b-heavy","重め":"b-heavy",
-                    "参考値":"b-none","判定不可":"b-none"};
-const CONF = {high:["信頼度 高","c-high"], mid:["信頼度 中","c-mid"], low:["信頼度 低","c-low"]};
+/* ── 優先度 ───────────────────────────── */
+function buildPresets(){
+  $("#presets").innerHTML = Object.keys(META.presets).map(name =>
+    `<button class="chip${state.preset===name && !state.weights ? " on":""}" data-p="${esc(name)}">${esc(name)}</button>`).join("");
+  $("#presets").querySelectorAll("button").forEach(b => b.onclick = () => {
+    state.preset = b.dataset.p; state.weights = null;
+    buildPresets(); buildSliders(); load();
+  });
+}
+function buildSliders(){
+  const w = state.weights || META.presets[state.preset];
+  $("#sliders").innerHTML = Object.entries(META.axis_labels).map(([k,label]) =>
+    `<div class="sl"><label for="s_${k}">${esc(label)}</label>
+       <input type="range" id="s_${k}" min="0" max="5" value="${w[k]}" data-k="${k}">
+       <span class="v" id="v_${k}">${w[k]}</span></div>`).join("");
+  $("#sliders").querySelectorAll("input").forEach(i => i.oninput = () => {
+    state.weights = state.weights || {...META.presets[state.preset]};
+    state.weights[i.dataset.k] = +i.value;
+    $("#v_"+i.dataset.k).textContent = i.value;
+    buildPresets(); load();
+  });
+}
+
+/* ── 条件チップ ───────────────────────── */
+function buildConds(facets){
+  $("#conds").innerHTML = META.conditions.map(c =>
+    `<button class="chip${state.cond.has(c)?" on":""}" data-c="${esc(c)}">${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`).join("");
+  $("#conds").querySelectorAll("button").forEach(b => b.onclick = () => {
+    const c = b.dataset.c;
+    state.cond.has(c) ? state.cond.delete(c) : state.cond.add(c);
+    load();
+  });
+}
+
+/* ── カード ───────────────────────────── */
+const CONF = {high:"情報は揃っている", mid:"情報は一部のみ", low:"情報がほとんど無い"};
 const FIELD_JA = {eval_ratio:"成績評価の内訳", report_count:"レポート本数",
-  out_of_class_hours:"時間外学習の指示", capacity:"定員", class_format:"授業形態", day_period:"曜限"};
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  out_of_class_hours:"時間外学習", capacity:"定員", class_format:"授業形態", day_period:"曜限"};
 
-function axisRow(a){
-  const w = `<span class="w">重み ${(a.weight*100).toFixed(0)}%</span>`;
+function axRow(key, a, label){
   if (a.value === null)
-    return `<div class="axis"><div class="l">${esc(a.label)}</div>
-      <div class="v miss" style="grid-column:2/4;text-align:left">データなし ― 算出から除外</div></div>`;
+    return `<div class="ax"><div class="l">${esc(label)}</div>
+      <div class="miss" style="grid-column:2/4">データなし ― 相性の計算から除外</div></div>`;
   const cls = a.value >= 66 ? "" : a.value >= 45 ? "m" : "w";
-  return `<div class="axis">
-      <div class="l">${esc(a.label)}<br>${w}</div>
+  return `<div class="ax"><div class="l">${esc(label)}</div>
       <div class="track"><div class="fill ${cls}" style="width:${a.value}%"></div></div>
       <div class="v">${a.value.toFixed(0)}</div>
-      ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}
-    </div>`;
+      ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
 }
 
 function card(c){
-  const r = c.rakutan, [ctext, cclass] = CONF[r.confidence.level];
+  const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
+  const tags = [...r.tags, ...r.notes];
   return `<article class="card" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title">${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(c.category)}</span><span>${esc(c.term)}</span>
-          <span>${esc(dp)}</span><span>${esc(c.campus || "—")}</span></div>
+        <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
       </div>
-      <div class="badge">
-        <div style="text-align:right">
-          <div class="val">${r.overall === null ? "—" : r.overall}</div>
-          <div class="conf ${cclass}">${ctext}</div>
-        </div>
-        <span class="band ${BAND_CLASS[r.band]}">${esc(r.band)}</span>
-      </div>
+      <div class="fit"><b>${m.fit ?? "—"}</b><small>相性</small></div>
+      <div class="reason">${esc(m.reason)}</div>
+      ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <div class="detail">
-      <div class="block">
-        <p class="sec">算出根拠（シラバスの事実項目のみ）</p>
-        <p style="font-size:12px;color:var(--muted);margin:-4px 0 10px">
-          重みは固定ではなく、その科目の成績評価の内訳から決まる。
-          成績の大半がレポートの科目は、レポート軸でほぼ判定される。</p>
-        <div class="axes">${["exam","report","attendance","scale"].map(k=>axisRow(r.axes[k])).join("")}</div>
+      ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
+      <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
+        ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
-      ${r.notes.length ? `<div class="block"><p class="sec">体感コスト ― 数値には算入しない</p>
-        <div class="chips">${r.notes.map(n=>`<span class="chip">${esc(n)}</span>`).join("")}</div></div>` : ""}
-      ${r.tags.length ? `<div class="block"><p class="sec">口コミタグ ― 数値には算入しない</p>
-        <div class="chips">${r.tags.map(t=>`<span class="chip">${esc(t)}</span>`).join("")}</div></div>` : ""}
-      ${r.confidence.missing.length ? `<div class="note">
-        <strong>未取得の項目が ${r.confidence.missing.length} 件あります：</strong>
-        ${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}。
-        この分だけ数値の確度は落ちます。${r.band === "参考値" ? "参考値として扱ってください。" : ""}
-      </div>` : ""}
     </div>
   </article>`;
 }
 
-// ── 読み込み ──────────────────────────────
+/* ── 読み込み ─────────────────────────── */
+let courses = [];
 async function load(){
-  const qs = new URLSearchParams(Object.entries(state).filter(([,v]) => v));
-  const res = await fetch("/api/courses?" + qs);
-  const data = await res.json();
-  $("#count").textContent = data.count;
-  $("#list").innerHTML = data.count
-    ? data.results.map(card).join("")
-    : `<div class="empty">条件に合う科目がありません。曜限の選択を解除してみてください。</div>`;
+  const d = await (await fetch("/api/courses?" + qs())).json();
+  courses = d.results;
+  buildGrid(d.slots); buildConds(d.facets);
+  $("#count").textContent = d.count;
+  $("#list").innerHTML = d.count ? d.results.map(card).join("")
+    : `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
   document.querySelectorAll(".head").forEach(h => {
-    const toggle = () => h.parentElement.classList.toggle("open");
-    h.onclick = toggle;
-    h.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
+    const t = () => h.parentElement.classList.toggle("open");
+    h.onclick = t;
+    h.onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); t(); } };
   });
+  $("#rvCourse").innerHTML = d.results.map(c =>
+    `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join("");
 }
 
-async function init(){
-  buildGrid();
-  const meta = await (await fetch("/api/meta")).json();
-  const fill = (sel, arr) => arr.forEach(v =>
-    $(sel).insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`));
-  fill("#category", meta.categories); fill("#campus", meta.campuses); fill("#term", meta.terms);
-  $("#banner").textContent = meta.disclaimer;
+/* ── 口コミシート ─────────────────────── */
+const review = {};
+function checkSend(){
+  $("#send").disabled = !(review.attendance!=null && review.workload!=null && review.grading!=null);
+}
+document.querySelectorAll(".row2").forEach(row => {
+  row.querySelectorAll("button").forEach(b => b.onclick = () => {
+    row.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on"); review[row.dataset.k] = +b.dataset.v; checkSend();
+  });
+});
+$("#fab").onclick = () => $("#sheet").classList.add("open");
+$("#close").onclick = () => $("#sheet").classList.remove("open");
+$("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
+$("#send").onclick = async () => {
+  const body = {course_id: $("#rvCourse").value, note: $("#rvNote").value, ...review};
+  const res = await fetch("/api/reviews", {method:"POST", headers:{"Content-Type":"application/json"},
+                                           body: JSON.stringify(body)});
+  const j = await res.json();
+  $("#send").textContent = j.ok ? `ありがとう（累計 ${j.total} 件）` : "送信できませんでした";
+  setTimeout(() => { $("#sheet").classList.remove("open"); $("#send").textContent = "送信する"; }, 1200);
+};
 
-  let t;
-  $("#q").oninput = e => { clearTimeout(t); t = setTimeout(() => { state.q = e.target.value; load(); }, 180); };
-  ["category","campus","term","min_confidence","sort"].forEach(k =>
-    $("#"+k).onchange = e => { state[k] = e.target.value; load(); });
-  $("#clearDp").onclick = () => { state.day = state.period = ""; paintGrid(); load(); };
+/* ── 起動 ─────────────────────────────── */
+(async () => {
+  META = await (await fetch("/api/meta")).json();
+  $("#note").textContent = META.disclaimer;
+  buildPresets(); buildSliders();
+  $("#tog").onclick = () => {
+    const o = $("#sliders").classList.toggle("open");
+    $("#tog").textContent = o ? "スライダーを閉じる" : "スライダーで細かく調整する";
+  };
+  let t; $("#q").oninput = e => { clearTimeout(t);
+    t = setTimeout(() => { state.q = e.target.value; load(); }, 200); };
+  $("#sort").onchange = e => { state.sort = e.target.value; load(); };
   load();
-}
-init();
+})();
 </script>
 </body>
 </html>

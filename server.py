@@ -40,7 +40,26 @@ def _norm(s: str) -> str:
     return re.sub(r"[\s　]+", "", s).lower()
 
 
-def search(params: dict) -> list[dict]:
+# 学生が実際に使う言葉での絞り込み条件。
+# 「検索窓に何を打てばいいか分からない」学生のための入口なので、
+# シラバス用語ではなく結果で書く。
+CONDITIONS = {
+    "出席なし":     lambda c: (c.get("eval_ratio") or {}).get("attendance") == 0,
+    "レポートのみ": lambda c: (c.get("eval_ratio") or {}).get("exam") == 0,
+    "持ち込み可":   lambda c: c.get("exam_type") == "持込可",
+    "1限以外":      lambda c: not (c.get("day_period") or "").endswith("1"),
+    "集中講義":     lambda c: c.get("class_format") == "集中講義",
+    "小テストなし": lambda c: c.get("weekly_quiz") is False,
+}
+
+
+def search(params: dict) -> dict:
+    """絞り込み・相性・空きコマの件数をまとめて返す。
+
+    空きコマグリッドと条件チップの件数は、曜限フィルタ「以外」を
+    適用した集合で数える。そうしないと、コマを選んだ瞬間に
+    他のコマが全部0件になって次の一手が打てなくなる。
+    """
     def get(k: str) -> str | None:
         v = params.get(k)
         return v[0] if v else None
@@ -49,8 +68,10 @@ def search(params: dict) -> list[dict]:
     category, campus, term = get("category"), get("campus"), get("term")
     day, period = get("day"), get("period")
     min_conf = get("min_confidence")
+    conds = [c for c in (params.get("cond") or []) if c in CONDITIONS]
+    weights = scoring.parse_weights(params)
 
-    results = []
+    base = []
     for c in COURSES:
         if q and _norm(q) not in _norm(c["title"]):
             continue
@@ -60,19 +81,32 @@ def search(params: dict) -> list[dict]:
             continue
         if term and c.get("term") != term:
             continue
-        dp = c.get("day_period") or ""
-        if day and not dp.startswith(day):
-            continue
-        if period and not dp.endswith(period):
+        if any(not CONDITIONS[k](c) for k in conds):
             continue
         e = scoring.enrich(c)
         if min_conf and e["rakutan"]["confidence"]["level"] not in _conf_ok(min_conf):
             continue
-        results.append(e)
+        e["match"] = scoring.match(e["rakutan"], weights)
+        base.append(e)
 
-    sort = get("sort") or "rakutan"
-    if sort == "rakutan":
-        # 総合値の降順。判定不可は必ず末尾に落とす（上位に紛れさせない）。
+    # 空きコマグリッドと条件チップの件数（曜限フィルタは掛けない）
+    slots = {d: {p: 0 for p in PERIODS} for d in DAYS}
+    for e in base:
+        dp = e.get("day_period") or ""
+        if len(dp) >= 2 and dp[0] in slots and dp[1:] in PERIODS:
+            slots[dp[0]][dp[1:]] += 1
+    facets = {k: sum(1 for e in base if fn(e)) for k, fn in CONDITIONS.items()}
+
+    results = base
+    if day:
+        results = [e for e in results if (e.get("day_period") or "").startswith(day)]
+    if period:
+        results = [e for e in results if (e.get("day_period") or "").endswith(period)]
+
+    sort = get("sort") or "fit"
+    if sort == "fit":
+        results.sort(key=lambda r: (r["match"]["fit"] is None, -(r["match"]["fit"] or 0)))
+    elif sort == "rakutan":
         results.sort(key=lambda r: (r["rakutan"]["overall"] is None,
                                     -(r["rakutan"]["overall"] or 0)))
     elif sort == "confidence":
@@ -80,7 +114,11 @@ def search(params: dict) -> list[dict]:
         results.sort(key=lambda r: order[r["rakutan"]["confidence"]["level"]])
     elif sort == "title":
         results.sort(key=lambda r: r["title"])
-    return results
+
+    return {"count": len(results), "results": results,
+            "slots": slots, "facets": facets,
+            "weights": (results or base or [{}])[0].get("match", {}).get("weights")
+                       if (results or base) else scoring.DEFAULT_WEIGHTS}
 
 
 def _conf_ok(level: str) -> set[str]:
@@ -190,6 +228,39 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def do_POST(self):
+        """口コミ投稿。4タップで取った選択式の値だけを受ける。
+
+        自由記述は一言のみ。長文は書かれないし、推薦にも使えない。
+        ここで集める3項目は、KOANから取れない情報そのもの。
+        """
+        if urlparse(self.path).path != "/api/reviews":
+            return self._send_json({"error": "unknown endpoint"}, 404)
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(n) or b"{}")
+        except (ValueError, json.JSONDecodeError):
+            return self._send_json({"ok": False, "error": "bad json"}, 400)
+
+        cid = body.get("course_id")
+        if cid not in BY_ID:
+            return self._send_json({"ok": False, "error": "unknown course"}, 400)
+        rec = {
+            "course_id": cid,
+            "attendance": body.get("attendance"),   # 0=なし 1=たまに 2=毎回
+            "workload": body.get("workload"),       # 0=軽い 1=ふつう 2=重い
+            "grading": body.get("grading"),         # 0=甘い 1=ふつう 2=厳しい
+            "note": (body.get("note") or "")[:60],
+        }
+        if any(rec[k] not in (0, 1, 2) for k in ("attendance", "workload", "grading")):
+            return self._send_json({"ok": False, "error": "missing choice"}, 400)
+
+        path = ROOT / "data" / "reviews.json"
+        items = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
+        items.append(rec)
+        path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+        return self._send_json({"ok": True, "total": len(items)})
+
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -210,15 +281,22 @@ class Handler(BaseHTTPRequestHandler):
                 "terms": sorted({c["term"] for c in COURSES}),
                 "days": DAYS, "periods": PERIODS,
                 "weights": scoring.WEIGHTS,
+                "conditions": list(CONDITIONS),
+                "presets": scoring.PRESETS,
+                "axis_labels": scoring.AXIS_LABEL,
                 "disclaimer": DATA_META["note"],
             })
+
+        if path == "/api/reviews":
+            f = ROOT / "data" / "reviews.json"
+            items = json.loads(f.read_text(encoding="utf-8")) if f.exists() else []
+            return self._send_json({"total": len(items), "items": items[-50:]})
 
         if path == "/api/progress":
             return self._send_json(progress())
 
         if path == "/api/courses":
-            results = search(params)
-            return self._send_json({"count": len(results), "results": results})
+            return self._send_json(search(params))
 
         m = re.fullmatch(r"/api/courses/([A-Za-z0-9_-]+)", path)
         if m:

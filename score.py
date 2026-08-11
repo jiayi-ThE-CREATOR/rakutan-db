@@ -270,3 +270,91 @@ def enrich(course: dict) -> dict:
     out = dict(course)
     out["rakutan"] = score(course)
     return out
+
+
+# ═══════════════════════════════════════════════════════════════
+# 相性（マッチング）── 松下モックの中心アイデアを取り込んだ部分
+#
+# 「楽単」は科目の属性ではなく、その人との相性である。
+# 出席を落としたくない人と、GPAが欲しい人は、別の科目にたどり着く。
+# よって順位は「科目の絶対スコア」ではなく
+# 「学生の重み × 科目の軸スコア」で決める。
+#
+# 学生に見せる軸名は、シラバス用語ではなく学生の言葉にする。
+# ═══════════════════════════════════════════════════════════════
+
+# 内部の軸 → 学生に見せる軸名
+AXIS_LABEL = {
+    "attendance": "出席の緩さ",
+    "report": "課題の軽さ",
+    "exam": "テストの楽さ",
+    "scale": "成績の甘さ",   # 規模からの推定。口コミが貯まるまでは確度が低い
+}
+
+# よくあるタイプ。スライダーをいきなり出すと誰も触らないので、
+# まずこの4つから選ばせて、必要な人だけ微調整させる。
+PRESETS = {
+    "バイト優先":   {"attendance": 5, "report": 3, "exam": 2, "scale": 2},
+    "GPA重視":     {"attendance": 2, "report": 3, "exam": 3, "scale": 5},
+    "とにかく軽い": {"attendance": 4, "report": 4, "exam": 4, "scale": 4},
+    "テストが苦手": {"attendance": 2, "report": 3, "exam": 5, "scale": 3},
+}
+DEFAULT_WEIGHTS = PRESETS["とにかく軽い"]
+
+
+def match(course_score: dict, weights: dict | None = None) -> dict:
+    """学生の重みを掛けた相性と、その理由の文章を返す。
+
+    数値だけ出しても「なぜ勧められたか」が伝わらないので、
+    重みの高い軸のうち満たしたもの／満たさなかったものを言葉にする。
+    """
+    w = {**DEFAULT_WEIGHTS, **(weights or {})}
+    axes = course_score["axes"]
+
+    total, wsum = 0.0, 0.0
+    for k, weight in w.items():
+        v = axes.get(k, {}).get("value")
+        if v is not None and weight > 0:
+            total += v * weight
+            wsum += weight
+    fit = round(total / wsum) if wsum > 0 else None
+
+    # 重視している順に見て、満たした軸／満たさない軸を拾う
+    ranked = sorted(w.items(), key=lambda kv: -kv[1])
+    good, bad = [], []
+    for k, weight in ranked:
+        v = axes.get(k, {}).get("value")
+        if v is None or weight < 3:
+            continue
+        (good if v >= 66 else bad if v < 45 else []).append(AXIS_LABEL[k])
+
+    parts = []
+    if good:
+        parts.append(f"あなたが重視する{'・'.join(good[:2])}を満たしています。")
+    if bad:
+        parts.append(f"一方で{'・'.join(bad[:2])}は期待できません。")
+    if not parts:
+        parts.append("重視している条件については、この科目は平均的です。")
+
+    return {"fit": fit, "reason": "".join(parts),
+            "weights": w, "labels": AXIS_LABEL}
+
+
+def parse_weights(params: dict) -> dict | None:
+    """クエリ文字列から重みを取り出す。?preset=バイト優先 か ?w_attendance=5 の形。"""
+    def one(k):
+        v = params.get(k)
+        return v[0] if v else None
+
+    preset = one("preset")
+    if preset in PRESETS:
+        return dict(PRESETS[preset])
+    w = {}
+    for k in AXIS_LABEL:
+        v = one("w_" + k)
+        if v is not None:
+            try:
+                w[k] = max(0, min(5, int(v)))
+            except ValueError:
+                pass
+    return w or None
