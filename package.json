@@ -1,0 +1,11 @@
+{
+  "name": "rakutan-db",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "shots": "node tools/shots.mjs shots/local"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

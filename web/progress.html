@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>進捗 — 9/2 まであと何日</title>
+<style>
+:root{
+  --ink:#16181d; --soft:#3b4148; --muted:#6b736f;
+  --paper:#f4f6f3; --card:#fff; --dim:#e8ebe6; --rule:#d5dad3;
+  --go:#0e7c66; --mid:#b8862c; --warn:#b4532a;
+  --body:"Hiragino Sans","ヒラギノ角ゴシック",system-ui,sans-serif;
+  --data:"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{--ink:#eef1ec;--soft:#c3c9c4;--muted:#8b938d;--paper:#14161a;--card:#1c1f24;
+        --dim:#22262c;--rule:#31363d;--go:#3fbfa1;--mid:#d3a955;--warn:#e08356}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);
+  font-size:15px;line-height:1.65;-webkit-font-smoothing:antialiased}
+header{background:#16181d;color:#f4f6f3;padding:20px 26px;display:flex;
+  justify-content:space-between;align-items:flex-end;gap:20px;flex-wrap:wrap}
+h1{margin:0;font-size:19px;letter-spacing:.03em}
+header .s{font-size:12.5px;color:#9aa39d;margin-top:4px}
+.count{text-align:right;font-family:var(--data)}
+.count b{display:block;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.count span{font-size:10px;letter-spacing:.16em;color:#8b948d}
+main{max-width:900px;margin:0 auto;padding:22px 26px 60px}
+.row{display:grid;grid-template-columns:1fr 118px;gap:14px;align-items:center;
+  background:var(--card);border:1px solid var(--rule);border-radius:7px;
+  padding:11px 14px;margin-bottom:8px}
+.row.sub{margin-left:22px;background:transparent;border-style:dashed}
+.lab{font-weight:700;font-size:14.5px;margin-bottom:3px}
+.meta{font-size:12px;color:var(--muted);font-family:var(--data)}
+.meta .who{color:var(--go);font-weight:700;font-family:var(--body)}
+.track{height:8px;background:var(--dim);border-radius:99px;overflow:hidden;margin-top:7px}
+.fill{height:100%;border-radius:99px;background:var(--go);transition:width .4s}
+.fill.m{background:var(--mid)} .fill.z{background:var(--warn)}
+.num{text-align:right;font-family:var(--data);font-variant-numeric:tabular-nums}
+.num b{font-size:19px} .num span{font-size:12px;color:var(--muted)}
+h2{font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;
+  margin:26px 0 10px;font-weight:700}
+.post{background:var(--dim);border-radius:7px;padding:11px 14px;font-size:13px;color:var(--soft)}
+.post b{color:var(--ink)}
+footer{max-width:900px;margin:0 auto;padding:0 26px 40px;font-size:12px;color:var(--muted)}
+code{font-family:var(--data);background:var(--dim);padding:1px 5px;border-radius:3px;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>楽単DB 進捗</h1>
+    <div class="s">公開 <b id="launch">—</b>　／　履修登録開始 <b id="dl">—</b></div>
+  </div>
+  <div class="count"><b id="days">—</b><span>DAYS TO 9/2</span></div>
+</header>
+
+<main>
+  <h2>いま動いているもの</h2>
+  <div id="list"></div>
+  <h2>公開後に回したもの</h2>
+  <div id="post"></div>
+</main>
+
+<footer>
+  自分の行は <code>data/progress.json</code> の <code>done</code> と <code>note</code> を書き換えて push すれば反映される。<br>
+  科目データと充足率は <code>courses.json</code> から自動集計されるので、手で書いても上書きされる。
+</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function row(it){
+  const pct = it.pct || 0;
+  const cls = pct >= 100 ? "" : pct >= 40 ? "m" : "z";
+  const sub = it.label.startsWith("└") ? " sub" : "";
+  const unit = it.unit || "";
+  const target = it.target === 1 ? "" : `<span> / ${it.target}${unit}</span>`;
+  const val = it.target === 1 ? (it.done ? "完了" : "未着手") : `${it.done}${unit}`;
+  return `<div class="row${sub}">
+    <div>
+      <div class="lab">${esc(it.label)}</div>
+      <div class="meta"><span class="who">${esc(it.owner)}</span>　${esc(it.note || "")}
+        <span style="opacity:.7">更新 ${esc(it.updated || "—")}</span></div>
+      <div class="track"><div class="fill ${cls}" style="width:${pct}%"></div></div>
+    </div>
+    <div class="num"><b>${esc(val)}</b>${target}</div>
+  </div>`;
+}
+
+fetch("/api/progress").then(r => r.json()).then(p => {
+  $("#launch").textContent = p.launch;
+  $("#dl").textContent = p.deadline;
+  const d = Math.ceil((new Date(p.deadline) - new Date()) / 86400000);
+  $("#days").textContent = d;
+  $("#list").innerHTML = p.items.map(row).join("");
+  $("#post").innerHTML = (p.postponed || []).map(x =>
+    `<div class="post"><b>${esc(x.label)}</b>（${esc(x.owner)}）― ${esc(x.note)}</div>`).join("");
+});
+</script>
+</body>
+</html>

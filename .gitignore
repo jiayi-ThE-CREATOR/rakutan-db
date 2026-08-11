@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+venv/
+
+# 取得したHTMLのキャッシュ（巨大なのでコミットしない）
+data/raw/
+
+# 本番データ（口コミを含むため）。共有はスプレッドシート側で行う
+data/courses.json
+data/reviews.json
+
+# ローカル設定
+.env
+*.local.json
+node_modules/
+shots/

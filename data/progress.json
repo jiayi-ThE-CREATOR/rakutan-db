@@ -1,0 +1,36 @@
+{
+  "_howto": "自分の担当行の done と note と updated を書き換えて push するだけ。ダッシュボードに即反映される。",
+  "deadline": "2026-09-02",
+  "launch": "2026-08-26",
+  "items": [
+    {"key": "syllabus",  "label": "科目データ（KOAN全件）", "owner": "政岡",   "target": 1112, "done": 0,   "auto": true,
+     "note": "スクレイパ着手前", "updated": "2026-08-11"},
+    {"key": "fillrate",  "label": "└ 評価割合(%)の充足率",   "owner": "政岡",   "target": 100,  "done": 0,   "unit": "%",
+     "note": "8/16 Go/NoGo の判定材料", "updated": "2026-08-11"},
+    {"key": "reviews",   "label": "口コミ 全体",             "owner": "王力明", "target": 480,  "done": 0,
+     "note": "自チーム180＋友人300", "updated": "2026-08-11"},
+    {"key": "reviews150","label": "└ 人気150科目ぶん",       "owner": "王力明", "target": 450,  "done": 0,
+     "note": "1科目3件×150。ここが厚さの本体", "updated": "2026-08-11"},
+    {"key": "line",      "label": "LINE公式アカウント",       "owner": "笠井",   "target": 1,    "done": 0,
+     "note": "認証申請 未提出", "updated": "2026-08-11"},
+    {"key": "linemenu",  "label": "└ リッチメニュー疎通",     "owner": "きむら", "target": 1,    "done": 0,
+     "note": "line-harness-oss 調査中", "updated": "2026-08-11"},
+    {"key": "prod",      "label": "本番環境（URL稼働）",       "owner": "政岡",   "target": 1,    "done": 0,
+     "note": "ドメイン未取得", "updated": "2026-08-11"},
+    {"key": "mobile",    "label": "スマホ対応",               "owner": "松下",   "target": 1,    "done": 0,
+     "note": "利用の大半はスマホ", "updated": "2026-08-11"},
+    {"key": "intake",    "label": "投稿導線（外部フォーム）",   "owner": "松下",   "target": 1,    "done": 0,
+     "note": "自作しない方針", "updated": "2026-08-11"},
+    {"key": "spread",    "label": "拡散準備（SNS・ビラ）",     "owner": "しゅんや","target": 1,   "done": 0,
+     "note": "8/26に山を作る", "updated": "2026-08-11"},
+    {"key": "hearing",   "label": "阪大生ヒアリング",          "owner": "しゅんや","target": 15,  "done": 0,
+     "note": "", "updated": "2026-08-11"},
+    {"key": "weights",   "label": "スコア重みの実データ検証",   "owner": "wang",   "target": 1,    "done": 0,
+     "note": "全件取得後に着手", "updated": "2026-08-11"},
+    {"key": "guideline", "label": "投稿ガイドライン・法務点検", "owner": "wang",   "target": 1,    "done": 0,
+     "note": "公開初日から必要", "updated": "2026-08-11"}
+  ],
+  "postponed": [
+    {"label": "協賛営業", "owner": "笠井", "note": "公開後まで着手しない（2026/8/11 決定）。それまではLINE認証・教務・拡散に専念"}
+  ]
+}

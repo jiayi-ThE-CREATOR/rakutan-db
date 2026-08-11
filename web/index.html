@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>楽単DB（仮）— 阪大 全学教育科目の負荷プロファイル</title>
+<style>
+:root{
+  --ink:#16181d; --ink-soft:#3b4148; --muted:#6b736f;
+  --paper:#f4f6f3; --card:#ffffff; --dim:#e8ebe6; --rule:#d5dad3;
+  --accent:#0e7c66; --accent-soft:#e2efeb;
+  --warn:#b4532a; --warn-soft:#f6e9e3;
+  --mid:#b8862c;
+  --body:"Hiragino Sans","ヒラギノ角ゴシック","Yu Gothic",system-ui,sans-serif;
+  --data:"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#eef1ec; --ink-soft:#c3c9c4; --muted:#8b938d;
+    --paper:#14161a; --card:#1c1f24; --dim:#22262c; --rule:#31363d;
+    --accent:#3fbfa1; --accent-soft:#16302b;
+    --warn:#e08356; --warn-soft:#33211a;
+    --mid:#d3a955;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);
+  font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+
+/* ── header ─────────────────────────────── */
+/* ヘッダは明暗どちらでも濃色地に固定する（トークンを使うと dark で地と文字が
+   同時に反転して読めなくなるため、ここだけ意図的に固定値） */
+header{background:#16181d;color:#f4f6f3;padding:22px 28px}
+@media (prefers-color-scheme: dark){header{background:#0d0f12}}
+.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.brand h1{margin:0;font-size:21px;letter-spacing:.04em;font-weight:700}
+.brand .tag{font-size:12px;color:#9aa39d;letter-spacing:.08em}
+.lede{margin:8px 0 0;font-size:13px;color:#a8b0aa;max-width:70ch}
+
+.banner{background:var(--warn-soft);border-bottom:1px solid var(--rule);
+  padding:10px 28px;font-size:12.5px;color:var(--warn);line-height:1.6}
+
+/* ── layout ─────────────────────────────── */
+.wrap{display:grid;grid-template-columns:264px 1fr;gap:28px;
+  max-width:1180px;margin:0 auto;padding:24px 28px 64px}
+@media (max-width:860px){.wrap{grid-template-columns:1fr;gap:20px}}
+
+aside{display:flex;flex-direction:column;gap:20px;align-self:start;position:sticky;top:16px}
+@media (max-width:860px){aside{position:static}}
+.fgroup h2{margin:0 0 8px;font-size:11px;letter-spacing:.14em;color:var(--muted);
+  font-weight:700;text-transform:uppercase}
+input[type=search]{width:100%;padding:9px 11px;border:1px solid var(--rule);
+  border-radius:5px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
+input[type=search]:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+select{width:100%;padding:8px 10px;border:1px solid var(--rule);border-radius:5px;
+  background:var(--card);color:var(--ink);font:inherit;font-size:13.5px}
+
+/* 時間割グリッド — 履修登録時に学生が睨んでいるあの格子 */
+.grid{display:grid;grid-template-columns:22px repeat(5,1fr);gap:3px}
+.grid .h{font-size:11px;color:var(--muted);text-align:center;font-family:var(--data)}
+.grid button{border:1px solid var(--rule);background:var(--card);
+  height:22px;border-radius:3px;cursor:pointer;padding:0;
+  display:flex;align-items:center;justify-content:center}
+.grid button::after{content:"";width:4px;height:4px;border-radius:50%;background:var(--rule)}
+.grid button:hover{border-color:var(--accent)}
+.grid button:hover::after{background:var(--accent)}
+.grid button.on{background:var(--accent);border-color:var(--accent)}
+.grid button.on::after{background:#fff}
+.clear{border:none;background:none;color:var(--muted);font:inherit;font-size:12px;
+  cursor:pointer;padding:0;text-decoration:underline}
+
+/* ── results ────────────────────────────── */
+.bar{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  padding-bottom:10px;border-bottom:1px solid var(--rule);margin-bottom:14px;flex-wrap:wrap}
+.bar .n{font-family:var(--data);font-size:13px;color:var(--muted)}
+.bar .n b{color:var(--ink);font-size:17px;font-variant-numeric:tabular-nums}
+
+.card{background:var(--card);border:1px solid var(--rule);border-radius:7px;
+  margin-bottom:10px;overflow:hidden}
+.head{display:grid;grid-template-columns:1fr auto;gap:14px;padding:14px 16px;
+  cursor:pointer;align-items:center}
+.head:hover{background:var(--dim)}
+.title{font-size:16px;font-weight:700;margin:0 0 3px}
+.meta{font-size:12.5px;color:var(--muted);font-family:var(--data)}
+.meta span+span::before{content:"・";margin:0 2px}
+
+.badge{display:flex;align-items:center;gap:10px}
+.val{font-family:var(--data);font-size:26px;font-weight:600;
+  font-variant-numeric:tabular-nums;line-height:1;text-align:right;min-width:52px}
+.band{font-size:11px;padding:3px 8px;border-radius:99px;white-space:nowrap;
+  border:1px solid currentColor;font-weight:700}
+.b-light{color:var(--accent)} .b-mid{color:var(--mid)} .b-heavy{color:var(--warn)}
+.b-none{color:var(--muted)}
+
+.conf{font-size:11px;font-family:var(--data);letter-spacing:.03em}
+.c-high{color:var(--accent)} .c-mid{color:var(--mid)} .c-low{color:var(--warn)}
+
+/* ── detail ─────────────────────────────── */
+.detail{display:none;border-top:1px solid var(--rule);padding:16px;background:var(--paper)}
+.card.open .detail{display:block}
+.axes{display:flex;flex-direction:column;gap:11px;margin-bottom:16px}
+.axis{display:grid;grid-template-columns:88px 1fr 40px;gap:10px;align-items:center}
+.axis .l{font-size:12.5px;color:var(--ink-soft);line-height:1.4}
+.axis .w{font-family:var(--data);font-size:10.5px;color:var(--muted)}
+.track{height:7px;background:var(--dim);border-radius:99px;overflow:hidden}
+.fill{height:100%;border-radius:99px;background:var(--accent)}
+.fill.w{background:var(--warn)} .fill.m{background:var(--mid)}
+.axis .v{font-family:var(--data);font-size:12.5px;color:var(--muted);
+  text-align:right;font-variant-numeric:tabular-nums}
+.why{grid-column:2/4;font-size:12px;color:var(--muted);margin-top:-4px;line-height:1.6}
+
+.sec{font-size:11px;letter-spacing:.12em;color:var(--muted);font-weight:700;
+  text-transform:uppercase;margin:0 0 7px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;padding:3px 9px;border-radius:99px;background:var(--dim);color:var(--ink-soft)}
+.block{margin-bottom:15px}
+.note{background:var(--warn-soft);border-left:3px solid var(--warn);padding:9px 12px;
+  font-size:12.5px;color:var(--ink-soft);border-radius:0 4px 4px 0;line-height:1.65}
+.miss{font-size:12px;color:var(--warn)}
+footer{border-top:1px solid var(--rule);padding:20px 28px 40px;font-size:12px;
+  color:var(--muted);max-width:1180px;margin:0 auto;line-height:1.8}
+code{font-family:var(--data);background:var(--dim);padding:1px 5px;border-radius:3px;font-size:12px}
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>楽単DB<span style="font-size:13px;font-weight:400;color:#9aa39d;margin-left:6px">（サービス名 未定）</span></h1>
+    <span class="tag">GUILD PROJECT / PROTOTYPE v0.1</span>
+  </div>
+  <p class="lede">阪大 全学教育科目の「重さ」を、シラバスの事実項目だけから4軸に分解して表示する。
+    総合評価の一文字は出さない ―― 根拠を全部見せられない数字は載せない、という方針。</p>
+</header>
+
+<div class="banner" id="banner">読み込み中…</div>
+
+<div class="wrap">
+  <aside>
+    <div class="fgroup">
+      <h2>科目名</h2>
+      <input type="search" id="q" placeholder="例：統計" autocomplete="off">
+    </div>
+
+    <div class="fgroup">
+      <h2>曜限</h2>
+      <div class="grid" id="grid"></div>
+      <div style="margin-top:7px"><button class="clear" id="clearDp">曜限の選択を解除</button></div>
+    </div>
+
+    <div class="fgroup">
+      <h2>区分</h2>
+      <select id="category"><option value="">すべて</option></select>
+    </div>
+
+    <div class="fgroup">
+      <h2>キャンパス / 学期</h2>
+      <select id="campus" style="margin-bottom:7px"><option value="">すべてのキャンパス</option></select>
+      <select id="term"><option value="">すべての学期</option></select>
+    </div>
+
+    <div class="fgroup">
+      <h2>データの信頼度</h2>
+      <select id="min_confidence">
+        <option value="">すべて表示（低信頼も含む）</option>
+        <option value="mid">中以上のみ</option>
+        <option value="high">高のみ</option>
+      </select>
+    </div>
+
+    <div class="fgroup">
+      <h2>並び順</h2>
+      <select id="sort">
+        <option value="rakutan">軽い順</option>
+        <option value="confidence">信頼度が高い順</option>
+        <option value="title">科目名順</option>
+      </select>
+    </div>
+  </aside>
+
+  <main>
+    <div class="bar">
+      <div class="n"><b id="count">–</b> 件</div>
+      <div class="n">数値は高いほど負荷が軽い（0–100）。クリックで算出根拠が開く。</div>
+    </div>
+    <div id="list"></div>
+  </main>
+</div>
+
+<footer>
+  <strong>この画面は <code>/api/courses</code> を叩いているだけ</strong> ―― 同じ API を LINE Bot も使う。
+  仕様は <code>/api/openapi.json</code>。<br>
+  掲載されている数値はシラバスの事実項目からの機械的な算出であり、単位取得を保証するものではありません。
+  <strong>履修の最終判断は必ず公式シラバス（KOAN）で確認してください。</strong>
+</footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = {q:"", day:"", period:"", category:"", campus:"", term:"", min_confidence:"", sort:"rakutan"};
+
+// ── 時間割グリッド（曜限フィルタ） ──────────────
+const DAYS = ["月","火","水","木","金"], PERIODS = ["1","2","3","4","5"];
+function buildGrid(){
+  const g = $("#grid");
+  g.innerHTML = '<div class="h"></div>' + DAYS.map(d=>`<div class="h">${d}</div>`).join("");
+  PERIODS.forEach(p => {
+    g.insertAdjacentHTML("beforeend", `<div class="h">${p}</div>`);
+    DAYS.forEach(d => {
+      const b = document.createElement("button");
+      b.type = "button"; b.dataset.d = d; b.dataset.p = p;
+      b.setAttribute("aria-label", `${d}曜${p}限`);
+      b.textContent = "";
+      b.onclick = () => {
+        const on = state.day === d && state.period === p;
+        state.day = on ? "" : d; state.period = on ? "" : p;
+        paintGrid(); load();
+      };
+      g.appendChild(b);
+    });
+  });
+}
+function paintGrid(){
+  document.querySelectorAll("#grid button").forEach(b =>
+    b.classList.toggle("on", b.dataset.d === state.day && b.dataset.p === state.period));
+}
+
+// ── 表示ヘルパ ────────────────────────────
+const BAND_CLASS = {"軽め":"b-light","標準":"b-mid","やや重め":"b-heavy","重め":"b-heavy",
+                    "参考値":"b-none","判定不可":"b-none"};
+const CONF = {high:["信頼度 高","c-high"], mid:["信頼度 中","c-mid"], low:["信頼度 低","c-low"]};
+const FIELD_JA = {eval_ratio:"成績評価の内訳", report_count:"レポート本数",
+  out_of_class_hours:"時間外学習の指示", capacity:"定員", class_format:"授業形態", day_period:"曜限"};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function axisRow(a){
+  const w = `<span class="w">重み ${(a.weight*100).toFixed(0)}%</span>`;
+  if (a.value === null)
+    return `<div class="axis"><div class="l">${esc(a.label)}</div>
+      <div class="v miss" style="grid-column:2/4;text-align:left">データなし ― 算出から除外</div></div>`;
+  const cls = a.value >= 66 ? "" : a.value >= 45 ? "m" : "w";
+  return `<div class="axis">
+      <div class="l">${esc(a.label)}<br>${w}</div>
+      <div class="track"><div class="fill ${cls}" style="width:${a.value}%"></div></div>
+      <div class="v">${a.value.toFixed(0)}</div>
+      ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}
+    </div>`;
+}
+
+function card(c){
+  const r = c.rakutan, [ctext, cclass] = CONF[r.confidence.level];
+  const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
+  return `<article class="card" data-id="${esc(c.id)}">
+    <div class="head" role="button" tabindex="0">
+      <div>
+        <h3 class="title">${esc(c.title)}</h3>
+        <div class="meta"><span>${esc(c.category)}</span><span>${esc(c.term)}</span>
+          <span>${esc(dp)}</span><span>${esc(c.campus || "—")}</span></div>
+      </div>
+      <div class="badge">
+        <div style="text-align:right">
+          <div class="val">${r.overall === null ? "—" : r.overall}</div>
+          <div class="conf ${cclass}">${ctext}</div>
+        </div>
+        <span class="band ${BAND_CLASS[r.band]}">${esc(r.band)}</span>
+      </div>
+    </div>
+    <div class="detail">
+      <div class="block">
+        <p class="sec">算出根拠（シラバスの事実項目のみ）</p>
+        <p style="font-size:12px;color:var(--muted);margin:-4px 0 10px">
+          重みは固定ではなく、その科目の成績評価の内訳から決まる。
+          成績の大半がレポートの科目は、レポート軸でほぼ判定される。</p>
+        <div class="axes">${["exam","report","attendance","scale"].map(k=>axisRow(r.axes[k])).join("")}</div>
+      </div>
+      ${r.notes.length ? `<div class="block"><p class="sec">体感コスト ― 数値には算入しない</p>
+        <div class="chips">${r.notes.map(n=>`<span class="chip">${esc(n)}</span>`).join("")}</div></div>` : ""}
+      ${r.tags.length ? `<div class="block"><p class="sec">口コミタグ ― 数値には算入しない</p>
+        <div class="chips">${r.tags.map(t=>`<span class="chip">${esc(t)}</span>`).join("")}</div></div>` : ""}
+      ${r.confidence.missing.length ? `<div class="note">
+        <strong>未取得の項目が ${r.confidence.missing.length} 件あります：</strong>
+        ${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}。
+        この分だけ数値の確度は落ちます。${r.band === "参考値" ? "参考値として扱ってください。" : ""}
+      </div>` : ""}
+    </div>
+  </article>`;
+}
+
+// ── 読み込み ──────────────────────────────
+async function load(){
+  const qs = new URLSearchParams(Object.entries(state).filter(([,v]) => v));
+  const res = await fetch("/api/courses?" + qs);
+  const data = await res.json();
+  $("#count").textContent = data.count;
+  $("#list").innerHTML = data.count
+    ? data.results.map(card).join("")
+    : `<div class="empty">条件に合う科目がありません。曜限の選択を解除してみてください。</div>`;
+  document.querySelectorAll(".head").forEach(h => {
+    const toggle = () => h.parentElement.classList.toggle("open");
+    h.onclick = toggle;
+    h.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
+  });
+}
+
+async function init(){
+  buildGrid();
+  const meta = await (await fetch("/api/meta")).json();
+  const fill = (sel, arr) => arr.forEach(v =>
+    $(sel).insertAdjacentHTML("beforeend", `<option value="${esc(v)}">${esc(v)}</option>`));
+  fill("#category", meta.categories); fill("#campus", meta.campuses); fill("#term", meta.terms);
+  $("#banner").textContent = meta.disclaimer;
+
+  let t;
+  $("#q").oninput = e => { clearTimeout(t); t = setTimeout(() => { state.q = e.target.value; load(); }, 180); };
+  ["category","campus","term","min_confidence","sort"].forEach(k =>
+    $("#"+k).onchange = e => { state[k] = e.target.value; load(); });
+  $("#clearDp").onclick = () => { state.day = state.period = ""; paintGrid(); load(); };
+  load();
+}
+init();
+</script>
+</body>
+</html>
