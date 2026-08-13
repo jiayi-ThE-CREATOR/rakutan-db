@@ -22,14 +22,22 @@ from urllib.parse import parse_qs, urlparse
 import score as scoring
 
 ROOT = Path(__file__).parent
-DATA_PATH = ROOT / "data" / "courses.sample.json"
+# 実データ（scrape/parse.py の出力）があればそれを、無ければダミーを使う。
+# これで「まだ取得していない人」も同じ手順でサイトを起動できる。
+DATA_PATH = ROOT / "data" / "courses.json"
+if not DATA_PATH.exists():
+    DATA_PATH = ROOT / "data" / "courses.sample.json"
 WEB_DIR = ROOT / "web"
 
 with DATA_PATH.open(encoding="utf-8") as f:
     _raw = json.load(f)
 
 COURSES: list[dict] = _raw["courses"]
-DATA_META: dict = _raw["_meta"]
+DATA_META: dict = dict(_raw.get("_meta") or {})
+DATA_META.setdefault(
+    "note",
+    f"KOAN 外部公開シラバスから取得（{DATA_META.get('count', '?')}件）。"
+    "履修の最終確認は必ず公式シラバスで。")
 BY_ID = {c["id"]: c for c in COURSES}
 
 DAYS = ["月", "火", "水", "木", "金"]
