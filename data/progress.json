@@ -35,21 +35,21 @@
     },
     {
       "key": "pipeline",
-      "label": "③ データ変換・投稿取り込み",
-      "owner": "王力明（京大）",
+      "label": "④ 投稿導線＋取り込み（統合）",
+      "owner": "松下（京大）",
       "target": 1,
       "done": 0,
-      "note": "口コミは書けない立場。書く人の道具を作る",
-      "updated": "2026-08-11"
+      "note": "入口と出口を1人に統合。王力明の旅行に伴い移管",
+      "updated": "2026-08-13"
     },
     {
       "key": "reviews",
-      "label": "④ 口コミ（阪大4名のみ）",
+      "label": "③ 口コミ（阪大4名のみ）",
       "owner": "阪大4名",
       "target": 400,
       "done": 0,
-      "note": "自分120（4人×30科目）＋友人280（4人×7名×10件）",
-      "updated": "2026-08-11"
+      "note": "8/15-18 は京大3名が不在。この窓を口コミ集中期にあてる",
+      "updated": "2026-08-13"
     },
     {
       "key": "reviews100",
@@ -62,12 +62,12 @@
     },
     {
       "key": "prod",
-      "label": "本番環境（Cloudflare Pages）",
-      "owner": "政岡（京大）",
+      "label": "Cloudflare 接続（自動デプロイ）",
+      "owner": "wang（阪大）",
       "target": 1,
       "done": 0,
-      "note": "ドメイン未取得。PRプレビューURLも同時に付く",
-      "updated": "2026-08-11"
+      "note": "データを待たない設定作業。8/14-15に前倒し",
+      "updated": "2026-08-13"
     },
     {
       "key": "line",
@@ -107,7 +107,7 @@
     },
     {
       "key": "intake",
-      "label": "投稿導線（LIFFフォーム）",
+      "label": "└ LIFFフォーム",
       "owner": "松下（京大）",
       "target": 1,
       "done": 0,
@@ -149,6 +149,24 @@
       "done": 0,
       "note": "公開初日から必要",
       "updated": "2026-08-11"
+    },
+    {
+      "key": "prod2",
+      "label": "└ 本番環境の仕上げ・監視",
+      "owner": "政岡（京大）",
+      "target": 1,
+      "done": 0,
+      "note": "旅行から復帰後 8/19〜",
+      "updated": "2026-08-13"
+    },
+    {
+      "key": "quality",
+      "label": "データ品質・METHOD_RULES拡張",
+      "owner": "王力明（京大）",
+      "target": 1,
+      "done": 0,
+      "note": "全件取得後の方が有効。8/17〜の並行タスク",
+      "updated": "2026-08-13"
     }
   ],
   "postponed": [
