@@ -24,18 +24,37 @@ import score as scoring
 ROOT = Path(__file__).parent
 # 実データ（scrape/parse.py の出力）があればそれを、無ければダミーを使う。
 # これで「まだ取得していない人」も同じ手順でサイトを起動できる。
+#
+# ただし courses.json は .gitignore 対象なので、git pull しただけの人は
+# 必ずダミー側に落ちる。ここが無言だと「動いているのに中身が30件のダミー」に
+# 気づけないまま作業が進む（2026-08-14 政岡さんの罠⑥）。
+# 起動時に必ず目に入る形で警告を出す。
 DATA_PATH = ROOT / "data" / "courses.json"
-if not DATA_PATH.exists():
+IS_SAMPLE = not DATA_PATH.exists()
+if IS_SAMPLE:
     DATA_PATH = ROOT / "data" / "courses.sample.json"
 WEB_DIR = ROOT / "web"
 
 with DATA_PATH.open(encoding="utf-8") as f:
     _raw = json.load(f)
 
+if IS_SAMPLE:
+    print("=" * 62)
+    print("  ⚠️  ダミーデータで起動しています（30件・全て架空）")
+    print("      data/courses.json が見つかりません。")
+    print("      本物の1,112件で動かすには:")
+    print("        python3 scrape/fetch.py    # 約42分")
+    print("        python3 scrape/parse.py")
+    print("      画面右上とAPIの is_sample でも判別できます。")
+    print("=" * 62)
+
 COURSES: list[dict] = _raw["courses"]
 DATA_META: dict = dict(_raw.get("_meta") or {})
+DATA_META["is_sample"] = IS_SAMPLE
 DATA_META.setdefault(
     "note",
+    "⚠️ ダミーデータ（30件・全て架空）。実在の科目ではありません。"
+    if IS_SAMPLE else
     f"KOAN 外部公開シラバスから取得（{DATA_META.get('count', '?')}件）。"
     "履修の最終確認は必ず公式シラバスで。")
 BY_ID = {c["id"]: c for c in COURSES}
@@ -280,7 +299,8 @@ class Handler(BaseHTTPRequestHandler):
         path, params = u.path, parse_qs(u.query)
 
         if path == "/api/health":
-            return self._send_json({"ok": True, "courses": len(COURSES), "data": DATA_META})
+            return self._send_json({"ok": True, "courses": len(COURSES),
+                                    "is_sample": IS_SAMPLE, "data": DATA_META})
 
         if path == "/api/meta":
             return self._send_json({
@@ -330,9 +350,23 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=8000)
+    # 既定は 127.0.0.1（自分のPCからしか見えない）。
+    # スマホ実機で確認したいときだけ --host 0.0.0.0 を付ける。
+    # このサービスの利用はほぼスマホなので、実機確認は必須の作業。
+    ap.add_argument("--host", default="127.0.0.1",
+                    help="スマホ実機で見るときは 0.0.0.0")
     args = ap.parse_args()
-    srv = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    srv = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"楽単DB prototype  →  http://localhost:{args.port}")
+    if args.host == "0.0.0.0":
+        import socket
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            print(f"  スマホから  http://{s.getsockname()[0]}:{args.port}"
+                  "  （同じWi-Fiに繋いでください）")
+        finally:
+            s.close()
     print(f"  API   http://localhost:{args.port}/api/courses")
     print(f"  仕様  http://localhost:{args.port}/api/openapi.json")
     print(f"  科目数 {len(COURSES)}（{DATA_META['note']}）")

@@ -28,6 +28,10 @@ from __future__ import annotations
 #
 # よって 試験/レポート/出席 の3軸には
 #   floor（どの軸も最低限は見る）＋ 成績評価に占める比率  で重みを配る。
+# 総合値を出すのに必要な「算出できた重みの割合」。
+# これを下回る科目は総合値を出さず「情報不足」と表示する。
+COVERAGE_MIN = 0.60
+
 AXIS_FLOOR = 0.10       # 3軸それぞれの下限（合計 0.30）
 AXIS_SHARE = 0.58       # 成績評価比率に応じて配分される分
 SCALE_WEIGHT = 0.12     # 規模・形態。事実ではなく推定なので最小固定
@@ -98,15 +102,24 @@ def _report_load(c: dict) -> tuple[float | None, list[str]]:
     """
     ratio = (c.get("eval_ratio") or {}).get("report")
     count = c.get("report_count")
+    words = c.get("report_words")
     hours = c.get("out_of_class_hours")
-    if ratio is None and count is None and hours is None:
+
+    # 「レポートで評価される」ことは負荷ではない。負荷は本数・分量・時間外学習の
+    # 側にある。その3つが全て無いとき、負荷は「軽い」のではなく「不明」である。
+    #
+    # ここを ratio だけで算出していたため、成績の80%がレポートの科目に
+    # 「レポート軸88＝軽い」が付いていた（2026-08-14 実データで発覚）。
+    # 間違う方向が「重い科目を軽いと言う」側なので、算出せず None を返す。
+    # 総合値は score() のカバレッジ判定で「情報不足」に落ちる。
+    if count is None and words is None and hours is None:
+        if ratio:
+            return None, [f"レポートが成績の{ratio:.0f}%だが、本数・分量が未取得"]
         return None, []
 
     why = []
     load = 0.0
     if ratio is not None:
-        # 「レポートで評価される」こと自体は負荷ではない。負荷は本数・分量・
-        # 時間外学習の側にある。よってこの項の係数は意図的に小さくしてある。
         load += ratio * 0.15
         why.append(f"レポートが成績の{ratio:.0f}%")
     if count is not None:
@@ -233,12 +246,20 @@ def score(course: dict) -> dict:
             weighted += value * w[key]
             weight_sum += w[key]
 
-    overall = round(weighted / weight_sum, 1) if weight_sum > 0 else None
+    # 重みの合計は 1.0（floor 0.30 ＋ share 0.58 ＋ scale 0.12）なので、
+    # weight_sum はそのまま「算出できた割合」になる。
+    # 一番重い軸が測れていない科目に総合値を出すと、残った軽い軸だけで
+    # 「軽め」が付いてしまう。カバレッジが足りなければ総合値は出さない。
+    overall = (round(weighted / weight_sum, 1)
+               if weight_sum >= COVERAGE_MIN else None)
     conf = confidence(course)
+    missing = [a["label"] for a in axes.values() if a["value"] is None]
 
     return {
         "overall": overall,
-        "band": band_of(overall, conf["level"]),
+        "band": band_of(overall, conf["level"], weight_sum),
+        "coverage": round(weight_sum, 3),
+        "missing_axes": missing,
         "axes": axes,
         "confidence": conf,
         "notes": _schedule_note(course),
@@ -247,13 +268,16 @@ def score(course: dict) -> dict:
     }
 
 
-def band_of(overall: float | None, conf_level: str) -> str:
+def band_of(overall: float | None, conf_level: str,
+            coverage: float = 1.0) -> str:
     """表示用の区分。信頼度が低いときは断定しない。
 
     クロバスの S〜F は使わない（法務リスク・差別化の両面）。
     """
     if overall is None:
-        return "判定不可"
+        # 「測れなかった」と「そもそもデータが無い」を区別する。
+        # 情報不足＝口コミが1件入れば判定できるようになる科目。
+        return "情報不足" if coverage > 0 else "判定不可"
     if conf_level == "low":
         return "参考値"
     if overall >= 72:
