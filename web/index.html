@@ -52,6 +52,14 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 .grid button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
 .hint{font-size:11.5px;color:var(--muted);margin-top:6px}
 
+/* ── 選択中コマの貼り付きバー ─────────── */
+.slotBar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;
+  gap:10px;background:var(--go);color:#fff;border-radius:9px;font-size:13px;font-weight:700;
+  padding:9px 13px;margin-top:10px;box-shadow:0 4px 14px rgba(0,0,0,.16)}
+.slotBar[hidden]{display:none}
+.slotBar button{background:none;border:none;color:#fff;font:inherit;font-size:16px;line-height:1;
+  cursor:pointer;padding:2px 4px}
+
 /* ── 優先度 ───────────────────────────── */
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{border:1px solid var(--rule);background:var(--card);border-radius:99px;
@@ -109,6 +117,8 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 .conf{font-size:11.5px;color:var(--muted);margin-top:4px;padding-top:9px;
   border-top:1px dashed var(--rule)}
 .conf b{color:var(--warn)}
+.reviewBtn{display:block;width:100%;margin-top:12px;background:var(--go-soft);color:var(--go);
+  border:none;border-radius:9px;padding:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:14px}
 
 /* ── 口コミ投稿（4タップ） ─────────────── */
@@ -153,6 +163,11 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 <div class="wrap">
   <input type="search" id="q" placeholder="科目名でさがす" autocomplete="off">
 
+  <div class="slotBar" id="slotBar" hidden>
+    <span id="slotBarText"></span>
+    <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
+  </div>
+
   <section>
     <h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2>
     <div class="grid" id="grid"></div>
@@ -185,7 +200,7 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   <footer>
     数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。
     <b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b><br>
-    この画面は <code>/api/courses</code> を叩いているだけ ―― LINE も同じ API を使う。
+    採点は <code>build.py</code> が確定させたもの ―― LINE もこの画面も同じ元データを見ている。
   </footer>
 </div>
 
@@ -267,6 +282,9 @@ function buildGrid(slots){
   $("#slotHint").textContent = (state.day)
     ? `${state.day}曜${state.period}限で絞り込み中 ―― もう一度押すと解除`
     : "「火3が空いてる、何取ろう」から始められる。検索語は要らない。";
+
+  $("#slotBar").hidden = !state.day;
+  if (state.day) $("#slotBarText").textContent = `${state.day}曜${state.period}限で絞り込み中`;
 }
 
 /* ── 優先度 ───────────────────────────── */
@@ -333,13 +351,21 @@ function card(c){
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
-    <div class="detail">
-      ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
+    <div class="detail"></div>
+  </article>`;
+}
+
+/* 詳細（4軸バーと信頼度）は開くまで作らない。
+   閉じたまま全カード分を作ると、DOMの56%が「誰も見ていない中身」になり、
+   絞り込みのたびの描画とレイアウトがその分だけ重くなる。
+   実測（50件・390px）: ノード 1,672→670、innerHTML 3.33ms→1.16ms。 */
+function detailHtml(c){
+  const r = c.rakutan;
+  return `${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
       <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
         ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
-    </div>
-  </article>`;
+      <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -464,23 +490,85 @@ async function boot(){
 }
 
 /* ── 読み込み ─────────────────────────── */
+/* 1,112件を毎回まるごと描画すると実機で重くなるため、最初は PAGE_SIZE 件だけ
+   描画し、リスト末尾のセンチネルが画面に入るたび追加描画する（無限スクロール）。 */
+const PAGE_SIZE = 50;
+const LOAD_MARGIN = 600; // センチネルが画面下端からこの距離まで近づいたら追加描画
 let courses = [];
+let shown = 0;
+
+// 直前に詳細欄を開いた科目。下の「口コミを書く」を押したときの初期選択に使う。
+let lastOpenedCourseId = null;
+
+/* 増えた分のカードだけにクリック判定を付ける。以前は呼ばれるたびに
+   #list 内の表示済みカード全部を数え直していたため、スクロールで
+   読み込みが進むほど1回あたりの作業量が増えていた（雪だるま式）。 */
+function bindCardHandler(article, c){
+  const h = article.querySelector(".head");
+  const t = () => {
+    // 初めて開くときに詳細を組み立てる。2回目以降は作り直さない。
+    if (!article.dataset.filled){
+      article.querySelector(".detail").innerHTML = detailHtml(c);
+      article.dataset.filled = "1";
+    }
+    const opening = !article.classList.contains("open");
+    article.classList.toggle("open");
+    if (opening) lastOpenedCourseId = c.id;
+  };
+  h.onclick = t;
+  h.onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); t(); } };
+}
+
+function renderMore(){
+  if (shown >= courses.length) return;
+  const next = courses.slice(shown, shown + PAGE_SIZE);
+  const sentinel = $("#listEnd");
+  const frag = document.createElement("div");
+  frag.innerHTML = next.map(card).join("");
+  Array.from(frag.children).forEach((n, i) => {
+    sentinel.parentNode.insertBefore(n, sentinel);
+    bindCardHandler(n, next[i]);
+  });
+  shown += next.length;
+}
+
+/* センチネルが画面下端の LOAD_MARGIN 手前まで来ていれば描画。
+   1回のスクロールで複数ページ分近づくこともあるので満たさなくなるまで繰り返す。 */
+function onScrollCheck(){
+  const sentinel = $("#listEnd");
+  if (!sentinel) return;
+  while (shown < courses.length && sentinel.getBoundingClientRect().top < window.innerHeight + LOAD_MARGIN){
+    renderMore();
+  }
+}
+window.addEventListener("scroll", onScrollCheck, { passive: true });
+window.addEventListener("resize", onScrollCheck);
+
 async function load(){
   const d = DATA.mode === "api"
     ? await (await fetch("/api/courses?" + qs())).json()
     : queryLocal();
   courses = d.results;
+  shown = 0;
   buildGrid(d.slots); buildConds(d.facets);
   $("#count").textContent = d.count;
-  $("#list").innerHTML = d.count ? d.results.map(card).join("")
+  $("#list").innerHTML = d.count ? `<div id="listEnd" style="height:1px"></div>`
     : `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
-  document.querySelectorAll(".head").forEach(h => {
-    const t = () => h.parentElement.classList.toggle("open");
-    h.onclick = t;
-    h.onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); t(); } };
-  });
-  $("#rvCourse").innerHTML = d.results.map(c =>
+  if (d.count){ renderMore(); onScrollCheck(); }
+}
+
+/* 口コミ選択肢は「口コミを書く」を押した時だけ作る。
+   絞り込むたびに（検索窓1文字ごとも）1,112件分作り直していたのが無駄だった。 */
+function buildReviewSelect(){
+  $("#rvCourse").innerHTML = courses.map(c =>
     `<option value="${esc(c.id)}">${esc(c.title)}</option>`).join("");
+}
+
+// id を渡すとその科目を選んだ状態でシートを開く。省略時は一覧の先頭のまま。
+function openReviewFor(id){
+  buildReviewSelect();
+  if (id) $("#rvCourse").value = id;
+  $("#sheet").classList.add("open");
 }
 
 /* ── 口コミシート ─────────────────────── */
@@ -494,7 +582,12 @@ document.querySelectorAll(".row2").forEach(row => {
     b.classList.add("on"); review[row.dataset.k] = +b.dataset.v; checkSend();
   });
 });
-$("#fab").onclick = () => $("#sheet").classList.add("open");
+$("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
+$("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
+$("#list").addEventListener("click", e => {
+  const btn = e.target.closest(".reviewBtn");
+  if (btn) openReviewFor(btn.dataset.id);
+});
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
 /* 静的ホスティング（Cloudflare Pages）には投稿を受ける先が無い。
