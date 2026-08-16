@@ -19,6 +19,30 @@
 
 ## 2026-08-16 ｜ ③ スマホ対応・表示速度・UI改善（タスク1） ｜ 松下
 
+### ⚠️ 先に読む ── マージ順：**#1 → #2 → #3。#1と#2は Squash ではなく Merge で**
+
+この作業は PR [#3](https://github.com/jiayi-ThE-CREATOR/rakutan-db/pull/3)（`feat/matsushita-mobile-ui`）です。
+**#3 は #2 に依存しています。** 単独ではマージできません。
+
+| PR | 中身 | 担当 |
+|---|---|---|
+| [#1](https://github.com/jiayi-ThE-CREATOR/rakutan-db/pull/1) | HANDOFF.md の②（全件取得・充足率） | 政岡 |
+| [#2](https://github.com/jiayi-ThE-CREATOR/rakutan-db/pull/2) | 静的ビルド層（`build.py`・`courses.built.json` 他） | wang |
+| [#3](https://github.com/jiayi-ThE-CREATOR/rakutan-db/pull/3) | 今回のスマホ対応・UI一式 | 松下 |
+
+**なぜ依存するか：** `origin/main` には `build.py` も `web/data/courses.built.json` も無く、
+`web/index.html` は API しか見ません（静的モードが存在しない）。#3 が変更している
+`boot()` の静的フォールバックと `queryLocal()` は、**#2 が作った土台の上にあります。**
+だから #3 を `origin/main` から切り直すことはできません（衝突するうえ、動きません）。
+
+**Squash を避ける理由：** #3 のブランチは #1・#2 のコミットを含んだ状態のローカル `main` から
+切られています。#1・#2 を **Merge**（コミットIDが保たれる）でマージすれば、#3 の差分は
+GitHub側で自動的に `HANDOFF.md` と `web/index.html` の2ファイルだけに縮みます。
+**Squash するとコミットIDが変わるため差分が縮まず、逆に衝突します。**
+
+> #3 の差分が今10ファイルに見えるのはこのためで、松下が他人の担当ファイルを
+> 触ったわけではありません。#3 自身のコミットは上記2ファイルのみです。
+
 ### 0. 最重要 ── 体感の遅さの原因は `server.py` 側。**まだ直っていない（担当外）**
 
 **症状：空きコマを選ぶのは速いが、もう一度押して「解除」すると1秒弱かかる。**
