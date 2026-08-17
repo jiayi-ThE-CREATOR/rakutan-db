@@ -142,7 +142,24 @@ def search(params: dict) -> dict:
     elif sort == "title":
         results.sort(key=lambda r: r["title"])
 
-    return {"count": len(results), "results": results,
+    # ページング。既定は「全件」のまま変えない。
+    # web/index.html は無限スクロールで手元の配列から50件ずつ描画する方式
+    # （松下さん・PR#3）なので、ここで既定を50件にすると2ページ目以降が
+    # 出なくなる。画面側の都合を勝手に変えないため、既定は無制限のまま
+    # opt-in にしてある。LINE Bot は必ず limit を付けて叩くこと
+    # （リッチメニューの1タップで3,049KBを転送する必要はない）。
+    total = len(results)
+    try:
+        limit = max(0, int(get("limit") or 0))
+        offset = max(0, int(get("offset") or 0))
+    except ValueError:
+        limit, offset = 0, 0
+    if limit:
+        results = results[offset:offset + limit]
+    elif offset:
+        results = results[offset:]
+
+    return {"count": total, "returned": len(results), "results": results,
             "slots": slots, "facets": facets,
             "weights": (results or base or [{}])[0].get("match", {}).get("weights")
                        if (results or base) else scoring.DEFAULT_WEIGHTS}
@@ -232,7 +249,12 @@ class Handler(BaseHTTPRequestHandler):
         print(f"  {self.address_string()} {fmt % args}")
 
     def _send_json(self, payload, status=200):
-        body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        # indent=2 で整形して返していたため、全1,112件のレスポンスが 3,049 KB に
+        # なっていた（松下さんの実測）。人が読むのは /api/openapi.json だけなので
+        # 整形はやめる。これだけで 1,910 KB（−38%）。
+        # 「空きコマの選択は速いが、解除だけ1秒近くかかる」の正体がこれ。
+        body = json.dumps(payload, ensure_ascii=False,
+                          separators=(",", ":")).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
