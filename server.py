@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""楽単DB プロトタイプ サーバ（標準ライブラリのみ・依存ゼロ）
+"""ラクハン プロトタイプ サーバ（標準ライブラリのみ・依存ゼロ）
 
 API-first。画面は /api/courses を叩いているだけで、
 LINE Bot も同じエンドポイントを使う。
@@ -177,7 +177,7 @@ def openapi() -> dict:
     """
     return {
         "openapi": "3.1.0",
-        "info": {"title": "阪大 楽単DB API", "version": "0.1.0",
+        "info": {"title": "ラクハン API", "version": "0.1.0",
                  "description": "全学教育科目の負荷プロファイルを返す。数値はシラバスの事実項目のみから算出。"},
         "servers": [{"url": "http://localhost:8000"}],
         "paths": {
@@ -385,7 +385,7 @@ def main():
                     help="スマホ実機で見るときは 0.0.0.0")
     args = ap.parse_args()
     srv = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"楽単DB prototype  →  http://localhost:{args.port}")
+    print(f"ラクハン prototype  →  http://localhost:{args.port}")
     if args.host == "0.0.0.0":
         import socket
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
