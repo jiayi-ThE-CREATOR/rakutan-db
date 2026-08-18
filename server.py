@@ -361,6 +361,12 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/api/"):
             return self._send_json({"error": "unknown endpoint"}, 404)
 
+        # 進捗ダッシュボードは開発者向けなので web/ の外に置いてある。
+        # web/ 配下は Cloudflare Pages にそのまま公開されるため、
+        # 公開したくないものは置かない、という切り分け。
+        if path == "/progress.html":
+            return self._send_file(ROOT / "tools" / "progress.html")
+
         # 静的ファイル
         rel = "index.html" if path == "/" else path.lstrip("/")
         target = (WEB_DIR / rel).resolve()

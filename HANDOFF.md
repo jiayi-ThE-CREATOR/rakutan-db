@@ -17,6 +17,68 @@
 
 ---
 
+## 2026-08-18 ｜ PR #1〜#4 マージ・Cloudflare 公開準備 ｜ wang
+
+### 🚨 8/26 の公開当日、最初にやること
+
+**`web/robots.txt` を削除し、`web/_headers` の `X-Robots-Tag` の2行を消す。**
+これを忘れると、公開してもGoogleに一切載らない。公開前だけの措置です。
+
+```bash
+git rm web/robots.txt
+# web/_headers から「X-Robots-Tag」の行を削除
+```
+
+### 1. 何が動く状態か
+
+`main` に PR #1・#2・#3・#4 が全部入りました（8/14から止まっていたのが解除）。
+
+```bash
+python3 build.py && python3 server.py     # → http://localhost:8000
+node tools/smoke.mjs http://localhost:8000   # APIモード
+node tools/smoke.mjs http://localhost:8140   # 静的モード（cd web && python3 -m http.server 8140）
+```
+
+両モードとも 1,112件・先頭科目・相性の値まで一致、コンソールエラー0で確認済み。
+
+### 2. 何をしていないか
+
+- **Cloudflare Pages にはまだ繋いでいません。** 繋ぐ前の下ごしらえだけ済ませた状態。
+- **口コミの実データは0件です。** `data/reviews.json` はダミー1行のまま。
+  **1,112件中916件（82%）がこれ待ち**（情報不足552 ＋ テストの難しさ未評価364）。
+  これは技術の問題ではなく、集まるかどうかの問題です。
+- **静的サイトからは口コミを投稿できません**（`CAN_POST=false`）。
+  投稿にはPages Functions＋D1が要りますが未着手。8/26に「準備中」のまま出すかは未決。
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git checkout main && git pull
+```
+
+きむらさんへ：LINE用のデータは `web/data/courses.built.json` の `preset_top` にあります。
+4つのプリセット×上位100件のIDが入っているので、**LINE側に採点ロジックは一切要りません**。
+Cloudflareに繋いだらHTTPSのURLを渡します。
+
+### 4. 踏んだ罠
+
+**PR #3 がGitHub上だけ「コンフリクト」と出て、手元では綺麗にマージできた。**
+原因はコードではなく履歴の形です。#3 が #1 と #2 の両方の上に乗っていたため
+**merge base が2つ**（交差履歴）になり、手元のgit（ort戦略）は仮想baseを作って解決できるのに、
+GitHubの自動マージは2つのbaseを見た時点でコンフリクト判定していました。
+
+→ 手元で `git merge origin/main` して push し直したら通りました。
+**松下さんのコミットは書き換えていません**（rebaseもforce pushもしていない）。普通に `git pull` できます。
+今後も「分岐の上にさらに分岐」を作ると同じことが起きます。
+
+**`web/` に置いたものは全部そのまま公開されます。**
+`progress.html` は開発者用の進捗ダッシュボードなのに `web/` にあったので、
+そのままだと公開URLに晒され、しかも `/api/progress` が静的環境に無いので
+永久にエラーを出すページになるところでした。`tools/progress.html` に移動済みです。
+**ローカルでのURL（`localhost:8000/progress.html`）は変わりません。**
+
+---
+
 ## 2026-08-16 ｜ ③ スマホ対応・表示速度・UI改善（タスク1） ｜ 松下
 
 ### ⚠️ 先に読む ── マージ順：**#1 → #2 → #3。#1と#2は Squash ではなく Merge で**
