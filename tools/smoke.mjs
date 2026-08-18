@@ -22,13 +22,14 @@ const r = await p.evaluate(() => ({
   count: $("#count").textContent,
   cards: document.querySelectorAll(".card").length,
   fab: $("#fab").textContent,
+  fabShown: getComputedStyle($("#fab")).display !== "none",
   first: document.querySelector(".card .title")?.textContent,
   fit: document.querySelector(".card .fit b")?.textContent,
 }));
 
 console.log(`  mode      ${r.mode}`);
 console.log(`  件数      ${r.count}（カード ${r.cards}枚）`);
-console.log(`  投稿      CAN_POST=${r.canPost} / FAB「${r.fab}」`);
+console.log(`  投稿      CAN_POST=${r.canPost} / FAB ${r.fabShown ? `表示「${r.fab}」` : "非表示"}`);
 console.log(`  先頭      ${r.first}  相性 ${r.fit}`);
 console.log(errs.length ? `  ✗ エラー ${errs.length}件\n    ${errs.join("\n    ")}`
                         : "  ✓ コンソールエラーなし");
