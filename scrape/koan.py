@@ -141,7 +141,11 @@ def list_rows(html: str) -> list[dict]:
         if not m:
             continue
         tds = [td.get_text(" ", strip=True) for td in tr.find_all("td")]
-        if len(tds) < 8:
+        # 検索フォームと結果表を丸ごと含む外側の <tr> にも referW( が入っている。
+        # そこを拾うと tds[1] がフォームのラベル「年度」になり、
+        # そのページ先頭科目の開講所属が壊れる（1ページ1件 × 12ページ ＝ 12件）。
+        # 本物のデータ行はちょうど9列（No.〜参照）。桁が違うものは外側の tr。
+        if not 8 <= len(tds) <= 12:
             continue
         rows.append({
             "nendo": m.group(1), "shozoku_cd": m.group(2), "code": m.group(3),

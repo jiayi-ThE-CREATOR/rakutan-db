@@ -65,7 +65,7 @@ def attendance_req(text: str | None) -> str | None:
 KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "capacity", "class_format", "credits", "instructor", "numbering",
         "eval_ratio", "eval_raw", "exam_type", "report_count", "report_words",
-        "out_of_class_hours", "weekly_quiz", "tags", "source"]
+        "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years"]
 
 
 def slim(course: dict) -> dict:
@@ -91,13 +91,18 @@ def main() -> None:
         built.append(base)
 
     # プリセット4つ分の順位を焼いておくと、LINE側は採点ロジックを持たずに済む。
-    presets = {}
-    for name, weights in scoring.PRESETS.items():
-        ranked = sorted(
-            (c for c in built if c["rakutan"]["overall"] is not None),
-            key=lambda c: scoring.match(c["rakutan"], weights)["fit"],
-            reverse=True)
-        presets[name] = [c["id"] for c in ranked[:100]]
+    # 学年ごとに焼く。サイトの既定が1年なので、LINE も既定は "1" を読めばよい。
+    # 1年生が履修できない科目を上位に出すと、選べない科目を薦めることになる。
+    presets: dict[str, dict[str, list[str]]] = {}
+    for year in (1, 2, 3, 4):
+        pool = [c for c in built
+                if c["rakutan"]["overall"] is not None
+                and year in (c.get("eligible_years") or [])]
+        for name, weights in scoring.PRESETS.items():
+            ranked = sorted(
+                pool, key=lambda c: scoring.match(c["rakutan"], weights)["fit"],
+                reverse=True)
+            presets.setdefault(str(year), {})[name] = [c["id"] for c in ranked[:100]]
 
     judged = sum(1 for c in built if c["rakutan"]["overall"] is not None)
     payload = {
@@ -112,8 +117,10 @@ def main() -> None:
             "presets": scoring.PRESETS,
             "note": "採点は build.py（score.py）で確定済み。"
                     "ブラウザ側は重み×軸スコアの内積のみ行う。",
+            "eligible_years_note": "履修できる学年。KOAN の学年絞り込みで判定"
+                                   "（scrape/years.py）。既定の表示は1年生。",
         },
-        "preset_top": presets,
+        "preset_top": presets,   # {"1": {プリセット名: [id,...]}, "2": {...}, ...}
         "courses": built,
     }
 
