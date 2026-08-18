@@ -590,10 +590,11 @@ $("#list").addEventListener("click", e => {
 });
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
-/* 静的ホスティング（Cloudflare Pages）には投稿を受ける先が無い。
+/* 静的ホスティングには投稿を受ける先が無い。
    受け皿が無いのに送信ボタンだけ出すと、書いてくれた口コミが消える。
-   保存先が用意できるまでは、書く前に「今は投稿できない」と伝える。
-   D1 + Pages Functions が立ったら CAN_POST を true にするだけで戻る。 */
+   「準備中」と書いたボタンを置くのも、押せるように見えて何も起きないので採らない。
+   保存先ができるまでは入口ごと出さない。
+   D1 が立ったら CAN_POST を true にするだけで戻る（この行以外は触らなくていい）。 */
 let CAN_POST = false;
 
 $("#send").onclick = async () => {
@@ -608,14 +609,8 @@ $("#send").onclick = async () => {
 
 function applyPostMode() {
   if (CAN_POST) return;
-  $("#fab").textContent = "口コミ（準備中）";
-  $("#send").disabled = true;
-  $("#send").textContent = "まだ受け付けできません";
-  const p = document.createElement("p");
-  p.style.cssText = "margin:10px 0 0;font-size:12.5px;color:var(--muted);line-height:1.6";
-  p.innerHTML = "投稿の保存先を準備中です。<b>書いても保存されません。</b><br>"
-              + "今は下の窓口から送ってください。";
-  $("#send").parentNode.insertBefore(p, $("#send"));
+  $("#fab").style.display = "none";
+  $("#sheet").classList.remove("open");
 }
 
 /* ── 起動 ─────────────────────────────── */
