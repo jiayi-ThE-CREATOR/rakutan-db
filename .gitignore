@@ -7,7 +7,13 @@ venv/
 # 取得したHTMLのキャッシュ（巨大なのでコミットしない）
 data/raw/
 
-# 本番データ（口コミを含むため）。共有はスプレッドシート側で行う
+# 「公開できるデータ」と「公開できないデータ」を分ける（2026-08-15 政岡さんの指摘）。
+# 以前この2つを1つのルールで守ろうとして、KOANの事実だけの courses.json まで
+# git で運べなくなっていた。
+#
+# data/courses.json … シラバス原文と教員名を含む生データ。公開リポジトリには置かない
+# data/reviews.json … 口コミ。学生の書いた文章なので当然置かない
+# web/data/courses.built.json … build.py が原文を落として書き出す公開用。これは追跡する
 data/courses.json
 data/reviews.json
 

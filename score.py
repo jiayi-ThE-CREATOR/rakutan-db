@@ -28,6 +28,16 @@ from __future__ import annotations
 #
 # よって 試験/レポート/出席 の3軸には
 #   floor（どの軸も最低限は見る）＋ 成績評価に占める比率  で重みを配る。
+# 総合値を出すのに必要な「算出できた重みの割合」。
+# これを下回る科目は総合値を出さず「情報不足」と表示する。
+COVERAGE_MIN = 0.60
+
+# 「試験で評価される」「レポートで評価される」こと自体への加重。
+# これは難しさではなく形なので、意図的に小さくしてある。
+# 実際の難易度は口コミ（テストの難しさ・レポートの本数と分量）が決める。
+EXAM_RATIO_COEF = 0.15
+REPORT_RATIO_COEF = 0.15
+
 AXIS_FLOOR = 0.10       # 3軸それぞれの下限（合計 0.30）
 AXIS_SHARE = 0.58       # 成績評価比率に応じて配分される分
 SCALE_WEIGHT = 0.12     # 規模・形態。事実ではなく推定なので最小固定
@@ -71,23 +81,59 @@ def _clamp(v: float) -> float:
 
 
 def _exam_load(c: dict) -> tuple[float | None, list[str]]:
-    """期末試験の重さ。返り値は 0〜100 の「楽さ」（高いほど楽）。"""
+    """試験の重さ。返り値は 0〜100 の「楽さ」（高いほど楽）。
+
+    以前は ease = 100 - 試験比率 だった。つまり「成績の100%が試験」＝
+    最も重い、としていた。これは間違い。**試験で評価されることは
+    難しさではなく、拘束の形**である。毎週の出席も課題も無く期末一発、
+    というのはバイトを優先したい学生にとってはむしろ軽い。
+    実データでも試験軸の平均が 32.8 まで落ち、1,112件中「軽め」が
+    9件しか残らない原因になっていた（2026-08-15）。
+
+    そこで2層に分ける。
+
+      1層目（ここ・KOANだけで分かる）── 試験が「ある」ことによる軽い加重。
+          レポート軸と同じ係数の考え方にする。あわせて、シラバスから
+          読める構造だけを見る：中間試験もあるか（＝試験が2回）、持込可か。
+      2層目（口コミが入ってから）── 「テストが難しい」という体感。
+          KOANには絶対に書いていないので、口コミが来るまでは加算しない。
+
+    したがって口コミが0件のうちは、この軸は「難しさ」を測っていない。
+    測っているのは形だけである。evidence にそう書いて画面に出す。
+    """
     ratio = (c.get("eval_ratio") or {}).get("exam")
     if ratio is None:
         return None, []
+
     why = []
-    ease = 100.0 - ratio  # 試験比率がそのまま重さ
-    if c.get("exam_type") == "持込可":
-        ease += 35
-        why.append("持込可の試験")
-    elif c.get("exam_type") == "持込不可":
-        ease -= 10
-        why.append("持込不可の試験")
+    load = ratio * EXAM_RATIO_COEF
     if ratio == 0:
-        why.append("期末試験なし")
+        why.append("試験なし")
     else:
         why.append(f"試験が成績の{ratio:.0f}%")
-    return _clamp(ease), why
+
+    # 中間と期末の両方があるなら、拘束される回数が増える。これは形の話。
+    raw = c.get("eval_raw") or {}
+    if any("中間" in k for k in raw) and any("期末" in k for k in raw):
+        load += 12
+        why.append("中間と期末の2回ある")
+
+    if c.get("exam_type") == "持込可":
+        load -= 25
+        why.append("持込可")
+    elif c.get("exam_type") == "持込不可":
+        load += 8
+        why.append("持込不可")
+
+    # ── 2層目：口コミ由来の体感難易度（0=易しい 1=ふつう 2=難しい の平均）
+    hard = (c.get("reviews") or {}).get("exam_hard")
+    if hard is not None:
+        load += hard * 22
+        why.append(f"口コミ：テストは{['易しめ','ふつう','難しい'][round(hard)]}")
+    elif ratio:
+        why.append("難しさは口コミ待ち")
+
+    return _clamp(100.0 - load), why
 
 
 def _report_load(c: dict) -> tuple[float | None, list[str]]:
@@ -98,16 +144,25 @@ def _report_load(c: dict) -> tuple[float | None, list[str]]:
     """
     ratio = (c.get("eval_ratio") or {}).get("report")
     count = c.get("report_count")
+    words = c.get("report_words")
     hours = c.get("out_of_class_hours")
-    if ratio is None and count is None and hours is None:
+
+    # 「レポートで評価される」ことは負荷ではない。負荷は本数・分量・時間外学習の
+    # 側にある。その3つが全て無いとき、負荷は「軽い」のではなく「不明」である。
+    #
+    # ここを ratio だけで算出していたため、成績の80%がレポートの科目に
+    # 「レポート軸88＝軽い」が付いていた（2026-08-14 実データで発覚）。
+    # 間違う方向が「重い科目を軽いと言う」側なので、算出せず None を返す。
+    # 総合値は score() のカバレッジ判定で「情報不足」に落ちる。
+    if count is None and words is None and hours is None:
+        if ratio:
+            return None, [f"レポートが成績の{ratio:.0f}%だが、本数・分量が未取得"]
         return None, []
 
     why = []
     load = 0.0
     if ratio is not None:
-        # 「レポートで評価される」こと自体は負荷ではない。負荷は本数・分量・
-        # 時間外学習の側にある。よってこの項の係数は意図的に小さくしてある。
-        load += ratio * 0.15
+        load += ratio * REPORT_RATIO_COEF
         why.append(f"レポートが成績の{ratio:.0f}%")
     if count is not None:
         load += min(count, 10) * 6.0
@@ -155,8 +210,16 @@ def _scale_ease(c: dict) -> tuple[float | None, list[str]]:
     """
     cap = c.get("capacity")
     fmt = c.get("class_format")
-    if cap is None and fmt is None:
+
+    # 定員は KOAN に無く、実データでは 1,112件すべてが None。
+    # 形態もほとんどが「講義科目」で、集中講義か演習でなければ何も分からない。
+    # にもかかわらず既定値 50 を返していたため、全科目の総合値の12%が
+    # 定数50で埋まり、分布全体が中央に引き寄せられていた（2026-08-15）。
+    # 測れないものに数字を置かない、はレポート軸と同じ扱いにする。
+    SIGNAL = {"集中講義", "演習", "セミナー"}
+    if cap is None and fmt not in SIGNAL:
         return None, []
+
     why = []
     ease = 50.0
     if cap is not None:
@@ -233,12 +296,28 @@ def score(course: dict) -> dict:
             weighted += value * w[key]
             weight_sum += w[key]
 
-    overall = round(weighted / weight_sum, 1) if weight_sum > 0 else None
+    # 重みの合計は 1.0（floor 0.30 ＋ share 0.58 ＋ scale 0.12）なので、
+    # weight_sum はそのまま「算出できた割合」になる。
+    # 一番重い軸が測れていない科目に総合値を出すと、残った軽い軸だけで
+    # 「軽め」が付いてしまう。カバレッジが足りなければ総合値は出さない。
+    overall = (round(weighted / weight_sum, 1)
+               if weight_sum >= COVERAGE_MIN else None)
     conf = confidence(course)
+    missing = [a["label"] for a in axes.values() if a["value"] is None]
+
+    # 試験・レポートの「難しさ」は KOAN に書いていない。書いてあるのは形だけ。
+    # 形だけで「軽め」と断言すると、成績の82%が一発試験の科目に楽単スコア
+    # 最高が付く（実データで確認）。口コミが1件入るまでは断言しない。
+    er = course.get("eval_ratio") or {}
+    rv = course.get("reviews") or {}
+    pending = bool(er.get("exam")) and rv.get("exam_hard") is None
 
     return {
         "overall": overall,
-        "band": band_of(overall, conf["level"]),
+        "band": band_of(overall, conf["level"], weight_sum, pending),
+        "needs_review": pending,
+        "coverage": round(weight_sum, 3),
+        "missing_axes": missing,
         "axes": axes,
         "confidence": conf,
         "notes": _schedule_note(course),
@@ -247,15 +326,22 @@ def score(course: dict) -> dict:
     }
 
 
-def band_of(overall: float | None, conf_level: str) -> str:
+def band_of(overall: float | None, conf_level: str,
+            coverage: float = 1.0, pending: bool = False) -> str:
     """表示用の区分。信頼度が低いときは断定しない。
 
     クロバスの S〜F は使わない（法務リスク・差別化の両面）。
     """
     if overall is None:
-        return "判定不可"
+        # 「測れなかった」と「そもそもデータが無い」を区別する。
+        # 情報不足＝口コミが1件入れば判定できるようになる科目。
+        return "情報不足" if coverage > 0 else "判定不可"
     if conf_level == "low":
         return "参考値"
+    if pending and overall >= 72:
+        # 拘束の形は軽い。ただしテストの難しさは誰も確認していない。
+        # ここで「軽め」と言い切ると、難しい一発試験の科目を推薦してしまう。
+        return "拘束は軽い"
     if overall >= 72:
         return "軽め"
     if overall >= 55:
@@ -310,6 +396,13 @@ def match(course_score: dict, weights: dict | None = None) -> dict:
     """
     w = {**DEFAULT_WEIGHTS, **(weights or {})}
     axes = course_score["axes"]
+
+    # 総合値を出さないと決めた科目に、相性の数字だけ出してはいけない。
+    # 学生が実際に見て比較するのはこの数字なので、ここを素通しにすると
+    # 「情報不足」の判定が画面上では無かったことになる（2026-08-15）。
+    if course_score.get("overall") is None:
+        return {"fit": None, "reason": "判定に必要な情報が足りていません。口コミが1件入ると出ます。",
+                "weights": w, "labels": AXIS_LABEL}
 
     total, wsum = 0.0, 0.0
     for k, weight in w.items():
