@@ -9,6 +9,11 @@
 「態度（積極性や協調性等）」「Class debate」「理解」なども出てくる。
 そこでキーワードで振り分け、**振り分けられなかったものは最後に一覧で出す**。
 未知の名前が出たら METHOD_RULES に足す ―― そこが引き継ぎポイント。
+
+注意: これを流し直すと courses.json が作り直されるので、
+履修できる学年（eligible_years）が消える。実行後は必ず
+  python3 scrape/years.py
+も流すこと。
 """
 
 from __future__ import annotations

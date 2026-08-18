@@ -163,6 +163,11 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 <div class="wrap">
   <input type="search" id="q" placeholder="科目名でさがす" autocomplete="off">
 
+  <section>
+    <h2>学年 <span class="sub">履修できない科目は出しません</span></h2>
+    <div class="chips" id="years"></div>
+  </section>
+
   <div class="slotBar" id="slotBar" hidden>
     <span id="slotBarText"></span>
     <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
@@ -241,14 +246,19 @@ const DAYS = ["月","火","水","木","金"], PERIODS = ["1","2","3","4","5"];
 const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
                    "軽め":1, "拘束は軽い":2, "標準":2, "やや重め":3, "重め":3 };
 
-const state = { q:"", day:"", period:"", cond:new Set(), sort:"fit",
+/* year の既定を "1" にしてあるのは、1年生が履修できない科目が97件あり、
+   しかもそれが上位に食い込むため（統計学B-II、熱学・統計力学要論 など）。
+   選べない科目を薦めないことを既定にする。2〜4年生はチップで切り替える。 */
+const state = { q:"", year:"1", day:"", period:"", cond:new Set(), sort:"fit",
                 preset:"とにかく軽い", weights:null };
+const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],["all","すべて"]];
 let META = null;
 
 /* ── クエリ組み立て ───────────────────── */
 function qs(){
   const p = new URLSearchParams();
   if (state.q) p.set("q", state.q);
+  p.set("year", state.year);
   if (state.day) p.set("day", state.day);
   if (state.period) p.set("period", state.period);
   p.set("sort", state.sort);
@@ -285,6 +295,16 @@ function buildGrid(slots){
 
   $("#slotBar").hidden = !state.day;
   if (state.day) $("#slotBarText").textContent = `${state.day}曜${state.period}限で絞り込み中`;
+}
+
+/* ── 学年 ─────────────────────────────── */
+function buildYears(){
+  $("#years").innerHTML = YEARS.map(([v,label]) =>
+    `<button class="chip${state.year===v?" on":""}" data-y="${v}">${label}</button>`).join("");
+  $("#years").querySelectorAll("button").forEach(b => b.onclick = () => {
+    state.year = b.dataset.y;
+    buildYears(); load();
+  });
 }
 
 /* ── 優先度 ───────────────────────────── */
@@ -431,6 +451,7 @@ function queryLocal(){
   const base = [];
   for (const c of DATA.courses){
     if (state.q && !norm(c.title).includes(norm(state.q))) continue;
+    if (state.year !== "all" && !(c.eligible_years || []).includes(+state.year)) continue;
     if (conds.some(k => !CONDITIONS[k](c))) continue;
     base.push({ ...c, match: matchLocal(c.rakutan, w) });
   }
@@ -618,7 +639,7 @@ function applyPostMode() {
   await boot();
   applyPostMode();
   $("#note").textContent = META.disclaimer;
-  buildPresets(); buildSliders();
+  buildYears(); buildPresets(); buildSliders();
   $("#tog").onclick = () => {
     const o = $("#sliders").classList.toggle("open");
     $("#tog").textContent = o ? "スライダーを閉じる" : "スライダーで細かく調整する";

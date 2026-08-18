@@ -92,6 +92,9 @@ def search(params: dict) -> dict:
         return v[0] if v else None
 
     q = get("q")
+    # 学年。既定は1年 ―― 履修できない科目を薦めないための既定値。
+    # year=all で全学年（2〜4年生が使うとき）。
+    year = get("year") or "1"
     category, campus, term = get("category"), get("campus"), get("term")
     day, period = get("day"), get("period")
     min_conf = get("min_confidence")
@@ -101,6 +104,8 @@ def search(params: dict) -> dict:
     base = []
     for c in COURSES:
         if q and _norm(q) not in _norm(c["title"]):
+            continue
+        if year != "all" and int(year) not in (c.get("eligible_years") or []):
             continue
         if category and c.get("category") != category:
             continue
@@ -160,7 +165,7 @@ def search(params: dict) -> dict:
         results = results[offset:]
 
     return {"count": total, "returned": len(results), "results": results,
-            "slots": slots, "facets": facets,
+            "year": year, "slots": slots, "facets": facets,
             "weights": (results or base or [{}])[0].get("match", {}).get("weights")
                        if (results or base) else scoring.DEFAULT_WEIGHTS}
 
