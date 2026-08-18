@@ -202,7 +202,7 @@ UI とスコアエンジンの挙動確認用に、意図的に
 （`.github/workflows/screenshots.yml`）。**コードが読めなくても画像で参加できる**のが狙い。
 とくにスマホ表示は全員で見る。
 
-**③ 進捗ダッシュボード** ―― `/progress.html`
+**③ 進捗ダッシュボード** ―― `/progress.html`（ローカル専用）
 
 ```bash
 python3 server.py     # → http://localhost:8000/progress.html
@@ -210,6 +210,8 @@ python3 server.py     # → http://localhost:8000/progress.html
 
 コードに現れない仕事（口コミ収集・LINE・拡散）も含めて、**誰が・どこまで・いつ更新したか**が1画面で分かる。
 自分の行は `data/progress.json` の `done` / `note` / `updated` を書き換えて push するだけ。
+なお実体は `tools/progress.html` に置いてある（`web/` に入れると公開されてしまうため）。
+URL は変わらないので使い方は同じ。
 科目数と評価割合の充足率だけは `courses.json` から自動集計されるので手で書いても上書きされる。
 
 ### 引き継ぎルール（直列タスク）
@@ -241,11 +243,12 @@ feat/<名前>-<内容>       例: feat/matsushita-mobile
 ## ファイル
 
 ```
+web/                           ★ここに置いたものは全部そのまま公開される★
 HANDOFF.md                     引き継ぎ記録（直列タスクは必ず書く）
 score.py                       スコアエンジン（ここが本体）
 server.py                      API＋静的配信。stdlib のみ
 web/index.html                 検索UI（単一ファイル）
-web/progress.html              進捗ダッシュボード
+tools/progress.html            進捗ダッシュボード（開発者用・非公開）
 data/courses.sample.json       ダミーデータ 30件
 data/progress.json             進捗（各自が書き換える）
 tools/shots.mjs                スクショ撮影（Playwright）
