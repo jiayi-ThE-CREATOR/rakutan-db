@@ -36,21 +36,25 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);
 /* ── header ─────────────────────────── */
 .note{background:var(--warn-soft);color:var(--warn);font-size:11.5px;padding:7px var(--pad);
   text-align:center;line-height:1.5}
-/* ヘッダは濃色帯。マークを上、ロゴタイプを下に積む縦組み。
-   マークだけブランドオレンジで、それ以外は白。 */
-header{background:var(--brand-ground);padding:18px var(--pad) 16px}
-.hd{max-width:560px;margin:0 auto;display:flex;flex-direction:column;
-  align-items:center;gap:9px;text-align:center}
-h1{margin:0;display:flex;flex-direction:column;align-items:center;gap:7px}
-h1 .mark{display:block}
+/* ヘッダは濃色帯。マークが「ラ」そのものなので、
+   マーク＋「クハン」で1語として読ませる。マーク以外は白。 */
+header{background:var(--brand-ground);padding:13px var(--pad) 12px}
+.hd{max-width:560px;margin:0 auto;display:flex;align-items:center;
+  justify-content:space-between;gap:10px}
+h1{margin:0;display:flex;align-items:baseline}
+/* マークは字形として置く。viewBox はインクの外周ぎりぎりに切ってあり
+   （元の 0 0 64 64 には左右上下に余白がある）、そのままだと
+   「ラ」と「ク」の間だけ空いて1語に見えない。 */
+h1 .mark{display:block;height:19px;width:auto;align-self:center;
+  margin-right:.11em;transform:translateY(.5px)}
 /* ロゴタイプ。字間 .11em はブランド規定 */
 h1 .wm{font-size:20px;font-weight:800;color:#fff;letter-spacing:.11em;
   line-height:1;padding-right:.11em;white-space:nowrap}
 h1 small{font-size:11px;font-weight:400;letter-spacing:.02em;
-  color:rgba(255,255,255,.62)}
+  color:rgba(255,255,255,.62);margin-left:9px;align-self:center}
 .badge{font-size:11px;color:rgba(255,255,255,.72);
   border:1px solid rgba(255,255,255,.28);border-radius:99px;
-  padding:3px 10px;white-space:nowrap}
+  padding:3px 10px;white-space:nowrap;flex:none}
 
 input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:9px;
   background:var(--card);color:var(--ink);font:inherit;font-size:15px}
@@ -175,7 +179,9 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 
 <header>
   <div class="hd">
-    <h1><svg class="mark" viewBox="0 0 64 64" width="34" height="34" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">ラクハン</span><small>阪大 全学教育科目</small></h1>
+    <!-- マークが「ラ」の字形なので、読み上げは h1 側でまとめて与える。
+         そうしないと「ラ」が絵として飛ばされ「クハン」だけが読まれる。 -->
+    <h1 aria-label="ラクハン ― 阪大 全学教育科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学教育科目</small></h1>
     <span class="badge">登録・ログイン不要</span>
   </div>
 </header>
