@@ -164,7 +164,7 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   <input type="search" id="q" placeholder="科目名でさがす" autocomplete="off">
 
   <section>
-    <h2>学年 <span class="sub">履修できない科目は出しません</span></h2>
+    <h2>学年 <span class="sub">履修できない科目は出しません（医・歯学部は6年制）</span></h2>
     <div class="chips" id="years"></div>
   </section>
 
@@ -251,7 +251,8 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
    選べない科目を薦めないことを既定にする。2〜4年生はチップで切り替える。 */
 const state = { q:"", year:"1", day:"", period:"", cond:new Set(), sort:"fit",
                 preset:"とにかく軽い", weights:null };
-const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],["all","すべて"]];
+const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
+               ["5","5年"],["6","6年"],["all","すべて"]];
 let META = null;
 
 /* ── クエリ組み立て ───────────────────── */
