@@ -94,7 +94,7 @@ def main() -> None:
     # 学年ごとに焼く。サイトの既定が1年なので、LINE も既定は "1" を読めばよい。
     # 1年生が履修できない科目を上位に出すと、選べない科目を薦めることになる。
     presets: dict[str, dict[str, list[str]]] = {}
-    for year in (1, 2, 3, 4):
+    for year in (1, 2, 3, 4, 5, 6):   # 医・歯学部は6年制
         pool = [c for c in built
                 if c["rakutan"]["overall"] is not None
                 and year in (c.get("eligible_years") or [])]
