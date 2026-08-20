@@ -439,6 +439,7 @@ const CONDITIONS = {
   "1限以外":      c => !/1$/.test(c.day_period || ""),
   "集中講義":     c => c.class_format === "集中講義",
   "小テストなし": c => c.weekly_quiz === false,
+  "口コミあり":   c => ((c.reviews || {}).n || 0) > 0,
 };
 
 /* score.py の match() と同じ。内積と理由文だけで、判断は入っていない。 */
