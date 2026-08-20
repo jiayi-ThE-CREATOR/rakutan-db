@@ -58,7 +58,12 @@ def aggregate(rows: list[dict]) -> dict[str, dict]:
             "attendance": _mean([r.get("attendance") for r in rs]),
             "in_class": _mean([r.get("in_class") for r in rs]),
             "out_class": _mean([r.get("out_class") for r in rs]),
-            "notes": [r["note"] for r in rs if r.get("note")],
+            # `"publish": false` の一言は本文だけ落とす（既定は載せる）。
+            # 公開サイトに出せない内容（学則に触れる指南など）を人の判断で
+            # 止めるための唯一の入口。**行ごと捨てないこと** ―― 出席や
+            # テスト難易度といった数値は正しい情報で、採点には効かせ続ける。
+            "notes": [r["note"] for r in rs
+                      if r.get("note") and r.get("publish", True)],
         }
     return out
 
