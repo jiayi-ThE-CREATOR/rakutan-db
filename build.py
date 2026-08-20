@@ -64,7 +64,8 @@ def attendance_req(text: str | None) -> str | None:
 # 静的JSONに残すフィールド。ここに無いものは出さない（原文系は全部落ちる）。
 KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "capacity", "class_format", "credits", "instructor", "numbering",
-        "eval_ratio", "eval_raw", "exam_type", "report_count", "report_words",
+        "eval_ratio", "eval_raw", "eval_unclassified",
+        "exam_type", "report_count", "report_words",
         "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years"]
 
 
