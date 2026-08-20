@@ -28,6 +28,7 @@ import json
 import re
 from pathlib import Path
 
+import reviews
 import score as scoring
 
 ROOT = Path(__file__).parent
@@ -66,11 +67,17 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "capacity", "class_format", "credits", "instructor", "numbering",
         "eval_ratio", "eval_raw", "eval_unclassified",
         "exam_type", "report_count", "report_words",
-        "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years"]
+        "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years",
+        "reviews"]
 
 
 def slim(course: dict) -> dict:
     out = {k: course.get(k) for k in KEEP}
+    # 口コミの本文は公開物に載せない。載せるかは別途の判断が要る
+    # （書いた学生の文章であること、内容に問題があるものが混じること）。
+    # 件数と難易度だけ残せば「何件の口コミで出た数字か」は示せる。
+    if out.get("reviews"):
+        out["reviews"] = {k: v for k, v in out["reviews"].items() if k != "notes"}
     out["attendance_req"] = attendance_req(course.get("attendance_rule"))
     return out
 
@@ -84,6 +91,10 @@ def main() -> None:
 
     raw = json.loads(SRC.read_text(encoding="utf-8"))
     courses = raw["courses"]
+
+    # 口コミを載せてから採点する。順番が逆だと反映されない。
+    agg = reviews.aggregate(reviews.load())
+    n_rv = reviews.apply(courses, agg)
 
     built = []
     for c in courses:
@@ -131,6 +142,7 @@ def main() -> None:
                                separators=(",", ":")), encoding="utf-8")
 
     kb = dest.stat().st_size / 1024
+    print(f"  口コミ {sum(a['n'] for a in agg.values())} 件 → {n_rv} 科目に反映")
     print(f"→ {dest}  {kb:,.0f} KB  ({'SLIM' if not args.full else 'FULL'})")
     print(f"  科目 {len(built)} 件 ／ 判定できた {judged} 件 "
           f"／ 情報不足 {len(built) - judged} 件")
