@@ -179,9 +179,10 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
         "eval_ratio": eval_ratio,
         "eval_raw": raw or None,             # 元の内訳。丸めた結果しか残さないと検証できない
         # 振り分けられなかった項目を捨てずに残す。ここが None でないということは
-        # eval_ratio の合計が 100% に届いていないということで、score.py は
-        # その科目に総合値を出さない。**黙って消すと「負担ゼロ＝満点」になる**
-        # （2026-08-20 政岡さんの品質チェックで21件発覚）。
+        # eval_ratio の合計が 100% に届いていないということ。**黙って消すと
+        # その軸は「負担ゼロ＝満点」になる**（2026-08-20 政岡さんの品質チェックで
+        # 21件発覚）。合計が score.py の EVAL_TOTAL_MIN を割れば総合値は出ない。
+        # 割らない場合でも、ここに名前が残るので METHOD_RULES に足せる。
         "eval_unclassified": unclassified or None,
         "exam_type": exam_type,
         "report_count": None,                # KOANからは取れない → 口コミで聞く
