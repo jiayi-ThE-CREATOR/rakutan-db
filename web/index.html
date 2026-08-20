@@ -144,7 +144,7 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
   border:none;border-radius:9px;padding:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:14px}
 
-/* ── 口コミ投稿（4タップ） ─────────────── */
+/* ── 口コミ投稿（設問は入口Aの仮フォームと同じ9問） ── */
 .fab{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:20;
   background:var(--ink);color:var(--paper);border:none;border-radius:99px;
   padding:12px 22px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;
@@ -159,12 +159,17 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 .sheet .q{margin-top:16px}
 .sheet .q p{margin:0 0 7px;font-size:13.5px;color:var(--soft)}
 .sheet .q p b{font-family:var(--data);color:var(--go);margin-right:6px}
-.sheet select,.sheet input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--rule);
+.sheet select,.sheet input[type=text],.sheet input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--rule);
   border-radius:9px;background:var(--paper);color:var(--ink);font:inherit;font-size:15px}
 .row2{display:flex;gap:8px}
 .row2 button{flex:1;border:1px solid var(--rule);background:var(--paper);border-radius:9px;
   padding:11px 0;font:inherit;font-size:14px;color:var(--soft);cursor:pointer}
 .row2 button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
+/* 条件つきの追加設問（テストあり→持ち込み・難易度／レポートあり→語数）。 */
+.subq{margin-top:11px;padding-left:11px;border-left:2px solid var(--rule)}
+.subq .ends{display:flex;justify-content:space-between;margin:2px 0 0;
+  font-size:11px;color:var(--muted)}
+.sheet input[type=range]{width:100%;accent-color:var(--go)}
 .send{width:100%;margin-top:20px;background:var(--go);color:#fff;border:none;border-radius:10px;
   padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
 .send[disabled]{background:var(--rule);color:var(--muted);cursor:not-allowed}
@@ -242,18 +247,60 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   <div class="inner">
     <h3>口コミを書く</h3>
     <p style="margin:0;font-size:12.5px;color:var(--muted)">
-      自由記述は最後の一言だけ。<b>長文は書かれないし、推薦にも使えない</b>ので選択式で聞く。</p>
+      自由記述は最後の一言だけ。<b>長文は書かれないし、推薦にも使えない</b>ので選択式で聞く。<br>
+      学部と学年を聞くのは、<b>同じ科目でも学部と履修年次で重さが違う</b>ため。個人が分かる情報は集めない。</p>
 
     <div class="q"><p><b>1</b>どの科目？</p><select id="rvCourse"></select></div>
-    <div class="q"><p><b>2</b>出席は取られた？</p>
+
+    <div class="q"><p><b>2</b>あなたの学部は？</p>
+      <select id="rvFaculty">
+        <option value="">選んでください</option>
+        <option>文学部</option><option>人間科学部</option><option>外国語学部</option>
+        <option>法学部</option><option>経済学部</option><option>理学部</option>
+        <option>医学部</option><option>歯学部</option><option>薬学部</option>
+        <option>工学部</option><option>基礎工学部</option><option>その他</option>
+      </select></div>
+
+    <div class="q"><p><b>3</b>その科目を取ったときの学年は？</p>
+      <div class="row2" data-k="student_year">
+        <button data-v="1">1年</button><button data-v="2">2年</button><button data-v="3">3年</button>
+        <button data-v="4">4年</button><button data-v="5">5年</button><button data-v="6">6年</button></div></div>
+
+    <div class="q"><p><b>4</b>出席は取られた？</p>
       <div class="row2" data-k="attendance">
         <button data-v="2">毎回</button><button data-v="1">たまに</button><button data-v="0">なし</button></div></div>
-    <div class="q"><p><b>3</b>課題の量は？</p>
-      <div class="row2" data-k="workload">
-        <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button></div></div>
-    <div class="q"><p><b>4</b>成績の付き方は？</p>
-      <div class="row2" data-k="grading">
-        <button data-v="2">厳しい</button><button data-v="1">ふつう</button><button data-v="0">甘い</button></div></div>
+
+    <div class="q"><p><b>5</b>授業中の課題は？</p>
+      <div class="row2" data-k="in_class">
+        <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button>
+        <button data-v="">なかった</button></div></div>
+
+    <div class="q"><p><b>6</b>授業外の課題は？</p>
+      <div class="row2" data-k="out_class">
+        <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button>
+        <button data-v="">なかった</button></div></div>
+
+    <div class="q"><p><b>7</b>テストはあった？</p>
+      <div class="row2" data-k="exam">
+        <button data-v="1">あり</button><button data-v="0">なし</button></div>
+      <div class="subq" id="examMore" hidden>
+        <p>持ち込みは？</p>
+        <div class="row2" data-k="exam_bring">
+          <button data-v="可">可</button><button data-v="不可">不可</button></div>
+        <p style="margin-top:10px">難易度は？ <b id="hardV">まだ選んでいません</b></p>
+        <input type="range" id="rvHard" min="1" max="10" step="1" value="5"
+               aria-label="テストの難易度 1（簡単）〜10（難しい）">
+        <p class="ends"><span>1 簡単</span><span>10 難しい</span></p>
+      </div></div>
+
+    <div class="q"><p><b>8</b>レポートはあった？</p>
+      <div class="row2" data-k="report">
+        <button data-v="1">あり</button><button data-v="0">なし</button></div>
+      <div class="subq" id="reportMore" hidden>
+        <p>1本あたりの語数は？</p>
+        <input type="number" id="rvWords" min="0" step="100" inputmode="numeric" placeholder="例：2000">
+      </div></div>
+
     <div class="q"><p>一言（任意）</p>
       <input type="text" id="rvNote" maxlength="60" placeholder="例：過去問があれば余裕"></div>
 
@@ -617,20 +664,59 @@ function buildReviewSelect(){
 function openReviewFor(id){
   buildReviewSelect();
   if (id) $("#rvCourse").value = id;
+  if (!$("#rvFaculty").value){
+    try {
+      const f = localStorage.getItem("rakuhan.faculty");
+      if (f) $("#rvFaculty").value = f;
+    } catch (_) {}
+  }
+  checkSend();
   $("#sheet").classList.add("open");
 }
 
-/* ── 口コミシート ─────────────────────── */
+/* ── 口コミシート ─────────────────────────
+   設問は口コミフォーム（入口A・netlify の仮フォーム）と同じ内容にしてある。
+   A は「サイト公開前に第一手のデータを集める」ための仮の入口で、公開後の
+   投稿口はこちら。**両方の設問がずれると reviews.py が読めない行ができる**ので、
+   設問を増やすときは tools/ingest_reviews.py の normalize() と揃えること。
+
+   値は文字列のまま持つ。`""` は「なかった」という**回答済みの答え**で、
+   未回答（undefined）とは違う。`+b.dataset.v` で数値にすると
+   「なかった」が 0（＝軽い）に化けるので、変換は送信直前だけにする。 */
+const ATT_RAW = {"2":"毎回", "1":"たまに", "0":"なし"};
 const review = {};
+
+const answered = k => review[k] !== undefined;
 function checkSend(){
-  $("#send").disabled = !(review.attendance!=null && review.workload!=null && review.grading!=null);
+  const need = ["student_year","attendance","in_class","out_class","exam","report"];
+  let ok = !!$("#rvCourse").value && !!$("#rvFaculty").value && need.every(answered);
+  // 条件つきの設問。テストの難易度は口コミでしか取れない一番効く値なので必須。
+  if (review.exam === "1")   ok = ok && answered("exam_bring") && answered("exam_hard10");
+  if (review.report === "1") ok = ok && $("#rvWords").value !== "";
+  $("#send").disabled = !ok;
 }
 document.querySelectorAll(".row2").forEach(row => {
   row.querySelectorAll("button").forEach(b => b.onclick = () => {
     row.querySelectorAll("button").forEach(x => x.classList.remove("on"));
-    b.classList.add("on"); review[row.dataset.k] = +b.dataset.v; checkSend();
+    b.classList.add("on"); review[row.dataset.k] = b.dataset.v;
+    if (row.dataset.k === "exam")   $("#examMore").hidden   = b.dataset.v !== "1";
+    if (row.dataset.k === "report") $("#reportMore").hidden = b.dataset.v !== "1";
+    checkSend();
   });
 });
+/* 既定値のまま送らせない。触って初めて回答になる。 */
+$("#rvHard").oninput = e => {
+  review.exam_hard10 = e.target.value;
+  $("#hardV").textContent = `${e.target.value} / 10`;
+  checkSend();
+};
+$("#rvWords").oninput = checkSend;
+/* 学部は人ごとに変わらないので覚える。2件目からは選び直さなくていい。
+   学年は「その科目を取ったときの学年」なので科目ごとに変わる ―― 覚えない。 */
+$("#rvFaculty").onchange = e => {
+  try { localStorage.setItem("rakuhan.faculty", e.target.value); } catch (_) {}
+  checkSend();
+};
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
 $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
 $("#list").addEventListener("click", e => {
@@ -648,7 +734,25 @@ let CAN_POST = false;
 
 $("#send").onclick = async () => {
   if (!CAN_POST) return;
-  const body = {course_id: $("#rvCourse").value, note: $("#rvNote").value, ...review};
+  // data/reviews.json の1行と同じ形にして送る（tools/ingest_reviews.py の
+  // normalize() が作る形と揃えること。ずれると reviews.py が読み落とす）。
+  const n = v => (v === "" || v === undefined) ? null : Number(v);
+  const ex = review.exam === "1", rp = review.report === "1";
+  const body = {
+    course_id:    $("#rvCourse").value,
+    faculty:      $("#rvFaculty").value || null,
+    student_year: n(review.student_year),
+    attendance:   n(review.attendance),
+    attendance_raw: ATT_RAW[review.attendance] ?? null,
+    in_class:     n(review.in_class),
+    out_class:    n(review.out_class),
+    exam:         ex,
+    exam_bring:   ex ? (review.exam_bring || null) : null,
+    exam_hard10:  ex ? n(review.exam_hard10) : null,
+    report:       rp,
+    report_words: rp ? n($("#rvWords").value) : null,
+    note:         $("#rvNote").value.trim() || null,
+  };
   const res = await fetch("/api/reviews", {method:"POST", headers:{"Content-Type":"application/json"},
                                            body: JSON.stringify(body)});
   const j = await res.json();

@@ -3,6 +3,8 @@
 フォーム: https://magnificent-scone-0d2071.netlify.app/
 設問と列の対応（フォーム側を変えたらここも直す）:
 
+    faculty         （任意）学部              ―― 現行フォームには無い。列があれば拾う
+    student_year    （任意）履修時の学年 列名 grade ―― 同上
     attendance    2 出席は取られた？          毎回 / たまに / なし / その他
     in_class      3 授業中の課題はあった？      重い / ふつう / 軽い / なかった
     out_class     4 授業外の課題はあった？      重い / ふつう / 軽い / なかった
@@ -50,6 +52,11 @@ def normalize(row: dict) -> dict:
     att = (row.get("attendance") or "").strip()
     return {
         "course_id": (row.get("code") or "").strip(),
+        # 入口A の仮フォームには学部・学年の設問が無い。サイト側の投稿口
+        # （server.py の /api/reviews）は必須で取るので、行の形を揃えるために
+        # キーだけ置く。フォームに設問を足したら列名 faculty / grade を拾う。
+        "faculty": (row.get("faculty") or "").strip() or None,
+        "student_year": _int(row.get("grade")),
         # 「その他（小テストを通じて）」は毎回出席と同等の拘束として扱う
         "attendance": ATTEND.get(att, 2 if att.startswith("その他") else None),
         "attendance_raw": att,

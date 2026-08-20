@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -75,6 +76,12 @@ def _norm(s: str) -> str:
 # 学生が実際に使う言葉での絞り込み条件。
 # 「検索窓に何を打てばいいか分からない」学生のための入口なので、
 # シラバス用語ではなく結果で書く。
+# 口コミの投稿フォームで選べる学部。web/index.html の <select id="rvFaculty"> と
+# 同じ並び。自由記述にしないのは、表記ゆれ（「基礎工」「基礎工学部」）で
+# 学部ごとの集計ができなくなるため。
+FACULTIES = ["文学部", "人間科学部", "外国語学部", "法学部", "経済学部", "理学部",
+             "医学部", "歯学部", "薬学部", "工学部", "基礎工学部", "その他"]
+
 CONDITIONS = {
     "出席なし":     lambda c: (c.get("eval_ratio") or {}).get("attendance") == 0,
     "レポートのみ": lambda c: (c.get("eval_ratio") or {}).get("exam") == 0,
@@ -288,10 +295,20 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        """口コミ投稿。4タップで取った選択式の値だけを受ける。
+        """口コミ投稿。
 
-        自由記述は一言のみ。長文は書かれないし、推薦にも使えない。
-        ここで集める3項目は、KOANから取れない情報そのもの。
+        設問も保存する形も、口コミフォーム（入口A・netlify の仮フォーム、
+        `tools/ingest_reviews.py` が取り込む方）と同じにしてある。A は
+        「サイト公開前に第一手のデータを集める」ための仮の入口で、公開後の
+        投稿口はこちら。**片方だけ設問を足すと reviews.py が読み落とす行が
+        できる**ので、増やすときは normalize() と両方直すこと。
+
+        以前ここは attendance / workload / grading の3択だけを受けていたが、
+        workload と grading は reviews.py が一度も読んでおらず、
+        採点に効く「テストの難易度」「レポートの語数」は逆に聞いていなかった。
+
+        学部・学年は必須。同じ科目でも学部と履修年次で重さが違う。
+        既存の36件（A 由来）にはこの2つが無いので、集計側は欠けていても動く。
         """
         if urlparse(self.path).path != "/api/reviews":
             return self._send_json({"error": "unknown endpoint"}, 404)
@@ -301,23 +318,59 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return self._send_json({"ok": False, "error": "bad json"}, 400)
 
+        def bad(msg):
+            return self._send_json({"ok": False, "error": msg}, 400)
+
+        def level(v):                      # 重い2 / ふつう1 / 軽い0 / なかった None
+            return v if v in (0, 1, 2, None) else "NG"
+
         cid = body.get("course_id")
         if cid not in BY_ID:
-            return self._send_json({"ok": False, "error": "unknown course"}, 400)
+            return bad("unknown course")
+        if body.get("faculty") not in FACULTIES:
+            return bad("missing faculty")
+        if body.get("student_year") not in (1, 2, 3, 4, 5, 6):
+            return bad("missing student_year")
+        if body.get("attendance") not in (0, 1, 2):
+            return bad("missing attendance")
+        if level(body.get("in_class")) == "NG" or level(body.get("out_class")) == "NG":
+            return bad("bad workload")
+
+        exam, report = bool(body.get("exam")), bool(body.get("report"))
+        bring = body.get("exam_bring")
+        hard = body.get("exam_hard10")
+        words = body.get("report_words")
+        if exam and (bring not in ("可", "不可")
+                     or not isinstance(hard, int) or not 1 <= hard <= 10):
+            return bad("missing exam detail")
+        if report and (not isinstance(words, int) or words < 0):
+            return bad("missing report_words")
+
+        att = body["attendance"]
+        note = (body.get("note") or "").strip()[:60]
         rec = {
             "course_id": cid,
-            "attendance": body.get("attendance"),   # 0=なし 1=たまに 2=毎回
-            "workload": body.get("workload"),       # 0=軽い 1=ふつう 2=重い
-            "grading": body.get("grading"),         # 0=甘い 1=ふつう 2=厳しい
-            "note": (body.get("note") or "")[:60],
+            "faculty": body["faculty"],
+            "student_year": body["student_year"],
+            "attendance": att,                       # 0=なし 1=たまに 2=毎回
+            "attendance_raw": {2: "毎回", 1: "たまに", 0: "なし"}[att],
+            "in_class": body.get("in_class"),        # 0=軽い 1=ふつう 2=重い / None=なかった
+            "out_class": body.get("out_class"),
+            "exam": exam,
+            "exam_bring": bring if exam else None,
+            "exam_hard10": hard if exam else None,   # 1（簡単）〜10（難しい）
+            "report": report,
+            "report_words": words if report else None,
+            "note": note or None,
+            "at": date.today().strftime("%m-%d"),
         }
-        if any(rec[k] not in (0, 1, 2) for k in ("attendance", "workload", "grading")):
-            return self._send_json({"ok": False, "error": "missing choice"}, 400)
 
         path = ROOT / "data" / "reviews.json"
         items = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
         items.append(rec)
-        path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+        # indent は ingest_reviews.py と揃える。ずらすと投稿1件でファイル全体が
+        # 書き換わり、差分が読めなくなる。
+        path.write_text(json.dumps(items, ensure_ascii=False, indent=1), encoding="utf-8")
         return self._send_json({"ok": True, "total": len(items)})
 
     def do_OPTIONS(self):
