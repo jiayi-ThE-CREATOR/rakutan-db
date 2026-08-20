@@ -45,7 +45,7 @@
 | 単一の総合スコア（S〜F や100点満点）を見出しにする | 一文字に潰すと根拠を提示できなくなる。数字が外れた瞬間に信用を失う |
 | 欠損値を平均で埋める | 「情報が無い」ことは情報。信頼度と未取得項目を必ず画面に出す |
 | 中身が薄いまま公開日（8/26）を優先する | 8/26 は自分たちで決めた日で、外部との約束ではない。約束は **9/2（履修登録開始）** だけ。最初に見た人は戻ってこないので、**基準を満たさなければ公開を遅らせる**。判定基準は ROADMAP.md 5章 |
-| 開発者用のファイルを `web/` に置く | `web/` 配下は Cloudflare Pages にそのまま公開される。内部向けのものは `tools/` へ（`progress.html` を移動済み） |
+| 開発者用のファイルを `web/` に置く | `web/` 配下は **Cloudflare Workers の静的アセットとしてそのまま公開される**（`wrangler.toml` の `[assets] directory = "./web"`）。内部向けのものは `tools/` へ（`progress.html` を移動済み） |
 | 他人の担当ファイルを直接いじる | 1ファイル1オーナー（担当表は README 7章） |
 
 ## 設計上、動かしてはいけない前提
@@ -65,6 +65,16 @@
 - KOAN から**取れない**のは 定員／レポート本数／字数／時間外学習の時間／毎回小テストの有無 の5つ
   → **だから口コミ投稿は4タップでこの5つを聞く**。取得と口コミは重複せず互いの穴を埋める
 - KOAN の「評価方法」は固定語彙ではなく**自由記述**（「態度（積極性や協調性等）」「Class debate」「理解」が実在）
+- **公開は Cloudflare Pages ではなく Cloudflare Workers**（Worker 名 `rakutan-db`）。
+  `wrangler.toml` に `[assets] directory = "./web"` だけを書き、**Worker のコードは持たない**
+  ＝純粋な静的ホスティング。`web/index.html` は起動時に `/api/health` を叩き、返らなければ
+  静的モード（`web/data/courses.built.json` を直接読む）に落ちるので、これで完全に動く。
+  `web/_headers` はこの構成でもそのまま効く
+- **`data/courses.json` は gitignore なので、CI と「git clone しただけの人」は必ず
+  `data/courses.sample.json`（30件のダミー）にフォールバックする。** サンプルにも
+  `eligible_years` のような**画面の既定フィルタが使う項目は必ず入れておくこと** ――
+  入っていないと画面が0件になり、スクショCI（`.github/workflows/screenshots.yml`）が
+  `.card` を待って必ずコケる（2026-08-19〜20 に全ブランチが赤かった原因）
 
 検索パラメータ・ページング・詳細URLの実測値は `scrape/koan.py` の docstring にあります。
 
