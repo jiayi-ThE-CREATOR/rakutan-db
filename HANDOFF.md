@@ -17,6 +17,96 @@
 
 ---
 
+## 2026-08-20（9） ｜ 公開が一度も反映されていなかった原因を直した ｜ wang
+
+### 1. 何が動く状態か
+
+**`wrangler.toml` を追加しました。これが無くて、Cloudflare のビルドが毎回落ちていました。**
+
+リポジトリは Cloudflare **Workers**（Worker 名 `rakutan-db`）に接続済みでしたが、
+wrangler の設定ファイルがどこにも無いためビルドが毎回失敗し、**公開URLに一度も
+反映されていませんでした。** PR のチェック `Workers Builds: rakutan-db` が
+全ブランチで fail していたのが手掛かりです（#15〜#18 すべて赤）。
+
+```toml
+name = "rakutan-db"
+compatibility_date = "2026-08-20"
+
+[assets]
+directory = "./web"
+```
+
+**Worker のコードは1行も書いていません。** `main` を書かず `[assets]` だけ置くと
+純粋な静的ホスティングになります。`web/index.html` は起動時に `/api/health` を叩いて、
+返らなければ静的モード（`web/data/courses.built.json` を直接読む）に落ちる作りなので、
+これで完全に動きます。採点は `build.py` が確定済みで、ブラウザに残るのは `match()` の
+内積だけです。
+
+手元で検証済み：
+
+```bash
+npx wrangler@4 deploy --dry-run
+#   ✨ Read 5 files from the assets directory .../web
+```
+
+**あわせてスクショCIの赤も直しました。** 原因はコードではなくデータです。
+`data/courses.json` は gitignore なので CI は必ず `courses.sample.json`（30件のダミー）に
+落ちますが、**そのサンプルに `eligible_years` が1件も入っていませんでした。**
+画面は既定で「1年生が履修できる科目」に絞るので、結果が0件 → `.card` が現れない →
+`tools/shots.mjs` の4枚目が30秒待って落ちる、という流れでした。サンプル30件に
+`eligible_years` を入れて直しています。
+
+CI と同じ状況（`data/courses.json` を退避してサンプルにフォールバックさせる）を
+手元で再現して確認しました。
+
+```
+修正前: shot 01→02→03 の後 04 で TimeoutError（CI と同じ行・同じ例外）
+修正後: 01 / 02 / 03 / 04 / 05 すべて撮れる
+```
+
+### 2. 何をしていないか
+
+- **Cloudflare 側のダッシュボード設定は見ていません。** `wrangler.toml` を置けば
+  既定のビルドコマンド（`npx wrangler deploy`）で通るはずですが、**ダッシュボードで
+  ビルドコマンドが別のものに設定されていると、これだけでは直りません。**
+  マージしてもまだ赤いときは、ビルドログを見てください：
+  https://dash.cloudflare.com/f19094bcb2f9e95f95fc2b3eff1d01f0/workers/services/view/rakutan-db/production
+- **口コミの投稿はこの構成では受けられません。** POST の受け皿が無いので
+  `CAN_POST=false` のまま、投稿の入口ごと隠れます。受け皿（D1 等）を作るときに
+  `wrangler.toml` へ `main` と `[[d1_databases]]` を足すことになります。
+- **公開日 8/26 の作業は残っています。** `web/robots.txt` の削除と `web/_headers` の
+  `X-Robots-Tag` の2行削除（2026-08-18 の項）。**これを忘れると Google に載りません。**
+- サンプルの `eligible_years` の値そのものはダミーです。本物の分布
+  （1,112件中980件が全学年）に形だけ寄せてあります。
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git checkout main && git pull
+npx wrangler@4 deploy --dry-run     # 設定が読めるかだけ確認（デプロイはしない）
+```
+
+マージ後、GitHub の PR チェック `Workers Builds: rakutan-db` が緑になるかを見てください。
+緑になれば公開URLに反映されます。
+
+### 4. 踏んだ罠
+
+- **接続先は Cloudflare *Pages* ではなく *Workers* でした。** `CLAUDE.md` にも
+  HANDOFF にも「Pages」と書いてあり、Pages のつもりで `functions/` を探していると
+  永久に見つかりません。チェック名（`Workers Builds: rakutan-db`）が唯一の手掛かりでした。
+  CLAUDE.md は Workers に直してあります。
+- **`not_found_handling` は既定（none）のままにしています。** 画面遷移は全部
+  クエリ文字列（`?year=1&cond=…`）で、パスは `/` しかありません。ここで SPA
+  フォールバックを入れると、存在しないURLにまで index.html を返してしまいます。
+- **サンプルデータは「30件あればいい」ではありません。** 画面の既定フィルタが使う
+  項目（いまは `eligible_years`）が欠けていると、**画面は0件になるのにエラーは出ません**。
+  CI だけが落ちて、しかも落ち方が `.card` のタイムアウトなので原因が見えません。
+  スキーマに項目を足したら、**サンプルにも足すこと。**
+- スクショCIは 8/19 から全ブランチで赤でした（松下さんの `feat/matsushita-mobile-ui` も
+  含む）。**特定の PR のせいではないので、赤いまま慣れてしまわないこと。**
+
+---
+
 ## 2026-08-20（6） ｜ 未分類の評価方法を拾えるようにした ｜ wang
 
 政岡さんの「データ品質チェック 8/20分」への対応です。**指摘された数字はこちらでも

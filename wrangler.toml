@@ -1,0 +1,32 @@
+# Cloudflare Workers（静的アセットのみ）
+#
+# なぜこのファイルが必要か
+# ────────────────────────
+# リポジトリは Cloudflare Workers に接続済み（Worker 名 `rakutan-db`）だが、
+# wrangler の設定ファイルが無いためビルドが毎回失敗し、**一度も公開URLに
+# 反映されていなかった**（2026-08-20 に PR のチェック `Workers Builds:
+# rakutan-db` が全ブランチで fail していて発覚）。
+#
+# なぜ Worker スクリプトを書かないか
+# ──────────────────────────────────
+# `main` を書かず `[assets]` だけ置くと、Worker のコードを1行も持たない
+# 純粋な静的ホスティングになる。web/index.html は起動時に /api/health を
+# 叩いて、返らなければ静的モード（web/data/courses.built.json を直接読む）に
+# 落ちる作りなので、これで完全に動く ―― 採点は build.py が確定済みで、
+# ブラウザ側に残るのは match() の内積だけ（build.py の docstring 参照）。
+#
+# 口コミの投稿（POST /api/reviews）はこの構成では受けられない。
+# index.html 側も CAN_POST=false で入口ごと隠す。受け皿（D1 等）を作るときに
+# ここへ `main` と `[[d1_databases]]` を足す。
+#
+# `web/_headers` は Workers の静的アセットでもそのまま効く（ディレクトリ内に
+# 置いてあれば解釈される）。公開日 8/26 に robots.txt と X-Robots-Tag を
+# 外す手順は HANDOFF.md の 2026-08-18 の項。
+name = "rakutan-db"
+compatibility_date = "2026-08-20"
+
+[assets]
+directory = "./web"
+# not_found_handling は既定（none）のまま。画面遷移は全部クエリ文字列
+# （?year=1&cond=…）で、パスは / しか無いので、SPA フォールバックを入れると
+# 存在しないURLまで index.html を返してしまう。

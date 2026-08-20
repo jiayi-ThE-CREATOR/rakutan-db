@@ -12,7 +12,8 @@
       "eval_ratio": {"exam": 70, "report": 20, "attendance": 10},
       "exam_type": "持込不可", "report_count": 2, "report_words": 2000,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": ["板書中心", "過去問なしでも解ける"]
+      "tags": ["板書中心", "過去問なしでも解ける"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S002", "title": "現代社会と法", "category": "基盤教養教育科目", "term": "春夏",
@@ -20,7 +21,8 @@
       "eval_ratio": {"exam": 0, "report": 60, "attendance": 40},
       "report_count": 1, "report_words": 4000,
       "out_of_class_hours": 1, "weekly_quiz": true,
-      "tags": ["リアぺ毎回", "出席重視"]
+      "tags": ["リアぺ毎回", "出席重視"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S003", "title": "基礎セミナー：データと社会", "category": "基盤教養教育科目", "term": "春夏",
@@ -28,7 +30,8 @@
       "eval_ratio": {"exam": 0, "report": 50, "attendance": 50},
       "report_count": 3, "report_words": 3000,
       "out_of_class_hours": 4, "weekly_quiz": false,
-      "tags": ["発表あり", "グループワーク"]
+      "tags": ["発表あり", "グループワーク"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S004", "title": "情報活用基礎", "category": "情報教育科目", "term": "春夏",
@@ -36,7 +39,8 @@
       "eval_ratio": {"exam": 40, "report": 40, "attendance": 20},
       "exam_type": "持込可", "report_count": 4, "report_words": 800,
       "out_of_class_hours": 1, "weekly_quiz": true,
-      "tags": ["PC必携", "毎週小課題"]
+      "tags": ["PC必携", "毎週小課題"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S005", "title": "力学", "category": "専門基礎教育科目", "term": "春夏",
@@ -44,7 +48,8 @@
       "eval_ratio": {"exam": 90, "report": 10, "attendance": 0},
       "exam_type": "持込不可", "report_count": 5, "report_words": 0,
       "out_of_class_hours": 4, "weekly_quiz": false,
-      "tags": ["演習問題多い", "1限"]
+      "tags": ["演習問題多い", "1限"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S006", "title": "西洋美術史", "category": "基盤教養教育科目", "term": "秋冬",
@@ -52,7 +57,8 @@
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 12000,
       "out_of_class_hours": 3, "weekly_quiz": false,
-      "tags": ["レポート一発勝負", "文献読み込み必要"]
+      "tags": ["レポート一発勝負", "文献読み込み必要"],
+      "eligible_years": [2, 3, 4, 5, 6]
     },
     {
       "id": "S007", "title": "実践英語（リーディング）", "category": "外国語教育科目", "term": "春夏",
@@ -60,7 +66,8 @@
       "eval_ratio": {"exam": 50, "report": 10, "attendance": 40},
       "exam_type": "持込不可", "report_count": 1, "report_words": 1000,
       "out_of_class_hours": 2, "weekly_quiz": true,
-      "tags": ["クラス指定", "毎回予習必須"]
+      "tags": ["クラス指定", "毎回予習必須"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S008", "title": "健康スポーツ教育（バドミントン）", "category": "健康・スポーツ教育科目", "term": "春夏",
@@ -68,7 +75,8 @@
       "eval_ratio": {"exam": 0, "report": 20, "attendance": 80},
       "report_count": 1, "report_words": 1200,
       "out_of_class_hours": 0, "weekly_quiz": false,
-      "tags": ["出れば単位", "着替え必要"]
+      "tags": ["出れば単位", "着替え必要"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S009", "title": "科学技術と倫理", "category": "現代教養教育科目", "term": "秋冬",
@@ -76,7 +84,8 @@
       "eval_ratio": {"exam": 30, "report": 50, "attendance": 20},
       "exam_type": "持込可", "report_count": 2, "report_words": 3000,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": []
+      "tags": [],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S010", "title": "線形代数学", "category": "専門基礎教育科目", "term": "春夏",
@@ -84,7 +93,8 @@
       "eval_ratio": {"exam": 80, "report": 20, "attendance": 0},
       "exam_type": "持込不可", "report_count": 6, "report_words": 0,
       "out_of_class_hours": 3, "weekly_quiz": false,
-      "tags": ["1限", "演習セット"]
+      "tags": ["1限", "演習セット"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S011", "title": "日本近現代史", "category": "基盤教養教育科目", "term": "秋冬",
@@ -92,7 +102,8 @@
       "eval_ratio": {"exam": 100, "report": 0, "attendance": 0},
       "exam_type": "持込可", "report_count": 0,
       "out_of_class_hours": 1, "weekly_quiz": false,
-      "tags": ["持込可の一発試験", "出席取らない"]
+      "tags": ["持込可の一発試験", "出席取らない"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S012", "title": "心理学概論", "category": "基盤教養教育科目", "term": "春夏",
@@ -100,7 +111,8 @@
       "eval_ratio": {"exam": 60, "report": 20, "attendance": 20},
       "exam_type": "持込不可", "report_count": 1, "report_words": 1500,
       "out_of_class_hours": 1, "weekly_quiz": true,
-      "tags": ["人気講義", "抽選あり"]
+      "tags": ["人気講義", "抽選あり"],
+      "eligible_years": [3, 4, 5, 6]
     },
     {
       "id": "S013", "title": "環境科学入門", "category": "現代教養教育科目", "term": "集中",
@@ -108,7 +120,8 @@
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 4000,
       "out_of_class_hours": 1, "weekly_quiz": false,
-      "tags": ["夏季集中", "3日間で完結"]
+      "tags": ["夏季集中", "3日間で完結"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S014", "title": "第二外国語（中国語）Ⅰ", "category": "外国語教育科目", "term": "春夏",
@@ -116,7 +129,8 @@
       "eval_ratio": {"exam": 60, "report": 0, "attendance": 40},
       "exam_type": "持込不可", "report_count": 0,
       "out_of_class_hours": 2, "weekly_quiz": true,
-      "tags": ["クラス指定", "1限", "毎回小テスト"]
+      "tags": ["クラス指定", "1限", "毎回小テスト"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S015", "title": "経済学入門", "category": "専門基礎教育科目", "term": "秋冬",
@@ -124,7 +138,8 @@
       "eval_ratio": {"exam": 85, "report": 15, "attendance": 0},
       "exam_type": "持込不可", "report_count": 1, "report_words": 2000,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": []
+      "tags": [],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S016", "title": "現代文学論", "category": "基盤教養教育科目", "term": "秋冬",
@@ -132,7 +147,8 @@
       "eval_ratio": {"exam": 0, "report": 70, "attendance": 30},
       "report_count": 2, "report_words": 6000,
       "out_of_class_hours": 3, "weekly_quiz": false,
-      "tags": ["レポート重い"]
+      "tags": ["レポート重い"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S017", "title": "化学入門", "category": "専門基礎教育科目", "term": "春夏",
@@ -140,7 +156,8 @@
       "eval_ratio": {"exam": 75, "report": 15, "attendance": 10},
       "exam_type": "持込不可", "report_count": 3,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": ["1限"]
+      "tags": ["1限"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S018", "title": "国際関係論", "category": "現代教養教育科目", "term": "春夏",
@@ -148,7 +165,8 @@
       "eval_ratio": {"exam": 50, "report": 30, "attendance": 20},
       "exam_type": "持込可", "report_count": 1, "report_words": 3000,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": []
+      "tags": [],
+      "eligible_years": [1, 2, 3, 4]
     },
     {
       "id": "S019", "title": "統計数理演習", "category": "専門基礎教育科目", "term": "秋冬",
@@ -156,7 +174,8 @@
       "eval_ratio": {"exam": 40, "report": 40, "attendance": 20},
       "exam_type": "持込可", "report_count": 8, "report_words": 500,
       "out_of_class_hours": 4, "weekly_quiz": true,
-      "tags": ["毎週提出", "少人数"]
+      "tags": ["毎週提出", "少人数"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S020", "title": "音楽と社会", "category": "基盤教養教育科目", "term": "秋冬",
@@ -164,7 +183,8 @@
       "eval_ratio": {"exam": 0, "report": 40, "attendance": 60},
       "report_count": 1, "report_words": 1500,
       "out_of_class_hours": 0, "weekly_quiz": true,
-      "tags": ["5限", "リアぺ毎回"]
+      "tags": ["5限", "リアぺ毎回"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S021", "title": "生命科学入門", "category": "専門基礎教育科目", "term": "春夏",
@@ -172,7 +192,8 @@
       "eval_ratio": {"exam": 70, "report": 30, "attendance": 0},
       "exam_type": "持込不可", "report_count": 2, "report_words": 1500,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": ["吹田開講"]
+      "tags": ["吹田開講"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S022", "title": "哲学入門", "category": "基盤教養教育科目", "term": "春夏",
@@ -180,7 +201,8 @@
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 2400,
       "out_of_class_hours": 1, "weekly_quiz": false,
-      "tags": ["出席取らない", "レポート1本のみ"]
+      "tags": ["出席取らない", "レポート1本のみ"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S023", "title": "アカデミック・ライティング", "category": "外国語教育科目", "term": "秋冬",
@@ -188,7 +210,8 @@
       "eval_ratio": {"exam": 0, "report": 80, "attendance": 20},
       "report_count": 5, "report_words": 1500,
       "out_of_class_hours": 3, "weekly_quiz": false,
-      "tags": ["箕面", "添削返却あり"]
+      "tags": ["箕面", "添削返却あり"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S024", "title": "都市とデザイン", "category": "現代教養教育科目", "term": "秋冬",
@@ -196,7 +219,8 @@
       "eval_ratio": {"exam": 20, "report": 60, "attendance": 20},
       "exam_type": "持込可", "report_count": 2, "report_words": 2500,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": []
+      "tags": [],
+      "eligible_years": [2, 3, 4, 5, 6]
     },
     {
       "id": "S025", "title": "情報リテラシー", "category": "情報教育科目", "term": "春夏",
@@ -204,7 +228,8 @@
       "eval_ratio": {"exam": 30, "report": 30, "attendance": 40},
       "exam_type": "持込可", "report_count": 3, "report_words": 1000,
       "out_of_class_hours": 1, "weekly_quiz": true,
-      "tags": ["1限"]
+      "tags": ["1限"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S026", "title": "スポーツ実習（サッカー）", "category": "健康・スポーツ教育科目", "term": "秋冬",
@@ -212,7 +237,8 @@
       "eval_ratio": {"exam": 0, "report": 10, "attendance": 90},
       "report_count": 1, "report_words": 800,
       "out_of_class_hours": 0, "weekly_quiz": false,
-      "tags": ["雨天中止あり"]
+      "tags": ["雨天中止あり"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S027", "title": "地域研究：東アジア", "category": "現代教養教育科目", "term": "集中",
@@ -220,7 +246,8 @@
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 5000,
       "out_of_class_hours": 2, "weekly_quiz": false,
-      "tags": ["夏季集中", "箕面"]
+      "tags": ["夏季集中", "箕面"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S028", "title": "微分積分学", "category": "専門基礎教育科目", "term": "春夏",
@@ -228,7 +255,8 @@
       "eval_ratio": {"exam": 100, "report": 0, "attendance": 0},
       "exam_type": "持込不可", "report_count": 0,
       "out_of_class_hours": 4, "weekly_quiz": false,
-      "tags": ["1限", "一発試験"]
+      "tags": ["1限", "一発試験"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S029", "title": "メディア論", "category": "基盤教養教育科目", "term": "秋冬",
@@ -236,7 +264,8 @@
       "eval_ratio": null,
       "report_count": null,
       "out_of_class_hours": null, "weekly_quiz": null,
-      "tags": ["情報未取得"]
+      "tags": ["情報未取得"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     },
     {
       "id": "S030", "title": "医療と社会", "category": "現代教養教育科目", "term": "秋冬",
@@ -244,7 +273,8 @@
       "eval_ratio": {"exam": 40, "report": 40},
       "report_count": null,
       "out_of_class_hours": null, "weekly_quiz": null,
-      "tags": ["吹田開講", "情報一部のみ"]
+      "tags": ["吹田開講", "情報一部のみ"],
+      "eligible_years": [1, 2, 3, 4, 5, 6]
     }
   ]
 }
