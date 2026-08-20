@@ -218,6 +218,11 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     <div class="chips" id="conds"></div>
   </section>
 
+  <section>
+    <h2>口コミ <span class="sub">シラバスの形だけで出した数字か、人が確認した数字か</span></h2>
+    <div class="chips" id="trust"></div>
+  </section>
+
   <div class="bar">
     <div><b id="count">–</b> <span style="font-size:13px;color:var(--muted)">件</span></div>
     <select id="sort">
@@ -359,14 +364,25 @@ function buildSliders(){
 }
 
 /* ── 条件チップ ───────────────────────── */
-function buildConds(facets){
-  $("#conds").innerHTML = META.conditions.map(c =>
+/* 「条件」は科目の属性（出席なし・持ち込み可…）で、「口コミあり」はデータの
+   出所の話。種類が違うので枠を分けて描く。server.py の CONDITIONS には両方
+   入っていて cond= の値としては同じ扱いなので、分けるのはこの描画だけ。
+   ここに名前を足すと「条件」から「口コミ」の枠へ移る。 */
+const TRUST_CONDS = ["口コミあり"];
+
+function chipRow(el, names, facets){
+  el.innerHTML = names.map(c =>
     `<button class="chip${state.cond.has(c)?" on":""}" data-c="${esc(c)}">${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`).join("");
-  $("#conds").querySelectorAll("button").forEach(b => b.onclick = () => {
+  el.querySelectorAll("button").forEach(b => b.onclick = () => {
     const c = b.dataset.c;
     state.cond.has(c) ? state.cond.delete(c) : state.cond.add(c);
     load();
   });
+}
+
+function buildConds(facets){
+  chipRow($("#conds"), META.conditions.filter(c => !TRUST_CONDS.includes(c)), facets);
+  chipRow($("#trust"), META.conditions.filter(c =>  TRUST_CONDS.includes(c)), facets);
 }
 
 /* ── カード ───────────────────────────── */
@@ -439,6 +455,7 @@ const CONDITIONS = {
   "1限以外":      c => !/1$/.test(c.day_period || ""),
   "集中講義":     c => c.class_format === "集中講義",
   "小テストなし": c => c.weekly_quiz === false,
+  "口コミあり":   c => ((c.reviews || {}).n || 0) > 0,
 };
 
 /* score.py の match() と同じ。内積と理由文だけで、判断は入っていない。 */

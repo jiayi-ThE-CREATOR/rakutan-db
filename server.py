@@ -82,6 +82,10 @@ CONDITIONS = {
     "1限以外":      lambda c: not (c.get("day_period") or "").endswith("1"),
     "集中講義":     lambda c: c.get("class_format") == "集中講義",
     "小テストなし": lambda c: c.get("weekly_quiz") is False,
+    # 口コミが1件でも入っている科目。KOAN から取れない5つ（定員／レポート本数／
+    # 字数／時間外学習／毎回小テスト）が埋まっているのはこの科目だけなので、
+    # 「シラバスの形だけで出した数字」と「人が確認した数字」を学生が区別できる。
+    "口コミあり":   lambda c: (c.get("reviews") or {}).get("n", 0) > 0,
 }
 
 
