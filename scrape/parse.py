@@ -38,6 +38,33 @@ METHOD_RULES: list[tuple[str, str]] = [
     (r"レポート|論文|課題|作品|提出|essay|report|assignment|paper", "report"),
     (r"発表|プレゼン|presentation|leading", "report"),
     (r"参加|出席|平常点|態度|理解|実技|実演|討論|debate|discussion|participation", "attendance"),
+
+    # ── ここから下は 2026-08-20 追加（政岡さんのデータ品質チェック 8/20分）。
+    # 振り分けられなかった項目は「消える」のではなく、その軸の負担が
+    # **ゼロとして満点になる**。ズレは必ず「実際より楽に見える」方向にだけ出る。
+    # 実データ 1,112件で 61種類・延べ74箇所が未分類のまま落ちており、
+    # そのうち21件は点数まで出ていた（うち11件はおすすめに掲載）。
+    #
+    # **必ず既存ルールの「後ろ」に置くこと。** bucket_of は最初に当たった
+    # ルールで確定するので、末尾に足す限り既存の分類は1件も動かない。
+    # 先頭に入れると「小テスト→試験」のような既存の順序依存を壊す。
+    (
+        # 毎回提出させる系。提出そのものが毎週の出席拘束なので attendance。
+        r"コメント|リアクション|レスポンス|リフレクション|振り?返り|まとめ|感想"
+        r"|ワークシート|受講カード|練習問題|ノート"
+        # 授業内でやらせる活動系。
+        r"|授業内|グループワーク|ディスカッション|演習|輪読"
+        # 姿勢・相互評価系（「態度」は既存ルールで拾えている）。
+        r"|積極性|取組|姿勢|相互評価|self-?feedback",
+        "attendance",
+    ),
+    (
+        # 成果物として提出させる系。本数・分量が分からないと重さは測れないので、
+        # report に入れた結果 score.py が「情報不足」に落とすのは正しい挙動。
+        r"プロジェクト|project|成果物|制作|計画書|エッセイ|essay|翻訳|模擬授業"
+        r"|作問|解説|紹介|プログラミング|競技会|アイディア|homework",
+        "report",
+    ),
 ]
 
 
@@ -110,12 +137,14 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
     # 評価方法 → 4バケツ
     buckets = {"exam": 0.0, "report": 0.0, "attendance": 0.0, "quiz": 0.0}
     unknown = []
+    unclassified = {}          # 落とした項目を「落とした」と記録する（下記）
     for name, pct in raw.items():
         b = bucket_of(name)
         if b:
             buckets[b] += pct
         else:
             unknown.append(name)
+            unclassified[name] = pct
 
     # 小テストは「毎回の拘束」なので出席側に寄せ、weekly_quiz を立てる
     weekly_quiz = buckets["quiz"] > 0 or bool(re.search(r"毎回.{0,12}(小テスト|リアクション)", body))
@@ -149,6 +178,11 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
         "numbering": L.get("ナンバリング"),
         "eval_ratio": eval_ratio,
         "eval_raw": raw or None,             # 元の内訳。丸めた結果しか残さないと検証できない
+        # 振り分けられなかった項目を捨てずに残す。ここが None でないということは
+        # eval_ratio の合計が 100% に届いていないということで、score.py は
+        # その科目に総合値を出さない。**黙って消すと「負担ゼロ＝満点」になる**
+        # （2026-08-20 政岡さんの品質チェックで21件発覚）。
+        "eval_unclassified": unclassified or None,
         "exam_type": exam_type,
         "report_count": None,                # KOANからは取れない → 口コミで聞く
         "report_words": None,                # 同上

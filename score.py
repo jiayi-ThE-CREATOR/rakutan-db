@@ -32,6 +32,20 @@ from __future__ import annotations
 # これを下回る科目は総合値を出さず「情報不足」と表示する。
 COVERAGE_MIN = 0.60
 
+# 成績評価の内訳（eval_ratio）の合計がこれに満たない科目にも総合値を出さない。
+# COVERAGE_MIN が守るのは「4軸のうちいくつ測れたか」で、こちらが守るのは
+# 「その軸の重み自体が正しいか」。別物なので両方要る。
+#
+# 合計が 100 に届かないケースは2種類あり、**どちらも「実際より楽に見える」
+# 方向にだけ外れる**：
+#   ① METHOD_RULES がその評価方法名を知らず、割合ごと落ちた
+#      → その軸は「負担ゼロ」として満点になる
+#   ② KOAN のシラバス側の表がそもそも 100% になっていない
+# ①は eval_unclassified に名前が残る。②は残らないが、合計を見れば同じように
+# 気づける。実データで「拾えた割合が20%だけの科目に 89.0（かなり楽）が付き、
+# 1年生向けのおすすめに載っていた」ことが確認されている（2026-08-20）。
+EVAL_TOTAL_MIN = 99.9
+
 # 「試験で評価される」「レポートで評価される」こと自体への加重。
 # これは難しさではなく形なので、意図的に小さくしてある。
 # 実際の難易度は口コミ（テストの難しさ・レポートの本数と分量）が決める。
@@ -296,12 +310,18 @@ def score(course: dict) -> dict:
             weighted += value * w[key]
             weight_sum += w[key]
 
+    # 成績評価の内訳が欠けたままなら、軸の重みが実物とずれている。
+    # 欠けた分は「負担ゼロ」として満点に化けるので、ここで止める。
+    er_all = course.get("eval_ratio") or {}
+    eval_captured = round(sum(er_all.values()), 1) if er_all else None
+    partial_eval = eval_captured is not None and eval_captured < EVAL_TOTAL_MIN
+
     # 重みの合計は 1.0（floor 0.30 ＋ share 0.58 ＋ scale 0.12）なので、
     # weight_sum はそのまま「算出できた割合」になる。
     # 一番重い軸が測れていない科目に総合値を出すと、残った軽い軸だけで
     # 「軽め」が付いてしまう。カバレッジが足りなければ総合値は出さない。
     overall = (round(weighted / weight_sum, 1)
-               if weight_sum >= COVERAGE_MIN else None)
+               if weight_sum >= COVERAGE_MIN and not partial_eval else None)
     conf = confidence(course)
     missing = [a["label"] for a in axes.values() if a["value"] is None]
 
@@ -317,6 +337,9 @@ def score(course: dict) -> dict:
         "band": band_of(overall, conf["level"], weight_sum, pending),
         "needs_review": pending,
         "coverage": round(weight_sum, 3),
+        # 成績評価の内訳を何%拾えたか。100 未満なら総合値は出していない。
+        "eval_captured": eval_captured,
+        "eval_unclassified": course.get("eval_unclassified"),
         "missing_axes": missing,
         "axes": axes,
         "confidence": conf,
@@ -401,8 +424,15 @@ def match(course_score: dict, weights: dict | None = None) -> dict:
     # 学生が実際に見て比較するのはこの数字なので、ここを素通しにすると
     # 「情報不足」の判定が画面上では無かったことになる（2026-08-15）。
     if course_score.get("overall") is None:
-        return {"fit": None, "reason": "判定に必要な情報が足りていません。口コミが1件入ると出ます。",
-                "weights": w, "labels": AXIS_LABEL}
+        # 「口コミが入れば出る」と言えるのは、口コミで埋まる穴のときだけ。
+        # 成績評価の内訳そのものが欠けている科目は口コミでは直らない
+        # （シラバス側の問題）ので、同じ文言を出すと嘘になる。
+        captured = course_score.get("eval_captured")
+        reason = ("判定に必要な情報が足りていません。口コミが1件入ると出ます。"
+                  if captured is None or captured >= EVAL_TOTAL_MIN else
+                  f"シラバスの成績評価の内訳が{captured:.0f}%分しか読み取れないため、"
+                  "判定を出していません。")
+        return {"fit": None, "reason": reason, "weights": w, "labels": AXIS_LABEL}
 
     total, wsum = 0.0, 0.0
     for k, weight in w.items():
