@@ -108,6 +108,12 @@ def main() -> None:
                    encoding="utf-8")
     print(f"\n  → {OUT}  既存 {len(prev)} 件 ＋ 新規 {len(added)} 件")
 
+    # 集約ずみも一緒に書く。生データは gitignore なので、これが無いと
+    # 取り込んだ本人以外は同じ数字を出せない。
+    import reviews as reviews_mod
+    agg = reviews_mod.aggregate(reviews_mod.load())
+    print(f"  → {reviews_mod.dump_agg(agg)}  {len(agg)} 科目（これはコミットする）")
+
 
 if __name__ == "__main__":
     main()

@@ -91,14 +91,33 @@ def main() -> None:
     ap.add_argument("--full", action="store_true",
                     help="シラバス原文も含める（公開リポジトリには置かないこと）")
     ap.add_argument("--out", default=str(OUT))
+    ap.add_argument("--allow-no-reviews", action="store_true",
+                    help="口コミが0件でも上書きする（既定では止める）")
     args = ap.parse_args()
 
     raw = json.loads(SRC.read_text(encoding="utf-8"))
     courses = raw["courses"]
 
     # 口コミを載せてから採点する。順番が逆だと反映されない。
-    agg = reviews.aggregate(reviews.load())
+    # 生データが無い人は集約ずみ（data/reviews.agg.json）で同じ数字になる。
+    agg, rv_src = reviews.resolve()
     n_rv = reviews.apply(courses, agg)
+
+    # 口コミを持っていない人が流すと、口コミ入りの built.json を
+    # 口コミ抜きで上書きしてしまう。黙って起きると気づけないので止める。
+    dest_now = Path(args.out)
+    if dest_now.exists() and n_rv == 0:
+        try:
+            had = sum(1 for c in json.loads(dest_now.read_text(encoding="utf-8"))
+                      .get("courses", []) if c.get("reviews"))
+        except (json.JSONDecodeError, OSError):
+            had = 0
+        if had and not args.allow_no_reviews:
+            raise SystemExit(
+                f"中止: いまの {dest_now.name} には口コミが {had} 科目ぶん入っていますが、\n"
+                f"      今回の実行では0件でした。上書きすると口コミが消えます。\n"
+                f"      data/reviews.agg.json が無いか、壊れていないか確認してください。\n"
+                f"      本当に口コミ抜きで作るなら --allow-no-reviews を付けてください。")
 
     built = []
     for c in courses:
@@ -146,7 +165,9 @@ def main() -> None:
                                separators=(",", ":")), encoding="utf-8")
 
     kb = dest.stat().st_size / 1024
-    print(f"  口コミ {sum(a['n'] for a in agg.values())} 件 → {n_rv} 科目に反映")
+    src_label = {"raw": "生データ", "agg": "集約ずみ", "none": "なし"}[rv_src]
+    print(f"  口コミ {sum(a['n'] for a in agg.values())} 件 → {n_rv} 科目に反映"
+          f"（{src_label}）")
     print(f"→ {dest}  {kb:,.0f} KB  ({'SLIM' if not args.full else 'FULL'})")
     print(f"  科目 {len(built)} 件 ／ 判定できた {judged} 件 "
           f"／ 情報不足 {len(built) - judged} 件")

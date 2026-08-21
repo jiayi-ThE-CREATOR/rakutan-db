@@ -12,7 +12,10 @@ data/raw/
 # git で運べなくなっていた。
 #
 # data/courses.json … シラバス原文と教員名を含む生データ。公開リポジトリには置かない
-# data/reviews.json … 口コミ。学生の書いた文章なので当然置かない
+# data/reviews.json … 口コミの生データ。学生の書いた文章なので置かない
+#   ただし集約ずみ（data/reviews.agg.json）は追跡する。中身は built.json に
+#   載せているものと同じで、追加で公開されるものは無い。これが無いと
+#   生データを持っている人しか同じ数字を再現できない。
 # web/data/courses.built.json … build.py が原文を落として書き出す公開用。これは追跡する
 data/courses.json
 data/reviews.json
