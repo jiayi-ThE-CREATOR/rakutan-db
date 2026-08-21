@@ -60,7 +60,7 @@ DATA_META.setdefault(
     "履修の最終確認は必ず公式シラバスで。")
 # 口コミを載せてから採点する。build.py と同じ順番でなければ
 # APIモードと静的モードで数字がズレる。
-_RV = reviews_mod.aggregate(reviews_mod.load())
+_RV, _RV_SRC = reviews_mod.resolve()
 _N_RV = reviews_mod.apply(COURSES, _RV)
 BY_ID = {c["id"]: c for c in COURSES}
 

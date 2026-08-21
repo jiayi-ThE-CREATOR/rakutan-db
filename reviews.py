@@ -17,6 +17,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "data" / "reviews.json"
+# 集約ずみ（科目ごとに畳んだ形）。こちらは追跡する。
+# 生データ（SRC）は gitignore なので、持っていない人は build.py を流すと
+# 口コミが黙って消えた built.json を作ってしまう。それを防ぐための控え。
+# 中身は built.json に載せているものと同じなので、追加で公開されるものは無い。
+AGG = ROOT / "data" / "reviews.agg.json"
 
 
 def _mean(xs):
@@ -83,3 +88,38 @@ def apply(courses: list[dict], agg: dict[str, dict]) -> int:
         if c.get("exam_type") is None and a["exam_bring"]:
             c["exam_type"] = "持込可" if a["exam_bring"] == "可" else "持込不可"
     return n
+
+
+def dump_agg(agg: dict[str, dict], path: Path | None = None) -> Path:
+    """集約結果を保存する。生データを持っていない人でも同じ数字が出せるように。"""
+    p = path or AGG
+    # 科目IDだけ並べ替える。キーの順は aggregate() が作った順のまま残す
+    # ―― sort_keys を使うとキー順が変わり、生データから作った built.json と
+    # 集約から作った built.json が「中身は同じなのに差分が出る」状態になる。
+    ordered = {cid: agg[cid] for cid in sorted(agg)}
+    p.write_text(json.dumps(ordered, ensure_ascii=False, indent=1),
+                 encoding="utf-8")
+    return p
+
+
+def load_agg(path: Path | None = None) -> dict[str, dict]:
+    p = path or AGG
+    if not p.exists():
+        return {}
+    try:
+        return json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def resolve() -> tuple[dict[str, dict], str]:
+    """採点に使う口コミを決める。生データがあればそちら、無ければ集約ずみ。
+
+    生データを持っている人（取り込みをした人）と、持っていない人とで
+    同じ数字が出ることを保証する。戻り値の2つ目は出どころ。
+    """
+    rows = load()
+    if rows:
+        return aggregate(rows), "raw"
+    agg = load_agg()
+    return agg, ("agg" if agg else "none")
