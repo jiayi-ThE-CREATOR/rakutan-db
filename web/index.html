@@ -167,6 +167,14 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 .row2 button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
 /* 条件つきの追加設問（テストあり→持ち込み・難易度／レポートあり→語数）。 */
 .subq{margin-top:11px;padding-left:11px;border-left:2px solid var(--rule)}
+/* 一言の注意書き。README 5章の禁止事項2（教員個人への言及を書かせない）は
+   「投稿ガイドラインに明記し、投稿前の注意書きに出す」ことまでを求めている。
+   本文はサイトにそのまま公開されるので、公開される旨もここで伝える。 */
+.sheet .q p.caution{margin:7px 0 0;font-size:11.5px;color:var(--muted);line-height:1.6}
+/* `.sheet .q p b` が設問番号用に color:var(--go) と margin-right を持っている。
+   同じ b なので、それより詳細度を上げないと注意書きが設問番号と同じ緑になり、
+   単語のあとに余計な隙間が空く（実機で確認）。 */
+.sheet .q p.caution b{color:var(--warn);margin-right:0}
 .subq .ends{display:flex;justify-content:space-between;margin:2px 0 0;
   font-size:11px;color:var(--muted)}
 .sheet input[type=range]{width:100%;accent-color:var(--go)}
@@ -248,7 +256,8 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     <h3>口コミを書く</h3>
     <p style="margin:0;font-size:12.5px;color:var(--muted)">
       自由記述は最後の一言だけ。<b>長文は書かれないし、推薦にも使えない</b>ので選択式で聞く。<br>
-      学部と学年を聞くのは、<b>同じ科目でも学部と履修年次で重さが違う</b>ため。個人が分かる情報は集めない。</p>
+      学部と学年を聞くのは、<b>同じ科目でも学部と履修年次で重さが違う</b>ため。個人が分かる情報は集めない。<br>
+      <b>先生個人への言及は書かないでください。</b>評価の対象は科目です。</p>
 
     <div class="q"><p><b>1</b>どの科目？</p><select id="rvCourse"></select></div>
 
@@ -302,7 +311,10 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
       </div></div>
 
     <div class="q"><p>一言（任意）</p>
-      <input type="text" id="rvNote" maxlength="60" placeholder="例：過去問があれば余裕"></div>
+      <input type="text" id="rvNote" maxlength="60" placeholder="例：過去問があれば余裕">
+      <p class="caution"><b>先生個人のことは書かないでください。</b>名前・人柄・評判など。
+        <b>評価の対象は科目であって人ではありません。</b><br>
+        書いた一言は<b>そのままサイトに公開されます</b>（誰が書いたかは出ません）。</p></div>
 
     <button class="send" id="send" disabled>送信する</button>
     <button class="close" id="close">閉じる</button>
