@@ -9,7 +9,9 @@
   "in_class": null,
   "out_class": null,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "131469": {
   "n": 1,
@@ -23,7 +25,9 @@
   "notes": [
    "授業終了後にインタビューしたらアマギフ貰えます"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "134153": {
   "n": 1,
@@ -35,7 +39,9 @@
   "in_class": 1.0,
   "out_class": 2.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "134157": {
   "n": 1,
@@ -49,7 +55,9 @@
   "notes": [
    "他の学部の問題入手出来れば簡単"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135185": {
   "n": 1,
@@ -63,7 +71,9 @@
   "notes": [
    "出席だけすれば大丈夫です"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135312": {
   "n": 1,
@@ -75,7 +85,9 @@
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135316": {
   "n": 1,
@@ -89,7 +101,9 @@
   "notes": [
    "オープンチャットに入れば勝ち確です"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135327": {
   "n": 2,
@@ -104,7 +118,9 @@
    "誰かに出席カードの記入頼めば行かなくていいです",
    "グループ発表がめんどくさかった"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false
  },
  "135349": {
   "n": 1,
@@ -116,7 +132,9 @@
   "in_class": null,
   "out_class": 0.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135357": {
   "n": 1,
@@ -130,7 +148,9 @@
   "notes": [
    "ポスターセッションがめんどくさい"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135515": {
   "n": 1,
@@ -142,7 +162,9 @@
   "in_class": null,
   "out_class": 1.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135518": {
   "n": 1,
@@ -154,7 +176,9 @@
   "in_class": 1.0,
   "out_class": 0.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135545": {
   "n": 1,
@@ -168,7 +192,9 @@
   "notes": [
    "まあまあマズイです"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135581": {
   "n": 2,
@@ -183,7 +209,9 @@
    "宿題の問題の解き方を持ち込み用紙に丸写しすれば何とかなる",
    "宿題の問題の解き方を持ち込み用紙に丸写しすれば何とかなる"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135595": {
   "n": 1,
@@ -197,7 +225,9 @@
   "notes": [
    "テストはむずいけど点はそこまでいらない"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135643": {
   "n": 1,
@@ -211,7 +241,9 @@
   "notes": [
    "テストだけ受ければいいです"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135653": {
   "n": 1,
@@ -223,7 +255,9 @@
   "in_class": null,
   "out_class": null,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135719": {
   "n": 1,
@@ -235,7 +269,9 @@
   "in_class": 1.0,
   "out_class": 1.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135743": {
   "n": 1,
@@ -249,7 +285,9 @@
   "notes": [
    "理解はしないときついです"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135761": {
   "n": 1,
@@ -263,7 +301,9 @@
   "notes": [
    "授業内容は意味わからないけど、テストはほぼ宿題の問題"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135787": {
   "n": 1,
@@ -277,7 +317,9 @@
   "notes": [
    "レポートを通じてテスト問題を教えてくれる"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135851": {
   "n": 3,
@@ -289,7 +331,9 @@
   "in_class": 2.0,
   "out_class": null,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135881": {
   "n": 1,
@@ -301,7 +345,9 @@
   "in_class": 2.0,
   "out_class": null,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "135903": {
   "n": 1,
@@ -313,7 +359,9 @@
   "in_class": 1.0,
   "out_class": null,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191169": {
   "n": 1,
@@ -327,7 +375,9 @@
   "notes": [
    "発表だけすれば簡単です"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191265": {
   "n": 1,
@@ -341,7 +391,9 @@
   "notes": [
    "発表で英文を覚えていかないといけないのが少し大変"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191289": {
   "n": 1,
@@ -353,7 +405,9 @@
   "in_class": null,
   "out_class": 2.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191330": {
   "n": 1,
@@ -367,7 +421,9 @@
   "notes": [
    "発表ちゃんとやれば大丈夫です"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191469": {
   "n": 1,
@@ -379,7 +435,9 @@
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191610": {
   "n": 1,
@@ -393,7 +451,9 @@
   "notes": [
    "授業内テストは勉強いるけど、期末はそんなむずくないです"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191731": {
   "n": 1,
@@ -405,7 +465,9 @@
   "in_class": 1.0,
   "out_class": 0.0,
   "notes": [],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  },
  "191872": {
   "n": 1,
@@ -419,6 +481,8 @@
   "notes": [
    "授業に比べてテストむずいです"
   ],
-  "conflicts": []
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
  }
 }

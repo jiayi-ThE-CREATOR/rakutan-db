@@ -24,9 +24,39 @@ SRC = ROOT / "data" / "reviews.json"
 AGG = ROOT / "data" / "reviews.agg.json"
 
 
+# 口コミが採点に効き始める人数（2026-08-21 の方針転換）。
+#
+# それまでは1件でも入れば数字に反映していた。実データで測ったところ、
+# **1人の回答で「力学詳論I」が 78.0 → 41.6（拘束は軽い → やや重め）**まで
+# 動いていた。テストの難易度は load に最大44点効くので、証言1本が
+# 総合値の半分を左右する。根拠として弱すぎる。
+#
+# いまの我々に大量の口コミを集める力は無い（8/21 時点で全1,112科目に対し
+# 36件、1科目あたり最大3件）。だから採点で薄く効かせるのではなく、
+# **数字には触れず「口コミがあります、中身を見て自分で判断してください」と
+# 出す**のが正しい。判断を学生に返す。
+#
+# 3にした理由: 2だと1組の食い違いで平均が真ん中に寄るだけで、
+# どちらが実態か分からない。3人そろって初めて「多数」と言える。
+# 集まってきたら上げる方向で見直す（下げない）。
+MIN_FOR_SCORING = 3
+
+# 人数を数えるときに見る項目。ここが全部同じ回答は「同じ人が送り直した」
+# 可能性が高いので1人として数える。1人が3回送っても3人分にはならない。
+# ―― 実際 135851 は3件、135581 は2件が1バイト違わず同一だった。
+_IDENTITY = ("attendance", "in_class", "out_class",
+             "exam", "exam_bring", "exam_hard10",
+             "report", "report_words", "note")
+
+
 def _mean(xs):
     xs = [x for x in xs if x is not None]
     return sum(xs) / len(xs) if xs else None
+
+
+def _distinct(rs: list[dict]) -> int:
+    """中身の違う回答が何件あるか。門はこちらの数で判定する。"""
+    return len({tuple(r.get(k) for k in _IDENTITY) for r in rs})
 
 
 # 平均を取ると「意見が割れていた」ことが消える。
@@ -98,6 +128,12 @@ def aggregate(rows: list[dict]) -> dict[str, dict]:
             # 平均が消した「食い違い」の在りか。画面はここに⚠を出し、
             # 詳細は1件ずつ（public_rows）を読ませる。採点には使わない。
             "conflicts": _conflicts(rs),
+            # 中身の違う回答の数。表示は n（生の件数）、門はこちらで判定する。
+            "n_distinct": _distinct(rs),
+            # この口コミを採点に効かせてよいか。False なら score.py は
+            # 一切読まない ―― 数字には触れず「確認してください」を出すだけ。
+            # 表示（件数・数値・一言）は scored に関係なく全部出す。
+            "scored": _distinct(rs) >= MIN_FOR_SCORING,
         }
     return out
 
@@ -152,6 +188,12 @@ def apply(courses: list[dict], agg: dict[str, dict]) -> int:
             continue
         c["reviews"] = a
         n += 1
+        # ここから先は採点に効く。持ち込み可否は load を ±25、レポート語数も
+        # レポート軸を動かすので、テストの難易度と同じ門をくぐらせる。
+        # 門の手前でも a（＝c["reviews"]）には値が入っているので、
+        # 詳細パネルには今まで通り全部出る。消えるのは採点への影響だけ。
+        if not a.get("scored"):
+            continue
         # シラバスに無いものだけ埋める（上書きはしない）
         if c.get("report_words") is None and a["report_words"]:
             c["report_words"] = a["report_words"]
