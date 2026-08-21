@@ -73,11 +73,15 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
 
 def slim(course: dict) -> dict:
     out = {k: course.get(k) for k in KEEP}
-    # 口コミの本文は公開物に載せない。載せるかは別途の判断が要る
-    # （書いた学生の文章であること、内容に問題があるものが混じること）。
-    # 件数と難易度だけ残せば「何件の口コミで出た数字か」は示せる。
-    if out.get("reviews"):
-        out["reviews"] = {k: v for k, v in out["reviews"].items() if k != "notes"}
+    # 口コミの本文（一言）も公開物に載せる（2026-08-20 に方針変更。それまでは
+    # 落としていた）。数字だけでは「なぜ楽なのか」が伝わらず、口コミの一番効く
+    # 部分が学生に届いていなかった。
+    #
+    # ただし**このリポジトリは public で、載せた本文は git 履歴に永久に残る**。
+    # 出せない一言（学則に触れる指南など）は data/reviews.json の側で
+    # `"publish": false` を立てて落とす。reviews.aggregate() がそれを見て
+    # notes から除く。落とすのは本文だけで、件数・数値はそのまま採点に効く
+    # ―― 「その口コミが無かったこと」にはしない。
     out["attendance_req"] = attendance_req(course.get("attendance_rule"))
     return out
 
