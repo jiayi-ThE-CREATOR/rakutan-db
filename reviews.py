@@ -29,6 +29,32 @@ def _mean(xs):
     return sum(xs) / len(xs) if xs else None
 
 
+# 平均を取ると「意見が割れていた」ことが消える。
+# 出席「なし」と「毎回」の平均は「たまに」―― 誰も経験していない値が出る。
+# 潰した事実を残すために、割れた項目名だけ集計に添える（平均は今まで通り出す）。
+#
+# しきい値は「隣り合う回答は割れとしない」で引いてある。1段の違いまで
+# 割れ扱いにすると、複数件ある科目のほとんどに⚠が付いて意味を失う。
+#   3段階（0/1/2）  : 両端が揃ったときだけ。max-min >= 2
+#   10段階（難易度）: 半分近く開いたときだけ。max-min >= 4
+#   持ち込み可否    : 可と不可が両方あれば即。中間が無い項目なので
+_SPREAD = {"attendance": 2, "in_class": 2, "out_class": 2, "exam_hard10": 4}
+
+
+def _conflicts(rs: list[dict]) -> list[str]:
+    """回答が割れている項目名。順序は _SPREAD の定義順で安定させる。"""
+    out = []
+    for key, span in _SPREAD.items():
+        vs = [r.get(key) for r in rs]
+        vs = [v for v in vs if v is not None]
+        if len(vs) >= 2 and max(vs) - min(vs) >= span:
+            out.append(key)
+    bring = {r.get("exam_bring") for r in rs} - {None}
+    if len(bring) >= 2:
+        out.append("exam_bring")
+    return out
+
+
 def load(path: Path | None = None) -> list[dict]:
     p = path or SRC
     if not p.exists():
@@ -69,7 +95,51 @@ def aggregate(rows: list[dict]) -> dict[str, dict]:
             # テスト難易度といった数値は正しい情報で、採点には効かせ続ける。
             "notes": [r["note"] for r in rs
                       if r.get("note") and r.get("publish", True)],
+            # 平均が消した「食い違い」の在りか。画面はここに⚠を出し、
+            # 詳細は1件ずつ（public_rows）を読ませる。採点には使わない。
+            "conflicts": _conflicts(rs),
         }
+    return out
+
+
+# 公開形に出すキー。ここに無いものは出さない。
+# `at` は投稿日であって受講時期ではない ―― 並べ替えとインジェストの
+# 重複判定にしか使っていないので、画面に出させない（混同されるため）。
+# 受講時期は taken_year だけが答える。
+_PUBLIC = ["attendance", "in_class", "out_class",
+           "exam_hard10", "exam_bring", "report_words"]
+
+
+def _sort_key(r: dict):
+    # 受講年の新しい順。答えていない行は末尾へ（無回答を最新に見せない）。
+    y = r.get("taken_year")
+    return (0 if y is None else 1, y or 0, r.get("at") or "")
+
+
+def public_rows(rows: list[dict]) -> dict[str, list[dict]]:
+    """科目ID → 1件ずつの口コミ（新しい順）。サイトの詳細パネル用。
+
+    aggregate() が「平均した後の姿」を返すのに対し、こちらは
+    「平均する前の姿」を返す。件数が増えたときに読めるのはこちら側で、
+    aggregate() はカードに出す要約と採点に使う。
+
+    publish:false は aggregate() と同じ扱い ―― **本文だけ落として行は残す**。
+    ここで行ごと捨てると、カードの「口コミ N件」とパネルの行数が食い違う。
+    """
+    by: dict[str, list[dict]] = {}
+    for r in rows:
+        by.setdefault(r["course_id"], []).append(r)
+
+    out = {}
+    for cid, rs in by.items():
+        out[cid] = [
+            {**{k: r.get(k) for k in _PUBLIC},
+             "taken_year": r.get("taken_year"),
+             "taken_year_before": bool(r.get("taken_year_before")),
+             "note": r["note"] if (r.get("note") and r.get("publish", True))
+                     else None}
+            for r in sorted(rs, key=_sort_key, reverse=True)
+        ]
     return out
 
 
