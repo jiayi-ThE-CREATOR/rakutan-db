@@ -572,13 +572,3 @@ function applyPostMode() {
   $("#sort").onchange = e => { state.sort = e.target.value; load(); };
   load();
 })();
-
-/* ナビの現在地。ページを分けた以上、どこにいるか分からないのは事故。 */
-(() => {
-  const here = location.pathname.replace(/\/$/, "") || "/";
-  const key = (here === "/" || here === "/index.html") ? "home"
-            : here.startsWith("/about") ? "about" : null;
-  if (!key) return;
-  const el = document.querySelector(`.nav a[data-nav="${key}"]`);
-  if (el) el.setAttribute("aria-current", "page");
-})();

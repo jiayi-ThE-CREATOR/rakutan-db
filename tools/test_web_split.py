@@ -13,9 +13,12 @@ CSS = ROOT / "web" / "assets" / "app.css"
 JS = ROOT / "web" / "assets" / "app.js"
 
 fails = []
+n = 0
 
 
 def check(cond, msg):
+    global n
+    n += 1
     if not cond:
         fails.append(msg)
 
@@ -40,7 +43,11 @@ if CSS.is_file():
 
 if JS.is_file():
     js = JS.read_text(encoding="utf-8")
-    for fn in ["function load(", "function renderMore(", "CAN_POST"]:
+    # 分割で中身が落ちていないかの粗い検査。
+    # 「いま存在するはずの関数」を見る。機能を意図的に消したらここも直すこと
+    # （renderMore は 2026-08-22 のページング化で撤去した）。
+    for fn in ["function load(", "function renderPage(", "function card(",
+               "function detailHtml(", "CAN_POST"]:
         check(fn in js, f"app.js に {fn} が無い（分割で落ちた可能性）")
 
 if fails:
@@ -48,5 +55,5 @@ if fails:
     for f in fails:
         print("  -", f)
     sys.exit(1)
-print(f"  通過 {8 + 5 + 3} 件")
+print(f"  通過 {n} 件")
 print("OK")

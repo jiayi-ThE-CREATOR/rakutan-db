@@ -10,70 +10,16 @@
 <link rel="stylesheet" href="/assets/tokens.css">
 <link rel="stylesheet" href="/assets/app.css">
 </head>
-<body>
-
-<!--SHELL:HEADER-->
+<body><!--SHELL:HEADER-->
 <header>
   <div class="hd">
     <!-- マークが「ラ」の字形なので、読み上げは h1 側でまとめて与える。
          そうしないと「ラ」が絵として飛ばされ「クハン」だけが読まれる。 -->
     <a class="lockup" href="/">
-      <h1 aria-label="ラクハン ― 阪大 全学教育科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学教育科目</small></h1>
-      <!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。
-           だからこの2行は視覚的に分離した添え物として置く。
-           細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と
-           読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 -->
-      <span class="by">
-        <span class="byMain">Designed by GUILD</span>
-        <span class="bySub">AI Community</span>
-      </span>
-    </a>
-    <nav class="nav" aria-label="メインメニュー">
-      <a href="/" data-nav="home">科目をさがす</a>
-      <a href="/about" data-nav="about">About ラクハン</a>
-      <a href="https://magnificent-scone-0d2071.netlify.app/" target="_blank" rel="noopener">口コミを書く<span class="ext" aria-hidden="true">↗</span></a>
-    </nav>
-  </div>
+      <h1 aria-label="ラクハン ― 阪大 全学教育科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学教育科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/about" data-nav="about">About ラクハン</a><a href="https://magnificent-scone-0d2071.netlify.app/" target="_blank" rel="noopener">口コミを書く<span class="ext" aria-hidden="true">↗</span></a></nav></div>
 </header>
 <!--/SHELL:HEADER-->
-<div class="note" id="note">読み込み中…</div>
-
-<div class="wrap">
-  <div class="workbench" id="workbench">
-
-    <aside class="rail">
-      <div class="slotBar" id="slotBar" hidden>
-        <span id="slotBarText"></span>
-        <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
-      </div>
-
-      <section>
-        <h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2>
-        <div class="grid" id="grid"></div>
-        <div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div>
-      </section>
-
-      <section>
-        <h2>学年 <span class="sub">履修できない科目は出しません（医・歯学部は6年制）</span></h2>
-        <div class="chips" id="years"></div>
-      </section>
-
-      <section>
-        <h2>あなたの優先度 <span class="sub">同じ科目でも、人によって「楽」は違う</span></h2>
-        <div class="chips" id="presets"></div>
-        <button class="toggle" id="tog">スライダーで細かく調整する</button>
-        <div class="sliders" id="sliders"></div>
-      </section>
-
-      <section>
-        <h2>条件</h2>
-        <div class="chips" id="conds"></div>
-      </section>
-
-      <section>
-        <h2>口コミ <span class="sub">シラバスの形だけで出した数字か、人が確認した数字か</span></h2>
-        <div class="chips" id="trust"></div>
-      </section>
+<div class="note" id="note">読み込み中…</div><div class="wrap"><div class="workbench" id="workbench"><aside class="rail"><div class="slotBar" id="slotBar" hidden><span id="slotBarText"></span><button id="slotBarClear" aria-label="コマ選択を解除">✕</button></div><section><h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2><div class="grid" id="grid"></div><div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div></section><section><h2>学年 <span class="sub">履修できない科目は出しません</span></h2><div class="chips" id="years"></div></section><section><h2>あなたの優先度</h2><div class="chips" id="presets"></div><button class="toggle" id="tog">スライダーで細かく調整する</button><div class="sliders" id="sliders"></div></section><section><h2>条件</h2><div class="chips" id="conds"></div></section><section><h2>口コミ</h2><div class="chips" id="trust"></div></section><p class="railNote"><a href="/about#howto">数字の読み方 →</a></p>
     </aside>
 
     <main class="results" id="results">
@@ -100,26 +46,17 @@
           <li><span class="sw mid"></span>ふつう</li>
           <li><span class="sw heavy"></span>重い ―― 負担が大きい</li>
         </ul>
-        <p class="fine">「信頼度」は、シラバスの形だけで出した数字か、
-        人が確認した数字かの区別です。一番重い軸が測れていない科目には
-        総合値を出さず「情報不足」と表示します。</p>
+        <p class="fine">「信頼度」は、シラバスの形だけで出した数字か、人が確認した数字かの区別です。一番重い軸が測れていない科目には総合値を出さず「情報不足」と表示します。</p>
       </div>
     </aside>
 
   </div>
 
 <!--SHELL:FOOTER-->
-<footer>
-  <p class="disclaimer">
-    数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。
-    <b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b>
-  </p>
+<footer><p class="disclaimer">数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。<b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b></p>
   <!-- ブランド資料のレッドライン「学生団体であることを明記」への対応。
        ロゴには入れず、ここと About で出す、という整理。消さないこと。 -->
-  <p class="who">
-    <b>学生団体 GUILD が運営しています。</b>
-    大阪大学の公式サービスではありません。
-  </p>
+  <p class="who"><b>学生団体 GUILD が運営しています。</b>大阪大学の公式サービスではありません。</p>
 </footer>
 <!--/SHELL:FOOTER-->
 </div>
@@ -129,8 +66,7 @@
 <div class="sheet" id="sheet">
   <div class="inner">
     <h3>口コミを書く</h3>
-    <p style="margin:0;font-size:12.5px;color:var(--muted)">
-      自由記述は最後の一言だけ。<b>長文は書かれないし、推薦にも使えない</b>ので選択式で聞く。</p>
+    <p style="margin:0;font-size:12.5px;color:var(--muted)">自由記述は最後の一言だけ。<b>長文は書かれないし、推薦にも使えない</b>ので選択式で聞く。</p>
 
     <div class="q"><p><b>1</b>どの科目？</p><select id="rvCourse"></select></div>
     <div class="q"><p><b>2</b>出席は取られた？</p>
@@ -150,6 +86,7 @@
   </div>
 </div>
 
+<script src="/assets/shell.js" defer></script>
 <script src="/assets/app.js" defer></script>
 </body>
 </html>

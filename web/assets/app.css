@@ -319,3 +319,30 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .pager{flex-direction:row;justify-content:space-between;flex-wrap:wrap}
   .pagerNums{display:flex}
 }
+
+
+/* ── About などの読み物ページ ─────────────
+ * 1行の長さを 68 文字までに抑える。PC で本文が画面幅いっぱいに
+ * 伸びると、行の終わりから次の行頭へ目が戻れなくなる。
+ */
+.prose{max-width:68ch;padding-top:var(--sp-6);padding-bottom:var(--sp-7)}
+.prose h2{margin:var(--sp-7) 0 var(--sp-3);font-size:var(--fs-lg);
+  letter-spacing:0;color:var(--ink);font-weight:700;
+  padding-bottom:var(--sp-2);border-bottom:2px solid var(--brand);
+  display:inline-block}
+.prose h2:first-of-type{margin-top:0}
+.prose h3{margin:var(--sp-5) 0 var(--sp-2);font-size:var(--fs-base);font-weight:700}
+.prose p{margin:0 0 var(--sp-3)}
+.prose ul{margin:0 0 var(--sp-3);padding-left:1.3em}
+.prose li{margin-bottom:var(--sp-1)}
+.prose a{color:var(--brand-text);text-underline-offset:2px}
+/* レッドライン（学生団体である旨）を目立たせる箱。 */
+.prose .callout{background:var(--brand-soft);border:1px solid var(--brand-line);
+  border-left:3px solid var(--brand);
+  border-radius:0 var(--r-md) var(--r-md) 0;
+  padding:var(--sp-3) var(--sp-4);color:var(--ink)}
+
+/* 左カラムから About へ渡す導線。 */
+.railNote{margin-top:var(--sp-5);font-size:var(--fs-sm)}
+.railNote a{color:var(--brand-text);text-decoration:none}
+.railNote a:hover{text-decoration:underline}
