@@ -23,7 +23,6 @@
 <div class="note" id="note">読み込み中…</div>
 
 <div class="wrap">
-  <input type="search" id="q" placeholder="科目名でさがす" autocomplete="off">
 
   <section>
     <h2>学年 <span class="sub">履修できない科目は出しません（医・歯学部は6年制）</span></h2>
@@ -59,7 +58,8 @@
   </section>
 
   <div class="bar">
-    <div><b id="count">–</b> <span style="font-size:13px;color:var(--muted)">件</span></div>
+    <div class="barCount"><b id="count">–</b> <span>件</span></div>
+    <input type="search" id="q" placeholder="科目名でしぼりこむ" autocomplete="off">
     <select id="sort">
       <option value="fit">あなたとの相性順</option>
       <option value="rakutan">全体の軽い順</option>

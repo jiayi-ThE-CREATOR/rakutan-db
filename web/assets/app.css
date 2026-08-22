@@ -69,11 +69,26 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   padding:8px 0 0;cursor:pointer;text-decoration:underline}
 
 /* ── 結果 ─────────────────────────────── */
-.bar{display:flex;align-items:baseline;justify-content:space-between;gap:10px;
-  margin:20px 0 10px;padding-bottom:8px;border-bottom:1px solid var(--rule)}
+/* 一覧の直上のツールバー。件数・検索・並び替えを1列に並べる。
+   ここは「一覧に効く道具」を集めた場所であって、入口ではない
+   （入口は空きコマグリッド ―― CLAUDE.md の前提）。 */
+.bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  gap:var(--sp-2);margin:var(--sp-5) 0 var(--sp-2);padding-bottom:var(--sp-2);
+  border-bottom:1px solid var(--rule)}
+.barCount{white-space:nowrap}
 .bar b{font-size:19px;font-family:var(--data);font-variant-numeric:tabular-nums}
+.barCount span{font-size:var(--fs-sm);color:var(--muted)}
+.bar input[type=search]{width:100%;padding:var(--sp-2) var(--sp-3);
+  border:1px solid var(--rule);border-radius:var(--r-md);
+  background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-base)}
 .bar select{border:1px solid var(--rule);border-radius:var(--r-sm);padding:6px 8px;
   background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-sm)}
+
+/* 幅が足りないと3つ並べられないので、狭い画面では検索窓を2段目に落とす。 */
+@media (max-width:479px){
+  .bar{grid-template-columns:1fr auto}
+  .bar input[type=search]{grid-column:1 / -1;grid-row:2}
+}
 
 .card{background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);
   margin-bottom:10px;overflow:hidden}
