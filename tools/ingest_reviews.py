@@ -62,6 +62,10 @@ def normalize(row: dict) -> dict:
         "report": _yes(row.get("report")),
         "report_words": _int(row.get("report_words")),
         "note": (row.get("note") or "").strip() or None,
+        # 受講年。フォームに「いつ受けた？」の列が出来たらここに入る。
+        # 無ければ None のまま ―― 埋めない。詳細パネルは None を
+        # 「受講年 未回答」として末尾に置く（推測で年を書かない）。
+        "taken_year": _int(row.get("taken_year")),
         "at": (row.get("date") or "").strip() or None,
     }
 

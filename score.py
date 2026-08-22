@@ -148,12 +148,18 @@ def _exam_load(c: dict) -> tuple[float | None, list[str]]:
         why.append("持込不可")
 
     # ── 2層目：口コミ由来の体感難易度（0=易しい 1=ふつう 2=難しい の平均）
-    hard = (c.get("reviews") or {}).get("exam_hard")
+    # 規定人数（reviews.MIN_FOR_SCORING）に届いた口コミだけを読む。
+    # 1人の証言で総合値が半分になるのは根拠として弱すぎる、というのが
+    # 2026-08-21 の判断。門の手前の口コミは数字に触れず、画面が
+    # 「口コミがあります、中身を見てください」と出す（reviews.py の scored）。
+    rv = c.get("reviews") or {}
+    hard = rv.get("exam_hard") if rv.get("scored") else None
     if hard is not None:
         load += hard * 22
         why.append(f"口コミ：テストは{['易しめ','ふつう','難しい'][round(hard)]}")
     elif ratio:
-        why.append("難しさは口コミ待ち")
+        why.append("難しさは口コミ待ち" if not rv.get("n")
+                   else f"口コミ{rv['n']}件あり ― 人数が足りず数字には未反映")
 
     return _clamp(100.0 - load), why
 
@@ -336,9 +342,13 @@ def score(course: dict) -> dict:
     # 試験・レポートの「難しさ」は KOAN に書いていない。書いてあるのは形だけ。
     # 形だけで「軽め」と断言すると、成績の82%が一発試験の科目に楽単スコア
     # 最高が付く（実データで確認）。口コミが1件入るまでは断言しない。
+    # 門をくぐっていない口コミは「難しさが確認されていない」ままとして扱う。
+    # ここを緩めると、1件の口コミで「拘束は軽い」が「軽め」に変わり、
+    # 誰も難しさを確かめていない一発試験の科目を推薦してしまう。
     er = course.get("eval_ratio") or {}
     rv = course.get("reviews") or {}
-    pending = bool(er.get("exam")) and rv.get("exam_hard") is None
+    scored_hard = rv.get("exam_hard") if rv.get("scored") else None
+    pending = bool(er.get("exam")) and scored_hard is None
 
     return {
         "overall": overall,
