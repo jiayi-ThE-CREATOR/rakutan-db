@@ -140,6 +140,9 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 .conf{font-size:11.5px;color:var(--muted);margin-top:4px;padding-top:9px;
   border-top:1px dashed var(--rule)}
 .conf b{color:var(--warn)}
+.koanLink{display:block;margin-top:10px;font-size:12.5px;color:var(--muted);
+  text-decoration:underline;text-underline-offset:2px}
+.koanLink:active{color:var(--ink)}
 /* ── 口コミの表示 ───────────────────────
    絞り込めるのに中身が見えない状態だったので足した（2026-08-20）。
    数字は KOAN から取れないものばかりで、ここだけが情報源。 */
@@ -252,7 +255,8 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 
   <footer>
     数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。
-    <b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b><br>
+    <b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b>
+    各カードを開くと出る「KOAN公式シラバスを見る」から確認できます。<br>
     採点は <code>build.py</code> が確定させたもの ―― LINE もこの画面も同じ元データを見ている。
   </footer>
 </div>
@@ -440,6 +444,10 @@ function card(c){
    閉じたまま全カード分を作ると、DOMの56%が「誰も見ていない中身」になり、
    絞り込みのたびの描画とレイアウトがその分だけ重くなる。
    実測（50件・390px）: ノード 1,672→670、innerHTML 3.33ms→1.16ms。 */
+/* 全学教育科目のシラバス公式ページ。時間割コード（c.id）だけ差し替える。
+   セッション不要で開ける形式（政岡 確認済み、2026-08-20）。j_s_cd=13固定＝共通教育科目。 */
+const koanUrl = id => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+
 /* ── 口コミの中身 ─────────────────────
    数字だけ出しても「なぜ楽なのか」は伝わらない。件数・内訳・一言をまとめて出す。
    値は build.py が焼いた集計（複数件なら平均）。一言は publish:false のものを
@@ -474,6 +482,7 @@ function detailHtml(c){
         ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
       ${reviewHtml(c)}
+      <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
 }
 
