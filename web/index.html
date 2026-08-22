@@ -23,51 +23,73 @@
 <div class="note" id="note">読み込み中…</div>
 
 <div class="wrap">
+  <div class="workbench" id="workbench">
 
-  <section>
-    <h2>学年 <span class="sub">履修できない科目は出しません（医・歯学部は6年制）</span></h2>
-    <div class="chips" id="years"></div>
-  </section>
+    <aside class="rail">
+      <div class="slotBar" id="slotBar" hidden>
+        <span id="slotBarText"></span>
+        <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
+      </div>
 
-  <div class="slotBar" id="slotBar" hidden>
-    <span id="slotBarText"></span>
-    <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
+      <section>
+        <h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2>
+        <div class="grid" id="grid"></div>
+        <div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div>
+      </section>
+
+      <section>
+        <h2>学年 <span class="sub">履修できない科目は出しません（医・歯学部は6年制）</span></h2>
+        <div class="chips" id="years"></div>
+      </section>
+
+      <section>
+        <h2>あなたの優先度 <span class="sub">同じ科目でも、人によって「楽」は違う</span></h2>
+        <div class="chips" id="presets"></div>
+        <button class="toggle" id="tog">スライダーで細かく調整する</button>
+        <div class="sliders" id="sliders"></div>
+      </section>
+
+      <section>
+        <h2>条件</h2>
+        <div class="chips" id="conds"></div>
+      </section>
+
+      <section>
+        <h2>口コミ <span class="sub">シラバスの形だけで出した数字か、人が確認した数字か</span></h2>
+        <div class="chips" id="trust"></div>
+      </section>
+    </aside>
+
+    <main class="results" id="results">
+      <div class="bar">
+        <div class="barCount"><b id="count">–</b> <span>件</span></div>
+        <input type="search" id="q" placeholder="科目名でしぼりこむ" autocomplete="off">
+        <select id="sort">
+          <option value="fit">あなたとの相性順</option>
+          <option value="rakutan">全体の軽い順</option>
+          <option value="confidence">情報が揃っている順</option>
+          <option value="title">科目名順</option>
+        </select>
+      </div>
+      <div id="list"></div>
+    </main>
+
+    <aside class="inspector" id="inspector">
+      <div class="inspectorEmpty">
+        <h3>数字の読み方</h3>
+        <p>科目を選ぶと、ここに4軸の内訳と根拠が出ます。</p>
+        <ul class="legend">
+          <li><span class="sw light"></span>軽い ―― 負担が小さい</li>
+          <li><span class="sw mid"></span>ふつう</li>
+          <li><span class="sw heavy"></span>重い ―― 負担が大きい</li>
+        </ul>
+        <p class="fine">「信頼度」は、シラバスの形だけで出した数字か、
+        人が確認した数字かの区別です。一番重い軸が測れていない科目には
+        総合値を出さず「情報不足」と表示します。</p>
+      </div>
+    </aside>
+
   </div>
-
-  <section>
-    <h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2>
-    <div class="grid" id="grid"></div>
-    <div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div>
-  </section>
-
-  <section>
-    <h2>あなたの優先度 <span class="sub">同じ科目でも、人によって「楽」は違う</span></h2>
-    <div class="chips" id="presets"></div>
-    <button class="toggle" id="tog">スライダーで細かく調整する</button>
-    <div class="sliders" id="sliders"></div>
-  </section>
-
-  <section>
-    <h2>条件</h2>
-    <div class="chips" id="conds"></div>
-  </section>
-
-  <section>
-    <h2>口コミ <span class="sub">シラバスの形だけで出した数字か、人が確認した数字か</span></h2>
-    <div class="chips" id="trust"></div>
-  </section>
-
-  <div class="bar">
-    <div class="barCount"><b id="count">–</b> <span>件</span></div>
-    <input type="search" id="q" placeholder="科目名でしぼりこむ" autocomplete="off">
-    <select id="sort">
-      <option value="fit">あなたとの相性順</option>
-      <option value="rakutan">全体の軽い順</option>
-      <option value="confidence">情報が揃っている順</option>
-      <option value="title">科目名順</option>
-    </select>
-  </div>
-  <div id="list"></div>
 
   <footer>
     数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。

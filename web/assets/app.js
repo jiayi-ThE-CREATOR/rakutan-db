@@ -325,24 +325,72 @@ let shown = 0;
 // 直前に詳細欄を開いた科目。下の「口コミを書く」を押したときの初期選択に使う。
 let lastOpenedCourseId = null;
 
+/* ── 選択状態 ─────────────────────────
+ * PC（1024px 以上）では詳細を右カラムに出す。
+ * スマホではいままで通りカードの中に開く。
+ *
+ * 詳細を組み立てる関数（detailHtml）は1本のまま。差し込む場所だけ変える。
+ * ここを2本に分けると、片方だけ直して片方が古いまま、が必ず起きる。
+ * tools/test_layout.py が detailHtml の本数を数えている。
+ */
+let selectedCourseId = null;
+const mqDesktop = window.matchMedia("(min-width:1024px)");
+const isDesktop = () => mqDesktop.matches;
+
+function showDetail(c, article){
+  selectedCourseId = c.id;
+
+  if (isDesktop()){
+    document.querySelectorAll(".card.sel").forEach(el => el.classList.remove("sel"));
+    if (article) article.classList.add("sel");
+    const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
+    const ins = $("#inspector");
+    ins.innerHTML = `<div class="inspectorHead">
+        <h3>${esc(c.title)}</h3>
+        <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
+      </div><div class="detail">${detailHtml(c)}</div>`;
+    ins.scrollTop = 0;
+    lastOpenedCourseId = c.id;
+    return;
+  }
+
+  if (!article) return;
+  // 初めて開くときに詳細を組み立てる。2回目以降は作り直さない。
+  if (!article.dataset.filled){
+    article.querySelector(".detail").innerHTML = detailHtml(c);
+    article.dataset.filled = "1";
+  }
+  const opening = !article.classList.contains("open");
+  article.classList.toggle("open");
+  if (opening) lastOpenedCourseId = c.id;
+}
+
 /* 増えた分のカードだけにクリック判定を付ける。以前は呼ばれるたびに
    #list 内の表示済みカード全部を数え直していたため、スクロールで
    読み込みが進むほど1回あたりの作業量が増えていた（雪だるま式）。 */
 function bindCardHandler(article, c){
   const h = article.querySelector(".head");
-  const t = () => {
-    // 初めて開くときに詳細を組み立てる。2回目以降は作り直さない。
-    if (!article.dataset.filled){
-      article.querySelector(".detail").innerHTML = detailHtml(c);
-      article.dataset.filled = "1";
-    }
-    const opening = !article.classList.contains("open");
-    article.classList.toggle("open");
-    if (opening) lastOpenedCourseId = c.id;
-  };
+  const t = () => showDetail(c, article);
   h.onclick = t;
   h.onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); t(); } };
 }
+
+/* 画面幅が変わったとき（PC で窓を縮めた・スマホを回した）に、
+   詳細がどちらにも出ていない状態にならないよう描き直す。 */
+mqDesktop.addEventListener("change", () => {
+  if (!selectedCourseId) return;
+  const c = courses.find(x => x.id === selectedCourseId);
+  if (!c) return;
+  const article = document.querySelector(`.card[data-id="${CSS.escape(c.id)}"]`);
+  if (isDesktop()){
+    showDetail(c, article);
+  } else {
+    // PC からスマホ幅へ縮めたとき。右カラムは CSS で隠れるので、
+    // 選んでいた科目をカードの中に開き直す。
+    $("#inspector").innerHTML = "";
+    if (article && !article.classList.contains("open")) showDetail(c, article);
+  }
+});
 
 function renderMore(){
   if (shown >= courses.length) return;
@@ -409,9 +457,13 @@ document.querySelectorAll(".row2").forEach(row => {
 });
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
 $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
-$("#list").addEventListener("click", e => {
-  const btn = e.target.closest(".reviewBtn");
-  if (btn) openReviewFor(btn.dataset.id);
+/* 口コミボタンは #list だけに委譲していたが、PC では詳細が
+   右カラムに出るので、そちらでも拾えるようにする。 */
+["#list", "#inspector"].forEach(sel => {
+  $(sel).addEventListener("click", e => {
+    const btn = e.target.closest(".reviewBtn");
+    if (btn) openReviewFor(btn.dataset.id);
+  });
 });
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
