@@ -401,7 +401,8 @@ templates/shell.html    ヘッダ／ナビ／フッタのテンプレ（build.py
 - `tools/test_shell_inject.py`（Python 標準ライブラリ・既存 `test_reviews.py` と同じ形）
   ── 注入後の2ページでヘッダ／ナビ／フッタが完全一致すること、
   「学生団体 GUILD が運営しています」が含まれること
-- `tools/check_tokens.py` ── `app.css` に token を経由しない裸の hex が残っていないこと
+- `tools/test_tokens.py` ── `app.css` に token を経由しない裸の hex が残っていないこと
+  （既存の `test_*.py` に名前を揃える）
 - 手動 ── `prefers-reduced-motion` ／ ダークモード ／ 再訪時に演出が流れないこと
 
 ---
