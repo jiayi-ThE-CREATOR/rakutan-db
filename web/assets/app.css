@@ -33,9 +33,39 @@ h1 .wm{font-size:20px;font-weight:800;color:var(--on-dark);letter-spacing:.11em;
   line-height:1;padding-right:.11em;white-space:nowrap}
 h1 small{font-size:11px;font-weight:400;letter-spacing:.02em;
   color:rgba(255,255,255,.62);margin-left:9px;align-self:center}
-.badge{font-size:11px;color:rgba(255,255,255,.72);
-  border:1px solid rgba(255,255,255,.28);border-radius:var(--r-pill);
-  padding:3px 10px;white-space:nowrap;flex:none}
+
+/* ── ロックアップと GUILD の2行 ─────────
+ * ロゴ本体に GUILD は入れない（ブランド資料の決定）。
+ * 縦線で2行を1つの塊にまとめ、「GUILD＝AI コミュニティ」と読ませる。
+ * 2行が並列の宣言に見えると「ラクハンが AI 製品」と誤読される。
+ */
+.lockup{display:flex;align-items:center;gap:var(--sp-3);
+  text-decoration:none;flex-wrap:wrap}
+.by{display:flex;flex-direction:column;padding-left:var(--sp-2);
+  border-left:1px solid rgba(255,255,255,.28);line-height:1.35}
+.byMain{font-size:var(--fs-xs);font-weight:600;color:rgba(255,255,255,.84)}
+.bySub{font-size:10px;font-weight:400;letter-spacing:.14em;
+  color:rgba(255,255,255,.52);text-transform:uppercase}
+
+/* ── ナビ ─────────────────────────────
+ * ページを分けた以上、いまどこにいるか分からないのは事故なので、
+ * 現在地に下線を出す（aria-current は app.js が付ける）。
+ */
+.nav{display:flex;gap:var(--sp-4);align-items:center}
+.nav a{color:rgba(255,255,255,.78);text-decoration:none;
+  font-size:var(--fs-sm);padding:var(--sp-1) 0;
+  border-bottom:2px solid transparent;
+  transition:color var(--dur) var(--ease-out),
+             border-color var(--dur) var(--ease-out)}
+.nav a:hover{color:var(--on-dark)}
+.nav a[aria-current="page"]{color:var(--on-dark);border-bottom-color:var(--brand)}
+.nav .ext{font-size:10px;margin-left:2px;opacity:.7}
+
+/* 狭い画面ではロックアップとナビを2段にする。 */
+@media (max-width:639px){
+  .hd{flex-direction:column;align-items:flex-start;gap:var(--sp-2)}
+  .nav{gap:var(--sp-3);font-size:var(--fs-xs);flex-wrap:wrap}
+}
 
 input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-md);
   background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-base)}
@@ -181,8 +211,12 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .send[disabled]{background:var(--rule);color:var(--muted);cursor:not-allowed}
 .close{background:none;border:none;color:var(--muted);font:inherit;font-size:var(--fs-sm);
   padding:10px 0 0;cursor:pointer;width:100%}
-footer{font-size:var(--fs-xs);color:var(--muted);line-height:1.65;padding:24px 0 0;
-  border-top:1px solid var(--rule);margin-top:26px}
+footer{font-size:var(--fs-xs);color:var(--muted);line-height:1.65;
+  padding:var(--sp-5) var(--pad) var(--sp-6);border-top:1px solid var(--rule);
+  margin-top:var(--sp-7);max-width:1560px;margin-left:auto;margin-right:auto}
+footer p{margin:0 0 var(--sp-2)}
+/* レッドライン「学生団体であることを明記」。目立たせる。 */
+footer .who b{color:var(--soft)}
 code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius:var(--r-xs);font-size:var(--fs-xs)}
 
 

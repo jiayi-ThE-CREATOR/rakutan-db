@@ -443,6 +443,13 @@ class Handler(BaseHTTPRequestHandler):
 
         # 静的ファイル
         rel = "index.html" if path == "/" else path.lstrip("/")
+        # /about のように拡張子が無いパスは .html として探す。
+        # Cloudflare の静的アセット配信は既定でこれをやるので、
+        # 手元のサーバで同じ挙動にしておかないと
+        # 「本番では動くのにローカルで 404」になる。
+        if "." not in rel.rsplit("/", 1)[-1]:
+            if (WEB_DIR / (rel + ".html")).is_file():
+                rel = rel + ".html"
         target = (WEB_DIR / rel).resolve()
         if not str(target).startswith(str(WEB_DIR.resolve())):
             return self._send_json({"error": "forbidden"}, 403)

@@ -420,7 +420,10 @@ function appendCards(parent, list){
   });
 }
 
-function renderPage(n){
+/* scroll=true はユーザーがページ送りを押したときだけ。
+   初回描画で動かすと、まだ何もしていないのに
+   ヘッダが画面外へ流れていってしまう。 */
+function renderPage(n, scroll = false){
   const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
   page = Math.max(1, Math.min(n, total));
   const list = $("#list");
@@ -442,11 +445,10 @@ function renderPage(n){
   appendCards(list, courses.slice(start, start + PAGE_SIZE));
   renderPager();
 
-  /* 動くのは一覧のカラムだけ。左の絞り込みと右の詳細は動かさない。
-     ページ全体が飛ぶと、いま何で絞っていたのか分からなくなる。 */
-  const results = $("#results");
-  if (results && getComputedStyle(results).overflowY === "auto") results.scrollTop = 0;
-  else list.scrollIntoView({ block: "start", behavior: "smooth" });
+  /* 左の絞り込みと右の詳細は sticky なので画面に残る。
+     動くのは一覧だけ。ページ全体が飛ぶと、
+     いま何で絞っていたのか分からなくなる。 */
+  if (scroll) list.scrollIntoView({ block: "start", behavior: "smooth" });
 }
 
 function renderPager(){
@@ -474,9 +476,9 @@ function renderPager(){
           `${x === page ? ' aria-current="page"' : ""}>${x}</button>`).join("") +
     `</div>`;
 
-  el.querySelectorAll(".pn").forEach(b => { b.onclick = () => renderPage(+b.dataset.p); });
+  el.querySelectorAll(".pn").forEach(b => { b.onclick = () => renderPage(+b.dataset.p, true); });
   const more = el.querySelector(".pagerMore");
-  if (more && !more.disabled) more.onclick = () => renderPage(page + 1);
+  if (more && !more.disabled) more.onclick = () => renderPage(page + 1, true);
 }
 
 async function load(){
@@ -569,4 +571,14 @@ function applyPostMode() {
     t = setTimeout(() => { state.q = e.target.value; load(); }, 200); };
   $("#sort").onchange = e => { state.sort = e.target.value; load(); };
   load();
+})();
+
+/* ナビの現在地。ページを分けた以上、どこにいるか分からないのは事故。 */
+(() => {
+  const here = location.pathname.replace(/\/$/, "") || "/";
+  const key = (here === "/" || here === "/index.html") ? "home"
+            : here.startsWith("/about") ? "about" : null;
+  if (!key) return;
+  const el = document.querySelector(`.nav a[data-nav="${key}"]`);
+  if (el) el.setAttribute("aria-current", "page");
 })();
