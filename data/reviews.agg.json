@@ -1,0 +1,488 @@
+{
+ "131323": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": null,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "131469": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 1000,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "授業終了後にインタビューしたらアマギフ貰えます"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "134153": {
+  "n": 1,
+  "exam_hard": 0.222,
+  "exam_hard10": 2.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 2.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "134157": {
+  "n": 1,
+  "exam_hard": 0.222,
+  "exam_hard10": 2.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 1.0,
+  "notes": [
+   "他の学部の問題入手出来れば簡単"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135185": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 1000,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": null,
+  "notes": [
+   "出席だけすれば大丈夫です"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135312": {
+  "n": 1,
+  "exam_hard": 0.0,
+  "exam_hard10": 1.0,
+  "report_words": null,
+  "exam_bring": "可",
+  "attendance": 0.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135316": {
+  "n": 1,
+  "exam_hard": 0.0,
+  "exam_hard10": 1.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": null,
+  "notes": [
+   "オープンチャットに入れば勝ち確です"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135327": {
+  "n": 2,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 1.0,
+  "notes": [
+   "誰かに出席カードの記入頼めば行かなくていいです",
+   "グループ発表がめんどくさかった"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false
+ },
+ "135349": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2000,
+  "exam_bring": null,
+  "attendance": 1.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135357": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 0.0,
+  "in_class": 2.0,
+  "out_class": 0.0,
+  "notes": [
+   "ポスターセッションがめんどくさい"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135515": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2000,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135518": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 1.0,
+  "in_class": 1.0,
+  "out_class": 0.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135545": {
+  "n": 1,
+  "exam_hard": 1.333,
+  "exam_hard10": 7.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 1.0,
+  "in_class": 1.0,
+  "out_class": 0.0,
+  "notes": [
+   "まあまあマズイです"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135581": {
+  "n": 2,
+  "exam_hard": 1.333,
+  "exam_hard10": 7.0,
+  "report_words": null,
+  "exam_bring": "可",
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "宿題の問題の解き方を持ち込み用紙に丸写しすれば何とかなる",
+   "宿題の問題の解き方を持ち込み用紙に丸写しすれば何とかなる"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135595": {
+  "n": 1,
+  "exam_hard": 0.222,
+  "exam_hard10": 2.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "テストはむずいけど点はそこまでいらない"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135643": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "テストだけ受ければいいです"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135653": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": 2000,
+  "exam_bring": "不可",
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": null,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135719": {
+  "n": 1,
+  "exam_hard": 1.111,
+  "exam_hard10": 6.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135743": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "理解はしないときついです"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135761": {
+  "n": 1,
+  "exam_hard": 0.0,
+  "exam_hard10": 1.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "授業内容は意味わからないけど、テストはほぼ宿題の問題"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135787": {
+  "n": 1,
+  "exam_hard": 0.222,
+  "exam_hard10": 2.0,
+  "report_words": 2000,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "レポートを通じてテスト問題を教えてくれる"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135851": {
+  "n": 3,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": 2.0,
+  "out_class": null,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135881": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": 2.0,
+  "out_class": null,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "135903": {
+  "n": 1,
+  "exam_hard": 0.667,
+  "exam_hard10": 4.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": null,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191169": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 1.0,
+  "notes": [
+   "発表だけすれば簡単です"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191265": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 2.0,
+  "notes": [
+   "発表で英文を覚えていかないといけないのが少し大変"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191289": {
+  "n": 1,
+  "exam_hard": 1.778,
+  "exam_hard10": 9.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191330": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 0.0,
+  "notes": [
+   "発表ちゃんとやれば大丈夫です"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191469": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 0.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191610": {
+  "n": 1,
+  "exam_hard": 0.667,
+  "exam_hard10": 4.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 1.0,
+  "notes": [
+   "授業内テストは勉強いるけど、期末はそんなむずくないです"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191731": {
+  "n": 1,
+  "exam_hard": 0.667,
+  "exam_hard10": 4.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 0.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ },
+ "191872": {
+  "n": 1,
+  "exam_hard": 1.333,
+  "exam_hard10": 7.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "授業に比べてテストむずいです"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false
+ }
+}

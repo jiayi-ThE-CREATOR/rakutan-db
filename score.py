@@ -32,6 +32,28 @@ from __future__ import annotations
 # これを下回る科目は総合値を出さず「情報不足」と表示する。
 COVERAGE_MIN = 0.60
 
+# 成績評価の内訳（eval_ratio）の合計がこれに満たない科目には総合値を出さない。
+# COVERAGE_MIN が守るのは「4軸のうちいくつ測れたか」で、こちらが守るのは
+# 「その軸の重み自体が正しいか」。別物なので両方要る。
+#
+# 合計が 100 に届かないケースは2種類あり、**どちらも「実際より楽に見える」
+# 方向にだけ外れる**：
+#   ① METHOD_RULES がその評価方法名を知らず、割合ごと落ちた
+#      → その軸は「負担ゼロ」として満点になる。eval_unclassified に名前が残る
+#   ② KOAN のシラバス側の表がそもそも 100% になっていない
+#      → こちらは直しようがない。実データでは1件だけ（137135、合計90%）
+#
+# **なぜ 100 ではなく 80 か。** 軸の重みは残った内訳から正規化して決まる
+# （dynamic_weights）ので、90% 読めていれば科目の形はもう決まっている。
+# 残り10%がどの軸に乗っても順位はほとんど動かない。そこで「1割程度の不足で
+# 判定を捨てる」のはやり過ぎとして、8割読めていれば出すことにした
+# （2026-08-20 の判断）。実際に問題だったのは 20%〜70% しか読めていない
+# 科目の方で、そこに 89.0（かなり楽）が付いて1年生のおすすめに載っていた。
+#
+# ①は落ちた項目が eval_unclassified に残り、parse.py も一覧を出すので、
+# 8割を超えていて総合値が出る場合でも「気づけない」ことにはならない。
+EVAL_TOTAL_MIN = 80.0
+
 # 「試験で評価される」「レポートで評価される」こと自体への加重。
 # これは難しさではなく形なので、意図的に小さくしてある。
 # 実際の難易度は口コミ（テストの難しさ・レポートの本数と分量）が決める。
@@ -126,12 +148,18 @@ def _exam_load(c: dict) -> tuple[float | None, list[str]]:
         why.append("持込不可")
 
     # ── 2層目：口コミ由来の体感難易度（0=易しい 1=ふつう 2=難しい の平均）
-    hard = (c.get("reviews") or {}).get("exam_hard")
+    # 規定人数（reviews.MIN_FOR_SCORING）に届いた口コミだけを読む。
+    # 1人の証言で総合値が半分になるのは根拠として弱すぎる、というのが
+    # 2026-08-21 の判断。門の手前の口コミは数字に触れず、画面が
+    # 「口コミがあります、中身を見てください」と出す（reviews.py の scored）。
+    rv = c.get("reviews") or {}
+    hard = rv.get("exam_hard") if rv.get("scored") else None
     if hard is not None:
         load += hard * 22
         why.append(f"口コミ：テストは{['易しめ','ふつう','難しい'][round(hard)]}")
     elif ratio:
-        why.append("難しさは口コミ待ち")
+        why.append("難しさは口コミ待ち" if not rv.get("n")
+                   else f"口コミ{rv['n']}件あり ― 人数が足りず数字には未反映")
 
     return _clamp(100.0 - load), why
 
@@ -296,27 +324,40 @@ def score(course: dict) -> dict:
             weighted += value * w[key]
             weight_sum += w[key]
 
+    # 成績評価の内訳が大きく欠けたままなら、軸の重みが実物とずれている。
+    # 欠けた分は「負担ゼロ」として満点に化けるので、ここで止める。
+    er_all = course.get("eval_ratio") or {}
+    eval_captured = round(sum(er_all.values()), 1) if er_all else None
+    partial_eval = eval_captured is not None and eval_captured < EVAL_TOTAL_MIN
+
     # 重みの合計は 1.0（floor 0.30 ＋ share 0.58 ＋ scale 0.12）なので、
     # weight_sum はそのまま「算出できた割合」になる。
     # 一番重い軸が測れていない科目に総合値を出すと、残った軽い軸だけで
     # 「軽め」が付いてしまう。カバレッジが足りなければ総合値は出さない。
     overall = (round(weighted / weight_sum, 1)
-               if weight_sum >= COVERAGE_MIN else None)
+               if weight_sum >= COVERAGE_MIN and not partial_eval else None)
     conf = confidence(course)
     missing = [a["label"] for a in axes.values() if a["value"] is None]
 
     # 試験・レポートの「難しさ」は KOAN に書いていない。書いてあるのは形だけ。
     # 形だけで「軽め」と断言すると、成績の82%が一発試験の科目に楽単スコア
     # 最高が付く（実データで確認）。口コミが1件入るまでは断言しない。
+    # 門をくぐっていない口コミは「難しさが確認されていない」ままとして扱う。
+    # ここを緩めると、1件の口コミで「拘束は軽い」が「軽め」に変わり、
+    # 誰も難しさを確かめていない一発試験の科目を推薦してしまう。
     er = course.get("eval_ratio") or {}
     rv = course.get("reviews") or {}
-    pending = bool(er.get("exam")) and rv.get("exam_hard") is None
+    scored_hard = rv.get("exam_hard") if rv.get("scored") else None
+    pending = bool(er.get("exam")) and scored_hard is None
 
     return {
         "overall": overall,
         "band": band_of(overall, conf["level"], weight_sum, pending),
         "needs_review": pending,
         "coverage": round(weight_sum, 3),
+        # 成績評価の内訳を何%拾えたか。100 未満なら総合値は出していない。
+        "eval_captured": eval_captured,
+        "eval_unclassified": course.get("eval_unclassified"),
         "missing_axes": missing,
         "axes": axes,
         "confidence": conf,
@@ -401,8 +442,15 @@ def match(course_score: dict, weights: dict | None = None) -> dict:
     # 学生が実際に見て比較するのはこの数字なので、ここを素通しにすると
     # 「情報不足」の判定が画面上では無かったことになる（2026-08-15）。
     if course_score.get("overall") is None:
-        return {"fit": None, "reason": "判定に必要な情報が足りていません。口コミが1件入ると出ます。",
-                "weights": w, "labels": AXIS_LABEL}
+        # 「口コミが入れば出る」と言えるのは、口コミで埋まる穴のときだけ。
+        # 成績評価の内訳そのものが欠けている科目は口コミでは直らない
+        # （シラバス側の問題）ので、同じ文言を出すと嘘になる。
+        captured = course_score.get("eval_captured")
+        reason = ("判定に必要な情報が足りていません。口コミが1件入ると出ます。"
+                  if captured is None or captured >= EVAL_TOTAL_MIN else
+                  f"シラバスの成績評価の内訳が{captured:.0f}%分しか読み取れないため、"
+                  "判定を出していません。")
+        return {"fit": None, "reason": reason, "weights": w, "labels": AXIS_LABEL}
 
     total, wsum = 0.0, 0.0
     for k, weight in w.items():

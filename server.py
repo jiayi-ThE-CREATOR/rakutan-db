@@ -15,10 +15,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+import reviews as reviews_mod
 import score as scoring
 
 ROOT = Path(__file__).parent
@@ -57,6 +59,10 @@ DATA_META.setdefault(
     if IS_SAMPLE else
     f"KOAN 外部公開シラバスから取得（{DATA_META.get('count', '?')}件）。"
     "履修の最終確認は必ず公式シラバスで。")
+# 口コミを載せてから採点する。build.py と同じ順番でなければ
+# APIモードと静的モードで数字がズレる。
+_RV, _RV_SRC = reviews_mod.resolve()
+_N_RV = reviews_mod.apply(COURSES, _RV)
 BY_ID = {c["id"]: c for c in COURSES}
 
 DAYS = ["月", "火", "水", "木", "金"]
@@ -77,6 +83,10 @@ CONDITIONS = {
     "1限以外":      lambda c: not (c.get("day_period") or "").endswith("1"),
     "集中講義":     lambda c: c.get("class_format") == "集中講義",
     "小テストなし": lambda c: c.get("weekly_quiz") is False,
+    # 口コミが1件でも入っている科目。KOAN から取れない5つ（定員／レポート本数／
+    # 字数／時間外学習／毎回小テスト）が埋まっているのはこの科目だけなので、
+    # 「シラバスの形だけで出した数字」と「人が確認した数字」を学生が区別できる。
+    "口コミあり":   lambda c: (c.get("reviews") or {}).get("n", 0) > 0,
 }
 
 
@@ -283,10 +293,24 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_POST(self):
-        """口コミ投稿。4タップで取った選択式の値だけを受ける。
+        """口コミ投稿。選択式の値だけを受ける。
 
         自由記述は一言のみ。長文は書かれないし、推薦にも使えない。
-        ここで集める3項目は、KOANから取れない情報そのもの。
+        ここで集めるのは、KOANから取れない情報そのもの。
+
+        **キーは data/reviews.json（＝しゅんやさんのフォーム→
+        tools/ingest_reviews.py が作る形）に完全に合わせること。**
+        2026-08-21 まで、ここは attendance / workload / grading を保存して
+        いたが、集計する reviews.py が読むのは in_class / out_class /
+        exam_hard10 だった。つまりサイトのフォームから入った口コミは
+        attendance と note 以外まるごと集計から落ちていた。
+        CAN_POST=false で投稿口が閉じていたので露見していなかっただけで、
+        D1 を繋いだ瞬間に事故になる状態だった。
+
+        workload（課題の量）と grading（成績の付き方）は捨てた。
+        前者は in_class / out_class の2軸に対応が付かず、後者は正典側に
+        該当する項目が無い。無理に寄せると「聞いていないことを答えたことに
+        する」ことになるので、フォーム側を正典に合わせる。
         """
         if urlparse(self.path).path != "/api/reviews":
             return self._send_json({"error": "unknown endpoint"}, 404)
@@ -299,15 +323,50 @@ class Handler(BaseHTTPRequestHandler):
         cid = body.get("course_id")
         if cid not in BY_ID:
             return self._send_json({"ok": False, "error": "unknown course"}, 400)
+
+        # 3段階の必須項目。1つでも欠けたら受けない（欠損を0で埋めない）。
+        lv = {k: body.get(k) for k in ("attendance", "in_class", "out_class")}
+        if any(v not in (0, 1, 2) for v in lv.values()):
+            return self._send_json(
+                {"ok": False, "error": "missing choice",
+                 "need": "attendance / in_class / out_class は 0,1,2 のいずれか"},
+                400)
+
+        # 受講年。「いつ受けた？」の答えが無いと、口コミが古びたことに
+        # 誰も気付けなくなる（詳細パネルはこれで並べている）。
+        year = body.get("taken_year")
+        if not isinstance(year, int) or not 2000 <= year <= 2100:
+            return self._send_json(
+                {"ok": False, "error": "missing taken_year",
+                 "need": "taken_year は受講した年（西暦4桁）"}, 400)
+
+        exam = bool(body.get("exam"))
+        report = bool(body.get("report"))
+        hard = body.get("exam_hard10")
+        words = body.get("report_words")
+        bring = body.get("exam_bring")
+
         rec = {
             "course_id": cid,
-            "attendance": body.get("attendance"),   # 0=なし 1=たまに 2=毎回
-            "workload": body.get("workload"),       # 0=軽い 1=ふつう 2=重い
-            "grading": body.get("grading"),         # 0=甘い 1=ふつう 2=厳しい
-            "note": (body.get("note") or "")[:60],
+            "taken_year": year,
+            # 「それ以前」を選んだとき。年は境界（＝その年以前）を意味する。
+            "taken_year_before": bool(body.get("taken_year_before")),
+            "attendance": lv["attendance"],      # 0=なし 1=たまに 2=毎回
+            "attendance_raw": ("なし", "たまに", "毎回")[lv["attendance"]],
+            "in_class": lv["in_class"],          # 授業中の課題 0=軽い 2=重い
+            "out_class": lv["out_class"],        # 授業外の課題 0=軽い 2=重い
+            "exam": exam,
+            "exam_bring": bring if (exam and bring in ("可", "不可")) else None,
+            # 1（簡単）〜10（難しい）。reviews.py が 0〜2 に畳む。
+            "exam_hard10": hard if (exam and isinstance(hard, int)
+                                    and 1 <= hard <= 10) else None,
+            "report": report,
+            "report_words": words if (report and isinstance(words, int)
+                                      and words > 0) else None,
+            "note": (body.get("note") or "")[:60] or None,
+            # ingest_reviews.py の重複判定キーの一部。フォーム側と同じ形で入れる。
+            "at": datetime.now().strftime("%m-%d"),
         }
-        if any(rec[k] not in (0, 1, 2) for k in ("attendance", "workload", "grading")):
-            return self._send_json({"ok": False, "error": "missing choice"}, 400)
 
         path = ROOT / "data" / "reviews.json"
         items = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
@@ -365,6 +424,16 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/"):
             return self._send_json({"error": "unknown endpoint"}, 404)
+
+        # 口コミ1件ずつ（詳細パネル用）。build.py が焼くのと同じ形を、
+        # ここでは data/reviews.json から都度作って返す。
+        # **静的モードと同じ URL で返すのが肝** ―― 画面側が「API モードなら
+        # こっち、静的ならあっち」と分岐しなくて済む。分岐を作ると、
+        # 片方でしか再現しないバグの置き場所ができる。
+        # ビルドし直さなくても投稿がすぐ画面に出るので、開発中はこちらが正しい。
+        if path == "/data/reviews.built.json":
+            return self._send_json(
+                reviews_mod.public_rows(reviews_mod.load()))
 
         # 進捗ダッシュボードは開発者向けなので web/ の外に置いてある。
         # web/ 配下は Cloudflare Pages にそのまま公開されるため、
