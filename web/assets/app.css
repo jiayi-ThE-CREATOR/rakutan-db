@@ -246,3 +246,42 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 .inspector .inspectorHead h3{margin:0 0 var(--sp-1);font-size:var(--fs-lg);line-height:1.35}
 .inspector .inspectorHead .meta{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data)}
 .inspector .detail{display:block;border:none;padding:0;background:none}
+
+
+/* ── 推薦枠 ─────────────────────────────
+ * 下の一覧とはっきり分ける。同じ見た目で上に置くと「ただの並び順」に見えて、
+ * 「人が確認ずみのものを選んである」という意味が伝わらない。
+ */
+.picks{background:var(--brand-soft);border:1px solid var(--brand-line);
+  border-radius:var(--r-lg);padding:var(--sp-3);margin-bottom:var(--sp-5)}
+.picksH{margin:0 0 var(--sp-2);font-size:var(--fs-h2);letter-spacing:0;color:var(--ink)}
+.picksH .sub{font-weight:400;font-size:var(--fs-xs);color:var(--muted);margin-left:var(--sp-2)}
+
+/* ── ページャ ───────────────────────────
+ * スマホは「もっと見る」、PC はページ番号を主にする。
+ * 自動で継ぎ足さないので、終点があり、いまどこにいるかが分かる。
+ */
+.pager{display:flex;flex-direction:column;align-items:center;
+  gap:var(--sp-2);padding:var(--sp-5) 0}
+.pager:empty{display:none}
+.pagerPos{font-size:var(--fs-sm);color:var(--muted);
+  font-family:var(--data);font-variant-numeric:tabular-nums}
+.pagerMore{padding:var(--sp-3) var(--sp-6);border:1px solid var(--brand);
+  border-radius:var(--r-pill);background:transparent;color:var(--brand-text);
+  font:inherit;font-size:var(--fs-base);font-weight:700;cursor:pointer;
+  transition:background var(--dur) var(--ease-out)}
+.pagerMore:hover:not(:disabled){background:var(--brand-soft)}
+.pagerMore:disabled{opacity:.4;cursor:default;border-color:var(--rule);color:var(--muted)}
+.pagerNums{display:none;gap:var(--sp-1);flex-wrap:wrap;justify-content:center}
+.pagerNums .pn{min-width:34px;padding:var(--sp-1) var(--sp-2);
+  border:1px solid var(--rule);border-radius:var(--r-sm);
+  background:var(--card);color:var(--ink);font:inherit;
+  font-family:var(--data);font-variant-numeric:tabular-nums;cursor:pointer}
+.pagerNums .pn.on{background:var(--brand);color:var(--brand-ink);
+  border-color:var(--brand);font-weight:700}
+.pagerNums .gap{color:var(--muted);padding:0 var(--sp-1);align-self:center}
+
+@media (min-width:768px){
+  .pager{flex-direction:row;justify-content:space-between;flex-wrap:wrap}
+  .pagerNums{display:flex}
+}

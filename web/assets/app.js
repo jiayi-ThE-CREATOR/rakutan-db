@@ -317,10 +317,9 @@ async function boot(){
 /* ── 読み込み ─────────────────────────── */
 /* 1,112件を毎回まるごと描画すると実機で重くなるため、最初は PAGE_SIZE 件だけ
    描画し、リスト末尾のセンチネルが画面に入るたび追加描画する（無限スクロール）。 */
-const PAGE_SIZE = 50;
-const LOAD_MARGIN = 600; // センチネルが画面下端からこの距離まで近づいたら追加描画
+const PAGE_SIZE = 24;
+const TOP_PICKS = 5;
 let courses = [];
-let shown = 0;
 
 // 直前に詳細欄を開いた科目。下の「口コミを書く」を押したときの初期選択に使う。
 let lastOpenedCourseId = null;
@@ -392,42 +391,108 @@ mqDesktop.addEventListener("change", () => {
   }
 });
 
-function renderMore(){
-  if (shown >= courses.length) return;
-  const next = courses.slice(shown, shown + PAGE_SIZE);
-  const sentinel = $("#listEnd");
-  const frag = document.createElement("div");
-  frag.innerHTML = next.map(card).join("");
-  Array.from(frag.children).forEach((n, i) => {
-    sentinel.parentNode.insertBefore(n, sentinel);
-    bindCardHandler(n, next[i]);
-  });
-  shown += next.length;
+/* ── 一覧のページング ───────────────────
+ * 無限スクロールをやめた理由：
+ * 1,112件が終わりなく流れるだけで、終点も現在位置も分からなかった。
+ * それに「1,112件」を平らに並べること自体が
+ * 「あなたが1,112件を見比べてください」という意味になっていた。
+ * このサービスの価値は、絞ったことのほうにある。
+ */
+let page = 1;
+
+/* 1ページ目の先頭に出す推薦枠。人が確認ずみの科目からだけ選ぶ。
+   ⚠️ 本一覧の並び順そのものは変えない。
+   ROADMAP 1章の「おすすめ順を検証ずみ優先に」は未決定のまま。
+   ここで足すのは視覚的に独立した枠だけで、その決定を先取りしない。
+
+   なお現時点で門（口コミ3件）を越えた科目は0件なので、
+   この枠は出ない。それが正しい状態。 */
+function topPicks(){
+  return courses.filter(c => c.reviews && c.reviews.scored).slice(0, TOP_PICKS);
 }
 
-/* センチネルが画面下端の LOAD_MARGIN 手前まで来ていれば描画。
-   1回のスクロールで複数ページ分近づくこともあるので満たさなくなるまで繰り返す。 */
-function onScrollCheck(){
-  const sentinel = $("#listEnd");
-  if (!sentinel) return;
-  while (shown < courses.length && sentinel.getBoundingClientRect().top < window.innerHeight + LOAD_MARGIN){
-    renderMore();
-  }
+function appendCards(parent, list){
+  const frag = document.createElement("div");
+  frag.innerHTML = list.map(card).join("");
+  Array.from(frag.children).forEach((n, i) => {
+    parent.appendChild(n);
+    bindCardHandler(n, list[i]);
+  });
 }
-window.addEventListener("scroll", onScrollCheck, { passive: true });
-window.addEventListener("resize", onScrollCheck);
+
+function renderPage(n){
+  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  page = Math.max(1, Math.min(n, total));
+  const list = $("#list");
+  list.innerHTML = "";
+
+  if (page === 1){
+    const picks = topPicks();
+    if (picks.length){
+      const box = document.createElement("section");
+      box.className = "picks";
+      box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
+        `<span class="sub">人が確認ずみの科目から</span></h2>`;
+      appendCards(box, picks);
+      list.appendChild(box);
+    }
+  }
+
+  const start = (page - 1) * PAGE_SIZE;
+  appendCards(list, courses.slice(start, start + PAGE_SIZE));
+  renderPager();
+
+  /* 動くのは一覧のカラムだけ。左の絞り込みと右の詳細は動かさない。
+     ページ全体が飛ぶと、いま何で絞っていたのか分からなくなる。 */
+  const results = $("#results");
+  if (results && getComputedStyle(results).overflowY === "auto") results.scrollTop = 0;
+  else list.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+function renderPager(){
+  const el = $("#pager");
+  if (!el) return;
+  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  if (!courses.length || total <= 1){ el.innerHTML = ""; return; }
+
+  const shownTo = Math.min(page * PAGE_SIZE, courses.length);
+  // 1,112件だと47ページになるので、全部は出せない。
+  // 先頭・末尾・現在の前後2つだけ出し、あいだは「…」で畳む。
+  const nums = [];
+  for (let i = 1; i <= total; i++){
+    if (i === 1 || i === total || Math.abs(i - page) <= 2) nums.push(i);
+    else if (nums[nums.length - 1] !== "…") nums.push("…");
+  }
+
+  el.innerHTML =
+    `<div class="pagerPos">${shownTo} / ${courses.length}件</div>` +
+    `<button class="pagerMore"${page >= total ? " disabled" : ""}>もっと見る</button>` +
+    `<div class="pagerNums">` +
+      nums.map(x => x === "…"
+        ? `<span class="gap">…</span>`
+        : `<button class="pn${x === page ? " on" : ""}" data-p="${x}"` +
+          `${x === page ? ' aria-current="page"' : ""}>${x}</button>`).join("") +
+    `</div>`;
+
+  el.querySelectorAll(".pn").forEach(b => { b.onclick = () => renderPage(+b.dataset.p); });
+  const more = el.querySelector(".pagerMore");
+  if (more && !more.disabled) more.onclick = () => renderPage(page + 1);
+}
 
 async function load(){
   const d = DATA.mode === "api"
     ? await (await fetch("/api/courses?" + qs())).json()
     : queryLocal();
   courses = d.results;
-  shown = 0;
   buildGrid(d.slots); buildConds(d.facets);
   $("#count").textContent = d.count;
-  $("#list").innerHTML = d.count ? `<div id="listEnd" style="height:1px"></div>`
-    : `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
-  if (d.count){ renderMore(); onScrollCheck(); }
+  if (d.count){
+    renderPage(1);
+  } else {
+    $("#list").innerHTML =
+      `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
+    renderPager();
+  }
 }
 
 /* 口コミ選択肢は「口コミを書く」を押した時だけ作る。
