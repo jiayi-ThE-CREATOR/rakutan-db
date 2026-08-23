@@ -1,0 +1,123 @@
+/* ラクハン デザイントークン
+ *
+ * ここが色・余白・文字・角丸・モーションの唯一の定義場所。
+ * app.css には裸の値を書かない（tools/test_tokens.py が見張っている）。
+ *
+ * 色は2系統に分かれていて、混ぜて使わない。
+ *   ブランド・操作色（--brand 系）…… 「押せるもの」にだけ使う
+ *   データ目盛り色（--scale-*）  …… 4軸バーと band にだけ使う
+ * 混ぜると「ブランドの色」と「この科目は重い」が同じ色になり、
+ * 数字の意味そのものが壊れる。
+ */
+:root{
+  /* ── 地と文字 ───────────────────────── */
+  --ink:#16181d; --soft:#3b4148; --muted:#6b736f;
+  --paper:#f4f6f3; --card:#fff; --dim:#e8ebe6; --rule:#d7dcd6;
+  --on-dark:#fff;            /* 濃色帯の上に載せる文字 */
+
+  /* ── ブランド・操作色 ─────────────────
+     #DB6209 は阪大公式の青系を避けて「公認だと誤認されること」を
+     色の段階で断つために選ばれた色。変更しない。単色のみ、グラデーション禁止。
+     明地ではコントラストが足りないので、小さい文字には使わない。
+     面（塗り）と図形の線にだけ使うこと。 */
+  --brand:#DB6209;
+
+  /* オレンジの面に載せる文字は「白ではなく黒」。
+     2026-08-22 実測：
+       #fff    on #DB6209 = 3.64:1  ← 通常文字の 4.5:1 に届かない
+       #1A1A1A on #DB6209 = 4.78:1  ← 通す
+     白のほうが見栄えはするが、選択中のチップの文字が読みにくくなる。
+     ブランド色そのものは変えられないので、載せる文字のほうを変える。 */
+  --brand-ink:#1A1A1A;
+
+  /* オレンジの「文字」用。面ではなく文字に使うときはこちら。
+     2026-08-22 実測：#DB6209 は明地で 3.35〜3.64:1 しかなく、
+     小さい文字には使えない。#A84A06 なら card 5.76 / paper 5.30 /
+     brand-soft 4.92 で、淡いオレンジ地の上でも通る。 */
+  --brand-text:#A84A06;
+
+  --brand-soft:#fbeade;        /* 選択チップ・推薦枠の淡い地 */
+  --brand-line:#f0c9a8;        /* 淡い地の上の罫 */
+  --focus:rgba(219,98,9,.45);  /* フォーカスリング */
+  --brand-ground:#1A1A1A;      /* ヘッダ帯の地。ブランド資料の SUMI */
+
+  /* ── データ目盛り色 ───────────────────
+     軽い → 重い。操作色には絶対に使わない。
+     --scale-heavy は旧 #b4532a から赤側へ寄せてある。
+     ブランドオレンジと色相が近すぎて、
+     「ブランドの色」と「この科目は重い」が見分けられなかったため。 */
+  --scale-light:#0e7c66;
+  /* 面（4軸バーの塗り）は上、文字はこちら。
+     2026-08-22 実測：#0e7c66 を淡い地(#e2efeb)の上の文字に使うと 4.34:1 で、
+     通常文字の 4.5:1 に僅かに届いていなかった（作り直し以前からの状態）。
+     #0c6b59 なら soft 5.45 / card 6.44 / paper 5.92。 */
+  --scale-light-text:#0c6b59;
+  --scale-light-soft:#e2efeb;
+  --scale-mid:#b8862c;
+  --scale-heavy:#C0392B;
+  --scale-heavy-soft:#f7eae3;
+
+  /* band（拘束の帯）。b0 は「情報不足」で、目盛りの外。 */
+  --band-none-bg:#e8e8e8;   --band-none-ink:#5c5c5c;
+  --band-light-bg:#dcf3e3;  --band-light-ink:#1c7a41;
+  --band-mid-bg:#fdf0d5;    --band-mid-ink:#8a6008;
+  --band-heavy-bg:#fce4e4;  --band-heavy-ink:#a32b2b;
+
+  /* ── 文字 ─────────────────────────── */
+  --body:"Hiragino Sans","ヒラギノ角ゴシック",system-ui,sans-serif;
+  --data:"Helvetica Neue",Helvetica,Arial,sans-serif;
+  --fs-xs:11.5px; --fs-sm:13px; --fs-base:15px; --fs-lg:17px;
+  --fs-h2:17px; --fs-hero:clamp(28px,4.2vw,44px);
+
+  /* ── 余白（4px グリッド）─────────────── */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px;
+  --sp-5:24px; --sp-6:32px; --sp-7:48px; --sp-8:64px;
+  --pad:var(--sp-4);
+
+  /* ── 角丸 ─────────────────────────── */
+  --r-xs:4px; --r-sm:6px; --r-md:10px; --r-lg:16px; --r-pill:999px;
+
+  /* ── モーション ───────────────────── */
+  --dur-fast:120ms; --dur:200ms; --dur-slow:320ms; --dur-brand:1400ms;
+  --ease-out:cubic-bezier(.2,.8,.2,1);
+  --ease-brand:cubic-bezier(.65,0,.35,1);
+}
+
+@media (prefers-color-scheme: dark){
+  :root{
+    --ink:#eef1ec; --soft:#c3c9c4; --muted:#8b938d;
+    --paper:#131519; --card:#1b1e23; --dim:#23272d; --rule:#333941;
+    /* ブランド色そのものは暗地で 5.02:1 あるのでそのまま使う。
+       ただし文字用は暗地の card(#1b1e23) で 4.59、brand-soft(#3a2312) で
+       4.03 まで落ちるので、明るい側へ振った #E8853A を使う
+       （paper 6.83 / card 6.24 / brand-soft 5.49）。 */
+    --brand-text:#E8853A;
+    --brand-soft:#3a2312;
+    --brand-line:#5c3a1c;
+    /* 暗地では #3fbfa1 が淡い地の上でも 6.16:1 あるので、面と文字を分けない */
+    --scale-light:#3fbfa1; --scale-light-text:#3fbfa1; --scale-light-soft:#15302b;
+    --scale-mid:#d3a955;
+    --scale-heavy:#e0725c; --scale-heavy-soft:#33211a;
+    /* band は元の実装がライト固定で、暗地では帯だけ白く浮いていた。
+       トークン化のついでに暗地の値を与える。 */
+    --band-none-bg:#2b2f35;   --band-none-ink:#9aa1a8;
+    --band-light-bg:#15302b;  --band-light-ink:#5fd3b4;
+    --band-mid-bg:#33290f;    --band-mid-ink:#dcb45f;
+    --band-heavy-bg:#38201c;  --band-heavy-ink:#ef8f7a;
+  }
+}
+
+/* 演出を止める設定の人には、いっさい動かさない。
+   duration を 0 ではなく 1ms にするのは、
+   transitionend を待っているコードが止まらないようにするため。 */
+@media (prefers-reduced-motion: reduce){
+  :root{
+    --dur-fast:1ms; --dur:1ms; --dur-slow:1ms; --dur-brand:1ms;
+  }
+  *,*::before,*::after{
+    animation-duration:1ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:1ms !important;
+    scroll-behavior:auto !important;
+  }
+}

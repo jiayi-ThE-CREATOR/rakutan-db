@@ -38,6 +38,8 @@ OUT = ROOT / "web" / "data" / "courses.built.json"
 # 全件なめるので、件数に比例して伸びるものを混ぜない。詳細パネルを最初に
 # 開いた時だけ取りに行けば足りる（server.py も同じURLで返す）。
 OUT_REVIEWS = ROOT / "web" / "data" / "reviews.built.json"
+SHELL = ROOT / "templates" / "shell.html"
+PAGES = sorted((ROOT / "web").glob("*.html"))
 
 # シラバス本文に出てくる出席要件を、数えられる形に落とす。
 # 「全授業回数のうち3分の2以上出席」→ "2/3以上" だけ残して本文は捨てる。
@@ -88,6 +90,41 @@ def slim(course: dict) -> dict:
     # ―― 「その口コミが無かったこと」にはしない。
     out["attendance_req"] = attendance_req(course.get("attendance_rule"))
     return out
+
+
+def read_shell() -> dict[str, str]:
+    """templates/shell.html から差し込む部品を取り出す。
+
+    ヘッダとフッタを各ページへ手でコピーすると、必ず片方だけ古くなる。
+    ブランド資料と実装が2週間ズレたのと同じ事故（旧 B-3）を、
+    ページ間で繰り返さないための唯一の正本。
+    """
+    t = SHELL.read_text(encoding="utf-8")
+    parts = {}
+    for name in ("HEADER", "FOOTER"):
+        open_, close = f"<!--PART:{name}-->", f"<!--/PART:{name}-->"
+        parts[name] = t[t.index(open_) + len(open_):t.index(close)].strip()
+    return parts
+
+
+def inject_shell(page: Path, parts: dict[str, str]) -> bool:
+    """1ページ分の <!--SHELL:XXX--> を差し替える。中身が変わったら True。
+
+    目印は消さずに残す。消すと2回目の注入ができなくなる。
+    """
+    before = page.read_text(encoding="utf-8")
+    after = before
+    for name, html in parts.items():
+        open_, close = f"<!--SHELL:{name}-->", f"<!--/SHELL:{name}-->"
+        if open_ not in after or close not in after:
+            continue
+        i = after.index(open_) + len(open_)
+        j = after.index(close, i)
+        after = after[:i] + "\n" + html + "\n" + after[j:]
+    if after != before:
+        page.write_text(after, encoding="utf-8")
+        return True
+    return False
 
 
 def main() -> None:
@@ -228,6 +265,10 @@ def main() -> None:
     if not args.full:
         print("  シラバス原文は含めていません（出席要件だけ派生値で保持）")
 
+
+    parts = read_shell()
+    changed = [p.name for p in PAGES if inject_shell(p, parts)]
+    print(f"  外殻を注入: {', '.join(changed)}" if changed else "  外殻に変更なし")
 
 if __name__ == "__main__":
     main()
