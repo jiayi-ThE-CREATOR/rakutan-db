@@ -145,6 +145,24 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
    数字は KOAN から取れないものばかりで、ここだけが情報源。 */
 .rvb{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;
   background:var(--go-soft);color:var(--go);border-radius:5px;padding:2px 7px}
+/* 口コミが「まだ数字に入っていない」ことの注意喚起（2026-08-23）。
+   3人そろうまで採点に入れない方針にしたため、1人が「テスト難しい」と
+   書いていても総合値は動かない。つまり「とにかく軽い」で並べ替えると
+   その科目が上位に来る。バッジ1個では並べ替えの上位で見落とされるので、
+   カードの枠色を変えたうえで幅いっぱいの帯にしている。
+   scored が true になったら .rvb（普通の件数バッジ）に戻る。 */
+.card.unscored{border-color:var(--warn)}
+.rvAlert{grid-column:1/3;display:flex;gap:7px;align-items:flex-start;margin-top:9px;
+  background:var(--warn-soft);color:var(--warn);border-radius:7px;padding:8px 10px;
+  font-size:12.5px;font-weight:700;line-height:1.5}
+.rvAlert i{font-style:normal;flex:none}
+.rvAlert .go{display:block;font-weight:400;text-decoration:underline;
+  text-underline-offset:2px;margin-top:2px}
+/* 「拘束は軽い」が「軽め」と言い切れない理由。band だけでは学生に伝わらない。
+   これは502科目（全体の45%）に立つので、口コミの帯と同じ強さにはしない
+   ―― 45%に出る警告は壁紙になり、24科目の帯の方を埋もれさせる。 */
+.bandNote{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+.bandNote::before{content:"※ "}
 .rv{margin-top:12px;padding-top:10px;border-top:1px dashed var(--rule)}
 .rvh{font-size:12.5px;color:var(--soft);margin-bottom:7px}
 .rvh b{color:var(--go);font-family:var(--data);margin-left:3px}
@@ -152,10 +170,8 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 .rvf{display:flex;flex-wrap:wrap;gap:5px}
 .rvf span{font-size:11.5px;background:var(--dim);border-radius:5px;padding:3px 8px;color:var(--soft)}
 .rvf i{font-style:normal;color:var(--muted);margin-right:5px}
-.rvn{margin:9px 0 0;padding:0;list-style:none}
-.rvn li{font-size:12.5px;color:var(--ink);line-height:1.6;padding:5px 0 5px 11px;
-  border-left:2px solid var(--go-soft)}
-.rvn li+li{margin-top:4px}
+.rvf span.wf{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.rvWarn{font-size:11.5px;color:var(--warn);margin-top:8px;line-height:1.5}
 .reviewBtn{display:block;width:100%;margin-top:12px;background:var(--go-soft);color:var(--go);
   border:none;border-radius:9px;padding:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:14px}
@@ -175,12 +191,18 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 .sheet .q{margin-top:16px}
 .sheet .q p{margin:0 0 7px;font-size:13.5px;color:var(--soft)}
 .sheet .q p b{font-family:var(--data);color:var(--go);margin-right:6px}
-.sheet select,.sheet input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--rule);
-  border-radius:9px;background:var(--paper);color:var(--ink);font:inherit;font-size:15px}
+.sheet select,.sheet input[type=text],.sheet input[type=number]{width:100%;padding:10px 12px;
+  border:1px solid var(--rule);border-radius:9px;background:var(--paper);color:var(--ink);
+  font:inherit;font-size:15px}
 .row2{display:flex;gap:8px}
 .row2 button{flex:1;border:1px solid var(--rule);background:var(--paper);border-radius:9px;
   padding:11px 0;font:inherit;font-size:14px;color:var(--soft);cursor:pointer}
 .row2 button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
+/* いつ受けた？だけ4択（row2 は3択前提の flex:1 なので別クラス） */
+.row4{display:flex;flex-wrap:wrap;gap:8px}
+.row4 button{flex:1 1 40%;border:1px solid var(--rule);background:var(--paper);border-radius:9px;
+  padding:11px 0;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
+.row4 button.on{background:var(--go);border-color:var(--go);color:#fff;font-weight:700}
 .send{width:100%;margin-top:20px;background:var(--go);color:#fff;border:none;border-radius:10px;
   padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
 .send[disabled]{background:var(--rule);color:var(--muted);cursor:not-allowed}
@@ -189,6 +211,43 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:11.5px}
 footer{font-size:11.5px;color:var(--muted);line-height:1.65;padding:24px 0 0;
   border-top:1px solid var(--rule);margin-top:26px}
 code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius:3px;font-size:11.5px}
+
+/* ── 口コミ詳細パネル ───────────────────
+   カード内の一言リストとは別に、1人ずつの回答を全部読める場所。
+   パネルは1個だけ作って使い回す。カードごとに持たせると無限スクロールで
+   DOM が倍増する（詳細欄を遅延生成にしたのと同じ理由）。 */
+.panelBtn{display:block;width:100%;margin-top:10px;background:var(--dim);color:var(--soft);
+  border:none;border-radius:8px;padding:9px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}
+.panelOv{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:34;display:none}
+.panel{position:fixed;z-index:35;background:var(--card);display:none;overflow:auto}
+.panel.open{display:block}
+.panelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
+  padding-bottom:10px;margin-bottom:6px;border-bottom:1px solid var(--rule)}
+.panelHead h3{margin:0;font-size:15.5px;line-height:1.4}
+.panelClose{background:none;border:none;color:var(--muted);font-size:18px;line-height:1;
+  padding:4px;cursor:pointer;flex:none}
+.pEntry{padding:12px 0;border-bottom:1px dashed var(--rule)}
+.pEntry:last-child{border-bottom:none}
+.pYear{font-size:12px;color:var(--muted);font-family:var(--data);margin-bottom:5px}
+.pOld{margin-left:7px;color:var(--muted)}
+.pLine{font-size:13px;color:var(--soft);line-height:1.6;margin-bottom:3px}
+.pNote{font-size:13px;color:var(--ink);line-height:1.6;margin-top:6px;padding:8px 10px;
+  background:var(--paper);border-radius:7px}
+.pReport{display:block;margin-top:6px;font-size:11px;color:var(--muted);
+  text-decoration:underline;text-underline-offset:2px}
+.pEmpty{padding:30px 0;text-align:center;color:var(--muted);font-size:13.5px}
+/* スマホ（<900px）: 既存 .sheet と同じ見せ方 ―― 下から全画面、背景に半透明の幕 */
+@media (max-width:899px){
+  .panelOv.open{display:block}
+  .panel{inset:auto 0 0 0;width:100%;border-radius:16px 16px 0 0;max-height:86vh;
+    padding:18px var(--pad) 26px}
+}
+/* PC（≥900px）: 右に固定カラム。幕は出さず、body の padding-right で
+   中央の .wrap を押しのける（.wrap 自体の幅は変えない）。 */
+@media (min-width:900px){
+  .panel{top:0;right:0;bottom:0;width:380px;border-left:1px solid var(--rule);padding:20px}
+  body.panelOpen{padding-right:380px}
+}
 </style>
 </head>
 <body>
@@ -257,6 +316,15 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   </footer>
 </div>
 
+<div class="panelOv" id="panelOv"></div>
+<aside class="panel" id="panel" aria-label="口コミ詳細">
+  <div class="panelHead">
+    <h3 id="panelTitle"></h3>
+    <button class="panelClose" id="panelClose" aria-label="閉じる">✕</button>
+  </div>
+  <div id="panelBody"></div>
+</aside>
+
 <button class="fab" id="fab">口コミを書く</button>
 
 <div class="sheet" id="sheet">
@@ -269,12 +337,30 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     <div class="q"><p><b>2</b>出席は取られた？</p>
       <div class="row2" data-k="attendance">
         <button data-v="2">毎回</button><button data-v="1">たまに</button><button data-v="0">なし</button></div></div>
-    <div class="q"><p><b>3</b>課題の量は？</p>
-      <div class="row2" data-k="workload">
+    <div class="q"><p><b>3</b>授業中の課題は？</p>
+      <div class="row2" data-k="in_class">
         <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button></div></div>
-    <div class="q"><p><b>4</b>成績の付き方は？</p>
-      <div class="row2" data-k="grading">
-        <button data-v="2">厳しい</button><button data-v="1">ふつう</button><button data-v="0">甘い</button></div></div>
+    <div class="q"><p><b>4</b>授業外の課題は？</p>
+      <div class="row2" data-k="out_class">
+        <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button></div></div>
+    <div class="q"><p><b>5</b>いつ受けた？</p>
+      <div class="row4" id="rvYearRow"></div></div>
+
+    <div class="q"><p>テストはあった？</p>
+      <div class="row2" data-k="exam">
+        <button data-v="1">あった</button><button data-v="0">なかった</button></div></div>
+    <div class="q" id="qExamBring" hidden><p>持ち込みは？</p>
+      <div class="row2" data-k="exam_bring">
+        <button data-v="可">可</button><button data-v="不可">不可</button></div></div>
+    <div class="q" id="qExamHard" hidden><p>難易度は？（1＝簡単　10＝難しい）</p>
+      <select id="rvHard"></select></div>
+
+    <div class="q"><p>レポートはあった？</p>
+      <div class="row2" data-k="report">
+        <button data-v="1">あった</button><button data-v="0">なかった</button></div></div>
+    <div class="q" id="qReportWords" hidden><p>1本あたり何字くらい？</p>
+      <input type="number" id="rvWords" min="1" step="1" inputmode="numeric" placeholder="例：2000"></div>
+
     <div class="q"><p>一言（任意）</p>
       <input type="text" id="rvNote" maxlength="60" placeholder="例：過去問があれば余裕"></div>
 
@@ -417,19 +503,34 @@ function axRow(key, a, label){
       ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
 }
 
+/* 口コミの件数表示。採点に効いているかで見た目を分ける。
+   ・効いていない（scored:false）… 幅いっぱいの警告帯。中身への導線つき
+   ・効いている（scored:true）  … 従来どおりの緑バッジ
+   ここを1つの関数にまとめてあるのは、門を越える科目が出てきたときに
+   「両方出る」「どちらも出ない」を作らないため。 */
+function reviewMark(rv){
+  if (!rv?.n) return { badge:"", alert:"" };
+  if (rv.scored) return { badge:`<span class="rvb">口コミ ${rv.n}件</span>`, alert:"" };
+  return { badge:"", alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
+      まだ数字には入っていません。中身を確認してください<span class="go">タップして中身を見る ↓</span></div></div>` };
+}
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
   const tags = [...r.tags, ...r.notes];
-  return `<article class="card" data-id="${esc(c.id)}">
+  const rv = reviewMark(c.reviews);
+  return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title">${esc(c.title)}</h3>
         <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
-        ${c.reviews?.n ? `<span class="rvb">口コミ ${c.reviews.n}件</span>` : ""}
+        ${rv.badge}
       </div>
       <div class="fit"><b>${m.fit ?? "—"}</b><small>相性</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
+      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
+        ${r.needs_review ? `<span class="bandNote">テストの難しさは誰も確認していません</span>` : ""}</div>
+      ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <div class="detail"></div>
@@ -449,23 +550,170 @@ const RV_ATT = ["なし", "たまに", "毎回"];
 const RV_LV  = ["軽い", "ふつう", "重い"];
 const rvLv = v => (v === null || v === undefined) ? "―" : RV_LV[Math.round(v)];
 
+/* conflicts（reviews.py _conflicts）が使うキー名 → 日本語ラベル。
+   「回答が割れている」とは、例えばAさん「出席なし」・Bさん「毎回」で
+   平均が「たまに」になること ―― 誰も経験していない値が出てしまうので、
+   ここに印を付けて、詳細はパネルの1件ずつを見てもらう。 */
+const CONFLICT_JA = {attendance:"出席", in_class:"授業中の課題", out_class:"授業外の課題",
+  exam_hard10:"テストの難易度", exam_bring:"持ち込み"};
+
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
-  const f = [["出席", r.attendance == null ? "―" : RV_ATT[Math.round(r.attendance)]],
-             ["授業中の課題", rvLv(r.in_class)],
-             ["授業外の課題", rvLv(r.out_class)]];
-  if (r.exam_hard10 != null) f.push(["テストの難易度", `${r.exam_hard10} / 10`]);
-  if (r.exam_bring)          f.push(["持ち込み", r.exam_bring]);
-  if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  const notes = r.notes || [];
+  const f = [["出席", "attendance", r.attendance == null ? "―" : RV_ATT[Math.round(r.attendance)]],
+             ["授業中の課題", "in_class", rvLv(r.in_class)],
+             ["授業外の課題", "out_class", rvLv(r.out_class)]];
+  if (r.exam_hard10 != null) f.push(["テストの難易度", "exam_hard10", `${r.exam_hard10} / 10`]);
+  if (r.exam_bring)          f.push(["持ち込み", "exam_bring", r.exam_bring]);
+  if (r.report_words)        f.push(["レポート", "report_words", `1本あたり約${r.report_words.toLocaleString()}字`]);
+  const conflicts = r.conflicts || [];
   return `<div class="rv">
       <div class="rvh">口コミ<b>${r.n}件</b>
         <span>定員・レポートの分量・テストの難しさは KOAN に書いていない。ここだけが情報源。</span></div>
-      <div class="rvf">${f.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join("")}</div>
-      ${notes.length ? `<ul class="rvn">${notes.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+      <div class="rvf">${f.map(([k, key, v]) => {
+        const conflict = conflicts.includes(key);
+        return `<span class="${conflict ? "wf" : ""}"><i>${esc(k)}</i>${esc(v)}${conflict ? " ⚠" : ""}</span>`;
+      }).join("")}</div>
+      ${conflicts.length ? `<div class="rvWarn">⚠ ${conflicts.map(k => esc(CONFLICT_JA[k] || k)).join("・")}は回答が割れています。平均は誰も経験していない値かもしれません ―― 1件ずつ確認してください</div>` : ""}
+      <button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${r.n}件）</button>
     </div>`;
 }
+
+// 0件の科目にも「見る」の入口は出す。中身はパネル側の空状態（panelBodyHtml）で
+// 「まだ誰も書いていない」を見せる ―― ここでパネルを分岐させない。
+function reviewSectionHtml(c){
+  if (c.reviews && c.reviews.n) return reviewHtml(c);
+  return `<div class="rv">
+      <div class="rvh">口コミ<span>まだ投稿がありません</span></div>
+      <button class="panelBtn" data-id="${esc(c.id)}">口コミを見る</button>
+    </div>`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   口コミ詳細パネル ― 1人ずつの回答を全部読める場所
+
+   web/data/reviews.built.json は1,112件ぶんの courses.built.json と
+   別ファイル（1,615KB → 絞り込みのたびに全件なめると重い）。
+   パネルを最初に開いたときだけ fetch してメモリにキャッシュする。
+   server.py も同じ URL（data/reviews.built.json）で返すので、
+   API モードと静的モードで分岐しない。分岐は「片方でしか再現しない
+   バグ」の置き場所になるので作らないこと。
+   ══════════════════════════════════════════════════════════ */
+let reviewsCache = null;
+async function fetchReviewsData(){
+  if (reviewsCache) return reviewsCache;
+  reviewsCache = await (await fetch("data/reviews.built.json")).json();
+  return reviewsCache;
+}
+
+const RV_ATT_FULL = ["なし", "たまに", "毎回"];
+const RV_LV_FULL  = ["軽い", "ふつう", "重い"];
+const lvFull  = v => (v === null || v === undefined) ? "―" : RV_LV_FULL[v];
+const attFull = v => (v === null || v === undefined) ? "―" : RV_ATT_FULL[v];
+
+// 通報フォームのURLはまだ無い。空文字の間はリンクごと出さない
+// （押せるように見えて何も開かない、を避ける ―― CAN_POST と同じ考え方）。
+// URL ができたらここに入れるだけで全件に出る。
+const REPORT_FORM_URL = "";
+
+/* 1人 = 1ブロック。その人の回答を全部その人の周りに置く。
+   null は「―」で明示する ―― 埋めると「無回答だった」という情報が消える。 */
+function panelEntry(row){
+  const curYear = new Date().getFullYear();
+  const yearLabel = row.taken_year == null ? "受講時期不明"
+    : row.taken_year_before ? `${row.taken_year}年以前に受講` : `${row.taken_year}年受講`;
+  const age = row.taken_year == null ? 0 : curYear - row.taken_year;
+  const old = row.taken_year != null && age >= 3;
+
+  const examBits = [];
+  if (row.exam_hard10 != null) examBits.push(`テスト ${row.exam_hard10}/10`);
+  if (row.exam_bring)          examBits.push(`持ち込み ${row.exam_bring}`);
+
+  const lines = [`出席 ${attFull(row.attendance)} ／ 授業中の課題 ${lvFull(row.in_class)} ／ 授業外の課題 ${lvFull(row.out_class)}`];
+  if (examBits.length) lines.push(examBits.join(" ・ "));
+  if (row.report_words != null) lines.push(`レポート 1本あたり約${row.report_words.toLocaleString()}字`);
+
+  return `<div class="pEntry">
+      <div class="pYear">${esc(yearLabel)}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
+      ${lines.map(l => `<div class="pLine">${esc(l)}</div>`).join("")}
+      ${row.note ? `<div class="pNote">${esc(row.note)}</div>` : ""}
+      ${REPORT_FORM_URL ? `<a class="pReport" href="${esc(REPORT_FORM_URL)}" target="_blank" rel="noopener noreferrer">報告</a>` : ""}
+    </div>`;
+}
+
+// 0件のときの見せ方は CAN_POST で分ける。受け皿が無いのに投稿ボタンだけ
+// 出さない、はここでも同じ（口コミを書く FAB を常時表示にしたのとは別の話 ――
+// あちらは「押しても安全に断れる」ようにした。こちらは元々「まだ誰も書いていない」
+// という空状態の中の導線なので、CAN_POST=false ならボタンごと出さないままにする）。
+function panelBodyHtml(rows, courseId){
+  if (rows.length) return rows.map(panelEntry).join("");
+  if (!CAN_POST) return `<p class="pEmpty">まだ誰も書いていない</p>`;
+  return `<p class="pEmpty">まだ誰も書いていない<br>一緒に投稿しよう</p>
+      <button class="reviewBtn" data-id="${esc(courseId)}">口コミを書く</button>`;
+}
+
+function panelSetOpen(open){
+  $("#panel").classList.toggle("open", open);
+  $("#panelOv").classList.toggle("open", open);
+  document.body.classList.toggle("panelOpen", open);
+}
+
+/* ── URL反映（?c=<科目id>） ─────────────────
+   パネルを開くたびに履歴を1つ積む。積まないと Android の戻るボタンが
+   パネルではなくサイトそのものを閉じてしまう（前のページへ遡る）。
+   閉じる手段（✕・幕タップ・Escape・ブラウザの戻る）を全部
+   history.back() 経由にまとめてあるのは、実際に閉じる処理を popstate の
+   1箇所だけに絞るため ―― バラバラに書くと「✕では消えるが戻るボタンでは
+   消えない」のような手段ごとの食い違いが起きる。 */
+function findCourseSync(id){
+  return courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id) || null;
+}
+// 一覧に無い科目（絞り込みで外れている・無限スクロールでまだ読んでいない）も
+// 共有リンクからは開けるようにする。static モードは DATA.courses に全件あるので
+// 足りるが、API モードは表示中の分しか手元に無いので1件だけ取りに行く。
+async function findCourse(id){
+  const local = findCourseSync(id);
+  if (local) return local;
+  if (DATA.mode === "api"){
+    try {
+      const res = await fetch(`/api/courses/${encodeURIComponent(id)}`);
+      if (res.ok) return await res.json();
+    } catch (e) { /* 見つからなければ諦める */ }
+  }
+  return null;
+}
+
+async function openPanel(id, push = true){
+  const c = await findCourse(id);
+  if (!c) return;
+  if (push){
+    const url = new URL(location.href);
+    url.searchParams.set("c", id);
+    history.pushState({ panelCourse: id }, "", url);
+  }
+  $("#panelTitle").textContent = c.title;
+  $("#panelBody").innerHTML = `<p class="pEmpty">読み込み中…</p>`;
+  panelSetOpen(true);
+  const data = await fetchReviewsData();
+  $("#panelBody").innerHTML = panelBodyHtml(data[id] || [], id);
+}
+function closePanel(){
+  // 開いたときに積んだ履歴を1つ戻すだけ。閉じる本体は popstate 側。
+  if (new URL(location.href).searchParams.get("c")) history.back();
+  else panelSetOpen(false);
+}
+window.addEventListener("popstate", () => {
+  const id = new URL(location.href).searchParams.get("c");
+  if (id) openPanel(id, false); else panelSetOpen(false);
+});
+$("#panelClose").onclick = closePanel;
+$("#panelOv").onclick = closePanel;
+document.addEventListener("keydown", e => { if (e.key === "Escape") closePanel(); });
+// 0件の空状態からの「口コミを書く」。#list の外（パネル）なので別に配線する。
+$("#panel").addEventListener("click", e => {
+  const btn = e.target.closest(".reviewBtn");
+  if (btn) openReviewFor(btn.dataset.id);
+});
 
 function detailHtml(c){
   const r = c.rakutan;
@@ -473,7 +721,7 @@ function detailHtml(c){
       <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
         ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
-      ${reviewHtml(c)}
+      ${reviewSectionHtml(c)}
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
 }
 
@@ -507,7 +755,9 @@ const CONDITIONS = {
 function matchLocal(r, w){
   // score.py の match() と同じゲート。総合値を出さない科目には相性も出さない。
   if (r.overall === null || r.overall === undefined)
-    return { fit:null, reason:"判定に必要な情報が足りていません。口コミが1件入ると出ます。",
+    // 2026-08-23: 口コミ1件では採点に入らなくなった（門＝中身の違う回答が3件）。
+    // 「1件入ると出ます」のままだと、1件書いた人が「出ない」と思うことになる。
+    return { fit:null, reason:"判定に必要な情報が足りていません。中身の違う口コミが3件そろうと出ます。",
              weights:w, labels:META.axis_labels };
   const axes = r.axes;
   let total = 0, wsum = 0;
@@ -679,18 +929,99 @@ function buildReviewSelect(){
 function openReviewFor(id){
   buildReviewSelect();
   if (id) $("#rvCourse").value = id;
+  resetReviewForm();
   $("#sheet").classList.add("open");
 }
 
-/* ── 口コミシート ─────────────────────── */
+/* ── 口コミシート ─────────────────────────
+   2026-08-23: キーを正典（reviews.py が読む形）に合わせた。
+   以前は attendance / workload / grading を聞いていたが、集計側は
+   in_class / out_class / exam_hard10 を読んでいたため、フォームから
+   入った口コミは出席と一言以外まるごと落ちていた。
+   質問そのものを正典のキーに合わせる（キー名は server.py の
+   do_POST と1対1で対応させること。ここがずれると同じ事故が起きる）。 */
 const review = {};
-function checkSend(){
-  $("#send").disabled = !(review.attendance!=null && review.workload!=null && review.grading!=null);
+
+// 「いつ受けた？」の選択肢。年をべた書きしない ―― 来年もこのまま使える。
+const RV_CUR_YEAR = new Date().getFullYear();
+function buildYearRow(){
+  const opts = [
+    { y: RV_CUR_YEAR,   before: false, label: `${RV_CUR_YEAR}年` },
+    { y: RV_CUR_YEAR-1, before: false, label: `${RV_CUR_YEAR-1}年` },
+    { y: RV_CUR_YEAR-2, before: false, label: `${RV_CUR_YEAR-2}年` },
+    { y: RV_CUR_YEAR-3, before: true,  label: `${RV_CUR_YEAR-3}年以前` },
+  ];
+  $("#rvYearRow").innerHTML = opts.map(o =>
+    `<button data-y="${o.y}" data-before="${o.before}">${esc(o.label)}</button>`).join("");
+  $("#rvYearRow").querySelectorAll("button").forEach(b => b.onclick = () => {
+    $("#rvYearRow").querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    review.taken_year = +b.dataset.y;
+    review.taken_year_before = b.dataset.before === "true";
+    checkSend();
+  });
 }
+buildYearRow();
+
+// 難易度は 1〜10 の選択式（自由記述にしない方針はここも同じ）。
+$("#rvHard").innerHTML = `<option value="">選ぶ</option>` +
+  Array.from({length:10}, (_,i)=>i+1).map(n=>`<option value="${n}">${n}</option>`).join("");
+$("#rvHard").onchange = () => {
+  review.exam_hard10 = $("#rvHard").value ? +$("#rvHard").value : null;
+  checkSend();
+};
+$("#rvWords").oninput = () => {
+  const v = +$("#rvWords").value;
+  review.report_words = (v > 0) ? v : null;
+  checkSend();
+};
+
+// テスト／レポートは分岐。「無かった」を選んだ人まで必須項目が増えないように、
+// 分岐先の答えは非表示にすると同時に消す（隠しただけで値が残ると誤送信する）。
+function toggleExamFields(on){
+  $("#qExamBring").hidden = !on;
+  $("#qExamHard").hidden = !on;
+  if (!on){
+    $("#qExamBring").querySelectorAll("button.on").forEach(b => b.classList.remove("on"));
+    $("#rvHard").value = "";
+    review.exam_bring = null; review.exam_hard10 = null;
+  }
+}
+function toggleReportFields(on){
+  $("#qReportWords").hidden = !on;
+  if (!on){ $("#rvWords").value = ""; review.report_words = null; }
+}
+
+function checkSend(){
+  const base = review.attendance != null && review.in_class != null && review.out_class != null
+    && review.taken_year != null && review.exam != null && review.report != null;
+  const examOk   = !review.exam   || (review.exam_bring != null && review.exam_hard10 != null);
+  const reportOk = !review.report || review.report_words != null;
+  $("#send").disabled = !(base && examOk && reportOk);
+}
+
+// シートを開くたびに前回の回答を消す。別の科目を続けて投稿するときに、
+// 「テストはあった？」の答えだけ前の科目のまま送られる、という事故を防ぐ。
+function resetReviewForm(){
+  for (const k of Object.keys(review)) delete review[k];
+  $(".sheet").querySelectorAll(".row2 button.on, .row4 button.on")
+    .forEach(b => b.classList.remove("on"));
+  $("#rvHard").value = ""; $("#rvWords").value = ""; $("#rvNote").value = "";
+  toggleExamFields(false); toggleReportFields(false);
+  checkSend();
+}
+
 document.querySelectorAll(".row2").forEach(row => {
   row.querySelectorAll("button").forEach(b => b.onclick = () => {
     row.querySelectorAll("button").forEach(x => x.classList.remove("on"));
-    b.classList.add("on"); review[row.dataset.k] = +b.dataset.v; checkSend();
+    b.classList.add("on");
+    const k = row.dataset.k, v = b.dataset.v;
+    if (k === "exam" || k === "report") review[k] = v === "1";
+    else if (k === "exam_bring")        review[k] = v;
+    else                                 review[k] = +v;
+    if (k === "exam")   toggleExamFields(review.exam);
+    if (k === "report") toggleReportFields(review.report);
+    checkSend();
   });
 });
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
@@ -698,36 +1029,45 @@ $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
 $("#list").addEventListener("click", e => {
   const btn = e.target.closest(".reviewBtn");
   if (btn) openReviewFor(btn.dataset.id);
+  const pbtn = e.target.closest(".panelBtn");
+  if (pbtn) openPanel(pbtn.dataset.id);
 });
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
-/* 静的ホスティングには投稿を受ける先が無い。
-   受け皿が無いのに送信ボタンだけ出すと、書いてくれた口コミが消える。
-   「準備中」と書いたボタンを置くのも、押せるように見えて何も起きないので採らない。
-   保存先ができるまでは入口ごと出さない。
-   D1 が立ったら CAN_POST を true にするだけで戻る（この行以外は触らなくていい）。 */
+/* 2026-08-23: 以前は「受け皿（D1）が無いのに送信ボタンだけ出すと、書いた
+   口コミが消える」という理由でボタンごと隠していたが、D1 が立つたびに
+   ここを直すのを忘れないよう、常時表示にする方針に変えた（松下指示）。
+   代わりに、受け皿がまだ無い間は送信を押しても _send 側で止め、
+   「まだ投稿を受け付けていません」と見せる ―― 黙って失敗させない。
+   答えた内容はここでは消さない（押しただけで消えると別の事故になる）。
+   D1 が立ったら CAN_POST を true にするだけで送れるようになる。 */
 let CAN_POST = false;
 
 $("#send").onclick = async () => {
-  if (!CAN_POST) return;
-  const body = {course_id: $("#rvCourse").value, note: $("#rvNote").value, ...review};
+  if (!CAN_POST) {
+    $("#send").textContent = "まだ投稿を受け付けていません";
+    setTimeout(() => { $("#send").textContent = "送信する"; }, 1500);
+    return;
+  }
+  const body = {
+    course_id: $("#rvCourse").value,
+    attendance: review.attendance, in_class: review.in_class, out_class: review.out_class,
+    taken_year: review.taken_year, taken_year_before: review.taken_year_before,
+    exam: review.exam, exam_bring: review.exam ? review.exam_bring : null,
+    exam_hard10: review.exam ? review.exam_hard10 : null,
+    report: review.report, report_words: review.report ? review.report_words : null,
+    note: $("#rvNote").value,
+  };
   const res = await fetch("/api/reviews", {method:"POST", headers:{"Content-Type":"application/json"},
                                            body: JSON.stringify(body)});
   const j = await res.json();
   $("#send").textContent = j.ok ? `ありがとう（累計 ${j.total} 件）` : "送信できませんでした";
-  setTimeout(() => { $("#sheet").classList.remove("open"); $("#send").textContent = "送信する"; }, 1200);
+  setTimeout(() => { $("#sheet").classList.remove("open"); $("#send").textContent = "送信する"; resetReviewForm(); }, 1200);
 };
-
-function applyPostMode() {
-  if (CAN_POST) return;
-  $("#fab").style.display = "none";
-  $("#sheet").classList.remove("open");
-}
 
 /* ── 起動 ─────────────────────────────── */
 (async () => {
   await boot();
-  applyPostMode();
   $("#note").textContent = META.disclaimer;
   buildYears(); buildPresets(); buildSliders();
   $("#tog").onclick = () => {
@@ -737,7 +1077,11 @@ function applyPostMode() {
   let t; $("#q").oninput = e => { clearTimeout(t);
     t = setTimeout(() => { state.q = e.target.value; load(); }, 200); };
   $("#sort").onchange = e => { state.sort = e.target.value; load(); };
-  load();
+  await load();
+  // 共有リンク（?c=<科目id>）で開かれたときは、一覧の描画を待ってから
+  // そのままパネルを開く。history には積まない（今のURL自体がその状態のため）。
+  const initId = new URL(location.href).searchParams.get("c");
+  if (initId) openPanel(initId, false);
 })();
 </script>
 </body>
