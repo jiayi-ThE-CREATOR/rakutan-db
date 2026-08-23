@@ -170,7 +170,12 @@ function reviewHtml(c){
              ["授業中の課題", rvLv(r.in_class)],
              ["授業外の課題", rvLv(r.out_class)]];
   if (r.exam_hard10 != null) f.push(["テストの難易度", `${r.exam_hard10} / 10`]);
-  if (r.exam_bring)          f.push(["持ち込み", r.exam_bring]);
+  /* 「その他（持ち帰り形式）」等は 可／不可 に畳むと情報が落ちるので、
+     畳んだ値に原文を添えて出す ―― 「可（持ち帰り形式）」。 */
+  if (r.exam_bring){
+    const m = (r.exam_bring_raw || "").match(/^その他[（(](.+)[）)]$/);
+    f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
+  }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
   const notes = r.notes || [];
   return `<div class="rv">
