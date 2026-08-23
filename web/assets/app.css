@@ -32,7 +32,7 @@ h1 .mark{display:block;height:19px;width:auto;align-self:center;
 h1 .wm{font-size:20px;font-weight:800;color:var(--on-dark);letter-spacing:.11em;
   line-height:1;padding-right:.11em;white-space:nowrap}
 h1 small{font-size:11px;font-weight:400;letter-spacing:.02em;
-  color:rgba(255,255,255,.62);margin-left:9px;align-self:center}
+  color:var(--on-dark-weak);margin-left:9px;align-self:center}
 
 /* ── ロックアップと GUILD の2行 ─────────
  * ロゴ本体に GUILD は入れない（ブランド資料の決定）。
@@ -42,17 +42,17 @@ h1 small{font-size:11px;font-weight:400;letter-spacing:.02em;
 .lockup{display:flex;align-items:center;gap:var(--sp-3);
   text-decoration:none;flex-wrap:wrap}
 .by{display:flex;flex-direction:column;padding-left:var(--sp-2);
-  border-left:1px solid rgba(255,255,255,.28);line-height:1.35}
-.byMain{font-size:var(--fs-xs);font-weight:600;color:rgba(255,255,255,.84)}
+  border-left:1px solid var(--on-dark-line);line-height:1.35}
+.byMain{font-size:var(--fs-xs);font-weight:600;color:var(--on-dark-strong)}
 .bySub{font-size:10px;font-weight:400;letter-spacing:.14em;
-  color:rgba(255,255,255,.52);text-transform:uppercase}
+  color:var(--on-dark-faint);text-transform:uppercase}
 
 /* ── ナビ ─────────────────────────────
  * ページを分けた以上、いまどこにいるか分からないのは事故なので、
  * 現在地に下線を出す（aria-current は app.js が付ける）。
  */
 .nav{display:flex;gap:var(--sp-4);align-items:center}
-.nav a{color:rgba(255,255,255,.78);text-decoration:none;
+.nav a{color:var(--on-dark-mid);text-decoration:none;
   font-size:var(--fs-sm);padding:var(--sp-1) 0;
   border-bottom:2px solid transparent;
   transition:color var(--dur) var(--ease-out),
@@ -89,7 +89,7 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 /* ── 選択中コマの貼り付きバー ─────────── */
 .slotBar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;
   gap:10px;background:var(--brand);color:var(--brand-ink);border-radius:var(--r-md);font-size:var(--fs-sm);font-weight:700;
-  padding:9px 13px;margin-top:10px;box-shadow:0 4px 14px rgba(0,0,0,.16)}
+  padding:9px 13px;margin-top:10px;box-shadow:0 4px 14px var(--shadow-card)}
 .slotBar[hidden]{display:none}
 .slotBar button{background:none;border:none;color:var(--brand-ink);font:inherit;font-size:16px;line-height:1;
   cursor:pointer;padding:2px 4px}
@@ -190,8 +190,8 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .fab{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:20;
   background:var(--brand);color:var(--brand-ink);border:none;border-radius:var(--r-pill);
   padding:12px 22px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;
-  box-shadow:0 6px 20px rgba(0,0,0,.22)}
-.sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:30;display:none;
+  box-shadow:0 6px 20px var(--shadow-fab)}
+.sheet{position:fixed;inset:0;background:var(--scrim);z-index:30;display:none;
   align-items:flex-end;justify-content:center}
 .sheet.open{display:flex}
 .sheet .inner{background:var(--card);width:100%;max-width:560px;border-radius:var(--r-lg) 16px 0 0;
@@ -384,7 +384,7 @@ html.splash-on{overflow:hidden}
 
 /* ③ 縦線が伸びて GUILD の2行が出る。 */
 .splashBy{display:flex;flex-direction:column;align-items:flex-start;
-  padding-left:var(--sp-2);border-left:1px solid rgba(255,255,255,.28);
+  padding-left:var(--sp-2);border-left:1px solid var(--on-dark-line);
   opacity:0;margin-top:var(--sp-2)}
 .splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 700ms forwards}
 

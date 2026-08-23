@@ -14,6 +14,19 @@
   --ink:#16181d; --soft:#3b4148; --muted:#6b736f;
   --paper:#f4f6f3; --card:#fff; --dim:#e8ebe6; --rule:#d7dcd6;
   --on-dark:#fff;            /* 濃色帯の上に載せる文字 */
+  /* 濃色帯（--brand-ground）の上の、弱い文字と罫。
+     透明度で作ってあるので、実際の色は下地との合成結果になる。
+     tools/test_tokens.py が合成したうえでコントラストを測っている。 */
+  --on-dark-strong:rgba(255,255,255,.84); /* 12.49:1 */
+  --on-dark-mid:rgba(255,255,255,.78);    /* 10.91:1 */
+  --on-dark-weak:rgba(255,255,255,.62);   /* 7.32:1 */
+  --on-dark-faint:rgba(255,255,255,.52);  /* 5.53:1。AI Community はここが一番弱い、が意図 */
+  --on-dark-line:rgba(255,255,255,.34);  /* .28 だと 2.53:1 で図形の基準に届かない */
+
+  /* 影とスクリム。文字ではないのでコントラストの対象外。 */
+  --shadow-card:rgba(0,0,0,.16);
+  --shadow-fab:rgba(0,0,0,.22);
+  --scrim:rgba(0,0,0,.45);
 
   /* ── ブランド・操作色 ─────────────────
      #DB6209 は阪大公式の青系を避けて「公認だと誤認されること」を
@@ -53,7 +66,9 @@
      #0c6b59 なら soft 5.45 / card 6.44 / paper 5.92。 */
   --scale-light-text:#0c6b59;
   --scale-light-soft:#e2efeb;
-  --scale-mid:#b8862c;
+  /* 2026-08-23 実測：#b8862c は下地 --dim(#e8ebe6) に対して 2.69:1 で、
+     バーが track に溶けていた（図形は 3.0:1 必要）。#a8781f で 3.25:1。 */
+  --scale-mid:#a8781f;
   --scale-heavy:#C0392B;
   --scale-heavy-soft:#f7eae3;
 
