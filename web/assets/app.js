@@ -408,7 +408,24 @@ let page = 1;
    なお現時点で門（口コミ3件）を越えた科目は0件なので、
    この枠は出ない。それが正しい状態。 */
 function topPicks(){
-  return courses.filter(c => c.reviews && c.reviews.scored).slice(0, TOP_PICKS);
+  /* 「あなたに合う」と名乗る以上、下の一覧がどの順に並んでいても、
+     ここは必ず相性順で選ぶ。
+
+     2026-08-24 修正：以前は courses の先頭から5件取っていた。
+     courses は利用者が選んだ並び順で来るので、
+     「科目名順」を選ぶと “名前が前の5件” を「あなたに合う5件」と
+     呼んでいた（4つの並び順のうち3つで名前と中身が食い違う）。
+     門を越えた科目が0件で枠自体が出ていなかったため、
+     画面上は誰にも見えていなかった。
+
+     filter が新しい配列を返すので、ここで sort しても
+     courses そのものの並びは動かない。 */
+  const nul = v => v === null || v === undefined;
+  return courses
+    .filter(c => c.reviews && c.reviews.scored)
+    .sort((a, b) => (nul(a.match.fit) - nul(b.match.fit))
+                 || ((b.match.fit || 0) - (a.match.fit || 0)))
+    .slice(0, TOP_PICKS);
 }
 
 function appendCards(parent, list){
