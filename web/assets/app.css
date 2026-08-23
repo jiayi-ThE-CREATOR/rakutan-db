@@ -166,6 +166,13 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .conf{font-size:var(--fs-xs);color:var(--muted);margin-top:4px;padding-top:9px;
   border-top:1px dashed var(--rule)}
 .conf b{color:var(--scale-heavy)}
+/* KOAN 公式シラバスへの外向きリンク（松下さん PR #23）。
+   画面に「最終判断は公式シラバスで」と書いているのにリンクが無く、
+   学生が自分で検索し直していた（政岡さんの指摘・2026-08-20）。 */
+.koanLink{display:block;margin-top:var(--sp-2);font-size:var(--fs-sm);
+  color:var(--muted);text-decoration:underline;text-underline-offset:2px}
+.koanLink:hover,.koanLink:active{color:var(--ink)}
+
 /* ── 口コミの表示 ───────────────────────
    絞り込めるのに中身が見えない状態だったので足した（2026-08-20）。
    数字は KOAN から取れないものばかりで、ここだけが情報源。 */
