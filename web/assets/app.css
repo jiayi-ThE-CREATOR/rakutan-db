@@ -346,3 +346,72 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 .railNote{margin-top:var(--sp-5);font-size:var(--fs-sm)}
 .railNote a{color:var(--brand-text);text-decoration:none}
 .railNote a:hover{text-decoration:underline}
+
+
+/* ── オープニング演出 ───────────────────
+ * ロゴが2本の SVG stroke path なので、stroke-dashoffset で筆順に書ける。
+ * 覆いの下のページはすでに描画ずみで、DOM は塞いでいない。
+ */
+.splash{position:fixed;inset:0;z-index:100;background:var(--brand-ground);
+  display:grid;place-items:center;
+  opacity:1;transition:opacity var(--dur-slow) var(--ease-out)}
+.splash.out{opacity:0;pointer-events:none}
+.splash[hidden]{display:none}
+/* 覆いが出ているあいだは背後をスクロールさせない。 */
+html.splash-on{overflow:hidden}
+
+.splashInner{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3)}
+/* ヘッダのロックアップと同じく、マーク＋「クハン」で1語に見せる。
+   縦に積むと「ラ」がただの絵になってしまい、書き出す意味が消える。 */
+.splashWord{display:flex;align-items:center}
+.splashMark{height:44px;width:auto;margin-right:.11em;display:block}
+
+/* ① 「ラ」を2画で書き出す。2画目は 80ms 遅らせる。 */
+.splash.run .splashMark .s1{animation:rkDraw 380ms var(--ease-brand) forwards}
+.splash.run .splashMark .s2{animation:rkDraw 440ms var(--ease-brand) 80ms forwards}
+@keyframes rkDraw{to{stroke-dashoffset:0}}
+
+/* ② 「クハン」を1文字ずつ、40ms ずつずらして。 */
+.splashWm{display:flex;font-size:40px;font-weight:800;line-height:1;
+  color:var(--on-dark);letter-spacing:.11em;padding-right:.11em}
+.splashWm span{opacity:0;transform:translateY(3px)}
+.splash.run .splashWm span{animation:rkRise 260ms var(--ease-out) forwards}
+.splash.run .splashWm span:nth-child(1){animation-delay:420ms}
+.splash.run .splashWm span:nth-child(2){animation-delay:460ms}
+.splash.run .splashWm span:nth-child(3){animation-delay:500ms}
+@keyframes rkRise{to{opacity:1;transform:translateY(0)}}
+
+/* ③ 縦線が伸びて GUILD の2行が出る。 */
+.splashBy{display:flex;flex-direction:column;align-items:flex-start;
+  padding-left:var(--sp-2);border-left:1px solid rgba(255,255,255,.28);
+  opacity:0;margin-top:var(--sp-2)}
+.splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 700ms forwards}
+
+/* ── ヒーロー ───────────────────────────
+ * 「登録・ログイン不要」は最大の強みなので、
+ * ヘッダのバッジから外したぶん、ここで必ず言う。
+ */
+.hero{padding:var(--sp-7) var(--pad) var(--sp-6);max-width:1560px;margin:0 auto}
+/* 日本語はどこでも改行できるので、幅を絞ると「手間がかか／るか」のような
+   気持ちの悪い切れ方をする。measure を切らず、balance に任せる。 */
+.heroT{margin:0 0 var(--sp-3);font-size:var(--fs-hero);line-height:1.3;
+  letter-spacing:-.01em;font-weight:800;text-wrap:balance}
+.heroP{margin:0 0 var(--sp-5);max-width:54ch;color:var(--soft)}
+.heroActions{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap}
+.heroCta{display:inline-block;padding:var(--sp-3) var(--sp-6);
+  background:var(--brand);color:var(--brand-ink);border-radius:var(--r-pill);
+  text-decoration:none;font-weight:700;
+  transition:transform var(--dur) var(--ease-out)}
+.heroCta:hover{transform:translateY(-1px)}
+.heroSub{color:var(--brand-text);font-size:var(--fs-sm);text-decoration:none}
+.heroSub:hover{text-decoration:underline}
+
+/* 演出を見ていない人（再訪・reduced motion）にも、
+   中身が順に入ってくる感じだけは残す。1回だけ。 */
+html.splash-skip .heroT{animation:rkRise 320ms var(--ease-out) backwards}
+html.splash-skip .heroP{animation:rkRise 320ms var(--ease-out) 60ms backwards}
+html.splash-skip .heroActions{animation:rkRise 320ms var(--ease-out) 120ms backwards}
+
+/* スクロール位置の目印。ヘッダぶん余裕を取る。 */
+#workbench{scroll-margin-top:var(--sp-4)}
+html{scroll-behavior:smooth}
