@@ -458,27 +458,35 @@ function renderPager(){
   if (!courses.length || total <= 1){ el.innerHTML = ""; return; }
 
   const shownTo = Math.min(page * PAGE_SIZE, courses.length);
-  // 1,112件だと47ページになるので、全部は出せない。
-  // 先頭・末尾・現在の前後2つだけ出し、あいだは「…」で畳む。
+
+  /* 1,015件だと43ページになるので、番号を全部は出せない。
+     先頭・末尾・現在の前後だけ出して、あいだは「…」で畳む。
+     狭い画面では前後1つ（＝最大9個）まで。390px でも1行に収まる幅。 */
+  const w = window.innerWidth < 480 ? 1 : 2;
   const nums = [];
   for (let i = 1; i <= total; i++){
-    if (i === 1 || i === total || Math.abs(i - page) <= 2) nums.push(i);
+    if (i === 1 || i === total || Math.abs(i - page) <= w) nums.push(i);
     else if (nums[nums.length - 1] !== "…") nums.push("…");
   }
 
+  const arrow = (to, label, sign, off) =>
+    `<button class="pn nav" data-p="${to}"${off ? " disabled" : ""} ` +
+    `aria-label="${label}">${sign}</button>`;
+
   el.innerHTML =
     `<div class="pagerPos">${shownTo} / ${courses.length}件</div>` +
-    `<button class="pagerMore"${page >= total ? " disabled" : ""}>もっと見る</button>` +
     `<div class="pagerNums">` +
+      arrow(page - 1, "前のページ", "‹", page <= 1) +
       nums.map(x => x === "…"
         ? `<span class="gap">…</span>`
         : `<button class="pn${x === page ? " on" : ""}" data-p="${x}"` +
           `${x === page ? ' aria-current="page"' : ""}>${x}</button>`).join("") +
+      arrow(page + 1, "次のページ", "›", page >= total) +
     `</div>`;
 
-  el.querySelectorAll(".pn").forEach(b => { b.onclick = () => renderPage(+b.dataset.p, true); });
-  const more = el.querySelector(".pagerMore");
-  if (more && !more.disabled) more.onclick = () => renderPage(page + 1, true);
+  el.querySelectorAll(".pn").forEach(b => {
+    if (!b.disabled) b.onclick = () => renderPage(+b.dataset.p, true);
+  });
 }
 
 async function load(){
@@ -572,3 +580,7 @@ function applyPostMode() {
   $("#sort").onchange = e => { state.sort = e.target.value; load(); };
   load();
 })();
+
+/* 画面幅で出す番号の数を変えているので、幅が変わったら描き直す。
+   スマホを横にしたときに「…」の畳み方が古いままになるのを防ぐ。 */
+window.addEventListener("resize", () => { if (courses.length) renderPager(); });

@@ -300,24 +300,25 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 .pager:empty{display:none}
 .pagerPos{font-size:var(--fs-sm);color:var(--muted);
   font-family:var(--data);font-variant-numeric:tabular-nums}
-.pagerMore{padding:var(--sp-3) var(--sp-6);border:1px solid var(--brand);
-  border-radius:var(--r-pill);background:transparent;color:var(--brand-text);
-  font:inherit;font-size:var(--fs-base);font-weight:700;cursor:pointer;
-  transition:background var(--dur) var(--ease-out)}
-.pagerMore:hover:not(:disabled){background:var(--brand-soft)}
-.pagerMore:disabled{opacity:.4;cursor:default;border-color:var(--rule);color:var(--muted)}
-.pagerNums{display:none;gap:var(--sp-1);flex-wrap:wrap;justify-content:center}
-.pagerNums .pn{min-width:34px;padding:var(--sp-1) var(--sp-2);
+/* 番号は全幅で出す。「もっと見る」だけだと、43ページのうち
+   いま何ページ目にいるのか分からず、後ろのほうへも飛べない。 */
+.pagerNums{display:flex;gap:var(--sp-1);flex-wrap:wrap;justify-content:center}
+.pagerNums .pn{min-width:36px;height:36px;padding:0 var(--sp-2);
+  display:inline-flex;align-items:center;justify-content:center;
   border:1px solid var(--rule);border-radius:var(--r-sm);
   background:var(--card);color:var(--ink);font:inherit;
-  font-family:var(--data);font-variant-numeric:tabular-nums;cursor:pointer}
+  font-family:var(--data);font-variant-numeric:tabular-nums;cursor:pointer;
+  transition:border-color var(--dur) var(--ease-out),
+             background var(--dur) var(--ease-out)}
+.pagerNums .pn:hover:not(:disabled):not(.on){border-color:var(--brand);background:var(--brand-soft)}
 .pagerNums .pn.on{background:var(--brand);color:var(--brand-ink);
   border-color:var(--brand);font-weight:700}
+.pagerNums .pn.nav{font-size:18px;line-height:1;color:var(--brand-text)}
+.pagerNums .pn:disabled{opacity:.35;cursor:default;color:var(--muted)}
 .pagerNums .gap{color:var(--muted);padding:0 var(--sp-1);align-self:center}
 
 @media (min-width:768px){
   .pager{flex-direction:row;justify-content:space-between;flex-wrap:wrap}
-  .pagerNums{display:flex}
 }
 
 

@@ -15,23 +15,33 @@
  *  5. クリックと Esc でいつでも飛ばせる。待たされるのが嫌な人を人質にしない。
  */
 (() => {
-  const KEY = "rk_splash_at";
-  const AGAIN_AFTER = 24 * 60 * 60 * 1000;   // 24時間
+  /* いつ流すか（2026-08-23 変更）
+   *
+   * 「タブを閉じて開き直したら、また見たい」という要望。
+   * 以前は localStorage に時刻を持って24時間に1回だったが、
+   * それだと同じ日に開き直しても流れなかった。
+   *
+   * sessionStorage はタブを閉じると消える。つまり
+   *   閉じて開き直す・新しい窓・新しい訪問者 → 流れる
+   *   About から戻ってきた・リロード          → 流れない
+   * 後者を拾わないのは意図的。ここは複数ページのサイトなので、
+   * / と /about を行き来するたびに 1.4秒 止められては道具にならない。
+   */
+  const KEY = "rk_splash_seen";
 
   const el = document.getElementById("splash");
   if (!el) return;
 
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  let last = 0;
-  try { last = Number(localStorage.getItem(KEY) || 0); } catch (e) { last = 0; }
-  const fresh = Date.now() - last > AGAIN_AFTER;
+  let seen = false;
+  try { seen = sessionStorage.getItem(KEY) === "1"; } catch (e) { seen = false; }
 
-  if (reduced || !fresh){
+  if (reduced || seen){
     document.documentElement.classList.add("splash-skip");
     return;
   }
-  try { localStorage.setItem(KEY, String(Date.now())); } catch (e) { /* 無視 */ }
+  try { sessionStorage.setItem(KEY, "1"); } catch (e) { /* 無視 */ }
 
   el.hidden = false;
   document.documentElement.classList.add("splash-on");
