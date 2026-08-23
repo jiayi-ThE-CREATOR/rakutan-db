@@ -154,6 +154,13 @@ function card(c){
    閉じたまま全カード分を作ると、DOMの56%が「誰も見ていない中身」になり、
    絞り込みのたびの描画とレイアウトがその分だけ重くなる。
    実測（50件・390px）: ノード 1,672→670、innerHTML 3.33ms→1.16ms。 */
+/* 全学教育科目のシラバス公式ページ。時間割コード（c.id）だけ差し替える。
+   セッション不要で開ける形式（政岡さんが 2026-08-20 に3件で確認）。
+   j_s_cd=13 固定＝共通教育科目。
+   実装は松下さん（PR #23）。作り直しで構造が変わったので、
+   同じものを app.js へ移した（2026-08-24）。 */
+const koanUrl = id => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+
 /* ── 口コミの中身 ─────────────────────
    数字だけ出しても「なぜ楽なのか」は伝わらない。件数・内訳・一言をまとめて出す。
    値は build.py が焼いた集計（複数件なら平均）。一言は publish:false のものを
@@ -188,6 +195,7 @@ function detailHtml(c){
         ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
       ${reviewHtml(c)}
+      <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
 }
 
