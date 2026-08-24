@@ -157,19 +157,42 @@ function axRow(key, a, label){
       ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
 }
 
+/* 口コミの件数表示。採点に効いているかで見た目を分ける。
+   ・効いていない（scored:false）… 幅いっぱいの注意帯
+   ・効いている（scored:true）  … 従来どおりのバッジ
+   1つの関数にまとめてあるのは、門を越える科目が出てきたときに
+   「両方出る」「どちらも出ない」を作らないため（松下さんの依頼書）。
+
+   文言は1行にしてある。松下さんの依頼書は4行（⚠／本文／導線）だったが、
+   390px で実測すると帯 77px＝カードの26%を占め、カードで一番強い要素が
+   「口コミがある」という注意書きになっていた。1行なら 36px＝14%。
+   色（--alert-face / --alert-ink）は動かしていないので、決定Bはそのまま。
+   落とした「タップして中身を見る ↓」は、.head 全体が role="button" で
+   すでに押せるので導線が二重だったのと、PC では右カラムに出る（決定A）ので
+   「タップ」「↓」が指す先が無いため。1件ずつのリストが入っても復活は要らない。
+   測り直すときは tools/measure_alert.mjs を流す。 */
+function reviewMark(rv){
+  if (!rv?.n) return { badge:"", alert:"" };
+  if (rv.scored) return { badge:`<span class="rvb">口コミ ${rv.n}件</span>`, alert:"" };
+  return { badge:"", alert:`<div class="rvAlert"><i>\u26a0</i><div><b>口コミ ${rv.n}件</b> ― まだ数字に入っていません</div></div>` };
+}
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
   const tags = [...r.tags, ...r.notes];
-  return `<article class="card" data-id="${esc(c.id)}">
+  const rv = reviewMark(c.reviews);
+  return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title">${esc(c.title)}</h3>
         <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
-        ${c.reviews?.n ? `<span class="rvb">口コミ ${c.reviews.n}件</span>` : ""}
+        ${rv.badge}
       </div>
       <div class="fit"><b>${m.fit ?? "—"}</b><small>相性</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
+      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
+        ${r.needs_review ? `<span class="bandNote">テストの難しさは誰も確認していません</span>` : ""}</div>
+      ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <div class="detail"></div>
