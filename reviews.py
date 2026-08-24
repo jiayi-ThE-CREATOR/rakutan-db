@@ -85,6 +85,31 @@ def _conflicts(rs: list[dict]) -> list[str]:
     return out
 
 
+def _drop_exact_dups(rows: list[dict]) -> list[dict]:
+    """1バイト違わず同一の行を1件に畳む。最初に出てきたものを残す。
+
+    これは取り込みの事故を掃除するためのもので、_IDENTITY による
+    「同じ人が送り直した」判定とは別物 ―― こちらは taken_year も at も
+    含めた**全項目**が一致したときだけ落とす。別々の人がたまたま同じ
+    答えを書いた行（一言なしなら普通に起きる）は残す。
+
+    落とさないと二重に効く場所が3つある:
+      ・n           … カードの「口コミ N件」が水増しされる
+      ・_mean()     … その人の答えが平均に2票入る
+      ・public_rows … パネルに同じ吹き出しが2つ並ぶ
+    根本原因は tools/ingest_reviews.py 側（同一バッチ内を突き合わせて
+    いなかった）。そちらも直したが、既に入ってしまった分はここで畳む。
+    """
+    seen, out = set(), []
+    for r in rows:
+        k = json.dumps(r, sort_keys=True, ensure_ascii=False)
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(r)
+    return out
+
+
 def load(path: Path | None = None) -> list[dict]:
     p = path or SRC
     if not p.exists():
@@ -94,8 +119,11 @@ def load(path: Path | None = None) -> list[dict]:
     except json.JSONDecodeError:
         return []
     # ダミー行（サンプルデータの S001）は採点に混ぜない
-    return [r for r in rows if isinstance(r, dict) and r.get("course_id")
+    rows = [r for r in rows if isinstance(r, dict) and r.get("course_id")
             and r["course_id"] != "S001"]
+    # aggregate() も public_rows() も resolve() も、生データは必ずここを
+    # 通る。畳むならこの1箇所でよい。
+    return _drop_exact_dups(rows)
 
 
 def aggregate(rows: list[dict]) -> dict[str, dict]:

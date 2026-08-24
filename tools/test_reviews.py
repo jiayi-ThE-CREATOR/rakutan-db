@@ -113,9 +113,43 @@ eq(p[0]["taken_year_before"], False, "既定は False（キーは必ずある）
 eq(reviews.public_rows([]), {}, "口コミが0件なら空")
 
 
+# ── 完全重複の掃除（load の中で畳む） ────────────────────
+# 取り込みの事故で1バイト違わず同一の行が入る。二重に効く場所が3つ
+# あるので、生データを読む唯一の入口である load() で畳む。
+import json as _json  # noqa: E402
+
+_dup = rv(attendance=2, note="同じ")
+eq(len(reviews._drop_exact_dups([_dup, dict(_dup), dict(_dup)])), 1,
+   "全項目が同一の行は1件に畳む")
+eq(reviews._drop_exact_dups([_dup, dict(_dup)])[0], _dup,
+   "残すのは最初に出てきた行")
+
+# at が違えば「同じ人が別の日に送り直した」。ここでは落とさない
+# ―― 落とすかどうかは _IDENTITY（scored の門）の担当。
+eq(len(reviews._drop_exact_dups([rv(attendance=2, note="同じ", at="08-18"),
+                                 rv(attendance=2, note="同じ", at="08-19")])), 2,
+   "at が違う行は畳まない")
+
+# 二重計上が平均を歪めていた件。重複を残すと 2 が2票入って 1.5 になる。
+_tmp = Path(__file__).resolve().parent.parent / "data" / "_test_dup.json"
+_tmp.write_text(_json.dumps([rv(attendance=2, note="A"), rv(attendance=2, note="A"),
+                             rv(attendance=0, note="B")], ensure_ascii=False),
+                encoding="utf-8")
+try:
+    _a = reviews.aggregate(reviews.load(_tmp))["X"]
+    eq(_a["n"], 2, "重複を畳んでから数えるので件数は2")
+    eq(round(_a["attendance"], 3), 1.0, "重複した回答が平均に2票入らない")
+    eq(len(reviews.public_rows(reviews.load(_tmp))["X"]), 2,
+       "パネルにも同じ吹き出しを2つ出さない")
+finally:
+    _tmp.unlink(missing_ok=True)
+
+
 # ── 実データ ─────────────────────────────────────────────
 real = reviews.load()
 if real:
+    eq(len(reviews._drop_exact_dups(real)), len(real),
+       "load を通した後の実データに完全重複は残っていない")
     pub = reviews.public_rows(real)
     agg = reviews.aggregate(real)
     eq(sorted(pub), sorted(agg), "公開形と集計は同じ科目集合を返す")
