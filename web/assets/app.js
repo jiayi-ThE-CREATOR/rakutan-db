@@ -157,19 +157,42 @@ function axRow(key, a, label){
       ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
 }
 
+/* 口コミの件数表示。採点に効いているかで見た目を分ける。
+   ・効いていない（scored:false）… 幅いっぱいの注意帯。中身への導線つき
+   ・効いている（scored:true）  … 従来どおりのバッジ
+   1つの関数にまとめてあるのは、門を越える科目が出てきたときに
+   「両方出る」「どちらも出ない」を作らないため（松下さんの仕様書どおり）。
+
+   導線の文言は PC とスマホで出し分ける。PC は詳細が右カラムに出る
+   （決定A）ので「タップ」「↓」が指す先が無い。幅が変わったときは
+   mqDesktop の change で今のページを描き直して合わせる。 */
+function goText(){
+  return isDesktop() ? "詳細を開いて1件ずつ読む →" : "タップして中身を見る ↓";
+}
+
+function reviewMark(rv){
+  if (!rv?.n) return { badge:"", alert:"" };
+  if (rv.scored) return { badge:`<span class="rvb">口コミ ${rv.n}件</span>`, alert:"" };
+  return { badge:"", alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
+      まだ数字には入っていません。中身を確認してください<span class="go">${esc(goText())}</span></div></div>` };
+}
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
   const tags = [...r.tags, ...r.notes];
-  return `<article class="card" data-id="${esc(c.id)}">
+  const rv = reviewMark(c.reviews);
+  return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title">${esc(c.title)}</h3>
         <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
-        ${c.reviews?.n ? `<span class="rvb">口コミ ${c.reviews.n}件</span>` : ""}
+        ${rv.badge}
       </div>
       <div class="fit"><b>${m.fit ?? "—"}</b><small>相性</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
+      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
+        ${r.needs_review ? `<span class="bandNote">テストの難しさは誰も確認していません</span>` : ""}</div>
+      ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <div class="detail"></div>
@@ -221,8 +244,58 @@ function detailHtml(c){
         ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
       ${reviewHtml(c)}
+      ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
       <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
+}
+
+/* ── 口コミを1件ずつ ───────────────────
+   集計（複数件なら平均）だけでは足りない。実データにそのまま出ている:
+   135093 は集計が「たまに」だが、答えた2人は「なし」と「毎回」で、
+   「たまに」と答えた人は1人もいない。平均が消したものを読ませる場所。
+
+   件数に比例して伸びるので courses.built.json とは別ファイル。
+   最初に開いた時だけ取りに行く。server.py も同じ URL で返すので、
+   API モードと静的モードで分岐しない。 */
+let reviewsCache = null;
+async function fetchReviewsData(){
+  if (reviewsCache) return reviewsCache;
+  reviewsCache = await (await fetch("data/reviews.built.json")).json();
+  return reviewsCache;
+}
+
+// 課題の軽重は rvLv（集計側と同じ）を使い回す。同じ対応表を2つ持たない。
+const attFull = v => (v === null || v === undefined) ? "―" : RV_ATT[Math.round(v)];
+
+/* null は「―」のまま出す。埋めると「無回答だった」という情報が消える。
+   .pReport（通報リンク）は入れていない ―― 通報フォームの URL がまだ無い。 */
+function panelEntry(row){
+  const curYear = new Date().getFullYear();
+  const yearLabel = row.taken_year == null ? "受講時期不明"
+    : row.taken_year_before ? `${row.taken_year}年以前に受講` : `${row.taken_year}年受講`;
+  const age = row.taken_year == null ? 0 : curYear - row.taken_year;
+  const old = row.taken_year != null && age >= 3;
+
+  const examBits = [];
+  if (row.exam_hard10 != null) examBits.push(`テスト ${row.exam_hard10}/10`);
+  if (row.exam_bring)          examBits.push(`持ち込み ${row.exam_bring}`);
+
+  const lines = [`出席 ${attFull(row.attendance)} ／ 授業中の課題 ${rvLv(row.in_class)} ／ 授業外の課題 ${rvLv(row.out_class)}`];
+  if (examBits.length) lines.push(examBits.join(" ・ "));
+  if (row.report_words != null) lines.push(`レポート 1本あたり約${row.report_words.toLocaleString()}字`);
+
+  return `<div class="pEntry">
+      <div class="pYear">${esc(yearLabel)}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
+      ${lines.map(l => `<div class="pLine">${esc(l)}</div>`).join("")}
+      ${row.note ? `<div class="pNote">${esc(row.note)}</div>` : ""}
+    </div>`;
+}
+
+async function panelListHtml(id){
+  const all = await fetchReviewsData();
+  const rows = all[id] || [];
+  if (!rows.length) return `<p class="pEmpty">まだ誰も書いていない</p>`;
+  return `<div class="pList">${rows.map(panelEntry).join("")}</div>`;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -414,6 +487,10 @@ function bindCardHandler(article, c){
 /* 画面幅が変わったとき（PC で窓を縮めた・スマホを回した）に、
    詳細がどちらにも出ていない状態にならないよう描き直す。 */
 mqDesktop.addEventListener("change", () => {
+  // 注意帯の導線（.go）は PC とスマホで文言が違う。幅が変わったら
+  // 今のページを描き直して合わせる ―― カードは load() のときにしか
+  // 作らないので、これが無いと「タップして…↓」が PC に残る。
+  if (courses.length) renderPage(page);
   if (!selectedCourseId) return;
   const c = courses.find(x => x.id === selectedCourseId);
   if (!c) return;
@@ -426,6 +503,121 @@ mqDesktop.addEventListener("change", () => {
     $("#inspector").innerHTML = "";
     if (article && !article.classList.contains("open")) showDetail(c, article);
   }
+});
+
+/* ── 口コミパネル（1件ずつ）─────────────
+ * 何のためか: **Android の戻るボタン**。全画面のシートが開いた状態で
+ * 戻るを押すと、履歴に何も積んでいなければページごと離脱する。
+ * 口コミを読みに来た人が一覧を失う。おまけで ?c=<id> の共有もできる。
+ *
+ * 勘所は「閉じる手段を全部 history.back() 経由にまとめ、実際に閉じる処理は
+ * popstate の1箇所だけにする」こと。バラバラに書くと「✕では消えるが
+ * 戻るボタンでは消えない」のような手段ごとの食い違いが必ず出る。
+ *
+ * 置き場所は決定A ―― PC は右カラムの詳細の下に展開、スマホは全画面シート。
+ * 組み立てる関数（panelListHtml）は1本のまま、差し込み先だけ変える。
+ * PC でも履歴に積む（2026-08-24 決定）。戻るの意味が両方で
+ * 「1つ前の状態に戻る」に揃い、共有リンクも両方で効く。
+ */
+
+/* 絞り込みで一覧から外れている科目や、まだ読んでいないページの科目も
+   共有リンクからは開けるようにする。static モードは DATA.courses に
+   全件あるが、API モードは表示中の分しか手元に無いので1件だけ取りに行く。 */
+async function findCourse(id){
+  const local = courses.find(c => c.id === id) || DATA.courses.find(c => c.id === id);
+  if (local || DATA.mode !== "api") return local || null;
+  try {
+    const res = await fetch(`/api/courses/${encodeURIComponent(id)}`);
+    if (!res.ok) return null;
+    const c = await res.json();
+    return c && c.id ? c : null;
+  } catch { return null; }
+}
+
+/* PC の .panelBtn は右カラム（#inspector）の中。スマホはカードの .detail の中。
+   両方に同じ data-id のボタンが居ることは無いが、探す順を決めておく。 */
+const panelBtnFor = id =>
+  $(`#inspector .panelBtn[data-id="${CSS.escape(id)}"]`)
+  || document.querySelector(`.panelBtn[data-id="${CSS.escape(id)}"]`);
+
+/* 閉じるのはここ1箇所だけ。popstate から呼ばれる。
+   PC/スマホのどちらで開いていたか覚えずに、両方の跡地を片付ける
+   ―― 開いたあとに幅が変わっていることがあるため。 */
+function panelSetOpen(open){
+  if (open) return;                       // 開くのは openPanel の仕事
+  $("#panel").classList.remove("open");
+  $("#panelBody").innerHTML = "";
+  document.querySelectorAll(".pList").forEach(el => el.remove());
+  document.querySelectorAll(".panelBtn").forEach(b => {
+    const c = courses.find(x => x.id === b.dataset.id);
+    if (c?.reviews?.n) b.textContent = `口コミを見る（${c.reviews.n}件）`;
+    b.setAttribute("aria-expanded", "false");
+  });
+}
+
+async function openPanel(id, push = true){
+  const c = await findCourse(id);
+  if (!c) return;
+
+  if (push){
+    const url = new URL(location.href);
+    url.searchParams.set("c", id);
+    history.pushState({ panelCourse: id }, "", url);
+  }
+
+  const html = await panelListHtml(id);
+
+  if (isDesktop()){
+    // 共有リンクで入ってきた人の右カラムは空。リストを挿す前に詳細を出す。
+    // article は見つからなくて構わない（showDetail は undefined でも動く。
+    // カードの選択ハイライトが付かないだけ）。
+    if (selectedCourseId !== id){
+      const article = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+      showDetail(c, article);
+    }
+    const btn = panelBtnFor(id);
+    if (!btn) return;
+    btn.insertAdjacentHTML("afterend", html);
+    btn.textContent = "閉じる";
+    btn.setAttribute("aria-expanded", "true");
+    return;
+  }
+
+  $("#panelTitle").textContent = c.title;
+  $("#panelBody").innerHTML = html;
+  $("#panel").classList.add("open");
+}
+
+function closePanel(){
+  // 開いたときに積んだ履歴を1つ戻すだけ。閉じる本体は popstate 側。
+  if (new URL(location.href).searchParams.get("c")) history.back();
+  else panelSetOpen(false);
+}
+
+window.addEventListener("popstate", () => {
+  const id = new URL(location.href).searchParams.get("c");
+  if (id) openPanel(id, false); else panelSetOpen(false);
+});
+
+/* 幕は #panel 自身（投稿フォームと同じ .sheet を使い回しているので
+   別の .panelOv は無い）。#panel のクリックには2つの役割が乗るため、
+   e.target の判定を入れないとリストの中を触るだけで閉じる。 */
+$("#panelClose").onclick = closePanel;
+$("#panel").onclick = e => { if (e.target === $("#panel")) closePanel(); };
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if ($("#panel").classList.contains("open")
+      || document.querySelector(".pList")) closePanel();
+});
+
+["#list", "#inspector"].forEach(sel => {
+  $(sel).addEventListener("click", e => {
+    const btn = e.target.closest(".panelBtn");
+    if (!btn) return;
+    // 開いているものをもう一度押したら閉じる
+    if (btn.getAttribute("aria-expanded") === "true") closePanel();
+    else openPanel(btn.dataset.id);
+  });
 });
 
 /* ── 一覧のページング ───────────────────
@@ -570,20 +762,108 @@ function buildReviewSelect(){
 function openReviewFor(id){
   buildReviewSelect();
   if (id) $("#rvCourse").value = id;
+  resetReviewForm();
   $("#sheet").classList.add("open");
 }
 
-/* ── 口コミシート ─────────────────────── */
+/* ── 口コミシート ───────────────────────
+ * 設問は正典（しゅんやさんのフォーム → tools/ingest_reviews.py →
+ * data/reviews.json）。data-k は server.py の do_POST が読むキーと1対1。
+ * **キー名を変えるときは do_POST と一緒に変えること。** 片方だけ変えると、
+ * 2026-08-21 と同じ「入った口コミが黙って落ちる」事故になる。
+ */
 const review = {};
-function checkSend(){
-  $("#send").disabled = !(review.attendance!=null && review.workload!=null && review.grading!=null);
+
+/* 年はべた書きしない（来年もそのまま使える）。4つめは「それ以前」で、
+   年は境界を意味する ―― taken_year_before が立つ。 */
+function buildYearRow(){
+  const y = new Date().getFullYear();
+  const opts = [[y, `${y}年`], [y-1, `${y-1}年`], [y-2, `${y-2}年`],
+                [y-3, `${y-3}年以前`, true]];
+  $("#rvYearRow").innerHTML = opts.map(([v, label, before]) =>
+    `<button data-v="${v}"${before ? ' data-before="1"' : ""}>${label}</button>`).join("");
+  $("#rvYearRow").querySelectorAll("button").forEach(b => b.onclick = () => {
+    $("#rvYearRow").querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    review.taken_year = +b.dataset.v;
+    review.taken_year_before = b.dataset.before === "1";
+    checkSend();
+  });
 }
+
+function buildHardSelect(){
+  $("#rvHard").innerHTML = `<option value="">選んでください</option>` +
+    Array.from({length:10}, (_, i) =>
+      `<option value="${i+1}">${i+1}${i === 0 ? "（簡単）" : i === 9 ? "（難しい）" : ""}</option>`).join("");
+}
+
+/* 分岐の開閉。**隠すときは値も消す** ―― 隠しただけで値が残ると、
+   「テストは無かった」と答えた人の口コミに難易度が付いて送られる。 */
+function toggleExamFields(on){
+  $("#qExamBring").hidden = !on;
+  $("#qExamHard").hidden  = !on;
+  if (!on){
+    delete review.exam_bring; delete review.exam_hard10;
+    $("#rvHard").value = "";
+    $("#qExamBring").querySelectorAll("button").forEach(x => x.classList.remove("on"));
+  }
+}
+function toggleReportFields(on){
+  $("#qReportWords").hidden = !on;
+  if (!on){ delete review.report_words; $("#rvWords").value = ""; }
+}
+
+function checkSend(){
+  const base = review.attendance != null && review.in_class != null && review.out_class != null
+    && review.taken_year != null && review.exam != null && review.report != null;
+  const examOk   = !review.exam   || (review.exam_bring != null && review.exam_hard10 != null);
+  const reportOk = !review.report || review.report_words != null;
+  $("#send").disabled = !(base && examOk && reportOk);
+}
+
+/* シートを開くたびに前回の答えを消す。別の科目を続けて投稿するときに
+   「テストはあった？」だけ前の科目のまま送られるのを防ぐ。 */
+function resetReviewForm(){
+  for (const k of Object.keys(review)) delete review[k];
+  document.querySelectorAll(".row2 button, .row4 button")
+          .forEach(b => b.classList.remove("on"));
+  $("#rvNote").value = ""; $("#rvWords").value = ""; $("#rvHard").value = "";
+  toggleExamFields(false); toggleReportFields(false);
+  checkSend();
+}
+
+/* data-v は設問によって型が違う。数値に寄せると exam_bring の
+   「可」「不可」が NaN になる。ここで1箇所に寄せておく。 */
+const BOOL_KEYS = ["exam", "report"];
+const STR_KEYS  = ["exam_bring"];
+function coerce(key, raw){
+  if (BOOL_KEYS.includes(key)) return raw === "1";
+  if (STR_KEYS.includes(key))  return raw;
+  return +raw;
+}
+
 document.querySelectorAll(".row2").forEach(row => {
   row.querySelectorAll("button").forEach(b => b.onclick = () => {
     row.querySelectorAll("button").forEach(x => x.classList.remove("on"));
-    b.classList.add("on"); review[row.dataset.k] = +b.dataset.v; checkSend();
+    b.classList.add("on");
+    const k = row.dataset.k;
+    review[k] = coerce(k, b.dataset.v);
+    if (k === "exam")   toggleExamFields(review.exam);
+    if (k === "report") toggleReportFields(review.report);
+    checkSend();
   });
 });
+$("#rvHard").onchange = e => {
+  if (e.target.value) review.exam_hard10 = +e.target.value;
+  else delete review.exam_hard10;
+  checkSend();
+};
+$("#rvWords").oninput = e => {
+  const v = parseInt(e.target.value, 10);
+  if (Number.isFinite(v) && v > 0) review.report_words = v;
+  else delete review.report_words;
+  checkSend();
+};
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
 $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
 /* 口コミボタンは #list だけに委譲していたが、PC では詳細が
@@ -605,7 +885,23 @@ let CAN_POST = false;
 
 $("#send").onclick = async () => {
   if (!CAN_POST) return;
-  const body = {course_id: $("#rvCourse").value, note: $("#rvNote").value, ...review};
+  /* 正典のキーを1つずつ並べる。`...review` で丸ごと送ると、分岐を開いて
+     閉じたときの値が紛れ込む（delete し損ねた1件が「テスト無し」の
+     口コミに難易度を付ける）。ここに無いキーは送らない、が守れる形にする。 */
+  const body = {
+    course_id: $("#rvCourse").value,
+    taken_year: review.taken_year,
+    taken_year_before: !!review.taken_year_before,
+    attendance: review.attendance,
+    in_class: review.in_class,
+    out_class: review.out_class,
+    exam: !!review.exam,
+    exam_bring: review.exam ? (review.exam_bring ?? null) : null,
+    exam_hard10: review.exam ? (review.exam_hard10 ?? null) : null,
+    report: !!review.report,
+    report_words: review.report ? (review.report_words ?? null) : null,
+    note: $("#rvNote").value,
+  };
   const res = await fetch("/api/reviews", {method:"POST", headers:{"Content-Type":"application/json"},
                                            body: JSON.stringify(body)});
   const j = await res.json();
@@ -625,6 +921,7 @@ function applyPostMode() {
   applyPostMode();
   $("#note").textContent = META.disclaimer;
   buildSems(); buildYears(); buildPresets(); buildSliders();
+  buildYearRow(); buildHardSelect();
   $("#tog").onclick = () => {
     const o = $("#sliders").classList.toggle("open");
     $("#tog").textContent = o ? "スライダーを閉じる" : "スライダーで細かく調整する";
@@ -632,7 +929,12 @@ function applyPostMode() {
   let t; $("#q").oninput = e => { clearTimeout(t);
     t = setTimeout(() => { state.q = e.target.value; load(); }, 200); };
   $("#sort").onchange = e => { state.sort = e.target.value; load(); };
-  load();
+  await load();
+  /* ?c=<科目id> で入ってきた人。push はしない（履歴を二重に積まない）。
+     共有リンクは既定の絞り込みで開くので、その科目が一覧に無いことは
+     普通に起きる ―― findCourse が1件だけ取りに行く。 */
+  const initId = new URL(location.href).searchParams.get("c");
+  if (initId) openPanel(initId, false);
 })();
 
 /* 画面幅で出す番号の数を変えているので、幅が変わったら描き直す。
