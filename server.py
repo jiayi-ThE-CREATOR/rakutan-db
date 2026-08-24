@@ -22,6 +22,10 @@ from urllib.parse import parse_qs, urlparse
 
 import reviews as reviews_mod
 import score as scoring
+# 学期の畳み方は build.py の term_group() が正本。
+# server.py は生データ（data/courses.json）を読むので term_group が焼かれていない。
+# ここで同じ判定をもう一度書くと、必ず片方だけ古くなる。
+from build import term_group
 
 ROOT = Path(__file__).parent
 # 実データ（scrape/parse.py の出力）があればそれを、無ければダミーを使う。
@@ -106,6 +110,12 @@ def search(params: dict) -> dict:
     # year=all で全学年（2〜4年生が使うとき）。
     year = get("year") or "1"
     category, campus, term = get("category"), get("campus"), get("term")
+    # sem は学期のまとまり（haru / aki / all）。既定は aki。
+    # 9/2 に始まるのは秋冬学期の履修登録で、春夏の757件（68%）はいま登録できない。
+    # 既存の term パラメータ（生の学期名で完全一致）とは別物なので名前を分けてある。
+    # 判定は build.py の term_group() が焼いた値を見るだけ
+    # ―― ここで学期名を再解釈すると画面側と食い違う。
+    sem = get("sem") or "aki"
     day, period = get("day"), get("period")
     min_conf = get("min_confidence")
     conds = [c for c in (params.get("cond") or []) if c in CONDITIONS]
@@ -120,6 +130,9 @@ def search(params: dict) -> dict:
         if category and c.get("category") != category:
             continue
         if campus and c.get("campus") != campus:
+            continue
+        # full（通年）はどちらの学期でも履修できるので必ず通す。
+        if sem != "all" and term_group(c.get("term")) not in (sem, "full"):
             continue
         if term and c.get("term") != term:
             continue
@@ -175,7 +188,7 @@ def search(params: dict) -> dict:
         results = results[offset:]
 
     return {"count": total, "returned": len(results), "results": results,
-            "year": year, "slots": slots, "facets": facets,
+            "year": year, "sem": sem, "slots": slots, "facets": facets,
             "weights": (results or base or [{}])[0].get("match", {}).get("weights")
                        if (results or base) else scoring.DEFAULT_WEIGHTS}
 
@@ -397,6 +410,7 @@ class Handler(BaseHTTPRequestHandler):
                 "weights": scoring.WEIGHTS,
                 "conditions": list(CONDITIONS),
                 "presets": scoring.PRESETS,
+                "min_for_scoring": reviews_mod.MIN_FOR_SCORING,
                 "axis_labels": scoring.AXIS_LABEL,
                 "disclaimer": DATA_META["note"],
             })

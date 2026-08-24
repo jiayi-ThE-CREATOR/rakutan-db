@@ -49,6 +49,8 @@ CONTRAST = [
     # 相性の数字は 25px/600。大きい文字なので 3.0 でよい。
     ("相性の数字（25px）",          "--brand",            "--card",             3.0),
 
+    ("口コミの吹き出しの文字",      "--ink",              "--brand-soft",       4.5),
+    ("吹き出しの引用符",            "--brand",            "--brand-soft",       3.0),
     ("条件タグ",                    "--scale-light-text", "--scale-light-soft", 4.5),
     ("口コミ件数",                  "--scale-light-text", "--card",             4.5),
     ("未取得・情報不足の赤",        "--scale-heavy",      "--card",             4.5),
