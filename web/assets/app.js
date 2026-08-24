@@ -23,6 +23,16 @@ const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
                ["5","5年"],["6","6年"],["all","すべて"]];
 let META = null;
 
+/* 口コミが採点に効き始める人数。reviews.py の MIN_FOR_SCORING が正本で、
+   build.py が courses.built.json の _meta に焼き、API は /api/meta で返す。
+   ここで数字を書くと、門を変えたときに文言だけ古くなる
+   （2026-08-24 まで「1件入ると出ます」と出していたが、実際は3件だった）。 */
+function minForScoring(){
+  // API モードは /api/meta、静的モードは courses.built.json の _meta 由来。
+  // どちらも届かないときだけ 3（reviews.py の既定）に落とす。
+  return (META && META.min_for_scoring) || 3;
+}
+
 /* ── クエリ組み立て ───────────────────── */
 function qs(){
   const p = new URLSearchParams();
@@ -199,8 +209,8 @@ function reviewHtml(c){
   return `<div class="rv">
       <div class="rvh">口コミ<b>${r.n}件</b>
         <span>定員・レポートの分量・テストの難しさは KOAN に書いていない。ここだけが情報源。</span></div>
-      <div class="rvf">${f.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join("")}</div>
       ${notes.length ? `<ul class="rvn">${notes.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
+      <div class="rvf">${f.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join("")}</div>
     </div>`;
 }
 
@@ -245,7 +255,7 @@ const CONDITIONS = {
 function matchLocal(r, w){
   // score.py の match() と同じゲート。総合値を出さない科目には相性も出さない。
   if (r.overall === null || r.overall === undefined)
-    return { fit:null, reason:"判定に必要な情報が足りていません。口コミが1件入ると出ます。",
+    return { fit:null, reason:`判定に必要な情報が足りていません。口コミが${minForScoring()}件そろうと出ます。`,
              weights:w, labels:META.axis_labels };
   const axes = r.axes;
   let total = 0, wsum = 0;
@@ -335,6 +345,7 @@ async function boot(){
     days: ["月","火","水","木","金"], periods: ["1","2","3","4","5"],
     weights: m.weights, conditions: Object.keys(CONDITIONS),
     presets: m.presets, axis_labels: m.axis_label,
+    min_for_scoring: m.min_for_scoring,
     disclaimer: m.note || "",
   };
   CAN_POST = false;

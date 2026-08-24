@@ -410,6 +410,7 @@ class Handler(BaseHTTPRequestHandler):
                 "weights": scoring.WEIGHTS,
                 "conditions": list(CONDITIONS),
                 "presets": scoring.PRESETS,
+                "min_for_scoring": reviews_mod.MIN_FOR_SCORING,
                 "axis_labels": scoring.AXIS_LABEL,
                 "disclaimer": DATA_META["note"],
             })

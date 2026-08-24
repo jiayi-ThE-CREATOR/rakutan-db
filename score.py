@@ -74,6 +74,20 @@ WEIGHTS = {
 }
 
 
+
+def _min_for_scoring() -> int:
+    """口コミが採点に効き始める人数。正本は reviews.MIN_FOR_SCORING。
+
+    reviews.py は score.py を使う側なので、モジュール先頭で import すると
+    循環参照になる。呼ばれた時点で読む。
+    """
+    try:
+        import reviews
+        return int(reviews.MIN_FOR_SCORING)
+    except Exception:
+        return 3
+
+
 def dynamic_weights(course: dict) -> dict[str, float]:
     er = course.get("eval_ratio") or {}
     shares = {k: float(er.get(k) or 0) for k in ("exam", "report", "attendance")}
@@ -446,7 +460,10 @@ def match(course_score: dict, weights: dict | None = None) -> dict:
         # 成績評価の内訳そのものが欠けている科目は口コミでは直らない
         # （シラバス側の問題）ので、同じ文言を出すと嘘になる。
         captured = course_score.get("eval_captured")
-        reason = ("判定に必要な情報が足りていません。口コミが1件入ると出ます。"
+        # 件数は reviews.MIN_FOR_SCORING が正本。ここに数字を書くと、
+        # 門を変えたときに文言だけ古くなる（2026-08-24 まで
+        # 門は3件なのに「1件入ると出ます」と出していた）。
+        reason = (f"判定に必要な情報が足りていません。口コミが{_min_for_scoring()}件そろうと出ます。"
                   if captured is None or captured >= EVAL_TOTAL_MIN else
                   f"シラバスの成績評価の内訳が{captured:.0f}%分しか読み取れないため、"
                   "判定を出していません。")

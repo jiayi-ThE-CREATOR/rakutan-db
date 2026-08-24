@@ -220,6 +220,10 @@ def main() -> None:
             "weights": scoring.WEIGHTS,
             "axis_label": scoring.AXIS_LABEL,
             "presets": scoring.PRESETS,
+            # 口コミが採点に効き始める人数。画面の文言がこれを読む。
+            # 2026-08-24：門を3件にしたのに「1件入ると出ます」と
+            # 表示し続けていたので、数字を持たせて食い違いを止める。
+            "min_for_scoring": reviews.MIN_FOR_SCORING,
             "note": "採点は build.py（score.py）で確定済み。"
                     "ブラウザ側は重み×軸スコアの内積のみ行う。",
             "eligible_years_note": "履修できる学年。KOAN の学年絞り込みで判定"
