@@ -77,6 +77,28 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "reviews"]
 
 
+def term_group(term: str | None) -> str:
+    """学期を haru / aki / full の3つに畳む。
+
+    KOAN の表記は6種類（春～夏学期／春学期／夏学期／秋～冬学期／秋学期／冬学期）
+    ＋通年。画面と API の両方で同じ判定を書くと必ず片方だけ古くなるので、
+    ここで1回畳んで courses.built.json に持たせる。
+
+    値を日本語にしないのは、クエリ文字列に載せたときに文字化けするため
+    （2026-08-24 に実測：?term=秋冬 が ç§å¬ として届いた）。
+
+    full（通年）はどちらの学期でも履修対象なので、絞り込み側で必ず通す。
+    """
+    t = term or ""
+    if "通年" in t:
+        return "full"
+    if "秋" in t or "冬" in t:
+        return "aki"
+    if "春" in t or "夏" in t:
+        return "haru"
+    return "unknown"
+
+
 def slim(course: dict) -> dict:
     out = {k: course.get(k) for k in KEEP}
     # 口コミの本文（一言）も公開物に載せる（2026-08-20 に方針変更。それまでは
@@ -89,6 +111,7 @@ def slim(course: dict) -> dict:
     # notes から除く。落とすのは本文だけで、件数・数値はそのまま採点に効く
     # ―― 「その口コミが無かったこと」にはしない。
     out["attendance_req"] = attendance_req(course.get("attendance_rule"))
+    out["term_group"] = term_group(course.get("term"))
     return out
 
 

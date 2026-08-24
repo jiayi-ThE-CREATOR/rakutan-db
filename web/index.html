@@ -41,7 +41,51 @@
     <a class="heroSub" href="/about">ラクハンと GUILD について →</a>
   </div>
 </section>
-<div class="note" id="note">読み込み中…</div><div class="wrap"><div class="workbench" id="workbench"><aside class="rail"><div class="slotBar" id="slotBar" hidden><span id="slotBarText"></span><button id="slotBarClear" aria-label="コマ選択を解除">✕</button></div><section><h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2><div class="grid" id="grid"></div><div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div></section><section><h2>学年 <span class="sub">履修できない科目は出しません</span></h2><div class="chips" id="years"></div></section><section><h2>あなたの優先度</h2><div class="chips" id="presets"></div><button class="toggle" id="tog">スライダーで細かく調整する</button><div class="sliders" id="sliders"></div></section><section><h2>条件</h2><div class="chips" id="conds"></div></section><section><h2>口コミ</h2><div class="chips" id="trust"></div></section><p class="railNote"><a href="/about#howto">数字の読み方 →</a></p>
+<div class="note" id="note">読み込み中…</div>
+
+<div class="wrap">
+  <div class="workbench" id="workbench">
+
+    <aside class="rail">
+      <div class="slotBar" id="slotBar" hidden>
+        <span id="slotBarText"></span>
+        <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
+      </div>
+
+      <section>
+        <h2>空きコマからさがす <span class="sub">数字はその枠の科目数</span></h2>
+        <div class="grid" id="grid"></div>
+        <div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div>
+      </section>
+
+      <section>
+        <h2>学期 <span class="sub">9/2 に登録するのは秋・冬学期</span></h2>
+        <div class="chips" id="sems"></div>
+      </section>
+
+      <section>
+        <h2>学年 <span class="sub">履修できない科目は出しません</span></h2>
+        <div class="chips" id="years"></div>
+      </section>
+
+      <section>
+        <h2>あなたの優先度</h2>
+        <div class="chips" id="presets"></div>
+        <button class="toggle" id="tog">スライダーで細かく調整する</button>
+        <div class="sliders" id="sliders"></div>
+      </section>
+
+      <section>
+        <h2>条件</h2>
+        <div class="chips" id="conds"></div>
+      </section>
+
+      <section>
+        <h2>口コミ</h2>
+        <div class="chips" id="trust"></div>
+      </section>
+
+      <p class="railNote"><a href="/about#howto">数字の読み方 →</a></p>
     </aside>
 
     <main class="results" id="results">

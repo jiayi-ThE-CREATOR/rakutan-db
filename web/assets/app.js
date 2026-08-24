@@ -11,8 +11,14 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
 /* year の既定を "1" にしてあるのは、1年生が履修できない科目が97件あり、
    しかもそれが上位に食い込むため（統計学B-II、熱学・統計力学要論 など）。
    選べない科目を薦めないことを既定にする。2〜4年生はチップで切り替える。 */
-const state = { q:"", year:"1", day:"", period:"", cond:new Set(), sort:"fit",
+/* sem（学期）の既定は "aki"。9/2 に始まるのが秋冬学期の履修登録で、
+   春夏の757件（全体の68%）はいま登録できない。既定を「すべて」にすると、
+   選べない科目が7割混ざった一覧を最初に見せることになる。
+   ⚠️ 春夏の履修登録期（3〜4月）には "haru" へ変えること。
+   値が日本語でないのは、クエリ文字列で文字化けするため。 */
+const state = { q:"", year:"1", sem:"aki", day:"", period:"", cond:new Set(), sort:"fit",
                 preset:"とにかく軽い", weights:null };
+const SEMS = [["aki","秋・冬学期"],["haru","春・夏学期"],["all","すべて"]];
 const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
                ["5","5年"],["6","6年"],["all","すべて"]];
 let META = null;
@@ -22,6 +28,7 @@ function qs(){
   const p = new URLSearchParams();
   if (state.q) p.set("q", state.q);
   p.set("year", state.year);
+  p.set("sem", state.sem);
   if (state.day) p.set("day", state.day);
   if (state.period) p.set("period", state.period);
   p.set("sort", state.sort);
@@ -61,6 +68,15 @@ function buildGrid(slots){
 }
 
 /* ── 学年 ─────────────────────────────── */
+function buildSems(){
+  $("#sems").innerHTML = SEMS.map(([v,label]) =>
+    `<button class="chip${state.sem===v?" on":""}" data-s="${v}">${label}</button>`).join("");
+  $("#sems").querySelectorAll("button").forEach(b => b.onclick = () => {
+    state.sem = b.dataset.s;
+    buildSems(); load();
+  });
+}
+
 function buildYears(){
   $("#years").innerHTML = YEARS.map(([v,label]) =>
     `<button class="chip${state.year===v?" on":""}" data-y="${v}">${label}</button>`).join("");
@@ -264,6 +280,8 @@ function queryLocal(){
   for (const c of DATA.courses){
     if (state.q && !norm(c.title).includes(norm(state.q))) continue;
     if (state.year !== "all" && !(c.eligible_years || []).includes(+state.year)) continue;
+    // full（通年）はどちらの学期でも履修できるので必ず通す。
+    if (state.sem !== "all" && c.term_group !== state.sem && c.term_group !== "full") continue;
     if (conds.some(k => !CONDITIONS[k](c))) continue;
     base.push({ ...c, match: matchLocal(c.rakutan, w) });
   }
@@ -595,7 +613,7 @@ function applyPostMode() {
   await boot();
   applyPostMode();
   $("#note").textContent = META.disclaimer;
-  buildYears(); buildPresets(); buildSliders();
+  buildSems(); buildYears(); buildPresets(); buildSliders();
   $("#tog").onclick = () => {
     const o = $("#sliders").classList.toggle("open");
     $("#tog").textContent = o ? "スライダーを閉じる" : "スライダーで細かく調整する";
