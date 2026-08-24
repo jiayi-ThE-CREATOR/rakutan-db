@@ -219,6 +219,24 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .rvn li+li{margin-top:4px}
 .reviewBtn{display:block;width:100%;margin-top:12px;background:var(--brand-soft);color:var(--brand-text);
   border:none;border-radius:var(--r-md);padding:10px;font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer}
+
+/* ── 口コミを1件ずつ読む ─────────────────
+   カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」
+   のような、誰も言っていない値になりうる。1人ずつの回答をそのまま読める
+   場所を別に用意する。値の出どころは web/data/reviews.built.json。
+   置き場所は画面幅で変える（PC は右カラムの詳細の下、スマホは全画面のシート）が、
+   1件ぶんの見た目はどちらでも同じなので、ここでまとめて持つ。 */
+.pEntry{padding:var(--sp-3) 0;border-bottom:1px dashed var(--rule)}
+.pEntry:last-child{border-bottom:none}
+.pYear{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data);margin-bottom:5px}
+/* 古い回答であることの但し書き。年そのものと同じ強さにはしない。 */
+.pOld{margin-left:var(--sp-2);color:var(--muted)}
+.pLine{font-size:var(--fs-sm);color:var(--soft);line-height:1.6;margin-bottom:3px}
+/* 本人が書いた一言。上の選択式の行より強くする ―― ここだけが自由記述で、
+   KOAN にも集計にも出てこない情報。 */
+.pNote{font-size:var(--fs-sm);color:var(--ink);line-height:1.6;margin-top:var(--sp-2);
+  padding:var(--sp-2) var(--sp-3);background:var(--paper);border-radius:var(--r-sm)}
+.pEmpty{padding:var(--sp-6) 0;text-align:center;color:var(--muted);font-size:var(--fs-sm)}
 .empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:14px}
 
 /* ── 口コミ投稿（4タップ） ─────────────── */
