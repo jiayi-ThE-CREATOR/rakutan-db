@@ -85,6 +85,22 @@
 
 <button class="fab" id="fab">口コミを書く</button>
 
+<!-- 口コミを1件ずつ読むシート（スマホ用）。
+     PC（1024px 以上）では右カラムの詳細の下に展開するので、これは使わない。
+     投稿フォームと同じ .sheet を使い回している ―― 位置ぎめ・幕・最大高さ・
+     スクロールは app.css の .sheet / .sheet .inner にもうあるので、
+     ここで作り直すと同じものが2つになり、片方だけ直る事故が起きる。
+     中身（見出しと1件ずつ）は app.js が入れる。 -->
+<div class="sheet" id="panel">
+  <div class="inner">
+    <div class="panelHead">
+      <h3 id="panelTitle"></h3>
+      <button class="panelClose" id="panelClose" aria-label="口コミを閉じる">✕</button>
+    </div>
+    <div id="panelBody"></div>
+  </div>
+</div>
+
 <div class="sheet" id="sheet">
   <div class="inner">
     <h3>口コミを書く</h3>
