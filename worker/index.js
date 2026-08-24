@@ -19,6 +19,9 @@
 const PRESET_NAMES = ["バイト優先", "GPA重視", "とにかく軽い", "テストが苦手"];
 const GRADE_KANJI = { 1: "1年", 2: "2年", 3: "3年", 4: "4年", 5: "5年", 6: "6年" };
 const CACHE_TTL_MS = 5 * 60 * 1000;
+const USAGE_HINT = "「1年 とにかく軽い」のように送ると、おすすめを返します。";
+const DATA_UNAVAILABLE_MESSAGE =
+  "只今データを取得できませんでした。少し時間をおいて試してください。";
 
 // isolate内でのみ有効な簡易キャッシュ。Workers はリクエストごとに
 // isolateが再利用されるとは限らないが、再利用されたときの節約として置く。
@@ -69,7 +72,7 @@ export function handleText(text, data) {
   if (preset) {
     const ids = ((presetTop[grade] || presetTop["1"] || {})[preset] || []).slice(0, 5);
     if (ids.length === 0) {
-      return `${GRADE_KANJI[grade] || grade}向けの「${preset}」データが見つかりませんでした。`;
+      return `${GRADE_KANJI[grade] || grade}向けの「${preset}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
     }
     const lines = [`${GRADE_KANJI[grade] || grade}「${preset}」おすすめ TOP${ids.length}`];
     ids.forEach((id, i) => {
@@ -89,7 +92,7 @@ export function handleText(text, data) {
   }
   let matched = data.courses.filter((c) => (c.title || "").includes(q));
   if (matched.length === 0) {
-    return `「${q}」に一致する科目が見つかりませんでした。`;
+    return `「${q}」に一致する科目が見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
   }
   matched = matched
     .slice()
@@ -149,18 +152,32 @@ async function handleWebhook(request, env, ctx) {
     return new Response("bad json", { status: 400 });
   }
 
-  const data = await loadData(env, request);
+  // courses.built.json の取得に失敗しても、LINE には 200 を返す。
+  // 500 を返すと LINE 側が Webhook をリトライし続けるため、失敗時は
+  // 固定文言で応答して終える。
+  let data = null;
+  let dataError = null;
+  try {
+    data = await loadData(env, request);
+  } catch (e) {
+    dataError = e;
+    console.error("loadData error", e);
+  }
 
   const tasks = [];
   for (const event of payload.events || []) {
     if (event.type !== "message") continue;
     if (!event.message || event.message.type !== "text") continue;
     let answer;
-    try {
-      answer = handleText(event.message.text || "", data);
-    } catch (e) {
-      answer = "エラーが発生しました。少し時間をおいて試してください。";
-      console.error("handleText error", e);
+    if (dataError) {
+      answer = DATA_UNAVAILABLE_MESSAGE;
+    } else {
+      try {
+        answer = handleText(event.message.text || "", data);
+      } catch (e) {
+        answer = "エラーが発生しました。少し時間をおいて試してください。";
+        console.error("handleText error", e);
+      }
     }
     tasks.push(replyToLine(env, event.replyToken, answer));
   }
