@@ -13,7 +13,8 @@
 自分で差し込み、`index.html` と `app.css`（松下さん担当）には一切触らない。
 
 **技術スタック：** 素の HTML / CSS / JavaScript（ビルドなし）、
-Python 3 標準ライブラリのみ（`urllib` / `re` / `json`）。**新しい依存は入れない。**
+Python 3 標準ライブラリ（`re` / `json` / `unicodedata`）＋
+取得スクリプトだけ `requests`（`scrape/koan.py` が既に使っている）。**新しい依存は入れない。**
 
 **設計（スペック）：** `docs/plans/2026-08-24-faculty-division-filter-design.md`。
 **この計画とスペックの両方を読むこと。** 数字の根拠と「なぜそうしないか」は全部あちらにある。
@@ -28,7 +29,11 @@ Python 3 標準ライブラリのみ（`urllib` / `re` / `json`）。**新しい
 - **`web/index.html` と `web/assets/app.css` を編集しない。** 松下さんの担当ファイルで、
   `feat/matsushita-kuchikomi-panel` が同じ場所を触っている。新しい CSS クラスも作らない
   ―― 既存の `.chips` `.chip` `.chip .n` `section h2` `.sub` `.toggle` `.railNote` を使い回す。
-- **新しい依存を入れない。** `requirements.txt` を変えない。Python は標準ライブラリのみ。
+- **新しい依存を入れない。** `requirements.txt` を変えない。
+  パーサとテストは**標準ライブラリのみ**（ネットワークに出ないので依存が要らない）。
+  取得スクリプトだけ `requests` を使う ―― `scrape/koan.py` が既に使っているもので、
+  新規依存ではない。標準の `urllib` は python.org 版 Python だと証明書を持たず
+  SSL 検証に失敗する（2026-08-24 実測）。
 - **区分の識別子（key）は14個で固定**：`tobira` `adv_seminar` `kiban_jinbun` `kiban_shakai`
   `kiban_shizen` `kiban_sogo` `kodo_kyoyo` `joho` `health_sports` `senmon_kiso`
   `lang1` `lang2` `lang_opt` `global`。`other` は**画面だけの値**でデータには書かない。
