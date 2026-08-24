@@ -17,6 +17,86 @@
 
 ---
 
+## 2026-08-24（2） ｜ 語学科目を取り込み、2,272件にした ｜ 政岡 → wang
+
+### 1. 何をしたか
+
+**語学（`0:14` マルチリンガル教育センター）1,160件を取得し、共通教育と統合しました。**
+
+```bash
+python3 scrape/fetch.py --shozoku "0:14" --out data/raw/lang     # 約45分
+python3 scrape/parse.py --raw data/raw --raw data/raw/lang
+python3 scrape/years.py --shozoku "0:13" --shozoku "0:14"        # 約5分
+```
+
+```
+総件数            2,272件（共通教育 1,112 ＋ 語学 1,160・コード重複0）
+充足率            99.5%（2,260/2,272）
+eligible_years が空   0件
+1年生が履修できる    1,015 → 1,808件（+793・78%増）
+
+英語 608 ／ ドイツ語 185 ／ 中国語 145 ／ フランス語 116 ／ スペイン語 14
+```
+
+**しゅんやさんが指定した CELAS のページ**（https://www.celas.osaka-u.ac.jp/education/syllabus/）と突き合わせたところ、**教養教育系・専門教育系はすでに全部入っていて、欠けているのは国際性涵養教育系＝語学だけ**でした。今回でその範囲がそろいます。
+
+### 変えたファイル（`scrape/`）
+
+| ファイル | 変更 |
+|---|---|
+| `fetch.py` | `--shozoku` を追加。所属を指定して取得できる |
+| `parse.py` | `--raw` を**複数指定できる**ように。取得先を並べると1つの `courses.json` に統合される |
+| `years.py` | `--shozoku` を**複数指定できる**ように ＋ **encoding のバグ修正**（下記） |
+
+所属コードは `koan.py` の docstring 参照。`0:13`＝共通教育、`0:14`＝マルチリンガル。
+
+### 2. 何をしていないか
+
+| 項目 | 状況 |
+|---|---|
+| `build.py` の実行 | **未実施。`courses.built.json` は触っていません。** wang が口コミ取り込みのたびに作り直しているファイルなので、タイミングを合わせたい |
+| `METHOD_RULES` | 語学ぶんの未分類が新たに出ています（`MSチームズの…投稿` 13件、`Research Log evaluation` 11件 など）。担当は wang |
+| 学部の専門科目（5,617件） | **取得だけ先に走らせています**（`data/raw/f00`〜`f10`・約3時間）。方針が決まったときに待たなくて済むように。使うかどうかは別判断 |
+| 学科の対照表 | 未作成（前の項参照） |
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git checkout main && git pull
+python3 scrape/parse.py --raw data/raw --raw data/raw/lang
+python3 scrape/years.py --shozoku "0:13" --shozoku "0:14"
+python3 build.py        # ← ここは要相談
+```
+
+`data/raw/` は `.gitignore` なので **git では運ばれません。** 手元に無い人は `fetch.py` から必要です（共通教育45分＋語学45分）。
+
+### 4. 踏んだ罠
+
+**罠⑧：`eligible_years` を入れ忘れると、取り込んでもサイトに1件も出ない。**
+
+`server.py:128` と `web/assets/app.js:292` が
+`if (state.year !== "all" && !(c.eligible_years || []).includes(+state.year)) continue;`
+となっていて、**`eligible_years` が空の科目は学年フィルタで全部弾かれます。**
+そして**画面の既定は「1年」**です。
+
+つまり `fetch` → `parse` だけで終えると、**1,160件を取り込んだのに画面は何も変わりません。**
+エラーも警告も出ないので、原因が分かりにくいところです。**`years.py` まで回して初めて出ます。**
+
+**罠⑨：`years.py` にも encoding のバグがありました（罠⑦と同型・3ファイル目）。**
+
+```python
+doc = json.loads(COURSES.read_text())                     # encoding 無し
+COURSES.write_text(json.dumps(doc, ensure_ascii=False))   # encoding 無し
+```
+
+Windows の既定は cp932 なので、UTF-8 の `courses.json`（日本語）を読み書きすると壊れます。
+両方に `encoding="utf-8"` を足しました。
+
+**`tools/eligibility_survey.py`（罠⑦）と合わせて2件目です。ファイルを読み書きする箇所は
+`encoding` を明示するのが安全だと思います。** 他にも残っている可能性があります。
+
+---
+
 ## 2026-08-24 ｜ 履修対象（学部・学科）を全1,112件から抽出 ｜ 政岡 → wang
 
 ### 1. 何をしたか

@@ -32,6 +32,8 @@ def main():
     ap.add_argument("--nendo", default="2026")
     ap.add_argument("--limit", type=int, default=0, help="0で全件")
     ap.add_argument("--delay", type=float, default=2.0, help="リクエスト間隔（秒）。短くしない")
+    ap.add_argument("--shozoku", default=koan.SHOZOKU_KYOTSU,
+                    help="所属コード。0:13=共通教育科目 / 0:14=マルチリンガル（語学）")
     ap.add_argument("--out", default=str(RAW))
     args = ap.parse_args()
 
@@ -40,7 +42,7 @@ def main():
 
     k = koan.Koan(delay=args.delay)
     print("フローを開始…")
-    html = k.search(args.nendo)
+    html = k.search(args.nendo, args.shozoku)
     total = koan.total_count(html)
     print(f"検索ヒット: {total} 件")
 

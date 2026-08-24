@@ -196,14 +196,26 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
 
 
 def main():
-    idx_path = RAW / "index.json"
-    if not idx_path.exists():
-        sys.exit("data/raw/index.json が無い。先に scrape/fetch.py を実行")
-    index = {r["code"]: r for r in json.loads(idx_path.read_text(encoding="utf-8"))}
+    import argparse
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--raw", action="append", default=None,
+                    help="取得先ディレクトリ。複数指定できる（既定: data/raw）")
+    args = ap.parse_args()
+    raw_dirs = [Path(d) for d in (args.raw or [str(RAW)])]
+
+    index = {}
+    for d in raw_dirs:
+        idx_path = d / "index.json"
+        if not idx_path.exists():
+            sys.exit(f"{idx_path} が無い。先に scrape/fetch.py を実行")
+        for r in json.loads(idx_path.read_text(encoding="utf-8")):
+            r["_dir"] = str(d)          # どのディレクトリの detail を見るか
+            index[r["code"]] = r
+        print(f"一覧を読み込み: {d}")
 
     courses, unknown, missing = [], Counter(), 0
     for code, idx in index.items():
-        f = RAW / "detail" / f"{code}.html"
+        f = Path(idx["_dir"]) / "detail" / f"{code}.html"
         if not f.exists():
             missing += 1
             continue
