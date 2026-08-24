@@ -17,40 +17,55 @@
 
 ---
 
-## 2026-08-24（15） ｜ main を取り込み、注意帯を CSS まで入れた（app.js は未着手） ｜ 松下
+## 2026-08-24（15） ｜ main を取り込み、口コミ表示を「見た目の側だけ」全部入れた ｜ 松下
 
 `feat/matsushita-kuchikomi-panel` に `origin/main`（UI 作り直し後）を取り込み、
-「口コミはあるが、まだ数字に入っていない」科目の注意帯を `tokens.css` / `app.css` に入れた。
-**`app.js` は wang さんの担当なので1行も触っていない。** クラスを吐く側は仕様書で依頼する。
+口コミ表示の CSS とマークアップを入れた。**`app.js` は wang さんの担当なので1行も触っていない**
+（「app.js を誰が書くか」は wang さんが出す、で決着）。app.js に必要なことは
+仕様書にまとめて Discord へ渡した。
 
 ### 1. 何が動く状態か
 
 ```bash
-git checkout feat/matsushita-kuchikomi-panel   # fc692dd
+git checkout feat/matsushita-kuchikomi-panel   # 44d6f54
 python -m http.server 8123 --directory web
 ```
 
-- main の取り込みは済み（マージコミット `4c1d7b7`）。コンフリクトは事前の予告どおり2ファイル
-  - `web/index.html` … main 側を丸ごと採用。旧枝の432行は `git show ab99da7:web/index.html` で読める
-  - `HANDOFF.md` … 両方の項目を残した（08-23 松下 → 08-22 wang の順）
-- `tokens.css` に `--alert-face` / `--alert-ink` を追加（決定B。**色相は1つも増やしていない**）
-- `app.css` に `.card.unscored` / `.rvAlert` / `.bandNote` を追加
-- テストは `test_tokens` `test_web_split` `test_layout` `test_shell_inject` `test_scoring_gate` が OK
+コミット6本：
+
+| | |
+|---|---|
+| `4c1d7b7` | main の取り込み（コンフリクト2ファイルを解決） |
+| `fc692dd` | 注意帯（`tokens.css` に `--alert-face`/`--alert-ink`、`app.css` に `.card.unscored`/`.rvAlert`/`.bandNote`） |
+| `d56e7ce` | HANDOFF |
+| `f090ebf` | 1件ずつのブロック（`.pEntry`/`.pYear`/`.pOld`/`.pLine`/`.pNote`/`.pEmpty`） |
+| `5969be3` | 置き場所（`.panelBtn`/`.pList`/`.panelHead`/`.panelClose`、`index.html` に `#panel`） |
+| `44d6f54` | 投稿フォームの設問を正典へ（`.row4` 追加） |
+
+- main の取り込みで解決した2ファイル
+  - `web/index.html` … main 側を丸ごと採用。旧枝の432行は `git show ab99da7:web/index.html`
+  - `HANDOFF.md` … 両方の項目を残した
+- テストは `tokens` `web_split` `layout` `shell_inject` `scoring_gate` が OK
 
 ### 2. 何をしていないか
 
-- **`app.js` の `card()` を変えていないので、いま画面を開いても注意帯は出ない。**
-  CSS だけが先に入っている状態。必要な差分は仕様書（Discord に投稿）にまとめた
-- **松下による目視確認がまだ。** ブラウザで計算後のスタイルは実測したが（明地：帯 #1A1A1A・
-  白文字／暗地：帯 #eef1ec・文字 #16181d、1280px でカード545px・帯515px・`.fit` と衝突なし）、
-  人の目で見た判断はこれから
-- **手順4以降は未着手**：1件ずつのブロック（`.pEntry` ほか）、PC の展開（決定A）、
-  スマホの全画面シート、投稿フォームの設問の正典化、`?c=<科目id>` と `history.pushState`
-- `tools/test_tokens.py` の CONTRAST に `--alert-face` / `--alert-ink` の行を**足していない**
-  （tools/ は担当外）。足すまでこの組み合わせは自動検査されない。wang さんに依頼ずみ
-- `.rvAlert .go` の文言「タップして中身を見る ↓」は PR #24 のまま。
-  決定A（PC は右カラムの詳細の下に展開）と噛み合っていない。**要相談**
-- PR は出していない（app.js の担当が決まるまで、という取り決めのとおり）
+- **`app.js` を変えていないので、画面を開いても注意帯も1件ずつのリストも出ない。**
+  CSS とマークアップだけが先に入っている状態。必要な差分は仕様書（352行）にある
+- **投稿フォームは半分だけ新しい。** `index.html` は正典6問になったが、`app.js` の
+  `checkSend()` はまだ `workload`/`grading` を見ているので**送信ボタンは永久に disabled**。
+  `CAN_POST=false` なので実害は無い
+- **手順8（`?c=<科目id>` と `history.pushState`）は未着手。** app.js だけの話。
+  目的は Android の戻るボタンで、いまはシートが開いていても戻るでページごと離脱する
+- **注意帯の強さは松下が「少し強い」と感じている。** 今回は変えずに置いた。
+  全部そろってから wang さんと相談する。強さの正体は色ではなく面積で、
+  390px 実測で帯はカードの高さの30%・4行。文言を1行にすると 17%・36px まで落ちる
+  （色は動かさずに済む）
+- `tools/test_tokens.py` の CONTRAST に `--alert-face`/`--alert-ink` の行を足していない
+  （tools/ は担当外）。足すまでこの組み合わせは自動検査されない。wang さんへ依頼ずみ
+- `.pReport`（通報リンク）は移していない。通報フォームの URL が無く、
+  `web/CLAUDE.md` にも「通報導線は廃止か書き漏れか未確認」とあるため
+- `.rvAlert .go` の文言「タップして中身を見る ↓」は PR #24 のまま。PC と噛み合っていない
+- PR は出していない
 
 ### 3. 次の人が最初に打つコマンド
 
@@ -60,26 +75,45 @@ PYTHONIOENCODING=utf-8 python tools/test_tokens.py
 python -m http.server 8123 --directory web
 ```
 
-`app.js` を書く人へ：Discord の仕様書のとおり `reviewMark()` を足し、`card()` の3か所
-（`.card` のクラス／バッジの行／`.reason` の直後）を差し替えるだけ。CSS はもう存在する。
+`app.js` を書く人へ：Discord の仕様書のとおり。CSS とマークアップはもう存在するので、
+クラスを吐く・データを取ってくる・置き場所を `isDesktop()` で分ける、の3つだけ。
 
 ### 4. 踏んだ罠
 
-- **`python build.py` は Windows で落ちる。** 警告に使っている `⚠` が cp932 で出力できず
-  `UnicodeEncodeError`。しかも**落ちる前に `web/data/*.built.json` を上書きしてしまう**。
-  回避は `PYTHONIOENCODING=utf-8 python build.py`。`build.py` は wang さんの担当なので直していない
-- **そもそも build.py を流す必要がなかった。** main に入っている `courses.built.json` が
+- **`python build.py` は Windows で落ちる。** 警告の `⚠` が cp932 で出力できず
+  `UnicodeEncodeError`。**落ちる前に `web/data/*.built.json` を上書きしてしまう。**
+  回避は `PYTHONIOENCODING=utf-8 python build.py`（`build.py` は担当外なので直していない）
+- **そもそも build.py を流す必要が無い。** main に入っている `courses.built.json` が
   本番ビルドそのもので、1,112科目／口コミ付き89／`scored:true` 2／`scored:false` 87 と
   本番の実測に一致する。**手元でビルドし直すと逆に壊れる**
   （手元の `data/reviews.json` はダミー1件・112バイト。ビルドすると口コミ1件まで落ちる）
 - `tools/test_reviews.py` は1件落ちる（「実データの受講年が全件埋まっている」）。
-  原因は上のダミー `data/reviews.json`。gitignore 対象なので、本物の書き出しを持っていない人は必ず落ちる。**マージ前から同じ状態**
-- **PR #24 のコードには古い箇所が2つある。**そのまま写すと事故る
-  - `--warn` / `--warn-soft`（新しい色相）は決定Bで却下ずみ。`--alert-*` の地の反転が正
+  原因は上のダミー。gitignore 対象なので本物を持っていない人は必ず落ちる。**元から**
+- **PR #24 のコードには古い箇所が3つある。**そのまま写すと事故る
+  - `--warn` / `--warn-soft`（新しい色相）は決定Bで却下ずみ → `--alert-*` の地の反転
   - `@media (min-width:900px)` の固定パネル（`.panel` + `body.panelOpen`）は決定Aで捨てる。
-    3カラム化後の 1280px では inspector に隙間なく重なり、「口コミを見る」ボタンごと覆う
-- Browser ペインが表示されていないとスクリーンショットが撮れない。
-  代わりに計算後のスタイルを JS で実測すれば、コードを読まずに確認できる形になる
+    1280px の実測で `.inspector` に隙間なく重なり、「口コミを見る」ボタンごと覆う
+  - `.row2/.row4 button.on` の `color:#fff` … オレンジの面に白は 3.64:1 で足りない。
+    `--brand-ink`（黒）が正
+- **サイト内の投稿フォームは、直す前から `server.py` に受け取ってもらえない状態だった。**
+  `do_POST` は 2026-08-21 に正典のキーへ移り、`workload`/`grading` を捨てていたので、
+  従来のフォームから送っても 400（missing choice）。`CAN_POST=false` で塞がっていて
+  露見しなかっただけ。**フォームのキーを変えるときは `server.py` と一緒に変えること**
+- Browser ペインが開いていないとスクリーンショットが撮れない。代わりに計算後のスタイルと
+  座標を JS で実測すれば、コードを読まずに確認できる形になる。
+  なお `scrollIntoView` は滑らかスクロールで直後の採寸に間に合わない ――
+  `scrollTo({behavior:'instant'})` ＋強制レイアウトで測ること
+
+### 5. データについて1件、報告（データ担当へ）
+
+`135327`【総合】カーボンニュートラルと私たちの未来 の口コミに
+**「誰かに出席カードの記入頼めば行かなくていいです」** が入っている。
+代返のすすめなので、公開前の一次スクリーニングで落とす対象だと思う。
+
+もう1つ。`135093`【社会】行動学の考え方 は集計が 出席「たまに」だが、
+1件ずつ読むと「なし」と「毎回」で、**たまにと言った人は1人もいない**
+（`conflicts:["attendance"]` が立っている）。これはバグではなく、
+1件ずつ読める場所が要る理由そのもの。
 
 ---
 
