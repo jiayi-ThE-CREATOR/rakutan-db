@@ -17,6 +17,59 @@
 
 ---
 
+## 2026-08-24（追記）｜ main を取り込んで PR #25 の衝突を解いた ｜ wang
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/kuchikomi-batch2      # 51e7468
+python3 build.py && python3 server.py   # → http://localhost:8000
+for t in web_split tokens layout shell_inject scoring_gate reviews; do python3 tools/test_$t.py; done
+```
+
+PR #25 が CONFLICTING だったので `origin/main` を取り込んだ。衝突は
+`web/data/courses.built.json` の1本だけで、build.py の出力なので手で直さず焼き直した。
+テストは6本とも通る。口コミは **144 件／120 科目**のまま。
+
+**取り込みが必要だった理由**：分岐後に main へ入った学期フィルタ（779211a／27c62b5）が
+built JSON に `term_group` を足していた。分岐側の古い産物のまま合わせると
+`web/assets/app.js` の `state.sem` による絞り込みが**黙って効かなくなる**。
+焼き直した産物には `term_group` と `exam_bring_raw` が同居する（`137157` で両方確認）。
+
+### 2. 何をしていないか
+
+**PR #25 はまだマージしていない。** レビューは通していないので、合わせるかは読んだ人の判断。
+
+`build.py` が出す警告2本は今回も残っている（前からの穴、今回の変更とは無関係）：
+
+- **口コミ 144 件のうち 31 科目分が科目DBに無い**（全部 `191xxx` 台＝語学科目）。
+  KOAN の所属 `0:13` に語学が入っていないため。`reviews.built.json` には載るが、
+  科目ページには結び付かない
+- 回答が割れている科目 4 件（`135349`／`135357`／`135093`／`191111`）
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git fetch && gh pr view 25
+```
+
+### 4. 踏んだ罠
+
+**新しい口コミは、マージ前にもう本番へ出ていた。**
+
+`243ef07`「KOAN 公式シラバスへ直リンク」（8/24 00:45）が、汚れた作業ツリーで焼かれていた
+`web/data/reviews.built.json`（7,144 → 31,117 バイト）と `courses.built.json` を巻き込んで
+コミットしていた。それが `89b9a6b` で main に入り、そのまま自動デプロイされた。
+本番の `reviews.built.json` は 8/23 時点ですでに 120 科目／144 件だった。
+
+**より悪いのはこちら**：産物だけが main にあり、その素である `data/reviews.agg.json`
+（main では 32 科目のまま）と `data/sonota.json` は main に無かった。
+つまり **main 上で `build.py` を一度流すだけで、口コミが 36 件へ黙って巻き戻る**状態だった。
+この PR を合わせると素と産物が揃うので、そこで解消する。
+
+**教訓：産物（`web/data/*.built.json`）を無関係なコミットに混ぜない。**
+コミット前に `git status` ではなく `git diff --cached --stat` を見る。
+
 ## 2026-08-24 ｜ 口コミ108件を取り込み・「その他（…）」を台帳にした ｜ wang
 
 ### 1. 何が動く状態か
