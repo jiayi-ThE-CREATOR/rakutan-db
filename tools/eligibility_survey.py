@@ -51,7 +51,7 @@ def main() -> None:
     files = sorted(d.glob("*.html"))
     rows, missing = [], 0
     for f in files:
-        g = parse_eligibility(f.read_text(errors="replace"))
+        g = parse_eligibility(f.read_text(encoding="utf-8", errors="replace"))
         if g is None:
             missing += 1
             continue
