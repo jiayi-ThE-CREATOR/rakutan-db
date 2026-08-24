@@ -219,12 +219,27 @@ const RV_ATT = ["なし", "たまに", "毎回"];
 const RV_LV  = ["軽い", "ふつう", "重い"];
 const rvLv = v => (v === null || v === undefined) ? "―" : RV_LV[Math.round(v)];
 
+/* 集計はラベルではなく数字で出す（2026-08-24）。
+ *
+ * ラベルにすると、**誰も答えていない選択肢を「みんなの答え」として出す**。
+ * 実データ 135093 は「なし」と「毎回」の2件で、平均 1.0 を RV_ATT に
+ * 通すと「たまに」になる ―― そう答えた人は1人もいない。
+ * 数字なら「0 と 2 を平均した 1.0」と読めるので、嘘にならない。
+ *
+ * 目盛りは元の 0〜2 のまま。1〜5 のような別の幅に引き伸ばすと、
+ * 3択で集めたものに無い精度を足すことになる。凡例を横に添えて補う。
+ *
+ * 1件ずつ（panelEntry）は逆にラベルのまま ―― あちらは平均ではなく
+ * 「その人がそう答えた」なので、ラベルが正確。
+ */
+const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 2`;
+
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
-  const f = [["出席", r.attendance == null ? "―" : RV_ATT[Math.round(r.attendance)]],
-             ["授業中の課題", rvLv(r.in_class)],
-             ["授業外の課題", rvLv(r.out_class)]];
+  const f = [["出席", rvAvg(r.attendance)],
+             ["授業中の課題", rvAvg(r.in_class)],
+             ["授業外の課題", rvAvg(r.out_class)]];
   if (r.exam_hard10 != null) f.push(["テストの難易度", `${r.exam_hard10} / 10`]);
   if (r.exam_bring)          f.push(["持ち込み", r.exam_bring]);
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
@@ -234,6 +249,8 @@ function reviewHtml(c){
         <span>定員・レポートの分量・テストの難しさは KOAN に書いていない。ここだけが情報源。</span></div>
       ${notes.length ? `<ul class="rvn">${notes.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
       <div class="rvf">${f.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join("")}</div>
+      <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
+        r.conflicts?.length ? "。<b>答えが割れている項目があります</b>ので、下の1件ずつを読んでください" : ""}</span>
     </div>`;
 }
 
