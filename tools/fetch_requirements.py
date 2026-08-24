@@ -25,7 +25,8 @@ import requests   # scrape/koan.py と同じ。標準の urllib は python.org �
                   # 証明書を持たず SSL 検証に失敗する（2026-08-24 実測）
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tools.requirements_parse import DIVISIONS, parse_notes, parse_page
+from tools.requirements_parse import (CELAS_DIVISIONS, DIVISIONS,
+                                      parse_notes, parse_page)
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "data" / "faculty_requirements.json"
@@ -79,7 +80,7 @@ def build_faculty(slug: str, label: str, page: str) -> dict:
 
     # 前提②：14区分すべてが表にある
     covered = {k for r in requirements for k in r["divisions"]}
-    missing = [d["key"] for d in DIVISIONS if d["key"] not in covered]
+    missing = [d["key"] for d in CELAS_DIVISIONS if d["key"] not in covered]
     if missing:
         raise SystemExit(f"中止: {slug} の表に無い区分がある {missing}")
 

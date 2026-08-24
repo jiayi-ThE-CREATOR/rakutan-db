@@ -37,7 +37,20 @@ DIVISIONS = [
     {"key": "joho",          "label": "情報教育科目",            "group": "教養教育系科目"},
     {"key": "health_sports", "label": "健康・スポーツ教育科目",    "group": "教養教育系科目"},
     {"key": "senmon_kiso",   "label": "専門基礎教育科目",         "group": "専門教育系科目"},
-    {"key": "lang1",         "label": "第1外国語",              "group": "マルチリンガル教育科目"},
+    # 第1外国語そのものはチップにしない（chip=False）。内訳の総合英語・実践英語が
+    # 実在する科目区分で、親の「第1外国語」に直接ぶら下がる科目は無いため、
+    # チップにすると必ず0件になって「壊れている」と読まれる。
+    # 要件表の行としては CELAS 由来の合計値を持ち続ける（内訳の検算に使う）。
+    {"key": "lang1",         "label": "第1外国語",              "group": "マルチリンガル教育科目",
+     "chip": False},
+    # 第1外国語の内訳。CELAS の表は「第1外国語」1行だが、各学部規程は
+    # 総合英語・実践英語に分けて単位数を定めている（2026-08-25 に11学部で確認）。
+    # 課網にも「総合英語」「実践英語」という科目が実在する（所属14・593件）ので、
+    # 学生が絞り込む単位として意味がある。tools/fetch_lang_split.py が値を入れる。
+    {"key": "lang1_sogo",    "label": "総合英語",               "group": "マルチリンガル教育科目",
+     "celas": False},
+    {"key": "lang1_jissen",  "label": "実践英語",               "group": "マルチリンガル教育科目",
+     "celas": False},
     {"key": "lang2",         "label": "第2外国語",              "group": "マルチリンガル教育科目"},
     {"key": "lang_opt",      "label": "選択外国語",             "group": "マルチリンガル教育科目"},
     {"key": "global",        "label": "グローバル理解",          "group": "国際性涵養教育系科目"},
@@ -72,6 +85,11 @@ def _norm(label: str) -> str:
 
 
 _KEY_BY_LABEL = {_norm(d["label"]): d["key"] for d in DIVISIONS}
+
+# CELAS の「卒業要件単位数」表に行として現れる区分。
+# celas=False の区分（総合英語・実践英語）は各学部規程が出所で、
+# fetch_lang_split.py があとから入れる。取り込み時の欠落検査から外す。
+CELAS_DIVISIONS = [d for d in DIVISIONS if d.get("celas", True)]
 
 
 def parse_table(table_html: str) -> list[dict]:

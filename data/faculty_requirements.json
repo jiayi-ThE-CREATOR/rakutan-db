@@ -2,8 +2,9 @@
  "_meta": {
   "source": "CELAS 卒業要件単位数",
   "base_url": "https://www.celas.osaka-u.ac.jp/education/prerequisite/",
-  "fetched": "2026-08-24",
-  "note": "値は生の文字列。＊は便覧参照、－は要件なし。数値へ丸めていない。"
+  "fetched": "2026-08-25",
+  "note": "値は生の文字列。＊は便覧参照、－は要件なし。数値へ丸めていない。",
+  "lang1_split_source": "大阪大学 学部規程（例外2件は MANUAL 参照）"
  },
  "divisions": [
   {
@@ -59,7 +60,20 @@
   {
    "key": "lang1",
    "label": "第1外国語",
-   "group": "マルチリンガル教育科目"
+   "group": "マルチリンガル教育科目",
+   "chip": false
+  },
+  {
+   "key": "lang1_sogo",
+   "label": "総合英語",
+   "group": "マルチリンガル教育科目",
+   "celas": false
+  },
+  {
+   "key": "lang1_jissen",
+   "label": "実践英語",
+   "group": "マルチリンガル教育科目",
+   "celas": false
   },
   {
    "key": "lang2",
@@ -149,6 +163,26 @@
      "values": [
       "8"
      ]
+    },
+    {
+     "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000151.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000151.html",
+     "note": ""
     },
     {
      "divisions": [
@@ -254,6 +288,26 @@
     },
     {
      "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000156.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000156.html",
+     "note": ""
+    },
+    {
+     "divisions": [
       "lang2"
      ],
      "values": [
@@ -353,6 +407,26 @@
      "values": [
       "8"
      ]
+    },
+    {
+     "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000164.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000164.html",
+     "note": ""
     },
     {
      "divisions": [
@@ -458,6 +532,26 @@
     },
     {
      "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000169.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000169.html",
+     "note": ""
+    },
+    {
+     "divisions": [
       "lang2"
      ],
      "values": [
@@ -557,6 +651,26 @@
      "values": [
       "6"
      ]
+    },
+    {
+     "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "4"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/",
+     "note": "規程集に学部規程が無い。この学部だけ第1外国語は計6単位。"
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/",
+     "note": "規程集に学部規程が無い。この学部だけ第1外国語は計6単位。"
     },
     {
      "divisions": [
@@ -691,6 +805,32 @@
     },
     {
      "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6",
+      "6",
+      "6",
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000174.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000174.html",
+     "note": ""
+    },
+    {
+     "divisions": [
       "lang2"
      ],
      "values": [
@@ -822,6 +962,32 @@
     },
     {
      "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6",
+      "6",
+      "6",
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000183.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000183.html",
+     "note": ""
+    },
+    {
+     "divisions": [
       "lang2"
      ],
      "values": [
@@ -926,6 +1092,26 @@
     },
     {
      "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000203.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000203.html",
+     "note": ""
+    },
+    {
+     "divisions": [
       "lang2"
      ],
      "values": [
@@ -1017,6 +1203,26 @@
      "values": [
       "8"
      ]
+    },
+    {
+     "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000213.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000213.html",
+     "note": ""
     },
     {
      "divisions": [
@@ -1143,6 +1349,34 @@
       "8",
       "8"
      ]
+    },
+    {
+     "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6",
+      "6",
+      "6",
+      "6",
+      "6"
+     ],
+     "source": "工学部 履修案内（令和8年度）教育課程表 https://www.eng.osaka-u.ac.jp/wp-content/uploads/pdf/student/ug_curriculum/2026_1_bc_curriculum.pdf",
+     "note": "規程は「合計8単位以上」までで内訳が無い。履修案内の表から。"
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2",
+      "2"
+     ],
+     "source": "工学部 履修案内（令和8年度）教育課程表 https://www.eng.osaka-u.ac.jp/wp-content/uploads/pdf/student/ug_curriculum/2026_1_bc_curriculum.pdf",
+     "note": "規程は「合計8単位以上」までで内訳が無い。履修案内の表から。"
     },
     {
      "divisions": [
@@ -1275,6 +1509,32 @@
       "8",
       "8"
      ]
+    },
+    {
+     "divisions": [
+      "lang1_sogo"
+     ],
+     "values": [
+      "6",
+      "6",
+      "6",
+      "6"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000230.html",
+     "note": ""
+    },
+    {
+     "divisions": [
+      "lang1_jissen"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ],
+     "source": "大阪大学学部規程 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000230.html",
+     "note": ""
     },
     {
      "divisions": [

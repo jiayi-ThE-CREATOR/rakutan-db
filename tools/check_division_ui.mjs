@@ -37,8 +37,13 @@ const pos = await p.evaluate(() => {
 t("1 学年の直後にセクション", pos.fi === pos.yi + 1, `years=${pos.yi} fac=${pos.fi}`);
 
 // 2 未選択で 15 チップ
+// チップ数は要件表の区分数＋「その他」。区分が増えたら自動で追随する
+// ―― ここに数字を書くと、区分を足すたびにテストだけ古くなる。
+const nDiv = await p.evaluate(() => (REQ && REQ.divisions
+  ? REQ.divisions.filter(d => d.chip !== false).length : 0));
+const expectChips = nDiv + 1;
 let chips = await p.$$eval("#divs button", bs => bs.map(b => b.textContent.trim()));
-t("2 未選択で15チップ", chips.length === 15, `${chips.length}個`);
+t(`2 未選択で${expectChips}チップ`, chips.length === expectChips, `${chips.length}個`);
 t("2b 単位数バッジなし", !(await p.$("#divs small")), "");
 
 // 3 理学部
@@ -58,7 +63,8 @@ t("3d 学問への扉 2単位", /2単位/.test(sci.tobira || ""), sci.tobira);
 t("3e 注記に自然科学系", /自然科学系.*卒業要件外/.test(sci.notes || ""), (sci.notes||"").slice(0,60));
 
 // 4 0件は disabled
-const dis = await p.evaluate(() => ["lang1","lang2","adv_seminar","kodo_kyoyo"].map(k => {
+// 第1外国語（lang1）は chip:false なのでここでは見ない。内訳の総合英語を見る。
+const dis = await p.evaluate(() => ["lang1_sogo","lang2","adv_seminar","kodo_kyoyo"].map(k => {
   const b = document.querySelector(`#divs button[data-d="${k}"]`);
   return { k, disabled: !!b?.disabled, title: b?.title };
 }));
@@ -107,7 +113,7 @@ const cleared = await p.evaluate(() => ({
   count: +document.querySelector("#count").textContent,
 }));
 t("8a バッジが消える", cleared.small === 0, `${cleared.small}個`);
-t("8b 区分は全部出たまま", cleared.chips === 15, `${cleared.chips}個`);
+t("8b 区分は全部出たまま", cleared.chips === expectChips, `${cleared.chips}個`);
 t("8c 学部を外しても区分の選択は残る", cleared.count === nJoho + nJinbun, `${cleared.count}件`);
 
 // 9 横スクロールしていないか

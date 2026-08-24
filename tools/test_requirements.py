@@ -7,7 +7,8 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tools.requirements_parse import DIVISIONS, parse_notes, parse_page, parse_table
+from tools.requirements_parse import (CELAS_DIVISIONS, parse_notes, parse_page,
+                                      parse_table)
 
 # 文学部・理学部の形：基盤教養の4区分が rowspan="4" で1セル（＝4つ合わせて6単位）
 MERGE4 = """<table><tbody>
@@ -48,9 +49,15 @@ def test_merge4_is_one_group():
     assert by[("adv_seminar",)] == "＊"       # 便覧参照もそのまま残す
 
 
-def test_all_14_divisions_are_found():
+def test_all_celas_divisions_are_found():
+    """CELAS の表に載っている区分がすべて取れること。
+
+    総合英語・実践英語は CELAS の表には無く（第1外国語1行だけ）、
+    各学部規程から tools/fetch_lang_split.py が入れる。だからここでは
+    CELAS 由来の区分だけを数える。
+    """
     got = {k for g in parse_table(MERGE4) for k in g["divisions"]}
-    assert got == {d["key"] for d in DIVISIONS}, sorted(got)
+    assert got == {d["key"] for d in CELAS_DIVISIONS}, sorted(got)
 
 
 def test_fullwidth_numbers_are_normalized():
