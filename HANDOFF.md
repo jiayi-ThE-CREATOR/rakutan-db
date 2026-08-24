@@ -104,7 +104,47 @@ python -m http.server 8123 --directory web
   なお `scrollIntoView` は滑らかスクロールで直後の採寸に間に合わない ――
   `scrollTo({behavior:'instant'})` ＋強制レイアウトで測ること
 
-### 5. データについて1件、報告（データ担当へ）
+### 5. CI が全 PR で落ちている（こちらの変更が原因ではない・担当外なので直していない）
+
+PR #24 を出したら `shots`（スクショ差分）と `Workers Builds` の両方が落ちた。
+調べたところ**開いている PR 全部**（#23 #24 #25 #26）で同じ2つが落ちていて、
+`shots` は 2026-08-21 まで遡って**10回中10回失敗**している。誰の変更のせいでもない。
+
+`web/CLAUDE.md` には「PR を出すと before/after が自動で並びます。見た目の変更は
+そこで確認します」と書いてあるが、**その画像は一度も出来ていない。**
+
+**`shots` の原因は特定した。**
+
+`data/courses.json` は .gitignore 対象なので CI には無く、`server.py` は
+`data/courses.sample.json`（30件）へ落ちる。ところがサンプルの30件は
+**`eligible_years` を1件も持っていない。** `/api/courses` の既定は `year=1` で
+`int(year) in c["eligible_years"]` を要求するので、30件すべてが弾かれる。
+
+手元で CI と同じ状態（`git clone` はまさに gitignore 済みファイルが無い状態）を作って確認：
+
+```
+/api/health           → {"courses":30,"is_sample":true}
+/api/courses          → count 0     ← ここ
+/api/courses?year=all → count 30
+```
+
+結果 `#list` が空になり、`tools/shots.mjs` の6枚目
+（`06-detail-desktop`・`waitForSelector(".card")`）が30秒でタイムアウトして落ちる。
+1〜5枚目は `.card` を待たないので撮れてしまい、失敗が6枚目まで見えない。
+
+直し方は2つ。どちらも担当外なので手を付けていない。
+- `data/courses.sample.json` に `eligible_years` を入れる（データ側）
+- `tools/shots.mjs` が `/?year=all` を開く（CI 側）
+
+**ついでにもう1つ。** `tools/shots.mjs` の11枚目は `/progress.html` を開くが、
+`progress.html` は `tools/` へ移動ずみで `web/` に無い（直下 CLAUDE.md の
+「開発者用のファイルを web/ に置かない」に従った移動）。ここも古い。
+
+`Workers Builds` の失敗理由は Cloudflare のダッシュボード側にあり、こちらからは読めない。
+main では成功、開いている PR では全滅、PR #19（wrangler.toml を直した回）だけ成功、
+という分布だった。
+
+### 6. データについて1件、報告（データ担当へ）
 
 `135327`【総合】カーボンニュートラルと私たちの未来 の口コミに
 **「誰かに出席カードの記入頼めば行かなくていいです」** が入っている。
