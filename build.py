@@ -30,6 +30,7 @@ from pathlib import Path
 
 import reviews
 import score as scoring
+from tools.division import divide
 
 ROOT = Path(__file__).parent
 SRC = ROOT / "data" / "courses.json"
@@ -193,6 +194,10 @@ def main() -> None:
     for c in courses:
         base = dict(c) if args.full else slim(c)
         base["rakutan"] = scoring.score(c)      # 採点は必ず元データに対して行う
+        # 科目区分。政岡さんの取得が入るまでは科目名とナンバリングからの推定で、
+        # 出所を一緒に持たせる（画面で「推定」と断るため）。判定できないものは
+        # null のまま ―― 画面では「その他」に集まる。
+        base["division"], base["division_source"] = divide(c)
         built.append(base)
 
     # プリセット4つ分の順位を焼いておくと、LINE側は採点ロジックを持たずに済む。
@@ -291,6 +296,17 @@ def main() -> None:
           f"／ 情報不足 {len(built) - judged} 件")
     if not args.full:
         print("  シラバス原文は含めていません（出席要件だけ派生値で保持）")
+
+    # 要件表を公開側へ写す。courses.built.json には入れない
+    # ―― あちらは絞り込みのたびに読む1.7MB で、要件表は学部を選んだときだけ要る。
+    req_src = ROOT / "data" / "faculty_requirements.json"
+    if req_src.exists():
+        req_dest = ROOT / "web" / "data" / "requirements.json"
+        req_dest.write_text(req_src.read_text(encoding="utf-8"), encoding="utf-8")
+        print(f"→ {req_dest}")
+    else:
+        print("※ data/faculty_requirements.json が無いので学部の絞り込みは出ません。"
+              "  python3 tools/fetch_requirements.py を流してください。")
 
 
     parts = read_shell()

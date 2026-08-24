@@ -1,0 +1,1318 @@
+{
+ "_meta": {
+  "source": "CELAS 卒業要件単位数",
+  "base_url": "https://www.celas.osaka-u.ac.jp/education/prerequisite/",
+  "fetched": "2026-08-24",
+  "note": "値は生の文字列。＊は便覧参照、－は要件なし。数値へ丸めていない。"
+ },
+ "divisions": [
+  {
+   "key": "tobira",
+   "label": "学問への扉",
+   "group": "教養教育系科目"
+  },
+  {
+   "key": "adv_seminar",
+   "label": "アドヴァンスト・セミナー",
+   "group": "教養教育系科目"
+  },
+  {
+   "key": "kiban_jinbun",
+   "label": "人文科学系",
+   "group": "基盤教養教育科目"
+  },
+  {
+   "key": "kiban_shakai",
+   "label": "社会科学系",
+   "group": "基盤教養教育科目"
+  },
+  {
+   "key": "kiban_shizen",
+   "label": "自然科学系",
+   "group": "基盤教養教育科目"
+  },
+  {
+   "key": "kiban_sogo",
+   "label": "総合型",
+   "group": "基盤教養教育科目"
+  },
+  {
+   "key": "kodo_kyoyo",
+   "label": "高度教養教育科目",
+   "group": "教養教育系科目"
+  },
+  {
+   "key": "joho",
+   "label": "情報教育科目",
+   "group": "教養教育系科目"
+  },
+  {
+   "key": "health_sports",
+   "label": "健康・スポーツ教育科目",
+   "group": "教養教育系科目"
+  },
+  {
+   "key": "senmon_kiso",
+   "label": "専門基礎教育科目",
+   "group": "専門教育系科目"
+  },
+  {
+   "key": "lang1",
+   "label": "第1外国語",
+   "group": "マルチリンガル教育科目"
+  },
+  {
+   "key": "lang2",
+   "label": "第2外国語",
+   "group": "マルチリンガル教育科目"
+  },
+  {
+   "key": "lang_opt",
+   "label": "選択外国語",
+   "group": "マルチリンガル教育科目"
+  },
+  {
+   "key": "global",
+   "label": "グローバル理解",
+   "group": "国際性涵養教育系科目"
+  }
+ ],
+ "faculties": [
+  {
+   "key": "letters",
+   "label": "文学部",
+   "departments": [],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "0"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "4"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "4"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "8"
+     ]
+    }
+   ],
+   "notes": [
+    "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+   ]
+  },
+  {
+   "key": "human-sci",
+   "label": "人間科学部",
+   "departments": [],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "4"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "3"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "4"
+     ]
+    }
+   ],
+   "notes": [
+    "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+   ]
+  },
+  {
+   "key": "law",
+   "label": "法学部",
+   "departments": [],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "10"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "0"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "4"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "4"
+     ]
+    }
+   ],
+   "notes": [
+    "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+   ]
+  },
+  {
+   "key": "economics",
+   "label": "経済学部",
+   "departments": [],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "10"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "4"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "4"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "4"
+     ]
+    }
+   ],
+   "notes": [
+    "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+   ]
+  },
+  {
+   "key": "foreign-s",
+   "label": "外国語学部",
+   "departments": [],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar"
+     ],
+     "values": [
+      "*"
+     ]
+    },
+    {
+     "divisions": [
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "0"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "－"
+     ]
+    }
+   ],
+   "notes": [
+    "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+   ]
+  },
+  {
+   "key": "science",
+   "label": "理学部",
+   "departments": [
+    "数学科",
+    "物理学科",
+    "化学科",
+    "生物科学科"
+   ],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar"
+     ],
+     "values": [
+      "＊",
+      "＊",
+      "＊",
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "6",
+      "6",
+      "6",
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊",
+      "＊",
+      "＊",
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "25",
+      "25",
+      "25",
+      "24"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8",
+      "8",
+      "8",
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "3",
+      "3",
+      "3",
+      "3"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－",
+      "－",
+      "－",
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    }
+   ],
+   "notes": [
+    "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
+    "注１：「自然科学系」科目は、卒業要件外とする"
+   ]
+  },
+  {
+   "key": "medicine",
+   "label": "医学部",
+   "departments": [
+    "医学科",
+    "保健学科看護学専攻",
+    "保健学科放射線技術科学専攻",
+    "保健学科検査技術科学専攻"
+   ],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar",
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "＊8",
+      "＊6",
+      "＊6",
+      "＊6"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "14",
+      "13",
+      "16",
+      "18"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8",
+      "8",
+      "8",
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "3",
+      "3",
+      "3",
+      "3"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－",
+      "－",
+      "－",
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "6",
+      "4",
+      "4",
+      "4"
+     ]
+    }
+   ],
+   "notes": [
+    "＊「自然科学系科目」から4単位以上を履修し、計8単位を修得すること。",
+    "＊「基盤教養教育科目」から4単位以上を履修し、計6単位を修得すること。"
+   ]
+  },
+  {
+   "key": "dentistry",
+   "label": "歯学部",
+   "departments": [],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar",
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "＊10"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "20"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "3"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "6"
+     ]
+    }
+   ],
+   "notes": [
+    "＊「人文科学系科目」及び「社会科学系科目」からそれぞれ2単位以上を履修し、計10単位を修得すること。"
+   ]
+  },
+  {
+   "key": "pharmacy",
+   "label": "薬学部",
+   "departments": [],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar",
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "18"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "3"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "6"
+     ]
+    }
+   ],
+   "notes": []
+  },
+  {
+   "key": "engineering",
+   "label": "工学部",
+   "departments": [
+    "応用自然科学科",
+    "応用理工学科",
+    "電子情報工学科",
+    "環境・エネルギー工学科",
+    "地球総合工学科"
+   ],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar",
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "4",
+      "4",
+      "4",
+      "4",
+      "4"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊",
+      "＊",
+      "＊",
+      "＊",
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "24",
+      "26",
+      "20",
+      "26",
+      "26"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8",
+      "8",
+      "8",
+      "8",
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "3",
+      "3",
+      "3",
+      "3",
+      "3"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－",
+      "－",
+      "－",
+      "－",
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "4",
+      "4",
+      "4",
+      "4",
+      "4"
+     ]
+    }
+   ],
+   "notes": [
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+   ]
+  },
+  {
+   "key": "engr-sci",
+   "label": "基礎工学部",
+   "departments": [
+    "電子物理科学科",
+    "化学応用科学科",
+    "システム科学科",
+    "情報科学科"
+   ],
+   "requirements": [
+    {
+     "divisions": [
+      "tobira"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "adv_seminar",
+      "kiban_jinbun",
+      "kiban_shakai",
+      "kiban_shizen",
+      "kiban_sogo"
+     ],
+     "values": [
+      "6",
+      "6",
+      "6",
+      "6"
+     ]
+    },
+    {
+     "divisions": [
+      "kodo_kyoyo"
+     ],
+     "values": [
+      "＊",
+      "＊",
+      "＊",
+      "＊"
+     ]
+    },
+    {
+     "divisions": [
+      "joho"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "health_sports"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    },
+    {
+     "divisions": [
+      "senmon_kiso"
+     ],
+     "values": [
+      "23",
+      "20",
+      "20",
+      "18"
+     ]
+    },
+    {
+     "divisions": [
+      "lang1"
+     ],
+     "values": [
+      "8",
+      "8",
+      "8",
+      "8"
+     ]
+    },
+    {
+     "divisions": [
+      "lang2"
+     ],
+     "values": [
+      "3",
+      "3",
+      "3",
+      "3"
+     ]
+    },
+    {
+     "divisions": [
+      "lang_opt"
+     ],
+     "values": [
+      "－",
+      "－",
+      "－",
+      "－"
+     ]
+    },
+    {
+     "divisions": [
+      "global"
+     ],
+     "values": [
+      "2",
+      "2",
+      "2",
+      "2"
+     ]
+    }
+   ],
+   "notes": [
+    "＊高度教養教育科目は、基礎工学部開講科目にて２単位修得してください。全学共通教育科目の高度教養教育科目を修得した場合は、高度教養教育科目の単位に算入されますが、卒業に必要な単位にはなりません。"
+   ]
+  }
+ ]
+}
