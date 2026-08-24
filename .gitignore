@@ -22,6 +22,11 @@ data/reviews.json
 
 # ローカル設定
 .env
+.dev.vars
 *.local.json
 node_modules/
 shots/
+
+# wrangler のローカル実行状態（キャッシュ・ローカルD1など）
+.wrangler/
+.dev.vars

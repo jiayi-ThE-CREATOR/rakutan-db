@@ -1,0 +1,38 @@
+# Cloudflare Workers（静的アセット + LINE Bot Webhook）
+#
+# 🚨 このファイルはこれまで main にありませんでした
+# ─────────────────────────────────────────────────
+# wrangler の設定は branch `feat/wang-workers-static`（コミット 18b3f93）に
+# あるだけで main に未マージでした。ここでは静的配信の設定（[assets]）を
+# そのまま引き継ぎつつ、LINE Bot の Webhook を同じ Worker の1ルートとして
+# 追加しています（worker/index.js）。マージ前に一度レビューをお願いします。
+#
+# なぜ Worker スクリプト（main）を持つ構成に変えたか
+# ──────────────────────────────────────────────────
+# これまでは main を書かず [assets] だけの「Workerコードを1行も持たない」
+# 純粋な静的ホスティングでした。LINE の Webhook は公開 HTTPS への POST を
+# 受ける必要があり、静的アセットだけでは受けられないため、Worker スクリプトを
+# 追加しています。
+#
+# main を持つ構成では、リクエストは常に worker/index.js を通ります。
+# 静的ファイルは Worker 側から env.ASSETS.fetch(request) で明示的に
+# 返しているので、/line/webhook 以外の挙動（トップページ・courses.built.json
+# など）はこれまでと変わりません。
+#
+# 口コミの投稿（POST /api/reviews）はこの構成でも受けられません
+# （D1 未接続のため）。index.html 側の CAN_POST=false はそのままです。
+name = "rakutan-db"
+compatibility_date = "2026-08-20"
+
+main = "worker/index.js"
+
+[assets]
+directory = "./web"
+binding = "ASSETS"
+# not_found_handling は既定（none）のまま。画面遷移は全部クエリ文字列
+# （?year=1&cond=…）で、パスは / しか無いので、SPA フォールバックを入れると
+# 存在しないURLまで index.html を返してしまう。
+
+# シークレットはここに書かない。デプロイ後に以下で登録する:
+#   npx wrangler secret put LINE_CHANNEL_SECRET
+#   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
