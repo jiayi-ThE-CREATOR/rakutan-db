@@ -18,8 +18,8 @@ const VIEWS = [
   { name: "03-top-desktop",    path: "/",              w: 1280, h: 1400 },
   { name: "04-top-wide",       path: "/",              w: 1500, h: 1400 },
   { name: "05-search-mobile",  path: "/",              w: 390,  h: 1400, q: "統計" },
-  { name: "06-detail-desktop", path: "/",              w: 1280, h: 1400, open: true },
-  { name: "07-detail-mobile",  path: "/",              w: 390,  h: 1600, open: true },
+  { name: "06-detail-desktop", path: "/",              w: 1280, h: 1400, koma: "火3", open: true },
+  { name: "07-detail-mobile",  path: "/",              w: 390,  h: 1600, koma: "火3", open: true },
   { name: "08-about-mobile",   path: "/about",         w: 390,  h: 2400 },
   { name: "09-about-desktop",  path: "/about",         w: 1280, h: 2000 },
   { name: "10-top-dark",       path: "/",              w: 1280, h: 1400, dark: true },
@@ -41,6 +41,22 @@ for (const v of VIEWS) {
 
   if (v.q) {
     await page.fill("#q", v.q);
+    await page.waitForTimeout(600);
+  }
+  if (v.koma) {
+    // 一覧は時間割起点で、コマを押すまで1件も出ない。
+    // 2026-08-22 の作り直しでそうなったのに、ここは裸の「/」で .card を待ち続けていて、
+    // 以来どのブランチでも 06 で必ず落ちていた。撮る前に必ずコマを押す。
+    //
+    // 「空いていない先頭のコマ」ではなく決め打ちにする。データが増減するたびに
+    // 押す場所が動くと、UI が1行も変わっていない回でも差分が出る。
+    const day = v.koma[0], period = v.koma.slice(1);
+    const cell = page.locator(`#grid button[aria-label^="${day}曜${period}限 "]`);
+    const cls = (await cell.getAttribute("class")) || "";
+    if (cls.includes("zero")) {
+      throw new Error(`${v.name}: ${v.koma} が0件になった。VIEWS の koma を選び直す`);
+    }
+    await cell.click();
     await page.waitForTimeout(600);
   }
   if (v.open) {
