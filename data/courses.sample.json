@@ -8,6 +8,7 @@
   "courses": [
     {
       "id": "S001", "title": "統計学入門", "category": "専門基礎教育科目", "term": "秋冬",
+      "instructor": "ダミー教員A",
       "day_period": "火3", "campus": "豊中", "capacity": 240, "class_format": "講義",
       "eval_ratio": {"exam": 70, "report": 20, "attendance": 10},
       "exam_type": "持込不可", "report_count": 2, "report_words": 2000,
@@ -16,6 +17,7 @@
     },
     {
       "id": "S002", "title": "現代社会と法", "category": "基盤教養教育科目", "term": "春夏",
+      "instructor": "ダミー教員B",
       "day_period": "月2", "campus": "豊中", "capacity": 300, "class_format": "講義",
       "eval_ratio": {"exam": 0, "report": 60, "attendance": 40},
       "report_count": 1, "report_words": 4000,
@@ -24,6 +26,7 @@
     },
     {
       "id": "S003", "title": "基礎セミナー：データと社会", "category": "基盤教養教育科目", "term": "春夏",
+      "instructor": "ダミー教員C,ダミー教員D",
       "day_period": "水4", "campus": "豊中", "capacity": 20, "class_format": "セミナー",
       "eval_ratio": {"exam": 0, "report": 50, "attendance": 50},
       "report_count": 3, "report_words": 3000,
@@ -32,6 +35,7 @@
     },
     {
       "id": "S004", "title": "情報活用基礎", "category": "情報教育科目", "term": "春夏",
+      "instructor": "ダミー教員E",
       "day_period": "木2", "campus": "豊中", "capacity": 120, "class_format": "講義",
       "eval_ratio": {"exam": 40, "report": 40, "attendance": 20},
       "exam_type": "持込可", "report_count": 4, "report_words": 800,
@@ -40,6 +44,7 @@
     },
     {
       "id": "S005", "title": "力学", "category": "専門基礎教育科目", "term": "春夏",
+      "instructor": "ダミー教員F",
       "day_period": "月1", "campus": "豊中", "capacity": 180, "class_format": "講義",
       "eval_ratio": {"exam": 90, "report": 10, "attendance": 0},
       "exam_type": "持込不可", "report_count": 5, "report_words": 0,
@@ -48,6 +53,7 @@
     },
     {
       "id": "S006", "title": "西洋美術史", "category": "基盤教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員G",
       "day_period": "金3", "campus": "豊中", "capacity": 260, "class_format": "講義",
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 12000,
@@ -56,6 +62,7 @@
     },
     {
       "id": "S007", "title": "実践英語（リーディング）", "category": "外国語教育科目", "term": "春夏",
+      "instructor": "ダミー教員H",
       "day_period": "火2", "campus": "豊中", "capacity": 35, "class_format": "演習",
       "eval_ratio": {"exam": 50, "report": 10, "attendance": 40},
       "exam_type": "持込不可", "report_count": 1, "report_words": 1000,
@@ -64,6 +71,7 @@
     },
     {
       "id": "S008", "title": "健康スポーツ教育（バドミントン）", "category": "健康・スポーツ教育科目", "term": "春夏",
+      "instructor": "ダミー教員I",
       "day_period": "水5", "campus": "豊中", "capacity": 60, "class_format": "実習",
       "eval_ratio": {"exam": 0, "report": 20, "attendance": 80},
       "report_count": 1, "report_words": 1200,
@@ -72,6 +80,7 @@
     },
     {
       "id": "S009", "title": "科学技術と倫理", "category": "現代教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員J",
       "day_period": "木4", "campus": "豊中", "capacity": 200, "class_format": "講義",
       "eval_ratio": {"exam": 30, "report": 50, "attendance": 20},
       "exam_type": "持込可", "report_count": 2, "report_words": 3000,
@@ -80,6 +89,7 @@
     },
     {
       "id": "S010", "title": "線形代数学", "category": "専門基礎教育科目", "term": "春夏",
+      "instructor": "ダミー教員K",
       "day_period": "水1", "campus": "豊中", "capacity": 160, "class_format": "講義",
       "eval_ratio": {"exam": 80, "report": 20, "attendance": 0},
       "exam_type": "持込不可", "report_count": 6, "report_words": 0,
@@ -88,6 +98,7 @@
     },
     {
       "id": "S011", "title": "日本近現代史", "category": "基盤教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員L",
       "day_period": "金2", "campus": "豊中", "capacity": 280, "class_format": "講義",
       "eval_ratio": {"exam": 100, "report": 0, "attendance": 0},
       "exam_type": "持込可", "report_count": 0,
@@ -96,6 +107,7 @@
     },
     {
       "id": "S012", "title": "心理学概論", "category": "基盤教養教育科目", "term": "春夏",
+      "instructor": "ダミー教員M",
       "day_period": "月3", "campus": "豊中", "capacity": 320, "class_format": "講義",
       "eval_ratio": {"exam": 60, "report": 20, "attendance": 20},
       "exam_type": "持込不可", "report_count": 1, "report_words": 1500,
@@ -104,6 +116,7 @@
     },
     {
       "id": "S013", "title": "環境科学入門", "category": "現代教養教育科目", "term": "集中",
+      "instructor": "ダミー教員N",
       "day_period": null, "campus": "吹田", "capacity": 90, "class_format": "集中講義",
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 4000,
@@ -112,6 +125,7 @@
     },
     {
       "id": "S014", "title": "第二外国語（中国語）Ⅰ", "category": "外国語教育科目", "term": "春夏",
+      "instructor": "ダミー教員O",
       "day_period": "火1", "campus": "豊中", "capacity": 40, "class_format": "演習",
       "eval_ratio": {"exam": 60, "report": 0, "attendance": 40},
       "exam_type": "持込不可", "report_count": 0,
@@ -120,6 +134,7 @@
     },
     {
       "id": "S015", "title": "経済学入門", "category": "専門基礎教育科目", "term": "秋冬",
+      "instructor": "ダミー教員P",
       "day_period": "木3", "campus": "豊中", "capacity": 250, "class_format": "講義",
       "eval_ratio": {"exam": 85, "report": 15, "attendance": 0},
       "exam_type": "持込不可", "report_count": 1, "report_words": 2000,
@@ -128,6 +143,7 @@
     },
     {
       "id": "S016", "title": "現代文学論", "category": "基盤教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員Q",
       "day_period": "水3", "campus": "豊中", "capacity": 140, "class_format": "講義",
       "eval_ratio": {"exam": 0, "report": 70, "attendance": 30},
       "report_count": 2, "report_words": 6000,
@@ -136,6 +152,7 @@
     },
     {
       "id": "S017", "title": "化学入門", "category": "専門基礎教育科目", "term": "春夏",
+      "instructor": "ダミー教員R",
       "day_period": "金1", "campus": "豊中", "capacity": 200, "class_format": "講義",
       "eval_ratio": {"exam": 75, "report": 15, "attendance": 10},
       "exam_type": "持込不可", "report_count": 3,
@@ -144,6 +161,7 @@
     },
     {
       "id": "S018", "title": "国際関係論", "category": "現代教養教育科目", "term": "春夏",
+      "instructor": "ダミー教員S",
       "day_period": "火4", "campus": "豊中", "capacity": 180, "class_format": "講義",
       "eval_ratio": {"exam": 50, "report": 30, "attendance": 20},
       "exam_type": "持込可", "report_count": 1, "report_words": 3000,
@@ -152,6 +170,7 @@
     },
     {
       "id": "S019", "title": "統計数理演習", "category": "専門基礎教育科目", "term": "秋冬",
+      "instructor": "ダミー教員T,ダミー教員U,ダミー教員V,ダミー教員W",
       "day_period": "月4", "campus": "豊中", "capacity": 25, "class_format": "演習",
       "eval_ratio": {"exam": 40, "report": 40, "attendance": 20},
       "exam_type": "持込可", "report_count": 8, "report_words": 500,
@@ -160,6 +179,7 @@
     },
     {
       "id": "S020", "title": "音楽と社会", "category": "基盤教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員X",
       "day_period": "木5", "campus": "豊中", "capacity": 220, "class_format": "講義",
       "eval_ratio": {"exam": 0, "report": 40, "attendance": 60},
       "report_count": 1, "report_words": 1500,
@@ -168,6 +188,7 @@
     },
     {
       "id": "S021", "title": "生命科学入門", "category": "専門基礎教育科目", "term": "春夏",
+      "instructor": "ダミー教員Y",
       "day_period": "水2", "campus": "吹田", "capacity": 210, "class_format": "講義",
       "eval_ratio": {"exam": 70, "report": 30, "attendance": 0},
       "exam_type": "持込不可", "report_count": 2, "report_words": 1500,
@@ -176,6 +197,7 @@
     },
     {
       "id": "S022", "title": "哲学入門", "category": "基盤教養教育科目", "term": "春夏",
+      "instructor": "ダミー教員Z",
       "day_period": "金4", "campus": "豊中", "capacity": 230, "class_format": "講義",
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 2400,
@@ -184,6 +206,7 @@
     },
     {
       "id": "S023", "title": "アカデミック・ライティング", "category": "外国語教育科目", "term": "秋冬",
+      "instructor": "ダミー教員A",
       "day_period": "火5", "campus": "箕面", "capacity": 30, "class_format": "演習",
       "eval_ratio": {"exam": 0, "report": 80, "attendance": 20},
       "report_count": 5, "report_words": 1500,
@@ -192,6 +215,7 @@
     },
     {
       "id": "S024", "title": "都市とデザイン", "category": "現代教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員B",
       "day_period": "月5", "campus": "豊中", "capacity": 150, "class_format": "講義",
       "eval_ratio": {"exam": 20, "report": 60, "attendance": 20},
       "exam_type": "持込可", "report_count": 2, "report_words": 2500,
@@ -200,6 +224,7 @@
     },
     {
       "id": "S025", "title": "情報リテラシー", "category": "情報教育科目", "term": "春夏",
+      "instructor": "ダミー教員C",
       "day_period": "木1", "campus": "豊中", "capacity": 100, "class_format": "講義",
       "eval_ratio": {"exam": 30, "report": 30, "attendance": 40},
       "exam_type": "持込可", "report_count": 3, "report_words": 1000,
@@ -208,6 +233,7 @@
     },
     {
       "id": "S026", "title": "スポーツ実習（サッカー）", "category": "健康・スポーツ教育科目", "term": "秋冬",
+      "instructor": "ダミー教員D,ダミー教員E,ダミー教員F,ダミー教員G,ダミー教員H,ダミー教員I",
       "day_period": "金5", "campus": "豊中", "capacity": 50, "class_format": "実習",
       "eval_ratio": {"exam": 0, "report": 10, "attendance": 90},
       "report_count": 1, "report_words": 800,
@@ -216,6 +242,7 @@
     },
     {
       "id": "S027", "title": "地域研究：東アジア", "category": "現代教養教育科目", "term": "集中",
+      "instructor": "ダミー教員J",
       "day_period": null, "campus": "箕面", "capacity": 70, "class_format": "集中講義",
       "eval_ratio": {"exam": 0, "report": 100, "attendance": 0},
       "report_count": 1, "report_words": 5000,
@@ -224,6 +251,7 @@
     },
     {
       "id": "S028", "title": "微分積分学", "category": "専門基礎教育科目", "term": "春夏",
+      "instructor": "ダミー教員K",
       "day_period": "火1", "campus": "豊中", "capacity": 170, "class_format": "講義",
       "eval_ratio": {"exam": 100, "report": 0, "attendance": 0},
       "exam_type": "持込不可", "report_count": 0,
@@ -232,6 +260,7 @@
     },
     {
       "id": "S029", "title": "メディア論", "category": "基盤教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員L",
       "day_period": "水5", "campus": "豊中", "capacity": null, "class_format": null,
       "eval_ratio": null,
       "report_count": null,
@@ -240,6 +269,7 @@
     },
     {
       "id": "S030", "title": "医療と社会", "category": "現代教養教育科目", "term": "秋冬",
+      "instructor": "ダミー教員M",
       "day_period": "木2", "campus": "吹田", "capacity": 110, "class_format": "講義",
       "eval_ratio": {"exam": 40, "report": 40},
       "report_count": null,

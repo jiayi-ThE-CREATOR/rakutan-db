@@ -17,6 +17,85 @@
 
 ---
 
+## 2026-08-25 ｜ 全科目に担当教員名を出した ｜ wang
+
+`feat/wang-instructor`（`main` から分岐）。**`web/index.html` と `web/assets/app.css`
+は1行も触っていない**――松下さんの担当なので、既存クラス（`.meta`）を使い回している。
+触ったのは `web/assets/app.js` と `data/courses.sample.json` の2つだけ。
+
+データ側はもともと入っていた（`courses.json` の `instructor`、1,112件すべて充足、
+`build.py` の `KEEP` にも `worker/index.js`（LINE）にも既にある）。
+**出していなかったのは画面だけ**だったので、画面に出した。
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/wang-instructor
+python3 build.py
+python3 -m http.server 8141 --directory web
+node tools/smoke.mjs http://localhost:8141
+```
+
+- **一覧のカード**：曜限のとなりに担当教員（`.meta` の2項目め）。
+  これで「電磁気学通論 金1」が3つ並んでも、木村／横田／田之上 で行を選び分けられる。
+  「日本国憲法」4コマも同様。**教員名を出す理由そのもの**（README「教員名の扱い」）
+- **詳細**：`担当教員：…` の行で全員。複数担当は KOAN が最大16名・94文字持っている
+- 3名以上のカードは「先頭 ほかN名」に畳む。1〜2名はそのまま並べる
+
+| 確認 | 結果 |
+|---|---|
+| `tools/smoke.mjs` 静的8141 / API8142 | 両方コンソールエラーなし・319件 |
+| `tools/check_division_ui.mjs` 390px | 19項目すべて OK（「9 横はみ出しなし 0px」含む） |
+| python テスト8本（`test_layout` `test_web_split` `test_tokens` `test_division` `test_requirements` `test_scoring_gate` `test_reviews` `test_eligibility` `test_shell_inject`） | 全 OK |
+| 390px / 1280px の `document.body` 横はみ出し | 0px |
+
+### 2. 何をしていないか
+
+- **検索・並び替え・集計に `instructor` を足していない。足さないこと。**
+  README「教員名の扱い」の禁止事項①。`queryLocal()` の検索対象は今まで通り `title` だけ。
+  「この先生の他の科目」も作っていない。`app.js` の該当箇所にコメントで残してある
+- 禁止事項②（**口コミ本文に教員個人への言及を書かせない**投稿ガイドライン）は**未対応**。
+  投稿フォームの注意書きは松下さんの担当ファイル。今回の変更で教員名が画面に出た分、
+  「〇〇先生は〜」と書かれる確率は上がる。**次に投稿導線を触る人が入れてほしい**
+- 表記ゆれは直していない。KOAN の姓名区切りは全角空白と半角空白が混在している
+  （`堀 一成` と `中原　理沙`）。**事実として来た文字列をそのまま出している**。
+  正規化すると別人判定の材料を1つ捨てることになるので、直すなら別タスクで
+- `app.css` を触っていないので、教員名だけの色分け・省略記号（`…`）は無い。
+  長い行は折り返す（390px でカードの `.meta` が2行になる科目がある）
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git checkout feat/wang-instructor && python3 build.py
+python3 -m http.server 8141 --directory web &
+node tools/smoke.mjs http://localhost:8141
+# 3コマ並ぶ科目で効果を見る：検索窓に「電磁気学通論」「日本国憲法」
+```
+
+`main` へのマージは `web/assets/app.js` の `card()` / `detailHtml()` / `showDetail()`
+の3か所。松下さんの `feat/matsushita-kuchikomi-panel` とは**別の行**を足しているので、
+衝突しても両方残せば解決する。
+
+### 4. 踏んだ罠
+
+- **`.meta span+span::before{content:"・"}` と `white-space:nowrap` を同時に使うと行が突き抜ける。**
+  人名は姓と名の間が全角空白なので、素で出すと「モ／ハーチ　ゲルゲイ」のように
+  人名の途中で折り返す。氏名ごとに `nowrap` を掛けたら、今度は CSS が入れる「・」が
+  `nowrap` の内側に入り、**「・」は行頭に来られない文字（行頭禁則）なので直前でも改行できず**、
+  16名の科目で `scrollWidth 821px / clientWidth 346px` まではみ出した。
+  → 入れ物を `<bdi>`（`span+span` に当たらない）にして「・」は自分で書き、
+  さらに**「・」の後ろに `<wbr>`** を置いた。`nowrap` の外に改行機会を作らないと
+  Chromium は要素の境目でも折り返さない。ここは3回作り直している
+- **`data/courses.sample.json` に `instructor` が無かった。**
+  `data/courses.json` は `.gitignore` 対象なので、`git pull` しただけの人が見るのは
+  サンプルの方。そのままだと「実装したのに画面に出ない」に見える。
+  ダミー教員A〜を30件に足した（S003=2名、S019=4名、S026=6名で「ほかN名」も確認できる）
+- 教員名が無い科目では `<span>` ごと出さないこと。空文字の span を置くと
+  CSS が「・・」を作る。「担当教員なし」と書くのも駄目 ―― 取れていないだけなのに
+  「担当がいない」という事実に見える
+
+---
+
 ## 2026-08-24 ｜ 学部を選ぶと卒業要件の区分でしぼれるようにした ｜ wang
 
 しゅんやさんの指摘②「学部学科を選べない」への答え。`feat/wang-division-filter`

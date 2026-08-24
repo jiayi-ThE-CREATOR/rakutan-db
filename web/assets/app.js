@@ -290,6 +290,38 @@ function axRow(key, a, label){
       ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
 }
 
+/* ── 担当教員 ─────────────────────────────
+ * 「基礎解析学I」は10コマ以上あり、曜限も担当教員も違う。履修登録で選ぶのは
+ * 科目ではなくコマなので、教員名が無いと学生は自分が登録すべき行を特定できない。
+ * だから一覧のカードにも出す（README「教員名の扱い」の載せる理由そのもの）。
+ *
+ * ただし同じ章が3つ禁じている。ここで守っているのは次の2つ：
+ *   ・教員を軸にした集計・並び替え・検索を作らない
+ *     → queryLocal() の検索は今まで通り title だけ。instructor は足さないこと
+ *   ・スコアの見出しの隣に置かない
+ *     → 曜限・キャンパス・区分と同じ .meta（12px・灰）の中の1項目として出す。
+ *       相性の数字（.fit）とは別ブロック
+ *
+ * KOAN は複数担当をカンマ区切りで持つ（最大16名・94文字）。全部そのまま出すと
+ * カードの見出しが名前で埋まるので、一覧では「先頭＋ほかN名」、
+ * 全員は詳細（detailHtml）に出す。 */
+const instructors = c =>
+  String(c.instructor || "").split(",").map(s => s.trim()).filter(Boolean);
+
+/* 一覧・見出し用の短い形。1〜2名はそのまま、3名以上は先頭＋ほかN名。
+   名前が無いときは空文字を返し、呼び出し側で項目ごと出さない
+   （「担当教員なし」と書くと、取れていないだけなのに事実に見える）。 */
+function insLabel(c){
+  const n = instructors(c);
+  if (!n.length) return "";
+  if (n.length <= 2) return n.join("・");
+  return `${n[0]} ほか${n.length - 1}名`;
+}
+
+/* .meta の1項目。区切りの「・」は app.css の span+span::before が入れるので、
+   名前が無い科目では span ごと出さないと「・・」が残る。 */
+const insMetaSpan = c => insLabel(c) ? `<span>${esc(insLabel(c))}</span>` : "";
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
@@ -298,7 +330,7 @@ function card(c){
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title">${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
         ${c.reviews?.n ? `<span class="rvb">口コミ ${c.reviews.n}件</span>` : ""}
       </div>
       <div class="fit"><b>${m.fit ?? "—"}</b><small>相性</small></div>
@@ -349,7 +381,21 @@ function reviewHtml(c){
 
 function detailHtml(c){
   const r = c.rakutan;
-  return `${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
+  const names = instructors(c);   // showDetail の ins（#inspector）とは別物
+  /* 全員をここに出す。見出しは「ほかN名」で畳んであるので、
+     複数担当のコマは詳細を開かないと誰が出るのか分からない。
+     氏名ごとに nowrap を掛けるのは、姓と名の間が全角空白で、
+     そこで折り返されると「モ／ハーチ ゲルゲイ」のように人名が割れるため。
+
+     入れ物が <span> でないのは、app.css の .meta span+span::before が
+     「・」を自動で足してしまい、その「・」が nowrap の内側に入るから。
+     「・」は行頭に来られない文字（行頭禁則）なので、直前でも改行できず、
+     16名の科目で一行が右へ突き抜ける（実測 2026-08-25）。
+     区切りを自分で書ける <bdi> にしたうえで、「・」の後ろに <wbr> を置く
+     （nowrap の外に改行機会を作らないと、Chromium は要素の境目でも折り返さない）。 */
+  const insHtml = names.map(n => `<bdi style="white-space:nowrap">${esc(n)}</bdi>`).join("・<wbr>");
+  return `${names.length ? `<div class="meta">担当教員：${insHtml}</div>` : ""}
+      ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
       <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
         ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
@@ -533,7 +579,7 @@ function showDetail(c, article){
     const ins = $("#inspector");
     ins.innerHTML = `<div class="inspectorHead">
         <h3>${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
       </div><div class="detail">${detailHtml(c)}</div>`;
     ins.scrollTop = 0;
     lastOpenedCourseId = c.id;
