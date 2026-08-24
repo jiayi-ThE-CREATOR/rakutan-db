@@ -195,7 +195,8 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .rvAlert{grid-column:1/3;display:flex;gap:var(--sp-2);align-items:flex-start;
   margin-top:var(--sp-2);background:var(--alert-face);color:var(--alert-ink);
   border-radius:var(--r-sm);padding:var(--sp-2) var(--sp-3);
-  font-size:var(--fs-sm);font-weight:700;line-height:1.5}
+  font-size:var(--fs-sm);font-weight:400;line-height:1.5}
+.rvAlert b{font-weight:700}
 .rvAlert i{font-style:normal;flex:none}
 .rvAlert .go{display:block;font-weight:400;text-decoration:underline;
   text-underline-offset:2px;margin-top:2px}
