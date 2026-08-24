@@ -860,6 +860,22 @@ git commit -m "feat: build に科目区分と要件表を通す"
 - Produces: `/api/courses` が `division`（繰り返し可）で絞れる／レスポンスに
   `division_facets: {key: 件数}` を含む。`/api/meta` に `divisions`。`/api/requirements` を新設。
 
+- [ ] **Step 0: 起動時に区分を焼く（実装中に判明。これを忘れると全件が「その他」になる）**
+
+`server.py` は `build.py` を通さず `data/courses.json` を直接読むので、
+**`division` は API 側には自動では入らない**。`COURSES: list[dict] = _raw["courses"]`
+（57行目付近）の直後へ：
+
+```python
+# 科目区分を起動時に1回だけ焼く。build.py（静的配信）とまったく同じ関数を使う
+# ―― ここを別実装にすると、API モードと静的モードで違う区分が出る。
+# scoring.enrich() は dict(course) のコピーなので、ここで入れれば API まで届く。
+for _c in COURSES:
+    _c["division"], _c["division_source"] = divide(_c)
+```
+
+import 群（`import score as scoring` の隣）へ `from tools.division import divide`。
+
 - [ ] **Step 1: `search()` に区分の絞り込みと件数を足す**
 
 `search()` の `conds = [...]` の次へ：
