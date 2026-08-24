@@ -275,12 +275,20 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .sheet .q{margin-top:16px}
 .sheet .q p{margin:0 0 7px;font-size:13.5px;color:var(--soft)}
 .sheet .q p b{font-family:var(--data);color:var(--brand-text);margin-right:6px}
-.sheet select,.sheet input[type=text]{width:100%;padding:10px 12px;border:1px solid var(--rule);
+.sheet select,.sheet input[type=text],.sheet input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--rule);
   border-radius:var(--r-md);background:var(--paper);color:var(--ink);font:inherit;font-size:var(--fs-base)}
 .row2{display:flex;gap:8px}
 .row2 button{flex:1;border:1px solid var(--rule);background:var(--paper);border-radius:var(--r-md);
   padding:11px 0;font:inherit;font-size:14px;color:var(--soft);cursor:pointer}
 .row2 button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:700}
+/* 「いつ受けた？」だけ4択。.row2 は3択前提の flex:1 なので別クラスにする。
+   選択中の色は .row2 と同じ ―― 面はブランド色、載せる文字は --brand-ink（黒）。
+   オレンジの面に白文字は 3.64:1 で足りない（tokens.css のコメント参照）。 */
+.row4{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.row4 button{flex:1 1 40%;border:1px solid var(--rule);background:var(--paper);
+  border-radius:var(--r-md);padding:11px 0;font:inherit;font-size:var(--fs-sm);
+  color:var(--soft);cursor:pointer}
+.row4 button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:700}
 .send{width:100%;margin-top:20px;background:var(--brand);color:var(--brand-ink);border:none;border-radius:var(--r-md);
   padding:14px;font:inherit;font-size:var(--fs-base);font-weight:700;cursor:pointer}
 .send[disabled]{background:var(--rule);color:var(--muted);cursor:not-allowed}
