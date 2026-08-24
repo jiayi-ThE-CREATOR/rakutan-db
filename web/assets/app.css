@@ -185,10 +185,27 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .rvf{display:flex;flex-wrap:wrap;gap:5px}
 .rvf span{font-size:var(--fs-xs);background:var(--dim);border-radius:var(--r-sm);padding:3px 8px;color:var(--soft)}
 .rvf i{font-style:normal;color:var(--muted);margin-right:5px}
-.rvn{margin:9px 0 0;padding:0;list-style:none}
-.rvn li{font-size:12.5px;color:var(--ink);line-height:1.6;padding:5px 0 5px 11px;
-  border-left:2px solid var(--scale-light-soft)}
-.rvn li+li{margin-top:4px}
+/* 口コミの一言。しゅんやさんの指摘④：
+   いちばん重要な情報なのに、ただの箇条書きで埋もれていた。
+   吹き出しにして、数値の内訳より前に置く（順番も app.js 側で入れ替えた）。
+
+   地に --brand-soft を使うのは、詳細の下地が2種類あるため。
+   スマホはカード内（--paper）、PC は右カラム（--card）で、
+   --card の吹き出しは右カラムだと同色で消える。 */
+.rvn{margin:var(--sp-2) 0 var(--sp-3);padding:0;list-style:none;
+  display:grid;gap:var(--sp-3)}
+.rvn li{position:relative;font-size:var(--fs-sm);color:var(--ink);line-height:1.7;
+  background:var(--brand-soft);border:1px solid var(--brand-line);
+  border-radius:var(--r-md);padding:var(--sp-3) var(--sp-3) var(--sp-3) 32px}
+/* 引用符。人の声だと分かるようにする。 */
+.rvn li::before{content:"\201D";position:absolute;left:11px;top:9px;
+  font-size:24px;line-height:1;color:var(--brand);font-family:var(--data)}
+/* しっぽ。左下に出して「誰かが言ったこと」に見せる。 */
+.rvn li::after{content:"";position:absolute;left:20px;bottom:-5px;
+  width:9px;height:9px;background:var(--brand-soft);
+  border-right:1px solid var(--brand-line);
+  border-bottom:1px solid var(--brand-line);
+  transform:rotate(45deg)}
 .reviewBtn{display:block;width:100%;margin-top:12px;background:var(--brand-soft);color:var(--brand-text);
   border:none;border-radius:var(--r-md);padding:10px;font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer}
 .empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:14px}
@@ -423,3 +440,10 @@ html.splash-skip .heroActions{animation:rkRise 320ms var(--ease-out) 120ms backw
 /* スクロール位置の目印。ヘッダぶん余裕を取る。 */
 #workbench{scroll-margin-top:var(--sp-4)}
 html{scroll-behavior:smooth}
+
+
+/* 投稿シートの冒頭。もとは「長文は書かれないし、推薦にも使えないので
+   選択式で聞く」という開発側の理屈がそのまま出ていた（2026-08-24 修正）。
+   利用者に伝えるべきなのは「何を聞かれるか」と「どれくらいで終わるか」。 */
+.sheetLead{margin:0;font-size:var(--fs-sm);color:var(--muted)}
+.sheetLead b{color:var(--soft)}
