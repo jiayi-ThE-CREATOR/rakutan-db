@@ -17,6 +17,72 @@
 
 ---
 
+## 2026-08-24（15） ｜ main を取り込み、注意帯を CSS まで入れた（app.js は未着手） ｜ 松下
+
+`feat/matsushita-kuchikomi-panel` に `origin/main`（UI 作り直し後）を取り込み、
+「口コミはあるが、まだ数字に入っていない」科目の注意帯を `tokens.css` / `app.css` に入れた。
+**`app.js` は wang さんの担当なので1行も触っていない。** クラスを吐く側は仕様書で依頼する。
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/matsushita-kuchikomi-panel   # fc692dd
+python -m http.server 8123 --directory web
+```
+
+- main の取り込みは済み（マージコミット `4c1d7b7`）。コンフリクトは事前の予告どおり2ファイル
+  - `web/index.html` … main 側を丸ごと採用。旧枝の432行は `git show ab99da7:web/index.html` で読める
+  - `HANDOFF.md` … 両方の項目を残した（08-23 松下 → 08-22 wang の順）
+- `tokens.css` に `--alert-face` / `--alert-ink` を追加（決定B。**色相は1つも増やしていない**）
+- `app.css` に `.card.unscored` / `.rvAlert` / `.bandNote` を追加
+- テストは `test_tokens` `test_web_split` `test_layout` `test_shell_inject` `test_scoring_gate` が OK
+
+### 2. 何をしていないか
+
+- **`app.js` の `card()` を変えていないので、いま画面を開いても注意帯は出ない。**
+  CSS だけが先に入っている状態。必要な差分は仕様書（Discord に投稿）にまとめた
+- **松下による目視確認がまだ。** ブラウザで計算後のスタイルは実測したが（明地：帯 #1A1A1A・
+  白文字／暗地：帯 #eef1ec・文字 #16181d、1280px でカード545px・帯515px・`.fit` と衝突なし）、
+  人の目で見た判断はこれから
+- **手順4以降は未着手**：1件ずつのブロック（`.pEntry` ほか）、PC の展開（決定A）、
+  スマホの全画面シート、投稿フォームの設問の正典化、`?c=<科目id>` と `history.pushState`
+- `tools/test_tokens.py` の CONTRAST に `--alert-face` / `--alert-ink` の行を**足していない**
+  （tools/ は担当外）。足すまでこの組み合わせは自動検査されない。wang さんに依頼ずみ
+- `.rvAlert .go` の文言「タップして中身を見る ↓」は PR #24 のまま。
+  決定A（PC は右カラムの詳細の下に展開）と噛み合っていない。**要相談**
+- PR は出していない（app.js の担当が決まるまで、という取り決めのとおり）
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git fetch origin && git checkout feat/matsushita-kuchikomi-panel
+PYTHONIOENCODING=utf-8 python tools/test_tokens.py
+python -m http.server 8123 --directory web
+```
+
+`app.js` を書く人へ：Discord の仕様書のとおり `reviewMark()` を足し、`card()` の3か所
+（`.card` のクラス／バッジの行／`.reason` の直後）を差し替えるだけ。CSS はもう存在する。
+
+### 4. 踏んだ罠
+
+- **`python build.py` は Windows で落ちる。** 警告に使っている `⚠` が cp932 で出力できず
+  `UnicodeEncodeError`。しかも**落ちる前に `web/data/*.built.json` を上書きしてしまう**。
+  回避は `PYTHONIOENCODING=utf-8 python build.py`。`build.py` は wang さんの担当なので直していない
+- **そもそも build.py を流す必要がなかった。** main に入っている `courses.built.json` が
+  本番ビルドそのもので、1,112科目／口コミ付き89／`scored:true` 2／`scored:false` 87 と
+  本番の実測に一致する。**手元でビルドし直すと逆に壊れる**
+  （手元の `data/reviews.json` はダミー1件・112バイト。ビルドすると口コミ1件まで落ちる）
+- `tools/test_reviews.py` は1件落ちる（「実データの受講年が全件埋まっている」）。
+  原因は上のダミー `data/reviews.json`。gitignore 対象なので、本物の書き出しを持っていない人は必ず落ちる。**マージ前から同じ状態**
+- **PR #24 のコードには古い箇所が2つある。**そのまま写すと事故る
+  - `--warn` / `--warn-soft`（新しい色相）は決定Bで却下ずみ。`--alert-*` の地の反転が正
+  - `@media (min-width:900px)` の固定パネル（`.panel` + `body.panelOpen`）は決定Aで捨てる。
+    3カラム化後の 1280px では inspector に隙間なく重なり、「口コミを見る」ボタンごと覆う
+- Browser ペインが表示されていないとスクリーンショットが撮れない。
+  代わりに計算後のスタイルを JS で実測すれば、コードを読まずに確認できる形になる
+
+---
+
 ## 2026-08-23（14） ｜ 口コミパネルの作り直し（3件の門・注意喚起・詳細パネル・投稿フォーム正典化） ｜ 松下
 
 wangさんの `feat/kuchikomi-panel`（データ側）を受けて、依頼txt【1】〜【8】を実装。
