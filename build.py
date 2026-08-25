@@ -126,7 +126,7 @@ def read_shell() -> dict[str, str]:
     """
     t = SHELL.read_text(encoding="utf-8")
     parts = {}
-    for name in ("HEADER", "FOOTER"):
+    for name in ("HEAD", "HEADER", "FOOTER"):
         open_, close = f"<!--PART:{name}-->", f"<!--/PART:{name}-->"
         parts[name] = t[t.index(open_) + len(open_):t.index(close)].strip()
     return parts

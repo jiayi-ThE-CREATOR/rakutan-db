@@ -17,6 +17,93 @@
 
 ---
 
+## 2026-08-25 ｜ 意見箱（サイトへのご意見・改善要望）を足した ｜ wang
+
+しゅんやさんの「意見箱的なのって一番下にあるイメージ」への実装。
+外部フォームへ飛ばさず、**サイトの中で書いて閉じられる**形にした。
+
+### 1. 何が動く状態か
+
+**フッタの一番下 ―― GUILD の運営表記の“さらに下”に入口がある。**
+
+```
+footer
+ ├ 免責（KOAN で確認してください）
+ ├ 学生団体 GUILD が運営しています。大阪大学の公式サービスではありません。
+ └ 💡 サイトへのご意見・改善要望     ← ここ。押すとモーダルが開く
+```
+
+```
+モーダル（本文 必須 / 返信先 任意 / 送信元URL 自動）
+  → POST /api/feedback   worker/index.js
+  → Discord webhook       env.FEEDBACK_DISCORD_WEBHOOK
+  → 「サイトへのご意見」チャンネルに流れる
+```
+
+- **入口の正本は `templates/shell.html` ひとつ。** ボタンも `<dialog>` も
+  `<script>` もフッタ部品に入れてあるので、index / about の両方へ build.py が注入する
+- `<head>` の資源にも正本が要ったので、**`PART:HEAD` を新設**した
+  （`build.py` の `read_shell()` が読む部品名に `"HEAD"` を足し、
+  両ページの `</head>` 直前に `<!--SHELL:HEAD-->` を置いた）
+- 見た目は `web/assets/feedback.css`、動きは `web/assets/feedback.js` に独立させてある。
+  **`app.css` / `app.js` は一切触っていない**（1ファイル1オーナー）
+- **Worker はクライアントを信じない。** 本文1000字・返信先200字・送信元URL200字で
+  自分で切る。空なら 400、honeypot が埋まっていれば 200 を返して黙って捨てる
+  （400 を返すと bot に検知を教えることになる）
+- **webhook 未設定なら 503。** 画面には「いまは受け取れませんでした」と出る。
+  受け取ったふりをして捨てるのが一番たちが悪いので、そこだけは黙らせていない
+- 本文に `@everyone` と書かれても飛ばない（`allowed_mentions: {parse: []}`）
+
+```bash
+node tools/test_feedback.mjs      # 27件（配線・境界値・honeypot・503・405）
+python3 tools/test_shell_inject.py # 22件（正本が1つであること）
+```
+
+### 2. 何をしていないか
+
+- ★**Discord 側の webhook をまだ作っていない。** これが無いと 503 のまま。
+  チャンネル → 設定 → 連携サービス → ウェブフック → 新規ウェブフック で URL を作り、
+  `npx wrangler secret put FEEDBACK_DISCORD_WEBHOOK` で登録する。**登録するまで公開しても意味がない**
+- **投稿を保存していない**（D1 未接続）。Discord に流すだけなので、
+  チャンネルを消したら履歴も消える。集計や再読み込みが要るようになったら D1 へ
+- **レート制限を入れていない。** honeypot 1個だけ。同じ人が連投すればそのまま全部流れる。
+  荒らされたら Cloudflare 側の Rate limiting rules か Turnstile を足すのが先で、
+  Worker にカウンタを持たせるのは（KV が要るので）最後
+- **返信の導線が無い。** 返信先を書いてもらっても、こちらから返す手段は人力
+- **`courses.built.json` は焼き直していない**（前項と同じ理由。全所属の `courses.json` がこの機械に無い）。
+  `build.py` は外殻注入の関数だけを呼んだ
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+cd ~/Developer/rakutan-wang-feedback     # ブランチ feat/wang-feedback の worktree
+node tools/test_feedback.mjs
+python3 -m http.server 8151 --directory web   # 画面だけ見るなら
+# ↑ 静的配信には /api/feedback が無いので「いまは受け取れませんでした」が正しい挙動
+npx wrangler dev                          # Worker ごと動かすならこちら
+```
+
+本番に出す前に **必ず** webhook を登録する:
+
+```bash
+npx wrangler secret put FEEDBACK_DISCORD_WEBHOOK
+```
+
+### 4. 踏んだ罠
+
+- **`build.py` をそのまま流してはいけない。** 外殻注入と同時に `courses.built.json` を
+  焼き直そうとするが、この機械には全所属の `courses.json` が無い。
+  外殻だけ入れたいときは `read_shell()` / `inject_shell()` を直接呼ぶ
+- **`read_shell()` の部品名はハードコードだった**（`("HEADER", "FOOTER")`）。
+  ページ側にマーカーを置くだけでは増えない。build.py 側にも部品名を足す
+- **失敗メッセージを赤にしなかった。** tokens.css は色の役割を
+  「押せるもの(--brand)」「データ目盛り(--scale-*)」に割り振ってあり、
+  ここで4つ目の赤を足すと `--scale-heavy`（重い科目）と見分けがつかなくなる
+- **共有の作業ツリーで作業していない。** `~/Developer/rakutan-db` は main のまま。
+  この作業は `git worktree add ~/Developer/rakutan-wang-feedback -b feat/wang-feedback` で分けた
+
+---
+
 ## 2026-08-25 ｜ 絞り込みを3段にし、専攻語・学科のセレクタを足した ｜ wang
 
 ### 1. 何が動く状態か

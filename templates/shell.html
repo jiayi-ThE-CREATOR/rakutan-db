@@ -2,6 +2,13 @@
      ここが唯一の正本。build.py が各ページの <!--SHELL:XXX--> へ注入する。
      ページごとに手でコピーすると必ず片方が古くなるので、直接 HTML へ書かないこと。 -->
 
+<!--PART:HEAD-->
+<!-- 全ページ共通の <head> 資源。ページごとに手で書くと必ず片方が古くなるので、
+     ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
+     ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
+<link rel="stylesheet" href="/assets/feedback.css">
+<!--/PART:HEAD-->
+
 <!--PART:HEADER-->
 <header>
   <div class="hd">
@@ -15,5 +22,34 @@
   <!-- ブランド資料のレッドライン「学生団体であることを明記」への対応。
        ロゴには入れず、ここと About で出す、という整理。消さないこと。 -->
   <p class="who"><b>学生団体 GUILD が運営しています。</b>大阪大学の公式サービスではありません。</p>
+  <!-- 意見箱の入口。「意見箱は一番下にあるもの」という感覚に合わせ、
+       運営表記のさらに下に置く。順番を入れ替えないこと（tools/test_feedback.mjs が見張っている）。 -->
+  <p class="fbLine"><button type="button" class="fbOpen" id="fbOpen">&#128161; サイトへのご意見・改善要望</button></p>
 </footer>
+
+<!-- 外部フォームへ飛ばさず、その場で書いて閉じられるようにする。
+     <dialog> なのは ESC で閉じる・背後にフォーカスを漏らさないを自前で書かないため。 -->
+<dialog class="fbDlg" id="fbDlg" aria-labelledby="fbTitle">
+  <form class="fbForm" id="fbForm">
+    <h2 id="fbTitle">サイトへのご意見・改善要望</h2>
+    <p class="fbNote">科目の口コミではなく、<b>サイトそのもの</b>への意見をここへ。ログイン不要、匿名で送れます。</p>
+
+    <label class="fbLabel" for="fbText">気づいたこと・こうしてほしいこと</label>
+    <textarea id="fbText" name="text" rows="5" maxlength="1000" placeholder="例：スマホだと学部の絞り込みが押しにくい"></textarea>
+    <p class="fbCount" id="fbCount">0 / 1000</p>
+
+    <label class="fbLabel" for="fbContact">返事がほしいときだけ（任意）</label>
+    <input id="fbContact" name="contact" type="text" maxlength="200" autocomplete="off" placeholder="Discord ID・メールなど">
+
+    <!-- honeypot。人には見えないので、埋まっていれば bot。CSS で画面外へ出している。 -->
+    <div class="fbHp" aria-hidden="true"><label>website<input type="text" id="fbWebsite" name="website" tabindex="-1" autocomplete="off"></label></div>
+
+    <p class="fbMsg" id="fbMsg" role="status"></p>
+    <div class="fbBtns">
+      <button type="button" class="fbCancel" id="fbCancel">閉じる</button>
+      <button type="submit" class="fbSend" id="fbSend" disabled>送る</button>
+    </div>
+  </form>
+</dialog>
+<script src="/assets/feedback.js" defer></script>
 <!--/PART:FOOTER-->

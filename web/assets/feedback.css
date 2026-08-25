@@ -1,0 +1,55 @@
+/* 意見箱（フッタの「ご意見・改善要望」）
+   ─────────────────────────────────────────────
+   app.css は科目一覧の担当ファイルなので、ここは混ぜない。
+   色・間隔・角丸は tokens.css の変数だけを使う（ダークモードは変数側が面倒を見る）。 */
+
+/* 入口。フッタの一番下、GUILD の運営表記の下に置く。
+   「押せるもの」なので --brand 系の文字色を当てるが、地は敷かない。
+   ここで塗ると免責文よりフッタの方が目立ってしまう。 */
+.fbLine{margin-top:var(--sp-3)}
+.fbOpen{background:none;border:1px solid var(--rule);border-radius:var(--r-pill);
+  color:var(--brand-text);font:inherit;font-size:var(--fs-sm);font-weight:600;
+  padding:8px 16px;cursor:pointer}
+.fbOpen:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+
+/* 本体。<dialog> を使うのは ESC で閉じる・背後をフォーカスさせない、を
+   自前で書かずに済ませるため。モバイルは下から、PC は中央に出す。 */
+.fbDlg{border:none;padding:0;background:none;max-width:none;max-height:none;
+  width:100%;height:100%;margin:0}
+.fbDlg::backdrop{background:var(--scrim)}
+.fbDlg[open]{display:flex;align-items:flex-end;justify-content:center}
+.fbForm{background:var(--card);color:var(--ink);width:100%;max-width:560px;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px var(--pad) 24px;
+  max-height:86vh;overflow:auto;font-size:var(--fs-base)}
+.fbForm h2{margin:0 0 4px;font-size:var(--fs-lg)}
+.fbNote{margin:0 0 14px;font-size:var(--fs-sm);color:var(--muted);line-height:1.6}
+.fbLabel{display:block;margin:14px 0 6px;font-size:var(--fs-sm);color:var(--soft);font-weight:600}
+.fbForm textarea,.fbForm input[type=text]{width:100%;box-sizing:border-box;
+  background:var(--paper);color:var(--ink);border:1px solid var(--rule);
+  border-radius:var(--r-sm);padding:10px;font:inherit;font-size:var(--fs-base)}
+.fbForm textarea{resize:vertical;min-height:96px}
+.fbForm textarea:focus,.fbForm input[type=text]:focus{outline:2px solid var(--brand);outline-offset:1px}
+.fbCount{margin:4px 0 0;font-size:var(--fs-xs);color:var(--muted);text-align:right}
+
+/* honeypot。人には見せず、読み上げにも出さず、フォーカスも当てない。
+   display:none だと埋めない bot がいるので、位置で画面外へ出す。 */
+.fbHp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+
+.fbMsg{margin:12px 0 0;font-size:var(--fs-sm);min-height:1.2em;color:var(--soft)}
+/* 失敗を赤にしない。tokens.css の色は「押せるもの(--brand)」と
+   「データ目盛り(--scale-*)」に役割が割り振ってあり、ここで4つ目の
+   赤を足すと --scale-heavy と見分けがつかなくなる。文言で伝える。 */
+.fbMsg.ok{color:var(--brand-text)}
+.fbMsg.ng{color:var(--ink);font-weight:600}
+
+.fbBtns{display:flex;gap:var(--sp-2);margin-top:16px}
+.fbCancel{flex:1;background:none;border:1px solid var(--rule);border-radius:var(--r-sm);
+  color:var(--soft);font:inherit;padding:12px;cursor:pointer}
+.fbSend{flex:2;background:var(--brand);color:var(--brand-ink);border:none;
+  border-radius:var(--r-sm);font:inherit;font-weight:700;padding:12px;cursor:pointer}
+.fbSend[disabled]{background:var(--rule);color:var(--muted);cursor:not-allowed}
+
+@media (min-width:700px){
+  .fbDlg[open]{align-items:center}
+  .fbForm{border-radius:var(--r-lg);max-height:80vh}
+}

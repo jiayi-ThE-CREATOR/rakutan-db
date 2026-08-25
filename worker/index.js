@@ -5,6 +5,7 @@
  * 既存の静的サイト（[assets]）と同じ Worker に同居させる:
  *   - POST /line/webhook  … LINE Messaging API の Webhook
  *   - GET  /line/health   … 死活監視
+ *   - POST /api/feedback  … 意見箱（フッタのモーダル → Discord へ中継）
  *   - それ以外            … env.ASSETS.fetch() でこれまで通り静的配信
  *
  * データ取得は env.ASSETS 経由で /data/courses.built.json を同一オリジンから
@@ -14,6 +15,7 @@
  * 必要な環境変数（wrangler secret put で登録。wrangler.toml には書かない）:
  *   LINE_CHANNEL_SECRET
  *   LINE_CHANNEL_ACCESS_TOKEN
+ *   FEEDBACK_DISCORD_WEBHOOK  … 意見箱の落とし先。未設定なら 503
  */
 
 const PRESET_NAMES = ["バイト優先", "GPA重視", "とにかく軽い", "テストが苦手"];
@@ -320,6 +322,71 @@ async function handleWebhook(request, env, ctx) {
   return new Response("ok");
 }
 
+/* ── 意見箱（POST /api/feedback） ──────────────────────────────
+ * フッタのモーダルから来た自由記述を、Discord のチャンネルへ流すだけ。
+ * 保存はしない（D1 未接続）。落とし先はチームが毎日見ている場所の方が読まれる。
+ *
+ * webhook URL は secret で入れる（wrangler.toml には書かない）:
+ *   npx wrangler secret put FEEDBACK_DISCORD_WEBHOOK
+ * 未設定なら 503 を返す。受け取ったふりをして捨てるのが一番たちが悪い。
+ */
+const FB_MAX_TEXT = 1000;
+const FB_MAX_CONTACT = 200;
+const FB_MAX_FROM = 200;
+
+function fbClamp(v, max) {
+  return typeof v === "string" ? v.trim().slice(0, max) : "";
+}
+
+function fbJson(status, body) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+async function handleFeedback(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return fbJson(400, { ok: false, error: "bad_json" });
+  }
+
+  // honeypot。人には見えない欄が埋まっていれば bot なので、
+  // 200 を返して黙って捨てる。400 を返すと bot に検知を教えることになる。
+  if (fbClamp(body.website, 200)) return fbJson(200, { ok: true });
+
+  const text = fbClamp(body.text, FB_MAX_TEXT);
+  if (!text) return fbJson(400, { ok: false, error: "empty" });
+
+  const webhook = env.FEEDBACK_DISCORD_WEBHOOK;
+  if (!webhook) return fbJson(503, { ok: false, error: "not_configured" });
+
+  const contact = fbClamp(body.contact, FB_MAX_CONTACT);
+  const from = fbClamp(body.from, FB_MAX_FROM);
+
+  const lines = ["📮 **サイトへのご意見**"];
+  if (from) lines.push(`> ${from}`);
+  if (contact) lines.push(`> 返信先: ${contact}`);
+  lines.push("", text);
+
+  const res = await fetch(webhook, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      content: lines.join("\n"),
+      // 本文は利用者が書いたもの。@everyone と書かれても飛ばさない。
+      allowed_mentions: { parse: [] },
+    }),
+  });
+  if (!res.ok) {
+    console.error("discord webhook failed", res.status);
+    return fbJson(502, { ok: false, error: "relay_failed" });
+  }
+  return fbJson(200, { ok: true });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -329,6 +396,12 @@ export default {
     }
     if (url.pathname === "/line/health") {
       return new Response("ok");
+    }
+    if (url.pathname === "/api/feedback") {
+      if (request.method !== "POST") {
+        return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+      }
+      return handleFeedback(request, env);
     }
     return env.ASSETS.fetch(request);
   },
