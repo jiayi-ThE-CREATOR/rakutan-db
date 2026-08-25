@@ -290,7 +290,12 @@ def main() -> None:
         base["division"], base["division_source"] = divide(c)
         # 学部の中でさらに絞る軸（外国語学部の専攻語・工学部の学科）。
         # 区分ではないので chip にはしない ―― 画面では学部セレクタの下に出る。
-        base["track"] = track(c)
+        # 元データ側にも書き戻す。時間割の投影（timetable_rows）は built では
+        # なく courses を見るので、書き戻さないと timetable.json の track が
+        # 丸ごと null になり、口コミ画面の学科・専攻語の絞り込みが黙って死ぬ
+        # （2026-08-26 まで実際にそうなっていた。手で当て直していたぶんが
+        #  0b17580 の焼き直しで消えて気付いた）。
+        base["track"] = c["track"] = track(c)
         built.append(base)
 
     # プリセット4つ分の順位を焼いておくと、LINE側は採点ロジックを持たずに済む。

@@ -191,8 +191,12 @@ def track(course: dict) -> str | None:
     （外国語学部の "L"＝英語 と、工学部の学科キーが同じ空間に入る）。
     """
     numbering = course.get("numbering") or ""
+    title = course.get("title") or ""
     for prefix, (key, fn) in TRACK_FACULTY.items():
         if numbering.startswith(prefix):
-            got = fn(numbering)
+            # 科目名も渡す ―― 外国語学部は、同じナンバリングに専攻限定の
+            # 【専攻科目】と全員履修できる（学共-…）が同居していて、
+            # どちらかは名前の接頭マーカーでしか割れない。
+            got = fn(numbering, title)
             return f"{key}:{got}" if got else None
     return None
