@@ -1,0 +1,225 @@
+/* 口コミ投稿（/kuchikomi）だけのスタイル。
+ *
+ * 外殻（ヘッダ・ナビ・フッタ）と body・.note・.wrap は app.css が持っている。
+ * ここに書くのはこの画面にしか出ないもの ―― 時間割のマスと投稿モーダル。
+ *
+ * ■ 裸の色・余白を書かない
+ * 値は全部 tokens.css の変数を使う。元の別サイト版は #E87115 や #ECFDF5 を
+ * 直接書いていたので、ダークモードでは白いカードだけが残る作りだった。
+ * トークンに寄せると暗地・reduced-motion がそのまま効く。
+ *
+ * ■ 色の2系統を混ぜない
+ * --brand 系は「押せるもの」、--scale-* は4軸の目盛り専用。
+ * 送信済みのマスは「押せる」でも「重さ」でもないので、
+ * --scale-light 系ではなく中立の面（--dim）＋チェックで出す。
+ */
+
+/* ── ページの器 ───────────────────────── */
+.kuchikomi{max-width:920px;padding-top:var(--sp-5)}
+
+.kkHead h2{font-size:var(--fs-hero);line-height:1.25;letter-spacing:normal;
+  color:var(--ink);font-weight:700;margin:0 0 var(--sp-3)}
+.kkHead p{margin:0;color:var(--soft);max-width:56ch}
+.kkHead b{color:var(--ink)}
+
+.kkStep{margin-top:var(--sp-6)}
+.kkStep h3{display:flex;align-items:center;gap:var(--sp-2);
+  font-size:var(--fs-lg);font-weight:700;color:var(--ink);margin:0 0 var(--sp-3)}
+/* 手順の番号。設問番号（モーダル側）と同じ役割なので同じ見た目にする。 */
+.kkNum{display:inline-flex;align-items:center;justify-content:center;
+  width:24px;height:24px;flex:none;border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);
+  font-family:var(--data);font-size:var(--fs-sm);font-weight:700}
+
+.kuchikomi .fine{display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:var(--sp-1)}
+.required{color:var(--brand-text);font-weight:700}
+
+/* ── 1. あなたのこと ─────────────────── */
+.kkFields{display:grid;grid-template-columns:1fr;gap:var(--sp-4);
+  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:var(--pad)}
+.input-group{display:flex;flex-direction:column;gap:6px}
+.input-group label{font-size:var(--fs-sm);font-weight:700;color:var(--soft)}
+
+.kuchikomi select,
+.modal-content select,
+.modal-content input[type=text]{
+  width:100%;padding:10px 12px;border:1px solid var(--rule);border-radius:var(--r-md);
+  background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-base)}
+.kuchikomi select:disabled{background:var(--dim);color:var(--muted);cursor:not-allowed}
+select:focus-visible,input:focus-visible,button:focus-visible{
+  outline:2px solid var(--focus);outline-offset:1px}
+
+/* ── 2. 時間割 ───────────────────────── */
+.timetable-header p{margin:0 0 var(--sp-3);font-size:var(--fs-sm);color:var(--muted)}
+
+.timetable-grid{display:grid;grid-template-columns:26px repeat(5,1fr);
+  grid-template-rows:22px repeat(6,1fr);gap:var(--sp-1);
+  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:var(--sp-3)}
+
+.th-cell{display:flex;align-items:center;justify-content:center;
+  font-family:var(--data);font-size:var(--fs-xs);color:var(--muted);font-weight:700}
+
+.td-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;min-height:62px;padding:5px;text-align:center;overflow:hidden;
+  background:var(--paper);border:1px solid var(--rule);border-radius:var(--r-sm);
+  cursor:pointer;transition:background var(--dur-fast) var(--ease-out),
+                            border-color var(--dur-fast) var(--ease-out)}
+.td-cell:hover{background:var(--dim)}
+.td-cell:active{transform:scale(.98)}
+
+/* 選んだマス。ブランドの淡い地＋ブランドの罫。 */
+.td-cell.selected{background:var(--brand-soft);border-color:var(--brand)}
+.cell-subject{font-size:var(--fs-xs);font-weight:700;line-height:1.3;color:var(--ink);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+
+.cell-empty-text{font-size:var(--fs-lg);color:var(--rule);line-height:1}
+/* その枠に科目が1件も無いマス。押しても何も出ないことを先に見せる。 */
+.cell-none{color:var(--rule)}
+.td-cell:has(.cell-none){cursor:default;background:transparent}
+.td-cell:has(.cell-none):hover{background:transparent}
+.cell-count{font-family:var(--data);font-size:var(--fs-xs);color:var(--muted);
+  font-variant-numeric:tabular-nums}
+
+/* 送信済み。ブランド色でも目盛り色でもない中立の面（app.js の band と同じ考え方）。 */
+.cell-submitted{background:var(--dim);border-color:var(--rule)}
+.submitted-badge{font-size:var(--fs-xs);color:var(--scale-light-text);font-weight:700;line-height:1}
+
+/* ── 3. 時間割に無い科目 ─────────────── */
+/* 集中講義・土曜など1,069件。時間割だけを入口にすると
+   理学部は667件中443件に口コミが付かない。 */
+.kkLead{margin:0 0 var(--sp-3);font-size:var(--fs-sm);color:var(--muted)}
+.kkLead b{color:var(--soft)}
+
+.kkExtra{display:flex;flex-direction:column;gap:var(--sp-2);
+  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-lg);
+  padding:var(--pad)}
+.kkExtra input[type=search]{font-size:var(--fs-base)}
+.kkExtra select{width:100%;padding:10px 12px;border:1px solid var(--rule);
+  border-radius:var(--r-md);background:var(--card);color:var(--ink);
+  font:inherit;font-size:var(--fs-base)}
+.kkExtra select:disabled{background:var(--dim);color:var(--muted)}
+.kkExtraFoot{display:flex;flex-direction:column;gap:var(--sp-2)}
+.kkExtra .fine{margin:0;font-family:var(--data);font-variant-numeric:tabular-nums}
+
+/* 選んだ（まだ送っていない）科目。マスの .selected と同じ淡いブランド地。 */
+.extraList{list-style:none;margin:var(--sp-3) 0 0;padding:0;
+  display:flex;flex-direction:column;gap:6px}
+.extraItem{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3);
+  background:var(--brand-soft);border:1px solid var(--brand-line);
+  border-radius:var(--r-md);padding:10px var(--sp-3)}
+.extraName{font-size:var(--fs-sm);font-weight:700;color:var(--ink);line-height:1.4}
+.extraEdit{flex:none;background:none;border:none;padding:2px 4px;
+  font:inherit;font-size:var(--fs-xs);color:var(--brand-text);
+  text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+
+.action-area{display:flex;flex-direction:column;align-items:stretch;gap:var(--sp-2);
+  margin-top:var(--sp-6)}
+.action-area .fine{text-align:center}
+
+/* ── ボタン ──────────────────────────── */
+.primary-btn{background:var(--brand);color:var(--brand-ink);border:none;
+  border-radius:var(--r-md);padding:13px var(--sp-5);font:inherit;font-weight:700;
+  font-size:var(--fs-base);cursor:pointer;transition:opacity var(--dur-fast) var(--ease-out)}
+.primary-btn:hover:not(:disabled){opacity:.88}
+.primary-btn:disabled{background:var(--dim);color:var(--muted);cursor:not-allowed}
+
+.secondary-btn{background:var(--card);color:var(--soft);border:1px solid var(--rule);
+  border-radius:var(--r-md);padding:13px var(--sp-4);font:inherit;font-size:var(--fs-sm);
+  cursor:pointer}
+.secondary-btn:hover:not(:disabled){background:var(--dim)}
+/* 押せないことが見た目で分かるようにする。これが無いと
+   「科目を選ぶ前」と「選んだ後」が同じ顔になり、押しても何も起きない。 */
+.secondary-btn:disabled{background:var(--dim);color:var(--muted);
+  border-color:var(--dim);cursor:not-allowed}
+
+/* ── モーダル ────────────────────────── */
+/* 幕・最大高さ・スクロールは app.css の .sheet と同じ考え方だが、
+   こちらは中央に置く（PC でも使う画面なので下からせり上げない）。 */
+.modal-overlay{position:fixed;inset:0;z-index:30;display:flex;
+  align-items:flex-end;justify-content:center;background:var(--scrim);
+  transition:opacity var(--dur) var(--ease-out)}
+/* display は残したまま消す ―― 消え方を見せないと、押した手応えが無い。
+   .hidden{display:none} に負けないよう、ここで display を明示する。 */
+.modal-overlay.hidden{display:flex;opacity:0;visibility:hidden;pointer-events:none}
+
+.modal-content{background:var(--card);width:100%;max-width:560px;max-height:92vh;
+  display:flex;flex-direction:column;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;
+  box-shadow:0 -6px 24px var(--shadow-card);
+  transition:transform var(--dur) var(--ease-out)}
+.modal-overlay.hidden .modal-content{transform:translateY(16px)}
+
+.modal-header{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);
+  padding:var(--pad) var(--pad) var(--sp-3);border-bottom:1px solid var(--rule)}
+.modal-header h3{margin:0;font-size:var(--fs-lg);font-weight:700;color:var(--ink)}
+.modal-subtitle{font-size:var(--fs-sm);font-weight:400;color:var(--muted);margin-left:var(--sp-1)}
+.close-btn{background:none;border:none;color:var(--muted);font-size:24px;line-height:1;
+  padding:0 var(--sp-1);cursor:pointer}
+.close-btn:hover{color:var(--ink)}
+
+.modal-body{padding:var(--sp-3) var(--pad) var(--pad);overflow-y:auto;flex:1}
+.modal-desc{margin:0 0 var(--sp-4);font-size:var(--fs-xs);color:var(--muted);line-height:1.6}
+
+.form-section{margin-top:var(--sp-4)}
+.form-section:first-child{margin-top:0}
+.form-section label{display:block;margin-bottom:7px;font-size:13.5px;color:var(--soft)}
+.no-subjects{margin-top:var(--sp-2)}
+.no-subjects p{margin:0;font-size:var(--fs-sm);color:var(--muted)}
+
+.button-group{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px}
+.form-btn{border:1px solid var(--rule);background:var(--card);color:var(--soft);
+  border-radius:var(--r-md);padding:11px 6px;font:inherit;font-size:var(--fs-sm);
+  cursor:pointer;transition:background var(--dur-fast) var(--ease-out)}
+.form-btn:hover{background:var(--dim)}
+.form-btn.selected{background:var(--brand);border-color:var(--brand);
+  color:var(--brand-ink);font-weight:700}
+.other-input{margin-top:6px}
+
+/* スライダー。つまみだけブランド色、溝は中立。 */
+.slider-container{display:flex;align-items:center;gap:var(--sp-3)}
+.styled-slider{flex:1;-webkit-appearance:none;appearance:none;height:4px;
+  background:var(--dim);border-radius:var(--r-pill);outline:none}
+.styled-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:22px;height:22px;border-radius:var(--r-pill);background:var(--brand);
+  border:none;cursor:pointer}
+.styled-slider::-moz-range-thumb{width:22px;height:22px;border-radius:var(--r-pill);
+  background:var(--brand);border:none;cursor:pointer}
+.slider-value-display{font-size:var(--fs-sm);color:var(--soft);white-space:nowrap}
+.highlight-text{font-family:var(--data);font-weight:700;color:var(--brand-text);
+  font-variant-numeric:tabular-nums}
+
+.modal-footer{display:flex;gap:var(--sp-2);padding:var(--sp-3) var(--pad);
+  border-top:1px solid var(--rule)}
+.modal-footer .primary-btn{flex:1}
+
+/* ── トースト ────────────────────────── */
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));
+  transform:translateX(-50%);z-index:40;
+  background:var(--alert-face);color:var(--alert-ink);
+  border-radius:var(--r-pill);padding:11px var(--sp-5);
+  font-size:var(--fs-sm);font-weight:700;box-shadow:0 6px 18px var(--shadow-fab);
+  transition:opacity var(--dur) var(--ease-out)}
+.toast.hidden{display:block;opacity:0;visibility:hidden;pointer-events:none}
+
+/* ── PC（第2の必須形態）───────────────── */
+@media (min-width:700px){
+  .kkFields{grid-template-columns:1fr 1fr}
+  .timetable-grid{grid-template-columns:34px repeat(5,1fr);gap:6px;padding:var(--pad)}
+  .td-cell{min-height:74px}
+  .cell-subject{font-size:var(--fs-sm)}
+  .modal-overlay{align-items:center;padding:var(--pad)}
+  .modal-content{border-radius:var(--r-lg);box-shadow:0 10px 40px var(--shadow-card)}
+  .modal-overlay.hidden .modal-content{transform:scale(.98)}
+  .action-area{flex-direction:row;align-items:center;justify-content:flex-end;
+    gap:var(--sp-4)}
+  .action-area .fine{margin-top:0;text-align:right}
+  .kkExtraFoot{flex-direction:row;align-items:center;justify-content:space-between}
+}
+
+/* 「隠す」は一番最後に置く。
+   .timetable-grid{display:grid} のような後勝ちの display に負けると
+   「隠したのに残る」になる（app.css の .chips[hidden] と同じ事故）。
+   .modal-overlay.hidden / .toast.hidden は上で display を明示して除外している。 */
+.hidden{display:none}

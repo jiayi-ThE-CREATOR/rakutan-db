@@ -17,6 +17,102 @@
 
 ---
 
+## 2026-08-25 ｜ 口コミ投稿を別サイトからサイト内へ取り込み、全学部・全学年に対応 ｜ wang → 次の人
+
+ブランチ `feat/wang-kuchikomi-inline` → **main にマージして本番へ出しました**。
+
+### 1. 何が動く状態か
+
+**ナビの「口コミを書く」が外部サイトへ飛ばなくなり、`/kuchikomi` で完結する。**
+科目は「1年生用テンプレート 2,157件」ではなく、**全学部・全学年 6,808件**から選ぶ。
+
+```bash
+git checkout feat/wang-kuchikomi-inline
+python3 server.py                # → http://localhost:8000/kuchikomi
+python3 tools/test_faculty.py    # 全7,877件の学部内訳
+python3 tools/test_timetable.py  # timetable.json が courses.built.json と一致するか
+```
+
+| | 前（Netlify） | 後（/kuchikomi） |
+|---|---|---|
+| 科目データ | app.js に直書き 2,157件・1年生のみ | `web/data/timetable.json` 6,808件・全学部全学年 |
+| 学部 | 9（コード内の固定表） | 11（`requirements.json` が正本） |
+| 学科 | 学部ごとに1つのダミー | 工学部5学科・外国語学部25専攻語は**科目まで絞る**。他は名前のみ |
+| 見た目 | 独自CSS・ライトのみ | `tokens.css`。暗地と reduced-motion が効く |
+| 集中講義・土曜 | 入口なし | **第3セクション「時間割に無い科目」1,069件** |
+| 保存先 | GAS | **同じ GAS**（変えていない） |
+
+判定の正本は `tools/faculty.py` 1本。**共通教育はナンバリング頭2桁（13・14）で採る** ――
+`category` を先に見ると、KOAN が検索フォームを返した12件（「年度」に化けている）が
+どの学部にも属さず消える。逆に学部の判定は `category` を採る ―― 教職課程（`63`）の21件は
+ナンバリングだと存在しない学部「63」に落ちるが、`category` は開講学部を正しく持っている。
+
+`build.py` が `web/data/timetable.json` を焼く。`courses.built.json` は 12MB あり、
+時間割に要るのは科目名・担当・曜限・学部・学年だけ（**gzip 531KB → 135KB**）。
+`reviews.built.json` を分けたのと同じ理由。
+
+### 2. 何をしていないか
+
+- ★**`build.py` を流していない。** この worktree に `data/courses.json` が無い（.gitignore）ので、
+  **`build.py` が使うのと同じ関数 `build.timetable_rows()`** を `courses.built.json` に当てて
+  `timetable.json` を作った（2026-08-25 の `division` と同じ手）。
+  **全所属の `courses.json` を持っている人は一度 `python3 build.py` を流して、
+  `tools/test_timetable.py` が通ることを確認してほしい**（ずれたらこのテストが落ちる）
+- ★**しゅんやさんへの連絡が済んでいない（人がやること）。** README 7章の担当表では
+  口コミ収集はしゅんやさん（フォーム運用）。**GAS もスプレッドシートも変えていない**が、
+  送信 JSON のうち次の2点でシートの見え方が変わる。**取り込みに影響が無いか見てもらうこと**
+  （`ingest_reviews.py` が読むのは科目コードなど別の列なので、取り込み自体は無傷のはず）:
+    - `faculty` / `department` が内部キー（`'let'` `'eng-all'`）ではなく
+      **表示名（`'工学部'` `'電子情報工学科'`）**になった。学部の一覧を卒業要件表ベースに
+      変えて、以前のキーが存在しなくなったため
+    - 時間割に無い科目の行は `day` が KOAN の原文（`'他'` `'土3'`）で **`period` が `null`**。
+      曜限の数字をでっち上げないため
+- **同じ科目に何度でも投稿できる。** 送信済みの記憶は localStorage だけなので、
+  別の端末・別のブラウザからは何も知らない状態で入れる。重複は
+  `ingest_reviews.py` 側の重複判定に任せている（元の別サイト版と同じ）
+- **修士・博士を選んでも学部科目が出る。** データが学部科目しか無いため、
+  学年での絞り込みを掛けていない（0件にはしない、という判断）
+- **`index.html` の隠し投稿フォーム（`#sheet` / `#fab` / `CAN_POST=false`）は触っていない。**
+  D1 を待っている別物。**サイト内に投稿フォームが2つある状態**なので、
+  D1 を繋ぐ人はどちらを残すか決めること
+- **時間割のグリッドは月〜金×1〜6限のまま。** 土曜9件は第3セクション側に出る
+  （グリッドに土曜の列は足していない。9件のために全学生の画面を1列広げない）
+- **`term_group` が `unknown` の科目**は、時間割のグリッドでは出ない（6件・app.js と同じ扱い）。
+  一方で**第3セクションでは276件すべてを両方の学期に出している** ―― こちらで落とすと
+  その科目は永久に投稿できないため。選択肢は optgroup「学期が分からない科目」で分けてある
+- **公開時の noindex 解除は未対応。** `/kuchikomi` も `web/_headers` の
+  `X-Robots-Tag` を被る。8/26 に2行消すときに一緒に効く
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git checkout feat/wang-kuchikomi-inline
+python3 build.py                    # ★全所属の courses.json を持っている人だけ
+python3 tools/test_timetable.py     # ↑を流したあと必ず。ずれたら落ちる
+python3 tools/test_faculty.py
+python3 server.py                   # → /kuchikomi を実機の幅で触る
+```
+
+### 4. 踏んだ罠
+
+- **`.hidden{display:none}` は CSS の最後に置かないと効かない。** `.timetable-grid{display:grid}`
+  のような後勝ちの `display` に負ける。`.chips[hidden]` で踏んだのと同じ事故。
+  ただし `.modal-overlay.hidden` と `.toast.hidden` は消え方を見せたいので、
+  そこだけ `display` を明示して除外している
+- **`courses.built.json` に `faculty` を足す案は捨てた。** 7,877件に1フィールド足すと
+  raw +162KB。**トップページが毎回背負う**ことになるので、時間割だけが読む
+  別ファイルに寄せた。判断（`tools/faculty.py`）は共有し、データは共有しない
+- **worktree では `tools/smoke.mjs` が必ず落ちる。** `data/courses.json` が無く
+  ダミー30件になり、既定の絞り込み（1年・秋冬）で0件 → `.card` が出ないため。
+  README の罠⑥そのもの。**本体から `data/courses.json` をコピーすれば通る**
+  （確認後に消すこと）。`/kuchikomi` 自体は `timetable.json` しか読まないので
+  worktree でも CI でも本番と同じ中身が出る
+- **`「金3,金4,金5」のように複数コマの科目**は、1つ埋めると該当する全マスが埋まる。
+  これは別サイト版からの仕様。いまは科目が自分の曜限（`slots`）を持っているので、
+  全データを舐めて探す必要が無くなった
+
+---
+
 ## 2026-08-25 ｜ 絞り込みを3段にし、専攻語・学科のセレクタを足した ｜ wang
 
 ### 1. 何が動く状態か
