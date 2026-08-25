@@ -89,6 +89,110 @@
    "key": "global",
    "label": "グローバル理解",
    "group": "国際性涵養教育系科目"
+  },
+  {
+   "key": "fs_senkogo_1",
+   "label": "専攻語 1年実習",
+   "group": "専攻語科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_senkogo_2",
+   "label": "専攻語 2年実習",
+   "group": "専攻語科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_senkogo_enshu",
+   "label": "専攻語 演習",
+   "group": "専攻語科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_senko_kogi",
+   "label": "専攻科目 講義",
+   "group": "専攻科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_senko_enshu",
+   "label": "専攻科目 演習",
+   "group": "専攻科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_kyotsu_hoho",
+   "label": "学部共通 方法論",
+   "group": "学部共通科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_kyotsu_chiiki",
+   "label": "学部共通 地域系",
+   "group": "学部共通科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_kyotsu_tokusetsu",
+   "label": "学部共通 特設",
+   "group": "学部共通科目",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_kenshu",
+   "label": "兼修語学",
+   "group": "兼修語学",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_kenshu_kokusai",
+   "label": "兼修語学（高度国際性）",
+   "group": "兼修語学",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_kenkyu_gaikokugo",
+   "label": "研究外国語",
+   "group": "外国語学部",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_sotsuron",
+   "label": "卒業論文",
+   "group": "外国語学部",
+   "only": [
+    "foreign-s"
+   ]
+  },
+  {
+   "key": "fs_kyoshoku",
+   "label": "教職（〜語科教育法）",
+   "group": "外国語学部",
+   "only": [
+    "foreign-s"
+   ]
   }
  ],
  "faculties": [
@@ -641,8 +745,10 @@
       "senmon_kiso"
      ],
      "values": [
-      "0"
-     ]
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/",
+     "note": "CELAS の卒業要件表は要件外としているが、学部チェックシートには行がある。紙を採った。"
     },
     {
      "divisions": [
@@ -693,13 +799,126 @@
       "global"
      ],
      "values": [
-      "－"
-     ]
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/",
+     "note": "CELAS の卒業要件表は要件外としているが、学部チェックシートには行がある。紙を採った。"
+    },
+    {
+     "divisions": [
+      "fs_senkogo_1"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_senkogo_2"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_senkogo_enshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_senko_kogi"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_senko_enshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_kyotsu_hoho"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_kyotsu_chiiki"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_kyotsu_tokusetsu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_kenshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_kenshu_kokusai"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_kenkyu_gaikokugo"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
+    },
+    {
+     "divisions": [
+      "fs_sotsuron"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
     }
    ],
    "notes": [
     "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
-    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
+    "専攻語科目 1年実習は上限10単位（ロシア語は12単位）。",
+    "兼修語学の【同一言語で修得】と【上記以外で修得】は、どちらになるかが学生の選び方で決まるため、科目の側では分けていません。",
+    "国際交流科目と選択科目（他大学・他学部）は、科目の属性ではないので区分にしていません。"
    ]
   },
   {

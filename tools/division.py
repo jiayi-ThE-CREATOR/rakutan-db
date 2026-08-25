@@ -1,9 +1,15 @@
 """科目を科目区分（人文科学系・情報教育科目…）へ割り当てる。
 
 ■ 判定の順番
-    政岡さんの取得フィールド > 科目名の接頭辞【人文】等 > ナンバリング
+    政岡さんの取得フィールド > 学部ごとの規則 > 科目名の接頭辞【人文】等 > ナンバリング
 上位が値を持てば下位は見ない。**取得が入れば推定は自動的に効かなくなる**ので、
 規則を消す作業は要らない。
+
+■ 学部ごとの規則は別ファイル
+ここが扱うのは共通教育（所属13）とマルチリンガル（所属14）＝全11学部に共通の
+CELAS 区分。学部の専門科目は出所が学部のチェックシートで系統が違うので、
+`tools/<学部>.py` に分けてナンバリングの接頭辞で振り分ける。
+いまあるのは tools/foreign_studies.py（外国語学部＝10FOST）だけ。
 
 ■ 判定できないものは None にする（「その他」は画面のラベルであって区分ではない）
 ナンバリング 1V の接頭辞なし179件のうち35件は
@@ -24,6 +30,8 @@ scrape/parse.py の METHOD_RULES で「未分類が満点に化けていた」�
 from __future__ import annotations
 
 import re
+
+from tools import foreign_studies
 
 # 科目名の接頭辞。KOAN の科目名に元から付いている（例：【人文】ことばの学問入門）。
 PREFIX = {
@@ -97,11 +105,16 @@ def divide(course: dict) -> tuple[str | None, str | None]:
         return scraped, "scrape"
 
     title = course.get("title") or ""
+    numbering = course.get("numbering") or ""
+
+    # 外国語学部の専門科目は学部チェックシートの行へ割る。CELAS の区分とは
+    # 別系統なので別ファイルに置いてある（tools/foreign_studies.py）。
+    if numbering.startswith(foreign_studies.NUMBERING_PREFIX):
+        return foreign_studies.divide_foreign_studies(title, numbering)
+
     m = _PREFIX_RE.match(title)
     if m and m.group(1) in PREFIX:
         return PREFIX[m.group(1)], "title"
-
-    numbering = course.get("numbering") or ""
 
     # マルチリンガル教育センターの科目は題名で分ける。
     # ナンバリングは 総合英語 と 実践英語 で同じ値（14CMLE1BLB3）になるため

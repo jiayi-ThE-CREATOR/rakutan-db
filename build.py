@@ -30,6 +30,7 @@ from pathlib import Path
 
 import reviews
 import score as scoring
+from tools import foreign_studies
 from tools.division import JP_ONLY_TITLES, divide
 
 ROOT = Path(__file__).parent
@@ -329,8 +330,14 @@ def main() -> None:
     # ―― あちらは絞り込みのたびに読む1.7MB で、要件表は学部を選んだときだけ要る。
     req_src = ROOT / "data" / "faculty_requirements.json"
     if req_src.exists():
+        req = json.loads(req_src.read_text(encoding="utf-8"))
+        # 学部チェックシート由来の区分は、写すときに合流させる。
+        # data/faculty_requirements.json は fetch_requirements.py が CELAS から
+        # 作り直すファイルなので、あちらへ直接書くと次のスクレイプで消える。
+        req = foreign_studies.apply_to_requirements(req)
         req_dest = ROOT / "web" / "data" / "requirements.json"
-        req_dest.write_text(req_src.read_text(encoding="utf-8"), encoding="utf-8")
+        req_dest.write_text(json.dumps(req, ensure_ascii=False, indent=1),
+                            encoding="utf-8")
         print(f"→ {req_dest}")
     else:
         print("※ data/faculty_requirements.json が無いので学部の絞り込みは出ません。"

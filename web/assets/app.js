@@ -119,8 +119,13 @@ const DIV_OTHER = "other";   // 「まだ判定していない」科目の置き
    総合英語・実践英語が実在する区分なので、親はチップにしない
    ―― 親に直接ぶら下がる科目が無く、必ず0件になって壊れて見えるため。
    要件表の行としてはデータに残っている（内訳の検算に使う）。 */
+/* only 付きの区分は、その学部を選んでいるときだけ出す。学部の専門科目の区分は
+   他学部の学生には意味が無い（工学部の学生に「専攻語 1年実習」を見せない）。
+   自分の学部のぶんを先頭に置く ―― チェックシートを上から順に追えるように。 */
 function divisionsOf(){
-  return ((REQ && REQ.divisions) || []).filter(d => d.chip !== false);
+  const all = ((REQ && REQ.divisions) || []).filter(d => d.chip !== false);
+  return all.filter(d => (d.only || []).includes(state.faculty))
+     .concat(all.filter(d => !d.only));
 }
 function facultyOf(key){ return ((REQ && REQ.faculties) || []).find(f => f.key === key); }
 
@@ -130,6 +135,9 @@ function facultyOf(key){ return ((REQ && REQ.faculties) || []).find(f => f.key =
 function unitBadge(values, groupSize){
   const uniq = [...new Set(values)];
   if (uniq.every(v => v === "－" || v === "-" || v === "")) return null;
+  // ○ ＝「チェックシートに行はあるが、その紙に単位数が書かれていない」。
+  // 要件の側には置き、バッジは出さない（数字を猜うと要件の捏造になる）。
+  if (uniq.every(v => v === "○")) return "";
   const nums = uniq.map(v => (v.match(/\d+/) || [])[0]).filter(Boolean).map(Number);
   if (!nums.length) return "便覧で確認";
   const lo = Math.min(...nums), hi = Math.max(...nums);
