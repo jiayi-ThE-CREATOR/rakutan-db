@@ -255,6 +255,48 @@ def test_every_language_code_is_unambiguous():
         assert TRACKS[code] in langs, f"{code} の表記ゆれ: {TRACKS[code]} vs {langs}"
 
 
+def test_shared_divisions_are_visible_from_every_track():
+    """★ 学部共通・高度教養・兼修語学は、25専攻すべてから同じ件数見えること。
+
+    「（学共-地域系）なら専攻がどこでも履修できる」を、1専攻ではなく
+    全専攻で確かめる。絞り込みの規則は app.js の queryLocal() と
+    server.py の search() と同じ ―― トラックを持たない科目は通す。
+
+    どれか1つでも件数が減ったら、その区分に専攻の縛りが復活したということ。
+    """
+    from collections import Counter
+    from tools.foreign_studies import TRACK_KEY, TRACKS
+    built = ROOT / "web" / "data" / "courses.built.json"
+    if not built.exists():
+        print("  SKIP test_shared_divisions_are_visible_from_every_track")
+        return
+    courses = json.loads(built.read_text(encoding="utf-8"))["courses"]
+    # 専攻を選んでも減ってはいけない区分と、その全件数。
+    shared = {"fs_kyotsu_chiiki": 121, "fs_kyotsu_hoho": 71,
+              "fs_kyotsu_tokusetsu": 19, "kodo_kyoyo": 75,
+              "fs_kenshu": 157, "fs_kenshu_kokusai": 84,
+              "fs_kenkyu_gaikokugo": 49, "fs_sotsuron": 50}
+    axis = TRACK_KEY + ":"
+    for code in TRACKS:
+        sel = f"{axis}{code}"
+        seen = Counter(
+            c.get("division") for c in courses
+            # queryLocal() / search() と同じ1行。
+            if not (c.get("track") and str(c["track"]).startswith(axis)
+                    and c["track"] != sel))
+        for key, n in shared.items():
+            assert seen[key] == n, \
+                f"{TRACKS[code]}専攻から {key} が {seen[key]}件（{n}件のはず）"
+    # 逆に、専攻科目と専攻語は絞られていること（絞りが死んでいないかの確認）。
+    sel = f"{axis}P"                      # スペイン語
+    seen = Counter(
+        c.get("division") for c in courses
+        if not (c.get("track") and str(c["track"]).startswith(axis)
+                and c["track"] != sel))
+    assert seen["fs_senko_kogi"] == 12, seen["fs_senko_kogi"]
+    assert seen["fs_senkogo_1"] == 10, seen["fs_senkogo_1"]
+
+
 def main():
     for name, fn in sorted(globals().items()):
         if name.startswith("test_"):
