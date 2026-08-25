@@ -217,8 +217,24 @@ def main() -> None:
             prev = [r for r in json.loads(OUT.read_text()) if r.get("course_id") != "S001"]
         except json.JSONDecodeError:
             prev = []
+    # 突き合わせは「既存の行」だけでなく「このバッチで既に採った行」とも
+    # 行う。片方だけだと、同じ回答が1つの CSV に2行あったときに2行とも
+    # 入る ―― 実際 2026-08-24 時点で6科目・9行がこれで二重になっていた
+    # （135581 135587 135685 135851 135889 137717）。
+    #
+    # キーに note を含めているので、一言なしの回答どうしは
+    # (course_id, at, None) で衝突する。同じ日に同じ科目へ一言なしの
+    # 回答が2件来たら片方が落ちる。落とすほうを選んだのは、二重計上が
+    # 「口コミ N件」と平均の両方を静かに歪めるのに対し、取りこぼしは
+    # 次のバッチで気づけるため。
     seen = {(r.get("course_id"), r.get("at"), r.get("note")) for r in prev}
-    added = [r for r in rows if (r["course_id"], r["at"], r["note"]) not in seen]
+    added = []
+    for r in rows:
+        k = (r["course_id"], r["at"], r["note"])
+        if k in seen:
+            continue
+        seen.add(k)
+        added.append(r)
     OUT.write_text(json.dumps(prev + added, ensure_ascii=False, indent=1),
                    encoding="utf-8")
     print(f"\n  → {OUT}  既存 {len(prev)} 件 ＋ 新規 {len(added)} 件")
