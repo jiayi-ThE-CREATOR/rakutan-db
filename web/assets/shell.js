@@ -9,6 +9,7 @@
   /* ナビの現在地。ページを分けた以上、どこにいるか分からないのは事故。 */
   const here = location.pathname.replace(/\/$/, "") || "/";
   const key = (here === "/" || here === "/index.html") ? "home"
+            : here.startsWith("/ads") ? "ads"
             : here.startsWith("/about") ? "about" : null;
   if (!key) return;
   const el = document.querySelector(`.nav a[data-nav="${key}"]`);
