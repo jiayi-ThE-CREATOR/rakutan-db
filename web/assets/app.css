@@ -530,3 +530,14 @@ html{scroll-behavior:smooth}
    利用者に伝えるべきなのは「何を聞かれるか」と「どれくらいで終わるか」。 */
 .sheetLead{margin:0;font-size:var(--fs-sm);color:var(--muted)}
 .sheetLead b{color:var(--soft)}
+
+/* 運営の SNS。広告掲載ページで使う。
+   横に並べる箱にしてあるので、X などを足すときは <li> を増やすだけでいい。 */
+.prose ul.sns{list-style:none;margin:0 0 var(--sp-4);padding:0;
+  display:flex;flex-wrap:wrap;gap:var(--sp-3)}
+.prose ul.sns li{margin:0}
+.prose ul.sns a{display:inline-flex;align-items:center;gap:8px;
+  padding:10px 14px;border:1px solid var(--rule);border-radius:10px;
+  color:var(--ink);text-decoration:none;font-size:var(--fs-sm);font-weight:700}
+.prose ul.sns a:hover{border-color:var(--brand);color:var(--brand)}
+.prose ul.sns svg{flex:none}
