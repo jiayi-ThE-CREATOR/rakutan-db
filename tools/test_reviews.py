@@ -11,6 +11,7 @@ pytest は入れていない（依存を増やさない方針）。stdlib だけ
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -100,9 +101,12 @@ eq([r["note"] for r in p], ["2024", "不明"], "受講年なしは末尾")
 # at は投稿日であって受講時期ではない。混同されるので公開形には出さない。
 p = reviews.public_rows([rv(taken_year=2026)])["X"]
 eq("at" in p[0], False, "at は公開形に含めない")
+# 公開形に足すということは、公開リポジトリの reviews.built.json に
+# その値が載るということ。増やすときは必ずここも直す（＝一度立ち止まる）。
+# grade（書いた人のいまの学年）は 2026-08-26 に追加。
 eq(sorted(p[0]), sorted(["taken_year", "taken_year_before", "attendance",
                          "in_class", "out_class", "exam_hard10", "exam_bring",
-                         "report_words", "note"]), "公開形のキーは固定")
+                         "report_words", "note", "grade"]), "公開形のキーは固定")
 
 # 「それ以前」を選んだ行。境界の年と、それ以前であることを別々に持つ。
 p = reviews.public_rows([rv(taken_year=2023, taken_year_before=True)])["X"]
@@ -158,6 +162,34 @@ if real:
     missing = [k for k, v in pub.items()
                for r in v if r["taken_year"] is None]
     eq(missing, [], "実データの受講年が全件埋まっている")
+
+
+# ── 書いた人の「いまの学年」（2026-08-26 追加）─────────────
+# 画面に出すためだけの値。採点には一切効かないこと、
+# 無い行を壊さないこと、知らない値を公開しないことを守る。
+_g = reviews.public_rows([
+    {"course_id": "G", "grade": "3年", "taken_year": 2024, "attendance": 2},
+    {"course_id": "G", "taken_year": 2023, "attendance": 0},        # 古い行（列が無い）
+])["G"]
+eq([r["grade"] for r in _g], ["3年", None],
+   "grade は在れば通し、無ければ None（古い行を壊さない）")
+
+_agg = reviews.aggregate([
+    {"course_id": "G", "grade": "3年", "attendance": 2, "in_class": 0, "out_class": 0},
+    {"course_id": "G", "grade": "1年", "attendance": 2, "in_class": 0, "out_class": 0},
+])
+eq("grade" in _agg["G"], False, "grade は集計（採点側）に混ざらない")
+
+# 取り込み側の白名単。公開リポジトリに自由記述を出さないための門。
+_spec = importlib.util.spec_from_file_location(
+    "ing", Path(__file__).resolve().parent / "ingest_reviews.py")
+_ing = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_ing)
+eq([_ing.normalize({"code": "1", "grade": g})["grade"]
+    for g in ("3年", "修士", "ふつう", "")],
+   ["3年", "修士", None, None],
+   "取り込みは選択肢どおりの値だけ通す")
+eq(_ing.normalize({"code": "1"})["grade"], None, "列そのものが無くても落ちない")
 
 
 print(f"  通過 {ok} 件")

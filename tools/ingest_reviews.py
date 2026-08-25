@@ -3,6 +3,9 @@
 フォーム: https://magnificent-scone-0d2071.netlify.app/
 設問と列の対応（フォーム側を変えたらここも直す）:
 
+    grade           いまの学年              1年〜6年 / 修士 / 博士
+                    （※受講時ではなく、書いた人の現在の学年。
+                       「自分より上の学年の人が先に受けている」を出すために持つ）
     attendance    2 出席は取られた？          毎回 / たまに / なし / その他
     in_class      3 授業中の課題はあった？      重い / ふつう / 軽い / なかった
     out_class     4 授業外の課題はあった？      重い / ふつう / 軽い / なかった
@@ -32,6 +35,11 @@ OUT = ROOT / "data" / "reviews.json"
 
 # 表記ゆれ。フォームの選択肢が増えたらここに足す。
 ATTEND = {"毎回": 2, "たまに": 1, "なし": 0}
+
+# 「いまの学年」として受け付ける値。フォームの選択肢と1対1。
+# **知らない値は None にする。** reviews.built.json は公開リポジトリに入るので、
+# 自由記述が紛れ込んだらそのまま公開されてしまう。
+GRADES = ("1年", "2年", "3年", "4年", "5年", "6年", "修士", "博士")
 LEVEL = {"重い": 2, "ふつう": 1, "軽い": 0, "なかった": None}
 
 # 「その他（…）」の台帳。**選択肢ではなく自由記述なので、書かれた中身で判断する。**
@@ -96,8 +104,12 @@ def normalize(row: dict) -> dict:
     """1行 → 保存する形。判断はここに寄せ、集計側では素直に平均するだけにする。"""
     att = (row.get("attendance") or "").strip()
     bring = (row.get("exam_bring") or "").strip() or None
+    # 書いた人の「いまの学年」。列が無いフォームからの取り込みでは None のまま
+    # ―― 2026-08-26 に足した列なので、それ以前の行はすべて None になる。
+    grade = (row.get("grade") or "").strip()
     return {
         "course_id": (row.get("code") or "").strip(),
+        "grade": grade if grade in GRADES else None,
         # 選択肢どおりでない答えは台帳（data/sonota.json）で1件ずつ判断する
         "attendance": ATTEND[att] if att in ATTEND
                       else _lookup("attendance", att) if att else None,
