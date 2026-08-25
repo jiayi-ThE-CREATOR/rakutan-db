@@ -3,6 +3,12 @@
  *   node tools/test_favorite.mjs http://localhost:8140
  *
  * 静的配信に当てるのが肝。本番で動くのは web/assets/app.js のほう。
+ *
+ * 2026-08-26 追記：詳細パネル側の星（.panelBtn / .reviewBtn と並ぶもの）を
+ * 足したとき、.favBtn に無scopeで position:absolute を書いてしまい、
+ * 詳細を開くと一覧側の星の真上に重なるバグが出た。カード直下の星
+ * （.card > .favBtn）と詳細内の星（.detail .favBtn）を別の場所に
+ * 描き分けたので、その回帰を防ぐチェックをモバイル幅で足してある。
  */
 import { chromium } from "playwright";
 
@@ -11,20 +17,32 @@ const fails = [];
 let n = 0;
 const check = (cond, msg) => { n++; if (!cond) fails.push(msg); };
 
-const browser = await chromium.launch();
-const page = await browser.newPage();
+/* 2つの矩形が重なっているか。星が同じ場所に吸い寄せられるバグは
+   これで見える（片方がもう片方の上にぴったり乗る＝完全重複も含む）。 */
+const overlaps = (a, b) => !!a && !!b
+  && a.x < b.x + b.width && a.x + a.width > b.x
+  && a.y < b.y + b.height && a.y + a.height > b.y;
 
-/* 開屏の問診に邪魔されないよう、済んだことにしてから開く。 */
-await page.addInitScript(() => {
-  try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
-  try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
-});
+const bypassOnboarding = async (p) => {
+  /* 開屏の問診に邪魔されないよう、済んだことにしてから開く。 */
+  await p.addInitScript(() => {
+    try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
+    try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
+  });
+};
+
+const browser = await chromium.launch();
+
+/* ── デスクトップ：一覧の星・#inspector の星・再読込での永続化 ── */
+const page = await browser.newPage();
+await bypassOnboarding(page);
 await page.goto(BASE + "/");
 await page.waitForSelector(".card .favBtn");
 
 const first = page.locator(".card").first();
 const star  = first.locator(".favBtn");
 const id    = await first.getAttribute("data-id");
+const cardSel = `.card[data-id="${id}"]`;
 
 check(await star.getAttribute("aria-pressed") === "false", "初期状態が押されている");
 
@@ -41,12 +59,64 @@ check(saved.ids && saved.ids[id], "localStorage に入っていない");
 /* 再読込しても残ること。 */
 await page.reload();
 await page.waitForSelector(".card .favBtn");
-const star2 = page.locator(`.card[data-id="${id}"] .favBtn`);
+const star2 = page.locator(`${cardSel} .favBtn`);
 check(await star2.getAttribute("aria-pressed") === "true", "再読込で消えた");
 
 await star2.click();
 const after = await page.evaluate(() => JSON.parse(localStorage.getItem("rk_favorites") || "{}"));
 check(!(after.ids && after.ids[id]), "もう一度押しても外れない");
+
+/* ここまでで一覧の星は「外れた」状態。PC では詳細は #inspector に出る。
+   星も .panelBtn / .reviewBtn と同じ並びに、浮かせずに出ているか
+   （2026-08-26 修正：もとは無scopeの position:absolute で
+   #inspector 内の星までカード側と同じ置き方を引きずっていた）。 */
+await page.locator(`${cardSel} .head`).click();
+await page.waitForSelector("#inspector .detail .favBtn");
+const inspStar = page.locator("#inspector .favBtn");
+check(await inspStar.count() === 1, "#inspector に星がちょうど1つ出ていない");
+
+const inspPos = await inspStar.evaluate(el => getComputedStyle(el).position);
+check(inspPos !== "absolute", "#inspector の星が浮いたまま（カード側の配置を引きずっている）");
+
+const listStarBox = await page.locator(`${cardSel} > .favBtn`).boundingBox();
+const inspStarBox = await inspStar.boundingBox();
+check(!overlaps(listStarBox, inspStarBox), "一覧の星と #inspector の星が重なっている");
+
+/* #inspector 側を押しても一覧側に反映されること（両方向の同期）。 */
+await inspStar.click();
+check(await inspStar.getAttribute("aria-pressed") === "true", "#inspector の星の aria-pressed が変わらない");
+check(await page.locator(`${cardSel} > .favBtn`).getAttribute("aria-pressed") === "true",
+      "#inspector の星を押しても一覧側に反映されない");
+
+/* ── モバイル：カードを開いたとき、一覧側と詳細側の星が重ならないこと ──
+   （2026-08-26 の CSS バグの回帰テスト。バグ再現時は2つの星がぴったり重なる。） */
+const mpage = await browser.newPage({ viewport: { width: 390, height: 844 } });
+await bypassOnboarding(mpage);
+await mpage.goto(BASE + "/");
+await mpage.waitForSelector(".card .favBtn");
+
+const mfirst  = mpage.locator(".card").first();
+const mid     = await mfirst.getAttribute("data-id");
+const mCardSel = `.card[data-id="${mid}"]`;
+
+await mpage.locator(`${mCardSel} .head`).click();
+await mpage.waitForSelector(`${mCardSel} .detail .favBtn`);
+
+const cardStar   = mpage.locator(`${mCardSel} > .favBtn`);
+const detailStar = mpage.locator(`${mCardSel} .detail .favBtn`);
+
+const cardBox   = await cardStar.boundingBox();
+const detailBox = await detailStar.boundingBox();
+check(!overlaps(cardBox, detailBox), "モバイルでカード星と詳細星が重なっている");
+
+/* 詳細側を押しても一覧側に、一覧側を押しても詳細側に反映されること。 */
+await detailStar.click();
+check(await detailStar.getAttribute("aria-pressed") === "true", "詳細の星の aria-pressed が変わらない");
+check(await cardStar.getAttribute("aria-pressed") === "true", "詳細の星を押しても一覧側に反映されない");
+
+await cardStar.click();
+check(await cardStar.getAttribute("aria-pressed") === "false", "一覧の星の aria-pressed が変わらない");
+check(await detailStar.getAttribute("aria-pressed") === "false", "一覧の星を押しても詳細側に反映されない");
 
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
