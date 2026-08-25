@@ -73,25 +73,32 @@ function formatCourse(c) {
   );
 }
 
-export function handleText(text, data, siteOrigin) {
+// grade は "1"〜"6"、preset は PRESET_NAMES のいずれか。
+// handleText（自由入力）と postback（ボタン選択）の両方から呼ぶ共通ロジック。
+export function buildRecommendation(grade, preset, data, siteOrigin) {
   const siteLine = siteOrigin ? `\nラクハン: ${siteOrigin}/` : "";
   const courses = new Map(data.courses.map((c) => [c.id, c]));
   const presetTop = data.preset_top || {};
+  const ids = ((presetTop[grade] || presetTop["1"] || {})[preset] || []).slice(0, 5);
+  if (ids.length === 0) {
+    return `${GRADE_KANJI[grade] || grade}向けの「${preset}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
+  }
+  const lines = [`${GRADE_KANJI[grade] || grade}「${preset}」おすすめ TOP${ids.length}`];
+  ids.forEach((id, i) => {
+    const c = courses.get(id);
+    if (c) lines.push(`${i + 1}. ${formatCourse(c)}`);
+  });
+  lines.push(`\n※最終判断は必ずKOAN公式シラバスで確認してください。${siteLine}`);
+  return lines.join("\n");
+}
+
+export function handleText(text, data, siteOrigin) {
+  const siteLine = siteOrigin ? `\nラクハン: ${siteOrigin}/` : "";
   const grade = gradeFromText(text);
   const preset = presetFromText(text);
 
   if (preset) {
-    const ids = ((presetTop[grade] || presetTop["1"] || {})[preset] || []).slice(0, 5);
-    if (ids.length === 0) {
-      return `${GRADE_KANJI[grade] || grade}向けの「${preset}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
-    }
-    const lines = [`${GRADE_KANJI[grade] || grade}「${preset}」おすすめ TOP${ids.length}`];
-    ids.forEach((id, i) => {
-      const c = courses.get(id);
-      if (c) lines.push(`${i + 1}. ${formatCourse(c)}`);
-    });
-    lines.push(`\n※最終判断は必ずKOAN公式シラバスで確認してください。${siteLine}`);
-    return lines.join("\n");
+    return buildRecommendation(grade, preset, data, siteOrigin);
   }
 
   const q = text.trim();
@@ -112,6 +119,78 @@ export function handleText(text, data, siteOrigin) {
   matched.slice(0, 5).forEach((c, i) => lines.push(`${i + 1}. ${formatCourse(c)}`));
   lines.push(`\n※最終判断は必ずKOAN公式シラバスで確認してください。${siteLine}`);
   return lines.join("\n");
+}
+
+// ── 友だち追加直後の質問フロー ──────────────────────────────
+// サーバー側にセッションを持たない（KV等の追加インフラが要らない）ため、
+// 「今どの質問段階か」は LINE の postback data にそのまま載せて往復させる。
+// 例: "action=grade&grade=2" のように、次の質問に必要な情報を都度足していく。
+
+function qrPostback(label, data, displayText) {
+  return {
+    type: "action",
+    action: { type: "postback", label, data, displayText: displayText || label },
+  };
+}
+
+export function greetingMessage() {
+  return {
+    type: "text",
+    text:
+      "友だち追加ありがとうございます！\n" +
+      "阪大最強のAIコミュニティ「GUILD」による楽単情報bot「ラクハン」です。\n\n" +
+      "学年や条件があれば絞れるよ！答えたくなければ" +
+      "『とにかく楽単を知りたい』を選ぶだけでOK。",
+    quickReply: {
+      items: [
+        qrPostback("学年などを教える", "action=start_personal", "学年などを教えて絞り込みたい"),
+        qrPostback("とにかく楽単を知りたい", "action=quick_default", "とにかく楽単を知りたい"),
+      ],
+    },
+  };
+}
+
+export function gradeQuestionMessage() {
+  const items = [1, 2, 3, 4, 5, 6].map((g) =>
+    qrPostback(`${g}年`, `action=grade&grade=${g}`, `${g}年です`)
+  );
+  items.push(qrPostback("答えたくない", "action=quick_default", "答えたくない"));
+  return {
+    type: "text",
+    text: "今何年生？（答えたくなければ「答えたくない」でOK）",
+    quickReply: { items },
+  };
+}
+
+export function presetQuestionMessage(grade) {
+  const items = PRESET_NAMES.map((name) =>
+    qrPostback(name, `action=preset&grade=${grade}&preset=${encodeURIComponent(name)}`, name)
+  );
+  return {
+    type: "text",
+    text: "何を優先する？",
+    quickReply: { items },
+  };
+}
+
+export function handlePostback(data, evData, siteOrigin) {
+  const params = new URLSearchParams(evData);
+  const action = params.get("action");
+
+  if (action === "start_personal") return { message: gradeQuestionMessage() };
+  if (action === "grade") {
+    const grade = params.get("grade") || "1";
+    return { message: presetQuestionMessage(grade) };
+  }
+  if (action === "preset") {
+    const grade = params.get("grade") || "1";
+    const preset = params.get("preset") || "とにかく軽い";
+    return { text: buildRecommendation(grade, preset, data, siteOrigin) };
+  }
+  if (action === "quick_default") {
+    return { text: buildRecommendation("1", "とにかく軽い", data, siteOrigin) };
+  }
+  return { message: greetingMessage() };
 }
 
 function timingSafeEqual(a, b) {
@@ -135,17 +214,20 @@ async function verifySignature(secret, bodyText, signatureB64) {
   return timingSafeEqual(expected, signatureB64 || "");
 }
 
-async function replyToLine(env, replyToken, text) {
+// message は文字列（プレーンテキスト）か、LINE の message オブジェクト
+// （quickReply 付きなど）のどちらでも渡せる。
+async function replyToLine(env, replyToken, message) {
+  const msg =
+    typeof message === "string"
+      ? { type: "text", text: message.slice(0, 5000) }
+      : { ...message, text: message.text ? message.text.slice(0, 5000) : message.text };
   return fetch("https://api.line.me/v2/bot/message/reply", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`,
     },
-    body: JSON.stringify({
-      replyToken,
-      messages: [{ type: "text", text: text.slice(0, 5000) }],
-    }),
+    body: JSON.stringify({ replyToken, messages: [msg] }),
   });
 }
 
@@ -175,8 +257,31 @@ async function handleWebhook(request, env, ctx) {
     console.error("loadData error", e);
   }
 
+  const siteOrigin = new URL(request.url).origin;
   const tasks = [];
   for (const event of payload.events || []) {
+    if (event.type === "follow") {
+      tasks.push(replyToLine(env, event.replyToken, greetingMessage()));
+      continue;
+    }
+
+    if (event.type === "postback") {
+      let reply;
+      if (dataError) {
+        reply = DATA_UNAVAILABLE_MESSAGE;
+      } else {
+        try {
+          const result = handlePostback(data, event.postback?.data || "", siteOrigin);
+          reply = result.message || result.text;
+        } catch (e) {
+          reply = "エラーが発生しました。少し時間をおいて試してください。";
+          console.error("handlePostback error", e);
+        }
+      }
+      tasks.push(replyToLine(env, event.replyToken, reply));
+      continue;
+    }
+
     if (event.type !== "message") continue;
     if (!event.message || event.message.type !== "text") continue;
     let answer;
@@ -184,7 +289,7 @@ async function handleWebhook(request, env, ctx) {
       answer = DATA_UNAVAILABLE_MESSAGE;
     } else {
       try {
-        answer = handleText(event.message.text || "", data, new URL(request.url).origin);
+        answer = handleText(event.message.text || "", data, siteOrigin);
       } catch (e) {
         answer = "エラーが発生しました。少し時間をおいて試してください。";
         console.error("handleText error", e);
