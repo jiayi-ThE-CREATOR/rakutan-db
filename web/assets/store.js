@@ -19,12 +19,15 @@
   const K_FAV = "rk_favorites";
   const K_TT  = "rk_timetable";
   const TERMS = ["haru", "aki"];
+  /* プライベートモード時のメモリ内フォールバック。
+     localStorage が利用不可でも、その回のセッションは状態を保持できる。 */
+  const memFallback = new Map();
 
   const read = (k) => {
-    try { return localStorage.getItem(k); } catch (e) { return null; }
+    try { return localStorage.getItem(k); } catch (e) { return memFallback.get(k) || null; }
   };
   const write = (k, v) => {
-    try { localStorage.setItem(k, v); } catch (e) { /* 保存できないだけ */ }
+    try { localStorage.setItem(k, v); } catch (e) { memFallback.set(k, v); }
   };
   /* JSON.parse は壊れた値でも投げる。既定値へ落として先へ進む。
      「情報が無い」で止めない ―― 止めると画面が真っ白になる。 */
@@ -73,16 +76,16 @@
 
     getFavorites() {
       const ids = readObj(K_FAV).ids;
-      if (!ids || typeof ids !== "object") return [];
+      if (!ids || typeof ids !== "object" || Array.isArray(ids)) return [];
       return Object.keys(ids).sort((a, b) => (ids[b] || 0) - (ids[a] || 0));
     },
     isFavorite(id) {
       const ids = readObj(K_FAV).ids;
-      return !!(ids && ids[id]);
+      return !!(ids && typeof ids === "object" && !Array.isArray(ids) && ids[id]);
     },
     toggleFavorite(id) {
       const o = readObj(K_FAV);
-      const ids = (o.ids && typeof o.ids === "object") ? o.ids : {};
+      const ids = (o.ids && typeof o.ids === "object" && !Array.isArray(o.ids)) ? o.ids : {};
       const now = !ids[id];
       if (now) ids[id] = Date.now(); else delete ids[id];
       write(K_FAV, JSON.stringify({ v: 1, ids }));

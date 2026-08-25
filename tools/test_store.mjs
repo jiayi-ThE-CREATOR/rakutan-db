@@ -116,6 +116,31 @@ function load(initial, throws) {
   check(true, "書き込みが例外を外へ漏らさない");
 }
 
+// ── toggleFavorite は例外下でメモリ保持すべき ──
+{
+  const { s } = load({}, true);
+  // 1回目の toggle は true を返すべき（初回追加）
+  const r1 = s.toggleFavorite("222");
+  check(r1 === true, "プライベートモード下での1回目 toggle が true を返さない");
+  // その間に isFavorite で確認できるべき
+  const fav1 = s.isFavorite("222");
+  check(fav1 === true, "プライベートモード下で toggle 後 isFavorite が true を返さない");
+  // 2回目の toggle は false を返すべき（外す）
+  const r2 = s.toggleFavorite("222");
+  check(r2 === false, "プライベートモード下での2回目 toggle が false を返さない");
+  // その後 isFavorite で確認
+  const fav2 = s.isFavorite("222");
+  check(fav2 === false, "プライベートモード下で2回目 toggle 後 isFavorite が false を返さない");
+}
+
+// ── 配列形の ids は拒絶すべき ──
+{
+  const { s } = load({ rk_favorites: JSON.stringify({ v: 1, ids: ["111", "222"] }) });
+  check(s.getFavorites().length === 0, "配列形 ids から お気に入りが誤抽出される");
+  check(s.isFavorite("111") === false, "配列形 ids で isFavorite が true を返す");
+  check(s.isFavorite("222") === false, "配列形 ids で isFavorite が true を返す");
+}
+
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);
 process.exit(fails.length ? 1 : 0);
