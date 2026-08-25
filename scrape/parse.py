@@ -168,6 +168,12 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
         "title": L.get("開講科目名") or idx.get("title"),
         "title_en": L.get("開講科目名(英)"),
         "category": idx.get("shozoku"),
+        # KOAN公式シラバスへの直リンク（j_s_cd=…&j_cd=…）に使う所属コード。
+        # referW('2026','13','138531','ja_JP') の第2引数がこれで、科目ごとに違う
+        # （全学教育推進機構は '13' だが、他学部は別の値）。固定値 '13' を
+        # 全科目に使っていたため、他学部の科目でリンクが無効になっていた
+        # （2026-08-26 wangさん報告）。
+        "shozoku_cd": idx.get("shozoku_cd"),
         "term": L.get("開講区分(開講学期)") or idx.get("kaiko_kbn"),
         "day_period": dp,
         "campus": None,                      # KOANの詳細には無い。時間割コード等から後日補う
