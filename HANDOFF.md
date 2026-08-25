@@ -93,6 +93,14 @@ node tools/smoke.mjs http://localhost:8141
 - 教員名が無い科目では `<span>` ごと出さないこと。空文字の span を置くと
   CSS が「・・」を作る。「担当教員なし」と書くのも駄目 ―― 取れていないだけなのに
   「担当がいない」という事実に見える
+- **本番の自動デプロイを「無い」と誤診した。**`.github/workflows/` に deploy 系が
+  無いのを見て「手動デプロイが要る」と判断し、`npx wrangler deploy` を打った。
+  実際は Cloudflare の **Workers Builds（GitHub App）** が `main` を拾って
+  自動デプロイしていて、私の手動デプロイはその**51秒後**（＝無駄打ち。
+  `No updated asset files to upload` はその証拠）。
+  マージ直後に `curl` して古かったのは、**ビルド完了前に見に行っただけ**だった。
+  → **リポジトリ内の workflow だけ見て「自動デプロイは無い」と判断しないこと。**
+  確認は `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`。README 冒頭に追記した
 
 ---
 

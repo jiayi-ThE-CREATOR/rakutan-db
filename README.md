@@ -10,6 +10,21 @@
 **本番** ── https://rakutan-db.wjy20050815.workers.dev
 `main` にマージすると約80秒で自動反映されます。**公開日（8/26）まで学内には拡散しないでください**（`noindex` 中）。
 
+> **その自動反映をやっているのは `.github/workflows/` ではありません。**
+> Cloudflare の **Workers Builds（GitHub App `cloudflare-workers-and-pages`）** が
+> `main` への push を拾ってビルド＆デプロイしています。リポジトリ内の workflow は
+> `screenshots.yml` の1本だけなので、**deploy ワークフローを探しても見つからず
+> 「手動デプロイが要るのでは」と誤解しやすい**（2026-08-25 に実際に踏んで、
+> 不要な `npx wrangler deploy` を打った）。
+>
+> - 本番へ出るのは **`main` だけ**。feature ブランチを push してもビルドは走り
+>   GitHub のチェックは緑になるが、本番は変わらない
+> - **マージ直後に見に行っても古いまま。1〜2分待つ。** 反映の確認は目印を1つ grep する：
+>   `curl -s https://rakutan-db.wjy20050815.workers.dev/assets/app.js | grep -c <関数名>`
+> - 履歴は `npx wrangler deployments list`、ビルドログは GitHub のチェックから
+>   Cloudflare ダッシュボードへ飛べる
+> - `npx wrangler deploy` は**手元から緊急で出したいときだけ**。普段は打たなくていい
+
 
 阪大 全学教育科目の「重さ」を、シラバスの事実項目だけから4軸に分解して出す Web サービス。
 2026/08/07 の企画会議で決めた方針の実装第一歩。
