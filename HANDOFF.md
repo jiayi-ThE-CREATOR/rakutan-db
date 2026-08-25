@@ -243,6 +243,78 @@ node tools/test_feedback.mjs http://localhost:8000
 
 ---
 
+## 2026-08-26 ｜ LINEログインとマイページの設計（実装はまだ） ｜ wang
+
+### 1. 何が動く状態か
+
+**動くコードはまだ無い。設計が1枚決まった状態。**
+`docs/plans/2026-08-26-line-login-mypage-design.md`（未コミット）。
+
+決まったこと（再提案しないために要点だけ。理由は本文6章）：
+
+- **2フェーズに分ける。** Phase 1（9/2まで・開屏の問診／お気に入り／私の時間割／
+  マイページ）は**全部 localStorage で、バックエンドも LINE の設定変更も要らない**。
+  Phase 2（9/2以降・端末間の同期）だけが D1 とプライバシーポリシーを待つ
+- **ログイン方式は署名リンク＋リンクコード。LIFF も OAuth も採らない。**
+  LINE Login チャネルの新規申請は不要
+- **グリッドは2枚のまま**（左のレール＝空きコマ探し／マイページ＝自分の時間割）。
+  kuchikomi の時間割とも共有しない。共有するのは `osaka_u_settings` だけ
+
+**調査の途中で見つかったバグが1つ。設計とは独立に先へ出せる：**
+
+```bash
+python3 -c "
+import json,collections
+d=json.load(open('web/data/timetable.json'))
+only6=[c for c in d if (c.get('slots') or []) and all(s[1:]=='6' for s in c['slots'])]
+print('6限にしか出ない科目:', len(only6))"
+# → 29
+```
+
+`PERIODS` が `1..5` なので、**6限にしか開かれない29件が空きコマグリッドから
+永久に辿れない**（6限のコマを持つ科目は72件、うち29件が6限のみ。
+9学部にまたがる。博物館学・理科教育法Ⅲ/Ⅳ・実践血液学など）。
+`CLAUDE.md` が「入口は空きコマグリッド」と書いている、その入口から届かない。
+
+### 2. 何をしていないか
+
+- **実装は1行もしていない。** Phase 1 の plan は書いた
+  （`docs/plans/2026-08-26-line-login-mypage-plan-phase1.md`・8タスク64ステップ、
+  各タスクが「失敗するテストを書く → 落ちるのを確かめる → 実装 → 通す → commit」）。
+  **Phase 2 の plan はまだ**（D1 とプライバシーポリシーが要るので急がない）
+- **6限の修正もまだ。** `PERIODS` は3箇所（`server.py:81`／`app.js:3`／`app.js:762`）に
+  ばらばらに在り、1箇所漏らすと片方のモードでだけ壊れる。
+  修正には `tools/test_periods.mjs`（3箇所の一致を見る）を必ず添える
+- **`line.me/R/oaMessage/{basicId}/?{text}` が「友だちでない相手」に
+  どう振る舞うか未実測。** スマホのログインを1タップにできるかがこれ次第。
+  駄目なら「友だち追加 → コードを貼る」に落とす（設計4.4に代替を書いてある）
+- **公式アカウントの basic ID を誰も控えていない。** 設計4.7の表に、
+  人が用意する4つ（basic ID／`LINK_SIGNING_SECRET`／D1／プライバシーポリシー本文）をまとめた
+- **プライバシーポリシーが全サイトに1つも無い。** Phase 2 の最初の一歩はこれ
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git pull
+sed -n '1,60p' docs/plans/2026-08-26-line-login-mypage-design.md   # 設計を読む
+grep -n 'PERIODS' server.py web/assets/app.js                      # 6限バグの3箇所
+```
+
+### 4. 踏んだ罠
+
+- **この設計を書いている最中に main が3回進んだ**（`b1e3152` → `3e42d25` → `eaf4f9b`）。
+  読んだ時点のコードで設計すると、`web/kuchikomi.html` の存在も新ドメインも見落とす。
+  **設計を書く前と書き終えた後の2回 `git log` を見ること**
+- **`osaka_u_settings` は既に在り、`{grade, semester, faculty, department}` が入っている。**
+  問診の保存先を新設しかけたが、kuchikomi が先に作っていた。
+  新しい鍵を切る前に `grep -rn localStorage web/assets/` を打つ
+- **署名リンクをスマホで押すと LINE の内蔵ブラウザが開く。**
+  cookie はそこに置かれるが、その人のお気に入りは Safari の localStorage に在る。
+  「ログインしたのにデータが合流しない」。リンクコード（設計4.4）は
+  この一点のために向きを逆にしてある
+
+---
+
 ## 2026-08-25 ｜ 意見箱（サイトへのご意見・改善要望）を足した ｜ wang
 
 しゅんやさんの「意見箱的なのって一番下にあるイメージ」への実装。
