@@ -17,6 +17,194 @@
 
 ---
 
+## 2026-08-25 ｜ 全科目に担当教員名を出した ｜ wang
+
+`feat/wang-instructor`（`main` から分岐）。**`web/index.html` と `web/assets/app.css`
+は1行も触っていない**――松下さんの担当なので、既存クラス（`.meta`）を使い回している。
+触ったのは `web/assets/app.js` と `data/courses.sample.json` の2つだけ。
+
+データ側はもともと入っていた（`courses.json` の `instructor`、1,112件すべて充足、
+`build.py` の `KEEP` にも `worker/index.js`（LINE）にも既にある）。
+**出していなかったのは画面だけ**だったので、画面に出した。
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/wang-instructor
+python3 build.py
+python3 -m http.server 8141 --directory web
+node tools/smoke.mjs http://localhost:8141
+```
+
+- **一覧のカード**：曜限のとなりに担当教員（`.meta` の2項目め）。
+  これで「電磁気学通論 金1」が3つ並んでも、木村／横田／田之上 で行を選び分けられる。
+  「日本国憲法」4コマも同様。**教員名を出す理由そのもの**（README「教員名の扱い」）
+- **詳細**：`担当教員：…` の行で全員。複数担当は KOAN が最大16名・94文字持っている
+- 3名以上のカードは「先頭 ほかN名」に畳む。1〜2名はそのまま並べる
+
+| 確認 | 結果 |
+|---|---|
+| `tools/smoke.mjs` 静的8141 / API8142 | 両方コンソールエラーなし・319件 |
+| `tools/check_division_ui.mjs` 390px | 19項目すべて OK（「9 横はみ出しなし 0px」含む） |
+| python テスト8本（`test_layout` `test_web_split` `test_tokens` `test_division` `test_requirements` `test_scoring_gate` `test_reviews` `test_eligibility` `test_shell_inject`） | 全 OK |
+| 390px / 1280px の `document.body` 横はみ出し | 0px |
+
+### 2. 何をしていないか
+
+- **検索・並び替え・集計に `instructor` を足していない。足さないこと。**
+  README「教員名の扱い」の禁止事項①。`queryLocal()` の検索対象は今まで通り `title` だけ。
+  「この先生の他の科目」も作っていない。`app.js` の該当箇所にコメントで残してある
+- 禁止事項②（**口コミ本文に教員個人への言及を書かせない**投稿ガイドライン）は**未対応**。
+  投稿フォームの注意書きは松下さんの担当ファイル。今回の変更で教員名が画面に出た分、
+  「〇〇先生は〜」と書かれる確率は上がる。**次に投稿導線を触る人が入れてほしい**
+- 表記ゆれは直していない。KOAN の姓名区切りは全角空白と半角空白が混在している
+  （`堀 一成` と `中原　理沙`）。**事実として来た文字列をそのまま出している**。
+  正規化すると別人判定の材料を1つ捨てることになるので、直すなら別タスクで
+- `app.css` を触っていないので、教員名だけの色分け・省略記号（`…`）は無い。
+  長い行は折り返す（390px でカードの `.meta` が2行になる科目がある）
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git checkout feat/wang-instructor && python3 build.py
+python3 -m http.server 8141 --directory web &
+node tools/smoke.mjs http://localhost:8141
+# 3コマ並ぶ科目で効果を見る：検索窓に「電磁気学通論」「日本国憲法」
+```
+
+`main` へのマージは `web/assets/app.js` の `card()` / `detailHtml()` / `showDetail()`
+の3か所。松下さんの `feat/matsushita-kuchikomi-panel` とは**別の行**を足しているので、
+衝突しても両方残せば解決する。
+
+### 4. 踏んだ罠
+
+- **`.meta span+span::before{content:"・"}` と `white-space:nowrap` を同時に使うと行が突き抜ける。**
+  人名は姓と名の間が全角空白なので、素で出すと「モ／ハーチ　ゲルゲイ」のように
+  人名の途中で折り返す。氏名ごとに `nowrap` を掛けたら、今度は CSS が入れる「・」が
+  `nowrap` の内側に入り、**「・」は行頭に来られない文字（行頭禁則）なので直前でも改行できず**、
+  16名の科目で `scrollWidth 821px / clientWidth 346px` まではみ出した。
+  → 入れ物を `<bdi>`（`span+span` に当たらない）にして「・」は自分で書き、
+  さらに**「・」の後ろに `<wbr>`** を置いた。`nowrap` の外に改行機会を作らないと
+  Chromium は要素の境目でも折り返さない。ここは3回作り直している
+- **`data/courses.sample.json` に `instructor` が無かった。**
+  `data/courses.json` は `.gitignore` 対象なので、`git pull` しただけの人が見るのは
+  サンプルの方。そのままだと「実装したのに画面に出ない」に見える。
+  ダミー教員A〜を30件に足した（S003=2名、S019=4名、S026=6名で「ほかN名」も確認できる）
+- 教員名が無い科目では `<span>` ごと出さないこと。空文字の span を置くと
+  CSS が「・・」を作る。「担当教員なし」と書くのも駄目 ―― 取れていないだけなのに
+  「担当がいない」という事実に見える
+
+---
+
+## 2026-08-24 ｜ 学部を選ぶと卒業要件の区分でしぼれるようにした ｜ wang
+
+しゅんやさんの指摘②「学部学科を選べない」への答え。`feat/wang-division-filter`
+（`main` から分岐）。**`web/index.html` と `web/assets/app.css` は1行も触っていない**
+――松下さんの担当で、`feat/matsushita-kuchikomi-panel` が同じ場所を触っているため。
+セクションは `app.js` が作って rail に差し込み、CSS は既存クラスを使い回している。
+
+> このブランチは `main` から分岐しているので、松下さんの口コミ表示（`feat/matsushita-kuchikomi-panel`）
+> はまだ入っていない。マージ時に `app.js` の先頭（`state` の定義）と `queryLocal()` で
+> 小さく衝突する。**どちらも追記なので、両方残せば解決する。**
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/wang-division-filter
+python3 tools/fetch_requirements.py     # 要件表（約22秒。すでに JSON は入っている）
+python3 build.py
+python3 -m http.server 8140 --directory web
+node tools/check_division_ui.mjs http://localhost:8140 390
+```
+
+rail の「学年」の下に **「学部からさがす」** が出る。学部を選ぶと、
+自分の卒業要件にある区分が単位数バッジ付きで上に並び、要件外は折りたたまれる。
+区分は複数選択（OR）。
+
+| | |
+|---|---|
+| `e8810c2` | 要件表パーサ（`tools/requirements_parse.py`・テスト7件） |
+| `f26bec1` | CELAS 11学部の取り込み（`tools/fetch_requirements.py`） |
+| `326f936` | 科目→区分の推定（`tools/division.py`・テスト8件） |
+| `9452adc` | `build.py` に区分と要件表を通す |
+| `a667b99` | `server.py` の区分絞り込み |
+| `addf6ae` | 画面（`app.js`）＋受け入れ確認19項目 |
+| `6320bf4` | 「その他」の調査ツール（`tools/division_survey.py`） |
+
+テストは `test_requirements` `test_division` `test_layout` `test_web_split`
+`test_tokens` `test_scoring_gate` が OK。
+受け入れ確認は **静的390px / 静的1280px / API 390px の3通りで19項目すべて一致**。
+
+### 2. 何をしていないか
+
+- **マルチリンガル教育科目（総合英語・実践英語・第2外国語）が1件も無い。**
+  いまの1,112件に含まれていない。だから `第1外国語` `第2外国語` `選択外国語` の
+  チップは**必ず0件**で押せない。**ここが政岡さんへの最優先の依頼。**
+  区分の枠だけ先に用意してあるので、データが入れば画面は自動で埋まる
+- **区分は推定であって取得ではない。** 1,112件中1,063件を科目名の接頭辞
+  （【人文】等）とナンバリングから推定し、49件は `null`（画面では「その他」）。
+  `division_source` に `title` / `numbering` / `scrape` が入っている。
+  政岡さんの取得フィールド（`division_scraped`）が来れば**自動で優先される**ので、
+  推定規則を消す作業は要らない
+- **「その他」49件の内訳は `python3 tools/division_survey.py` で出る。**
+  35件が `1V`（キャリアデザイン系）、残りが `1A/1D/1E/1P/1B`。
+  高度教養教育科目・グローバル理解のどちらかだと思われるが**確かめていない**
+- **学科の段は作っていない。** CELAS を実測したら、同じ学部の中では
+  必要な区分の集合が学科間で同じで、違うのは数字だけだった
+  （理学部の専門基礎 25/25/25/24）。だから数字は `24〜25単位` と幅で出している
+- **単位の合計・不足数の計算はしていない。** 「あと何単位」を出すには
+  履修済みの入力が要り、「ログイン不要」と衝突する。要件表は読み物として出すだけ
+- **アドヴァンスト・セミナーと高度教養教育科目は `＊`（便覧参照）**なので、
+  バッジは「便覧で確認」と出る。数字は出せない（CELAS が出していない）
+- **ブラウザのアドレス欄に絞り込みは出ない。** いまの絞り込み（学期・学年・条件・
+  コマ）がどれも出していないので、ここだけ変えると挙動が揃わないため
+- PR は出していない
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git fetch origin && git checkout feat/wang-division-filter
+PYTHONIOENCODING=utf-8 python3 tools/test_division.py
+python3 -m http.server 8140 --directory web &
+node tools/check_division_ui.mjs http://localhost:8140 390
+```
+
+**政岡さんへ：** 取れたら科目に `division_scraped` を入れてください。
+値は14個のうちのどれか（`tools/requirements_parse.py` の `DIVISIONS`）。
+入れば `tools/division.py` が最優先で拾い、推定を上書きします。
+優先順位は ① マルチリンガル教育科目そのもの ② `division_survey.py` の49件。
+
+### 4. 踏んだ罠
+
+- **CELAS の要件表は `rowspan` の結合が「合計単位数」を意味する。**
+  `人文科学系/社会科学系/自然科学系/総合型` の4行が1セルに結合されていて、
+  値 `6` は「人文が6単位」ではなく「**4区分あわせて6単位**」。
+  工学部・医学部はアドヴァンスト・セミナーまで巻き込んだ5行結合。
+  **設計中に LLM へこの HTML を読ませたら、外国語学部でここを外した**
+  （「人文6・社会/自然/総合は表記なし」と出た）。卒業要件の数字を外すのは
+  単位事故なので、`tools/requirements_parse.py` を通すこと。**目視転記も禁止**
+- **ナンバリング `1V` を一律で「健康・スポーツ教育科目」に倒してはいけない。**
+  接頭辞なし179件のうち35件が `キャリアデザインと公共哲学`
+  `オン・キャンパス・インターンシップ` `アカデミック・リテラシー入門` で、
+  倒すとこの35件が卒業要件の計算に混ざる。スポーツ・健康系の語を含むものだけ
+  採り、残りは `null` にした。`METHOD_RULES` の「未分類が満点に化けていた」
+  （2026-08-20）と同じクラスの話
+- **`server.py` は `build.py` を通さず `data/courses.json` を直接読む。**
+  だから `build.py` に区分を足しただけでは **API 側は全件が「その他」になる**。
+  起動時に `COURSES` へ焼く必要がある（`server.py` 57行目付近）。
+  実装中にこれで一度 0 件になった
+- **python.org 版 Python の `urllib` は証明書を持たず SSL 検証に失敗する。**
+  `curl` は通るのに Python だけ落ちる。`requests` を使えばよい
+  （`scrape/koan.py` が既に使っている。新規依存ではない）
+- **`server.py` を起動しっぱなしで API を叩くと、古いコードの応答が返る。**
+  検証前に `pkill -f server.py` すること。これで一度「実装が効いていない」と
+  誤診した
+- 受け入れ確認で**件数を絶対値で書かないこと**。画面の既定は `year=1 / sem=aki`
+  なので、API を `year=all` で叩いた数（76件）とは違う（画面では8件）。
+  チップに出ている件数と突き合わせる形にしてある
+
+---
+
 ## 2026-08-24（追記）｜ main を取り込んで PR #25 の衝突を解いた ｜ wang
 
 ### 1. 何が動く状態か

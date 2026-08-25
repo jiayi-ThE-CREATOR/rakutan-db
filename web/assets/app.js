@@ -17,11 +17,15 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
    ⚠️ 春夏の履修登録期（3〜4月）には "haru" へ変えること。
    値が日本語でないのは、クエリ文字列で文字化けするため。 */
 const state = { q:"", year:"1", sem:"aki", day:"", period:"", cond:new Set(), sort:"fit",
-                preset:"とにかく軽い", weights:null };
+                preset:"とにかく軽い", weights:null,
+                /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
+                   学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
+                faculty:"", division:new Set() };
 const SEMS = [["aki","秋・冬学期"],["haru","春・夏学期"],["all","すべて"]];
 const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
                ["5","5年"],["6","6年"],["all","すべて"]];
 let META = null;
+let REQ = null;   // 卒業要件表（学部→区分→単位数）。data/requirements.json
 
 /* 口コミが採点に効き始める人数。reviews.py の MIN_FOR_SCORING が正本で、
    build.py が courses.built.json の _meta に焼き、API は /api/meta で返す。
@@ -43,6 +47,8 @@ function qs(){
   if (state.period) p.set("period", state.period);
   p.set("sort", state.sort);
   state.cond.forEach(c => p.append("cond", c));
+  if (state.faculty) p.set("faculty", state.faculty);
+  state.division.forEach(d => p.append("division", d));
   if (state.weights) for (const [k,v] of Object.entries(state.weights)) p.set("w_"+k, v);
   else if (state.preset) p.set("preset", state.preset);
   return p;
@@ -93,6 +99,133 @@ function buildYears(){
   $("#years").querySelectorAll("button").forEach(b => b.onclick = () => {
     state.year = b.dataset.y;
     buildYears(); load();
+  });
+}
+
+
+/* ── 学部から区分でしぼる ─────────────────
+   セクションごと app.js が作って rail に差し込む。index.html には1行も足さない
+   ―― あちらは松下さん担当で、同時に触ると必ず衝突する。
+   CSS も既存の .chips / .chip / .toggle / .railNote を使い回す。
+
+   学部は絞り込みに効かない。効くのは区分だけ。
+   学部が決めるのは「どの区分が自分の卒業要件にあるか」の並べ替えと単位数の表示。
+   区分の顔ぶれは全11学部で同じ14個なので、学部で出し分けるものは無い
+   （設計 1章① を読むこと）。 */
+
+const DIV_OTHER = "other";   // 「まだ判定していない」科目の置き場。データには書かない
+
+function divisionsOf(){ return (REQ && REQ.divisions) || []; }
+function facultyOf(key){ return ((REQ && REQ.faculties) || []).find(f => f.key === key); }
+
+/* 要件表の生文字列（"2" / "－" / "＊" / "＊6"）を画面の言葉にする。
+   学科で数字がばらつく学部（理学部の専門基礎 25/25/25/24）は幅で出す。
+   要件外（－ と空）は null を返し、呼び出し側が折りたたみへ送る。 */
+function unitBadge(values, groupSize){
+  const uniq = [...new Set(values)];
+  if (uniq.every(v => v === "－" || v === "-" || v === "")) return null;
+  const nums = uniq.map(v => (v.match(/\d+/) || [])[0]).filter(Boolean).map(Number);
+  if (!nums.length) return "便覧で確認";
+  const lo = Math.min(...nums), hi = Math.max(...nums);
+  const n = lo === hi ? `${lo}単位` : `${lo}〜${hi}単位`;
+  return (groupSize > 1 ? "計" : "") + n;
+}
+
+/* 学部を選んでいないときは全区分を「必要」の側に並べる（要件の情報が無いので
+   優劣を付けられない）。選んでいれば、要件表のグループから
+   区分ごとのバッジと、要件外かどうかを引く。 */
+function divisionPlan(){
+  const all = divisionsOf();
+  const fac = facultyOf(state.faculty);
+  if (!fac) return { need: all.map(d => ({ ...d, badge:null, title:"" })), off: [], notes: [] };
+
+  const badge = {}, title = {}, off = new Set(all.map(d => d.key));
+  for (const r of fac.requirements){
+    const b = unitBadge(r.values, r.divisions.length);
+    if (b === null) continue;                // 要件外のまま
+    const labels = r.divisions.map(k => (all.find(d => d.key === k) || {}).label || k);
+    for (const k of r.divisions){
+      off.delete(k);
+      badge[k] = b;
+      title[k] = r.divisions.length > 1
+        ? `${labels.join("・")} の合計で ${b.replace(/^計/, "")}`
+        : "";
+    }
+  }
+  return {
+    need: all.filter(d => !off.has(d.key))
+             .map(d => ({ ...d, badge:badge[d.key], title:title[d.key] })),
+    off:  all.filter(d =>  off.has(d.key)).map(d => ({ ...d, badge:null, title:"" })),
+    notes: fac.notes || [],
+  };
+}
+
+function divisionChip(d, facets){
+  const n = facets?.[d.key] ?? 0;
+  const on = state.division.has(d.key);
+  // <small> はブラウザ既定で一段小さく出る。新しい CSS クラスを増やさないため
+  // （app.css は松下さん担当）、素のタグで済ませている。
+  const badge = d.badge ? ` <small>${esc(d.badge)}</small>` : "";
+  // 0件は押せない。押せると「壊れている」と読まれる。理由を title で添える。
+  const dis = n === 0 ? ' disabled title="この区分の科目はまだ取れていません"'
+                      : (d.title ? ` title="${esc(d.title)}"` : "");
+  return `<button class="chip${on ? " on" : ""}"${dis} data-d="${esc(d.key)}">`
+       + `${esc(d.label)}${badge}<span class="n">${n}</span></button>`;
+}
+
+function buildFaculty(facets){
+  if (!REQ || !divisionsOf().length) return;   // 要件表が無い環境では出さない
+
+  let sec = $("#facSec");
+  if (!sec){
+    sec = document.createElement("section");
+    sec.id = "facSec";
+    sec.innerHTML =
+      `<h2>学部からさがす <span class="sub">選ぶと卒業要件にある区分が上に出ます</span></h2>
+       <select id="facSel"></select>
+       <div class="chips" id="divs"></div>
+       <button class="toggle" id="divTog" hidden></button>
+       <div class="chips" id="divsOff" hidden></div>
+       <p class="railNote" id="facNotes"></p>`;
+    const years = $("#years").closest("section");
+    years.parentNode.insertBefore(sec, years.nextSibling);
+
+    $("#facSel").innerHTML = `<option value="">学部を選ぶ</option>`
+      + ((REQ.faculties || []).map(f =>
+          `<option value="${esc(f.key)}">${esc(f.label)}</option>`).join(""));
+    $("#facSel").onchange = e => { state.faculty = e.target.value; load(); };
+    $("#divTog").onclick = () => {
+      const box = $("#divsOff");
+      box.hidden = !box.hidden;
+      $("#divTog").textContent = box.hidden
+        ? `卒業要件外の区分も表示する (${box.dataset.n})`
+        : "卒業要件外の区分を隠す";
+    };
+  }
+  $("#facSel").value = state.faculty;
+
+  const plan = divisionPlan();
+  const other = { key:DIV_OTHER, label:"その他", badge:null,
+                  title:"区分がまだ分かっていない科目" };
+  $("#divs").innerHTML = plan.need.concat([other])
+    .map(d => divisionChip(d, facets)).join("");
+
+  const tog = $("#divTog"), box = $("#divsOff");
+  tog.hidden = plan.off.length === 0;
+  box.dataset.n = plan.off.length;
+  if (plan.off.length){
+    box.innerHTML = plan.off.map(d => divisionChip(d, facets)).join("");
+    if (box.hidden) tog.textContent = `卒業要件外の区分も表示する (${plan.off.length})`;
+  } else {
+    box.innerHTML = ""; box.hidden = true;
+  }
+
+  $("#facNotes").innerHTML = plan.notes.map(t => esc(t)).join("<br>");
+
+  sec.querySelectorAll(".chips button").forEach(b => b.onclick = () => {
+    const k = b.dataset.d;
+    state.division.has(k) ? state.division.delete(k) : state.division.add(k);
+    load();
   });
 }
 
@@ -157,6 +290,38 @@ function axRow(key, a, label){
       ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
 }
 
+/* ── 担当教員 ─────────────────────────────
+ * 「基礎解析学I」は10コマ以上あり、曜限も担当教員も違う。履修登録で選ぶのは
+ * 科目ではなくコマなので、教員名が無いと学生は自分が登録すべき行を特定できない。
+ * だから一覧のカードにも出す（README「教員名の扱い」の載せる理由そのもの）。
+ *
+ * ただし同じ章が3つ禁じている。ここで守っているのは次の2つ：
+ *   ・教員を軸にした集計・並び替え・検索を作らない
+ *     → queryLocal() の検索は今まで通り title だけ。instructor は足さないこと
+ *   ・スコアの見出しの隣に置かない
+ *     → 曜限・キャンパス・区分と同じ .meta（12px・灰）の中の1項目として出す。
+ *       相性の数字（.fit）とは別ブロック
+ *
+ * KOAN は複数担当をカンマ区切りで持つ（最大16名・94文字）。全部そのまま出すと
+ * カードの見出しが名前で埋まるので、一覧では「先頭＋ほかN名」、
+ * 全員は詳細（detailHtml）に出す。 */
+const instructors = c =>
+  String(c.instructor || "").split(",").map(s => s.trim()).filter(Boolean);
+
+/* 一覧・見出し用の短い形。1〜2名はそのまま、3名以上は先頭＋ほかN名。
+   名前が無いときは空文字を返し、呼び出し側で項目ごと出さない
+   （「担当教員なし」と書くと、取れていないだけなのに事実に見える）。 */
+function insLabel(c){
+  const n = instructors(c);
+  if (!n.length) return "";
+  if (n.length <= 2) return n.join("・");
+  return `${n[0]} ほか${n.length - 1}名`;
+}
+
+/* .meta の1項目。区切りの「・」は app.css の span+span::before が入れるので、
+   名前が無い科目では span ごと出さないと「・・」が残る。 */
+const insMetaSpan = c => insLabel(c) ? `<span>${esc(insLabel(c))}</span>` : "";
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
@@ -165,7 +330,7 @@ function card(c){
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title">${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
         ${c.reviews?.n ? `<span class="rvb">口コミ ${c.reviews.n}件</span>` : ""}
       </div>
       <div class="fit"><b>${m.fit ?? "—"}</b><small>相性</small></div>
@@ -221,7 +386,21 @@ function reviewHtml(c){
 
 function detailHtml(c){
   const r = c.rakutan;
-  return `${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
+  const names = instructors(c);   // showDetail の ins（#inspector）とは別物
+  /* 全員をここに出す。見出しは「ほかN名」で畳んであるので、
+     複数担当のコマは詳細を開かないと誰が出るのか分からない。
+     氏名ごとに nowrap を掛けるのは、姓と名の間が全角空白で、
+     そこで折り返されると「モ／ハーチ ゲルゲイ」のように人名が割れるため。
+
+     入れ物が <span> でないのは、app.css の .meta span+span::before が
+     「・」を自動で足してしまい、その「・」が nowrap の内側に入るから。
+     「・」は行頭に来られない文字（行頭禁則）なので、直前でも改行できず、
+     16名の科目で一行が右へ突き抜ける（実測 2026-08-25）。
+     区切りを自分で書ける <bdi> にしたうえで、「・」の後ろに <wbr> を置く
+     （nowrap の外に改行機会を作らないと、Chromium は要素の境目でも折り返さない）。 */
+  const insHtml = names.map(n => `<bdi style="white-space:nowrap">${esc(n)}</bdi>`).join("・<wbr>");
+  return `${names.length ? `<div class="meta">担当教員：${insHtml}</div>` : ""}
+      ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
       <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
         ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
       </div>
@@ -301,6 +480,18 @@ function queryLocal(){
     base.push({ ...c, match: matchLocal(c.rakutan, w) });
   }
 
+  // 区分チップの件数は区分フィルタを掛ける「前」で数える（server.py と同じ理由）。
+  const divisionFacets = {};
+  for (const e of base){
+    const k = e.division || "other";
+    divisionFacets[k] = (divisionFacets[k] || 0) + 1;
+  }
+  if (state.division.size){
+    for (let i = base.length - 1; i >= 0; i--){
+      if (!state.division.has(base[i].division || "other")) base.splice(i, 1);
+    }
+  }
+
   const slots = {};
   for (const d of META.days){ slots[d] = {}; for (const p of META.periods) slots[d][p] = 0; }
   for (const e of base){
@@ -325,7 +516,8 @@ function queryLocal(){
     results.sort((a,b) => (nul(a.match.fit) - nul(b.match.fit))
                        || ((b.match.fit||0) - (a.match.fit||0)));
 
-  return { count: results.length, results, slots, facets, weights: w };
+  return { count: results.length, results, slots, facets, weights: w,
+           division_facets: divisionFacets };
 }
 
 async function boot(){
@@ -334,6 +526,7 @@ async function boot(){
     if ((await fetch("/api/health")).ok){
       DATA.mode = "api";
       META = await (await fetch("/api/meta")).json();
+      REQ = await (await fetch("/api/requirements")).json();
       CAN_POST = true;
       return;
     }
@@ -342,6 +535,9 @@ async function boot(){
   DATA.mode = "static";
   const d = await (await fetch("data/courses.built.json")).json();
   DATA.courses = d.courses;
+  // 要件表が無くても他は全部動く。学部のセクションが出ないだけ。
+  try { REQ = await (await fetch("data/requirements.json")).json(); }
+  catch (e) { REQ = null; }
   const m = d._meta;
   META = {
     categories: [...new Set(d.courses.map(c => c.category))].sort(),
@@ -388,7 +584,7 @@ function showDetail(c, article){
     const ins = $("#inspector");
     ins.innerHTML = `<div class="inspectorHead">
         <h3>${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(dp)}</span><span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
       </div><div class="detail">${detailHtml(c)}</div>`;
     ins.scrollTop = 0;
     lastOpenedCourseId = c.id;
@@ -554,7 +750,7 @@ async function load(){
     ? await (await fetch("/api/courses?" + qs())).json()
     : queryLocal();
   courses = d.results;
-  buildGrid(d.slots); buildConds(d.facets);
+  buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
   $("#count").textContent = d.count;
   if (d.count){
     renderPage(1);

@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, urlparse
 
 import reviews as reviews_mod
 import score as scoring
+from tools.division import divide
 # 学期の畳み方は build.py の term_group() が正本。
 # server.py は生データ（data/courses.json）を読むので term_group が焼かれていない。
 # ここで同じ判定をもう一度書くと、必ず片方だけ古くなる。
@@ -55,6 +56,12 @@ if IS_SAMPLE:
     print("=" * 62)
 
 COURSES: list[dict] = _raw["courses"]
+
+# 科目区分を起動時に1回だけ焼く。build.py（静的配信）とまったく同じ関数を使う
+# ―― ここを別実装にすると、API モードと静的モードで違う区分が出る。
+# scoring.enrich() は dict(course) のコピーなので、ここで入れれば API まで届く。
+for _c in COURSES:
+    _c["division"], _c["division_source"] = divide(_c)
 DATA_META: dict = dict(_raw.get("_meta") or {})
 DATA_META["is_sample"] = IS_SAMPLE
 DATA_META.setdefault(
@@ -94,6 +101,19 @@ CONDITIONS = {
 }
 
 
+_REQUIREMENTS: dict | None = None
+
+
+def requirements_doc() -> dict:
+    """卒業要件表。無ければ空で返す（学部の絞り込みが出ないだけで、他は動く）。"""
+    global _REQUIREMENTS
+    if _REQUIREMENTS is None:
+        f = ROOT / "data" / "faculty_requirements.json"
+        _REQUIREMENTS = (json.loads(f.read_text(encoding="utf-8"))
+                         if f.exists() else {"divisions": [], "faculties": []})
+    return _REQUIREMENTS
+
+
 def search(params: dict) -> dict:
     """絞り込み・相性・空きコマの件数をまとめて返す。
 
@@ -119,6 +139,8 @@ def search(params: dict) -> dict:
     day, period = get("day"), get("period")
     min_conf = get("min_confidence")
     conds = [c for c in (params.get("cond") or []) if c in CONDITIONS]
+    # 区分（複数可・OR）。data には無い "other" は「まだ判定していない」科目のこと。
+    divisions = [d for d in (params.get("division") or []) if d]
     weights = scoring.parse_weights(params)
 
     base = []
@@ -143,6 +165,17 @@ def search(params: dict) -> dict:
             continue
         e["match"] = scoring.match(e["rakutan"], weights)
         base.append(e)
+
+    # 区分チップの件数は、区分フィルタを掛ける「前」の集合で数える。
+    # そうしないと1つ選んだ瞬間に他が全部0件になり、次の一手が打てない
+    # ―― 空きコマグリッドを曜限フィルタ前で数えているのと同じ理由。
+    division_facets: dict[str, int] = {}
+    for e in base:
+        k = e.get("division") or "other"
+        division_facets[k] = division_facets.get(k, 0) + 1
+
+    if divisions:
+        base = [e for e in base if (e.get("division") or "other") in divisions]
 
     # 空きコマグリッドと条件チップの件数（曜限フィルタは掛けない）
     slots = {d: {p: 0 for p in PERIODS} for d in DAYS}
@@ -189,6 +222,7 @@ def search(params: dict) -> dict:
 
     return {"count": total, "returned": len(results), "results": results,
             "year": year, "sem": sem, "slots": slots, "facets": facets,
+            "division_facets": division_facets,
             "weights": (results or base or [{}])[0].get("match", {}).get("weights")
                        if (results or base) else scoring.DEFAULT_WEIGHTS}
 
@@ -220,6 +254,9 @@ def openapi() -> dict:
                         {"name": "term", "in": "query", "schema": {"type": "string"}},
                         {"name": "day", "in": "query", "schema": {"type": "string", "enum": DAYS}},
                         {"name": "period", "in": "query", "schema": {"type": "string", "enum": PERIODS}},
+                        {"name": "division", "in": "query",
+                         "schema": {"type": "array", "items": {"type": "string"}},
+                         "description": "科目区分。複数指定で OR。other は未判定"},
                         {"name": "min_confidence", "in": "query", "schema": {"type": "string", "enum": ["high", "mid", "low"]}},
                         {"name": "sort", "in": "query", "schema": {"type": "string", "enum": ["rakutan", "confidence", "title"]}},
                     ],
@@ -409,11 +446,15 @@ class Handler(BaseHTTPRequestHandler):
                 "days": DAYS, "periods": PERIODS,
                 "weights": scoring.WEIGHTS,
                 "conditions": list(CONDITIONS),
+                "divisions": requirements_doc().get("divisions", []),
                 "presets": scoring.PRESETS,
                 "min_for_scoring": reviews_mod.MIN_FOR_SCORING,
                 "axis_labels": scoring.AXIS_LABEL,
                 "disclaimer": DATA_META["note"],
             })
+
+        if path == "/api/requirements":
+            return self._send_json(requirements_doc())
 
         if path == "/api/reviews":
             f = ROOT / "data" / "reviews.json"
