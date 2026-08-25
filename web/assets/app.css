@@ -31,7 +31,7 @@ h1 .mark{display:block;height:38px;width:auto;align-self:center;
 /* ロゴタイプ。字間 .11em はブランド規定 */
 h1 .wm{font-size:40px;font-weight:800;color:var(--on-dark);letter-spacing:.11em;
   line-height:1;padding-right:.11em;white-space:nowrap}
-h1 small{font-size:22px;font-weight:400;letter-spacing:.02em;
+h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   color:var(--on-dark-weak);margin-left:18px;align-self:center}
 
 /* ── ロックアップと GUILD の2行 ─────────
@@ -43,8 +43,8 @@ h1 small{font-size:22px;font-weight:400;letter-spacing:.02em;
   text-decoration:none;flex-wrap:wrap}
 .by{display:flex;flex-direction:column;padding-left:var(--sp-4);
   border-left:1px solid var(--on-dark-line);line-height:1.35}
-.byMain{font-size:calc(var(--fs-xs) * 2);font-weight:600;color:var(--on-dark-strong)}
-.bySub{font-size:20px;font-weight:400;letter-spacing:.14em;
+.byMain{font-size:var(--fs-hdr-sub);font-weight:600;color:var(--on-dark-strong)}
+.bySub{font-size:calc(var(--fs-hdr-sub) - 2px);font-weight:400;letter-spacing:.14em;
   color:var(--on-dark-faint);text-transform:uppercase}
 
 /* ── ナビ ─────────────────────────────
@@ -53,7 +53,7 @@ h1 small{font-size:22px;font-weight:400;letter-spacing:.02em;
  */
 .nav{display:flex;gap:var(--sp-4);align-items:center}
 .nav a{color:var(--on-dark-mid);text-decoration:none;
-  font-size:var(--fs-sm);padding:var(--sp-1) 0;
+  font-size:var(--fs-hdr-sub);padding:var(--sp-1) 0;
   border-bottom:2px solid transparent;
   transition:color var(--dur) var(--ease-out),
              border-color var(--dur) var(--ease-out)}
@@ -63,16 +63,16 @@ h1 small{font-size:22px;font-weight:400;letter-spacing:.02em;
 
 /* 狭い画面ではロックアップとナビを2段にする。 */
 @media (max-width:639px){
+  /* ロゴ以外の文字（添え書き・GUILD・ナビ）は --fs-hdr-sub で一括。
+     狭い画面ぶんは tokens.css 側で落としている。 */
   .hd{flex-direction:column;align-items:flex-start;gap:var(--sp-2)}
-  .nav{gap:var(--sp-3);font-size:var(--fs-xs);flex-wrap:wrap}
+  .nav{gap:var(--sp-3);flex-wrap:wrap}
   /* ロゴは 2 倍にしたが、狭い画面でそのまま出すとヘッダだけで
      1 画面の半分を食い、添え書きも途中で折れる。ここだけ縮める。 */
   h1 .mark{height:26px}
   h1 .wm{font-size:28px}
-  h1 small{font-size:14px;margin-left:12px}
+  h1 small{margin-left:12px}
   .lockup{gap:var(--sp-4)}
-  .byMain{font-size:var(--fs-sm)}
-  .bySub{font-size:12px}
 }
 
 input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-md);
