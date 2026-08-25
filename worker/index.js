@@ -53,6 +53,11 @@ function presetFromText(text) {
   return PRESET_NAMES.find((name) => text.includes(name)) || null;
 }
 
+// web/assets/app.js の koanUrl() と同じ形式（セッション不要で直接開ける）。
+function koanUrl(id) {
+  return `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+}
+
 function formatCourse(c) {
   const r = c.rakutan || {};
   const overall = r.overall;
@@ -60,10 +65,16 @@ function formatCourse(c) {
   const band = r.band || "―";
   const day = c.day_period || "―";
   const instr = c.instructor || "―";
-  return `${c.title}（${day}／${instr}）\n ${band}・${overallS}`;
+  return (
+    `${c.title}（${day}／${instr}）\n` +
+    ` 授業コード: ${c.id}\n` +
+    ` ${band}・${overallS}\n` +
+    ` KOAN: ${koanUrl(c.id)}`
+  );
 }
 
-export function handleText(text, data) {
+export function handleText(text, data, siteOrigin) {
+  const siteLine = siteOrigin ? `\nラクハン: ${siteOrigin}/` : "";
   const courses = new Map(data.courses.map((c) => [c.id, c]));
   const presetTop = data.preset_top || {};
   const grade = gradeFromText(text);
@@ -79,7 +90,7 @@ export function handleText(text, data) {
       const c = courses.get(id);
       if (c) lines.push(`${i + 1}. ${formatCourse(c)}`);
     });
-    lines.push("\n※最終判断は必ずKOAN公式シラバスで確認してください。");
+    lines.push(`\n※最終判断は必ずKOAN公式シラバスで確認してください。${siteLine}`);
     return lines.join("\n");
   }
 
@@ -99,7 +110,7 @@ export function handleText(text, data) {
     .sort((a, b) => ((b.rakutan || {}).overall ?? -1) - ((a.rakutan || {}).overall ?? -1));
   const lines = [`「${q}」の検索結果（上位${Math.min(5, matched.length)}件）`];
   matched.slice(0, 5).forEach((c, i) => lines.push(`${i + 1}. ${formatCourse(c)}`));
-  lines.push("\n※最終判断は必ずKOAN公式シラバスで確認してください。");
+  lines.push(`\n※最終判断は必ずKOAN公式シラバスで確認してください。${siteLine}`);
   return lines.join("\n");
 }
 
@@ -173,7 +184,7 @@ async function handleWebhook(request, env, ctx) {
       answer = DATA_UNAVAILABLE_MESSAGE;
     } else {
       try {
-        answer = handleText(event.message.text || "", data);
+        answer = handleText(event.message.text || "", data, new URL(request.url).origin);
       } catch (e) {
         answer = "エラーが発生しました。少し時間をおいて試してください。";
         console.error("handleText error", e);
