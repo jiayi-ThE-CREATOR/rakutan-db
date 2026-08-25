@@ -209,7 +209,26 @@ def search(params: dict) -> dict:
     elif sort == "confidence":
         order = {"high": 0, "mid": 1, "low": 2}
         results.sort(key=lambda r: order[r["rakutan"]["confidence"]["level"]])
+    # 口コミの件数。web/assets/app.js の queryLocal() と同じ順序にすること。
+    # 同じ件数のときは相性順に落とす ―― 件数だけだと同点が大量に出る
+    # （「口コミあり」でも1件の科目が一番多い）。
+    elif sort in ("reviews_many", "reviews_few"):
+        sign = -1 if sort == "reviews_many" else 1
+        results.sort(key=lambda r: (sign * ((r.get("reviews") or {}).get("n") or 0),
+                                    r["match"]["fit"] is None,
+                                    -(r["match"]["fit"] or 0)))
     elif sort == "title":
+        # ★ここだけ app.js と並びが一致しない。
+        # Python の既定はコードポイント順で、標準ライブラリに日本語の
+        # 照合順序が無い（このリポジトリは依存ゼロ）。ブラウザ側は
+        # localeCompare("ja") ＝ ICU なので、
+        #   ・ラテン文字 → かな → 漢字 の順になる
+        #   ・先頭の【人文】【総合】等は重みが低く、実質「その後ろ」で並ぶ
+        # という、人が期待する並びになる。
+        # **本番は静的配信なので、利用者に見えるのは app.js のほう。**
+        # ここを合わせるために app.js をコードポイント順へ落とすと、
+        # 本番の並びを悪くして開発用サーバに揃えることになるので採らない。
+        # 差分は tools/test_sort.mjs が両モードで別々に確かめている。
         results.sort(key=lambda r: r["title"])
 
     # ページング。既定は「全件」のまま変えない。
@@ -270,7 +289,7 @@ def openapi() -> dict:
                          "schema": {"type": "array", "items": {"type": "string"}},
                          "description": "科目区分。複数指定で OR。other は未判定"},
                         {"name": "min_confidence", "in": "query", "schema": {"type": "string", "enum": ["high", "mid", "low"]}},
-                        {"name": "sort", "in": "query", "schema": {"type": "string", "enum": ["rakutan", "confidence", "title"]}},
+                        {"name": "sort", "in": "query", "schema": {"type": "string", "enum": ["fit", "rakutan", "confidence", "reviews_many", "reviews_few", "title"]}},
                     ],
                     "responses": {"200": {"description": "OK"}},
                 }
