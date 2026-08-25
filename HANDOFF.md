@@ -17,6 +17,69 @@
 
 ---
 
+## 2026-08-26 ｜ PC の左カラムで「学部からさがす」が埋もれていたのを直した ｜ wang → 次の人
+
+ブランチ `feat/wang-faculty-ui`（origin/main から分岐）。
+
+### 1. 何が動く状態か
+
+**PC で左カラムの先頭に近い位置に、全幅の学部セレクトが出る。**
+
+```bash
+cd ~/Developer/rakutan-wang-facui/web && python3 -m http.server 8153 &
+open http://127.0.0.1:8153        # 1280px で左カラムを見る
+```
+
+直したのは3点。すべて「学部を選ぶ」を押せる部品として見せるため。
+
+1. **順番** ―― 学部セレクトを共通区分16チップの**上**へ移した。学部を選ぶと
+   下の区分（単位バッジ・要件外の畳み込み・学部固有の区分）が全部変わるので、
+   入口が下にあるのは順番として逆だった。`app.js` の `sec.innerHTML` の並べ替えだけ
+2. **セレクトの見た目** ―― 素の `<select>` はこの画面で最小の部品になり、
+   チップの壁の底で埋もれていた。検索窓と同じ枠・角丸・高さにして全幅に広げた
+3. **見出しと説明** ―― PC の左カラムは 240〜280px しかなく、`<h2>見出し <span class="sub">説明</span>`
+   が1行に入らず説明の途中で折り返して、見出しと地続きの塊に見えていた。
+   `.rail h2 .sub{display:block}` を **min-width:768px の中だけ**に入れて2行に割った
+
+### 2. 何をしていないか
+
+- **モバイル（<768px）の見出しは触っていない。** 幅があるので1行に収まっている。
+  変えたのは PC だけ。セレクトの見た目はモバイルにも効く（こちらは改善方向）
+- **チップの壁そのものは残っている。** 未選択で16個、学部を選ぶと固有区分が
+  さらに10個以上増える。今回は「学部セレクトが埋もれている」だけを直した
+- **学部を選んだあとのチップは、バッジ付きで2行になるものがある**
+  （例：`アドヴァンスト・セミナー 便覧で確認 0`）。前からこうで、今回の変更とは無関係
+- `python3 server.py` の API モードでは見ていない（この worktree に `data/courses.json` が無い）。
+  静的配信（本番と同じ経路）では確認ずみ
+- **`feat/wang-faculty-divisions`（rakutan-wang-senmon）とは別ブランチ。**
+  あちらの app.js / app.css の差分は別の箇所なので当たらないはずだが、
+  マージ順によっては `sec.innerHTML` で当たる可能性がある
+
+### 3. 次の人が最初にやること
+
+```bash
+cd ~/Developer/rakutan-wang-facui
+python3 -m http.server 8153 --directory web &
+node tools/check_division_ui.mjs http://127.0.0.1:8153 1280
+node tools/check_division_ui.mjs http://127.0.0.1:8153 390
+node tools/smoke.mjs http://127.0.0.1:8153
+python3 tools/test_layout.py
+```
+
+### 4. 今回踏んだ罠
+
+- **`tools/test_tokens.py` は app.css の裸の hex を落とすが、`%23xxxxxx`（URL エンコード）は
+  すり抜ける。** 矢印を SVG の data URI で描くと色を hex で埋め込むことになり、
+  テストは通るのにダークモードで追随しない。**2枚の `linear-gradient` で三角を作り
+  `var(--muted)` から色を採った**。data URI に色を書きたくなったら思い出すこと
+- `tools/test_tokens.py` は**この変更の前から NG**。原因は広告ページの SNS 色
+  （`#000` `#06C755` `#6228D7` `#EE2A7B` `#F9CE34`）で、`feat/wang-faculty-divisions` 由来。
+  `.snsIcon` はブランド色なのでトークンにできない。**テストの例外リストに入れるか、
+  tokens.css に逃がすかを誰かが決める必要がある**（未着手）
+- `tools/check_division_ui.mjs` の **「2 未選択で30チップ」「8b 区分は全部出たまま」も
+  前から NG**。`REQ.divisions` が29件あるのに `#divs` は共通16件しか出さない
+  （学部固有は `#divsOwn` に分かれた）ので、テストの期待値が古い。**実装ではなくテスト側の問題**
+
 ## 2026-08-26 ｜ 常に0件だった条件チップ3つを直した ｜ wang → 次の人
 
 ブランチ `feat/wang-fix-conditions`。

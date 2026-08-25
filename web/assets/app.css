@@ -99,10 +99,25 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 /* display:flex は UA の [hidden]{display:none} に勝つ。これが無いと
    JS の box.hidden=true が効かず「隠す」を押しても消えない（.slotBar と同じ対処）。 */
 .chips[hidden]{display:none}
-/* 学部セクションは h2 が3つ並ぶ（共通の区分／学部を選ぶ／その学部の区分）。
+/* 学部セクションは h2 が3つ並ぶ（学部を選ぶ／共通の区分／その学部の区分）。
    h2 は既定で上マージンを持たないので、2つ目以降だけ間を空ける。 */
 .facH{margin-top:var(--sp-5)}
-#facSec select{margin-bottom:var(--sp-2)}
+/* 学部セレクトはこのセクションの入口。素の <select> だと、周りのチップより
+   小さい部品になって「押す場所」に見えない。検索窓と同じ枠・同じ高さに揃えて
+   カラムいっぱいに広げる。
+   矢印は appearance:none で消えるので自分で描く。SVG の data URI にすると
+   色を hex で埋め込むことになり（tools/test_tokens.py が禁じている裸の色）、
+   ダークモードで追随もしない。だから2枚の linear-gradient で三角を作り、
+   色は var(--muted) から採る。 */
+#facSec select{width:100%;margin-bottom:var(--sp-2);
+  padding:10px 30px 10px 12px;border:1px solid var(--rule);border-radius:var(--r-md);
+  background-color:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-sm);
+  cursor:pointer;appearance:none;-webkit-appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+                   linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-size:6px 6px,6px 6px;
+  background-position:right 17px center,right 12px center;
+  background-repeat:no-repeat}
 .chip{border:1px solid var(--rule);background:var(--card);border-radius:var(--r-pill);
   padding:7px 13px;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
 .chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
@@ -342,6 +357,11 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     max-height:calc(100vh - var(--sp-6));overflow-y:auto;
     padding-right:var(--sp-2)}
   .rail section:first-child{margin-top:0}
+  /* 左カラムは 240〜280px しかない。見出しと説明を同じ行に並べると説明が
+     途中で折り返し、見出しと地続きの塊になって読めない（2026-08-26）。
+     PC では説明を必ず次の行へ落とす。モバイルは1カラムぶん幅があるので触らない。 */
+  .rail h2{line-height:1.5}
+  .rail h2 .sub{display:block;margin-top:2px}
   .results{min-width:0}
 }
 

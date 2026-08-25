@@ -204,15 +204,19 @@ function buildFaculty(facets){
   if (!sec){
     sec = document.createElement("section");
     sec.id = "facSec";
-    // 3段に分ける。上は全学部に共通の区分で、学部を選んでいなくても意味がある。
+    // 3段に分ける。上は学部の選択で、ここを選ぶと下の区分の並び（単位のバッジ・
+    // 要件外の畳み込み・学部固有の区分）が全部変わる。だから入口として先に置く。
+    // 中は全学部に共通の区分で、学部を選んでいなくても意味がある。
     // 下は選んだ学部にしか無い区分なので、選ぶまで丸ごと隠す。
+    // 2026-08-26：学部セレクトは共通区分16個の下にあり、PC の左カラムでは
+    // チップの壁の底に埋もれていた（素の <select> はこの画面で最小の部品になる）。
     sec.innerHTML =
-      `<h2>卒業要件の区分でしぼる <span class="sub">全学部に共通の区分です</span></h2>
-       <div class="chips" id="divs"></div>
-
-       <h2 class="facH">学部からさがす <span class="sub">選ぶと、その学部だけの区分が下に出ます</span></h2>
+      `<h2>学部からさがす <span class="sub">選ぶと、その学部だけの区分が下に出ます</span></h2>
        <select id="facSel"></select>
        <select id="trackSel" hidden></select>
+
+       <h2 class="facH">卒業要件の区分でしぼる <span class="sub">全学部に共通の区分です</span></h2>
+       <div class="chips" id="divs"></div>
 
        <div id="facOwn" hidden>
          <h2 class="facH" id="facOwnH"></h2>
