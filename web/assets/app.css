@@ -96,6 +96,9 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 
 /* ── 優先度 ───────────────────────────── */
 .chips{display:flex;flex-wrap:wrap;gap:7px}
+/* display:flex は UA の [hidden]{display:none} に勝つ。これが無いと
+   JS の box.hidden=true が効かず「隠す」を押しても消えない（.slotBar と同じ対処）。 */
+.chips[hidden]{display:none}
 .chip{border:1px solid var(--rule);background:var(--card);border-radius:var(--r-pill);
   padding:7px 13px;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
 .chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
