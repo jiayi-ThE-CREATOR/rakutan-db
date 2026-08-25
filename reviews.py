@@ -110,12 +110,19 @@ def aggregate(rows: list[dict]) -> dict[str, dict]:
         h10 = _mean([r.get("exam_hard10") for r in rs])
         words = _mean([r.get("report_words") for r in rs if r.get("report")])
         bring = [r.get("exam_bring") for r in rs if r.get("exam_bring")]
+        # 「その他（持ち帰り形式）」のような書かれ方は、可／不可 に畳むと
+        # 情報が落ちる ―― 持ち帰りかオンラインかは学生の判断材料になる。
+        # 畳んだ値の横に添えるための原文。可／不可 と答えた行は対象外
+        # （添えるものが無い）。台帳の判断は exam_bring 側が持っている。
+        raw = [r.get("exam_bring_raw") for r in rs
+               if r.get("exam_bring_raw") not in (None, "可", "不可")]
         out[cid] = {
             "n": len(rs),
             "exam_hard": None if h10 is None else round((h10 - 1) / 9 * 2, 3),
             "exam_hard10": None if h10 is None else round(h10, 1),
             "report_words": None if words is None else int(round(words)),
             "exam_bring": max(set(bring), key=bring.count) if bring else None,
+            "exam_bring_raw": max(set(raw), key=raw.count) if raw else None,
             "attendance": _mean([r.get("attendance") for r in rs]),
             "in_class": _mean([r.get("in_class") for r in rs]),
             "out_class": _mean([r.get("out_class") for r in rs]),

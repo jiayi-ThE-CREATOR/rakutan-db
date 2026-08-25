@@ -374,7 +374,12 @@ function reviewHtml(c){
              ["授業中の課題", rvLv(r.in_class)],
              ["授業外の課題", rvLv(r.out_class)]];
   if (r.exam_hard10 != null) f.push(["テストの難易度", `${r.exam_hard10} / 10`]);
-  if (r.exam_bring)          f.push(["持ち込み", r.exam_bring]);
+  /* 「その他（持ち帰り形式）」等は 可／不可 に畳むと情報が落ちるので、
+     畳んだ値に原文を添えて出す ―― 「可（持ち帰り形式）」。 */
+  if (r.exam_bring){
+    const m = (r.exam_bring_raw || "").match(/^その他[（(](.+)[）)]$/);
+    f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
+  }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
   const notes = r.notes || [];
   return `<div class="rv">
@@ -644,8 +649,9 @@ let page = 1;
    ROADMAP 1章の「おすすめ順を検証ずみ優先に」は未決定のまま。
    ここで足すのは視覚的に独立した枠だけで、その決定を先取りしない。
 
-   なお現時点で門（口コミ3件）を越えた科目は0件なので、
-   この枠は出ない。それが正しい状態。 */
+   2026-08-24：口コミ108件を取り込んだ結果、門（3件）を越えた科目が
+   0 → 2件（135327・135349）になった。**この枠がここで初めて画面に出る。**
+   5件に満たないので見出しは「あなたに合う2件」になる（picks.length を出す）。 */
 function topPicks(){
   /* 「あなたに合う」と名乗る以上、下の一覧がどの順に並んでいても、
      ここは必ず相性順で選ぶ。

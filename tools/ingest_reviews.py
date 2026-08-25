@@ -23,6 +23,7 @@ import argparse
 import csv
 import json
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -32,6 +33,52 @@ OUT = ROOT / "data" / "reviews.json"
 # 表記ゆれ。フォームの選択肢が増えたらここに足す。
 ATTEND = {"毎回": 2, "たまに": 1, "なし": 0}
 LEVEL = {"重い": 2, "ふつう": 1, "軽い": 0, "なかった": None}
+
+# 「その他（…）」の台帳。**選択肢ではなく自由記述なので、書かれた中身で判断する。**
+#
+# 以前は出席の「その他」を一律で 2（毎回）に寄せていた。実データで
+# 「その他（分からない）」が来て、**未回答が最大の拘束として数えられた**。
+# 逆に持ち込みは「可」以外を全部 持込不可 にしていたので、
+# 「その他（持ち帰り形式）」―― 持込可より緩い ―― が 持込不可 になっていた。
+# どちらも既定値で潰していたのが原因なので、1件ずつ人が判断して台帳に残す。
+#
+# 台帳に無い言い回しが来たら、その回の取り込みでは **未回答（None）** として扱い、
+# 原文を value:null で data/sonota.json に追記する。判断を書き足したあと
+# `--renorm` を流すと、取り込みずみの行にも遡って効く。
+# 原文は attendance_raw / exam_bring_raw に必ず残るので、後から何度でもやり直せる。
+SONOTA = ROOT / "data" / "sonota.json"
+
+
+def _sonota_load() -> dict:
+    if SONOTA.exists():
+        return json.loads(SONOTA.read_text(encoding="utf-8"))
+    return {"attendance": {}, "exam_bring": {}}
+
+
+_LEDGER = _sonota_load()
+_UNKNOWN: dict[str, set[str]] = {"attendance": set(), "exam_bring": set()}
+
+
+def _lookup(field: str, raw: str):
+    """台帳を引く。未登録なら未回答（None）を返し、原文を控えておく。"""
+    entry = _LEDGER.get(field, {}).get(raw)
+    if entry is None:
+        _UNKNOWN[field].add(raw)
+        return None
+    return entry.get("value")
+
+
+def _sonota_record() -> int:
+    """未登録の言い回しを value:null で台帳に書き足す。人が判断を入れる場所。"""
+    n = 0
+    for field, raws in _UNKNOWN.items():
+        for raw in sorted(raws):
+            _LEDGER.setdefault(field, {})[raw] = {"value": None, "why": ""}
+            n += 1
+    if n:
+        SONOTA.write_text(json.dumps(_LEDGER, ensure_ascii=False, indent=1) + "\n",
+                          encoding="utf-8")
+    return n
 
 
 def _int(s: str | None) -> int | None:
@@ -48,15 +95,21 @@ def _yes(s: str | None) -> bool:
 def normalize(row: dict) -> dict:
     """1行 → 保存する形。判断はここに寄せ、集計側では素直に平均するだけにする。"""
     att = (row.get("attendance") or "").strip()
+    bring = (row.get("exam_bring") or "").strip() or None
     return {
         "course_id": (row.get("code") or "").strip(),
-        # 「その他（小テストを通じて）」は毎回出席と同等の拘束として扱う
-        "attendance": ATTEND.get(att, 2 if att.startswith("その他") else None),
+        # 選択肢どおりでない答えは台帳（data/sonota.json）で1件ずつ判断する
+        "attendance": ATTEND[att] if att in ATTEND
+                      else _lookup("attendance", att) if att else None,
         "attendance_raw": att,
         "in_class": LEVEL.get((row.get("in_class") or "").strip()),
         "out_class": LEVEL.get((row.get("out_class") or "").strip()),
         "exam": _yes(row.get("exam")),
-        "exam_bring": (row.get("exam_bring") or "").strip() or None,
+        # 採点と exam_type の判定が見るのは正規化した 可 / 不可 のほう。
+        # 書かれた原文は exam_bring_raw に残す（判断をやり直せるように）。
+        "exam_bring": bring if bring in ("可", "不可")
+                      else _lookup("exam_bring", bring) if bring else None,
+        "exam_bring_raw": bring,
         # フォームは 1（簡単）〜10（難しい）
         "exam_hard10": _int(row.get("exam_hard10")),
         "report": _yes(row.get("report")),
@@ -70,13 +123,69 @@ def normalize(row: dict) -> dict:
     }
 
 
+def _report_unknown(write: bool) -> None:
+    """台帳に無い「その他（…）」を知らせる。黙って既定値に寄せない。"""
+    total = sum(len(v) for v in _UNKNOWN.values())
+    if not total:
+        return
+    print(f"\n  ⚠ 台帳に無い「その他」が {total} 種類ありました"
+          f"（この回は未回答として扱っています）")
+    for field, raws in _UNKNOWN.items():
+        for raw in sorted(raws):
+            print(f"      {field}: {raw}")
+    if write:
+        _sonota_record()
+        print(f"    → {SONOTA} に value:null で追記しました。")
+        print("      判断（value と why）を書いてから "
+              "`python3 tools/ingest_reviews.py x --renorm` を流すと、"
+              "取り込みずみの行にも遡って効きます。")
+
+
+def renorm() -> None:
+    """台帳の判断を、取り込みずみの reviews.json に当て直す。
+
+    原文（attendance_raw / exam_bring_raw）から数値をもう一度作るだけなので、
+    何度流しても結果は同じ。行は増えも減りもしない。
+    判断を後から変えられるのは、原文を捨てずに持っているからこの形にできる。
+    """
+    rows = json.loads(OUT.read_text(encoding="utf-8"))
+    changed = 0
+    for r in rows:
+        # 取り込みずみの古い行には exam_bring_raw が無い（原文が exam_bring に
+        # 入っていた頃のもの）。初回だけここで移し替える。
+        if "exam_bring_raw" not in r:
+            r["exam_bring_raw"] = r.get("exam_bring")
+        att, bring = r.get("attendance_raw") or "", r.get("exam_bring_raw")
+        before = (r.get("attendance"), r.get("exam_bring"))
+        r["attendance"] = (ATTEND[att] if att in ATTEND
+                           else _lookup("attendance", att) if att else None)
+        r["exam_bring"] = (bring if bring in ("可", "不可")
+                           else _lookup("exam_bring", bring) if bring else None)
+        if before != (r["attendance"], r["exam_bring"]):
+            changed += 1
+            print(f"    {r['course_id']}  {before} → "
+                  f"{(r['attendance'], r['exam_bring'])}  ({att or bring})")
+    print(f"  当て直した {changed} 件 / 全 {len(rows)} 件")
+    _report_unknown(write=True)
+    OUT.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(f"  → {OUT}")
+    _write_agg()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("tsv")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--replace", action="store_true",
                     help="既存の reviews.json を捨てて入れ替える")
+    ap.add_argument("--renorm", action="store_true",
+                    help="取り込みずみの行に data/sonota.json の判断を遡って当て直す"
+                         "（TSV は読まない。ダミーのパスを渡してよい）")
     args = ap.parse_args()
+
+    if args.renorm:
+        renorm()
+        return
 
     known = {c["id"] for c in json.loads(COURSES.read_text())["courses"]}
     with open(args.tsv, encoding="utf-8") as f:
@@ -95,6 +204,8 @@ def main() -> None:
     if hard:
         print(f"    テスト難易度が入った  {len(hard)} 件（平均 {sum(hard)/len(hard):.1f} / 10）")
 
+    _report_unknown(write=not args.dry_run)
+
     if args.dry_run:
         print("\n  --dry-run のため書き込んでいない")
         return
@@ -112,8 +223,19 @@ def main() -> None:
                    encoding="utf-8")
     print(f"\n  → {OUT}  既存 {len(prev)} 件 ＋ 新規 {len(added)} 件")
 
-    # 集約ずみも一緒に書く。生データは gitignore なので、これが無いと
-    # 取り込んだ本人以外は同じ数字を出せない。
+    _write_agg()
+
+
+def _write_agg() -> None:
+    """集約ずみも一緒に書く。生データは gitignore なので、これが無いと
+    取り込んだ本人以外は同じ数字を出せない。
+
+    `python3 tools/ingest_reviews.py` で起動すると sys.path の先頭は tools/ に
+    なるので、リポジトリ直下の reviews.py が import できない。**生データを
+    書いた後にここで落ちる**ので、「失敗した」と思って流し直すと二重取り込みに
+    見える（実際は重複判定が効くので増えないが、agg だけ古いまま残る）。
+    """
+    sys.path.insert(0, str(ROOT))
     import reviews as reviews_mod
     agg = reviews_mod.aggregate(reviews_mod.load())
     print(f"  → {reviews_mod.dump_agg(agg)}  {len(agg)} 科目（これはコミットする）")

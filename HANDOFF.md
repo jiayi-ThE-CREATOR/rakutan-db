@@ -17,6 +17,57 @@
 
 ---
 
+## 2026-08-25 ｜ PR #25 の衝突を解いて main に合わせられる状態にした（政岡さん依頼③） ｜ wang
+
+政岡さんの 8/25 01:03 の依頼「③ #25 をマージして `data/reviews.agg.json` を最新にしてください」への対応。
+生データ `data/reviews.json` は gitignore なので、agg を焼けるのは wang だけ、というのが依頼の理由。
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/kuchikomi-batch2      # 9591aef（main 0433220 を取り込みずみ）
+python3 build.py && python3 server.py   # → http://localhost:8000
+for t in web_split tokens layout shell_inject scoring_gate reviews division requirements eligibility; do python3 tools/test_$t.py; done
+python3 -m http.server 8141 --directory web & node tools/smoke.mjs http://localhost:8141
+node tools/check_division_ui.mjs http://localhost:8141
+```
+
+- **`data/reviews.agg.json` は生データ 144 件から焼き直して差分ゼロ**を確認した
+  （`reviews.dump_agg(reviews.aggregate(reviews.load()))` の出力が、ブランチにコミット済みのものと1バイトも違わない）。
+  main 側は 32 科目／36 件のままなので、**この PR を合わせた瞬間に素と産物が揃う**
+- 衝突は3本。`HANDOFF.md`（両側の追記 → 日付順に並べ直しただけ・欠落なし）、
+  `web/data/courses.built.json`（build.py の産物 → 手で直さず焼き直し）、
+  `web/assets/app.js`（自動マージで解決。担当教員＝main 側と「その他（…）」の原文表示＝本ブランチ側は別の箇所）
+- python テスト9本すべて OK。`smoke.mjs` 319件・コンソールエラーなし。`check_division_ui.mjs` 19項目すべて OK
+
+### 2. 何をしていないか
+
+- **`shots`（スクショ差分）の失敗は直していない。**`05-search-mobile` で `.card` を 30 秒待って落ちる。
+  これは #25 のせいではなく**開いている PR 全部で落ちている**既知の穴で、
+  直しは **PR #27（`feat/wang-shots-koma`）にある**（そのブランチでだけ success）。
+  #27 を先に main へ入れれば以後の PR から緑になる
+- **`Workers Builds` の fail も #25 由来か未確認**（main の同ジョブは success）。マージ後のデプロイで確認が要る
+- build.py の警告2本は前からの穴で今回も残る：口コミ 144 件のうち **31 科目分が科目DBに無い**
+  （全部 `191xxx` 台＝語学。KOAN の所属 `0:13` に語学が入っていないため。政岡さんが取得中の所属 `0:14` が入れば埋まる）、
+  回答が割れている科目 4 件（`135349`／`135357`／`135093`／`191111`）
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+gh pr view 25 && gh pr merge 25 --merge     # 合わせたら約80秒で本番へ自動デプロイ
+```
+
+マージが済んだら政岡さんに「③ 完了」と伝える。政岡さん側の④（`git pull` → `build.py` → PR）が動き出せる。
+
+### 4. 踏んだ罠
+
+**産物の衝突を手で解こうとしない。** `web/data/courses.built.json` は 1.7MB の build.py の出力で、
+衝突マーカーごと手で直すと素（`courses.json` ＋ `reviews.agg.json`）と食い違った産物が残る。
+`git checkout --theirs` で main 側を採ってから `build.py` で焼き直すのが正解。
+`HANDOFF.md` の 2026-08-24（追記）の項と同じ罠で、**2回目**。
+
+---
+
 ## 2026-08-25 ｜ 全科目に担当教員名を出した ｜ wang
 
 `feat/wang-instructor`（`main` から分岐）。**`web/index.html` と `web/assets/app.css`
@@ -295,6 +346,135 @@ node tools/check_division_ui.mjs http://localhost:8140 390
 - 受け入れ確認で**件数を絶対値で書かないこと**。画面の既定は `year=1 / sem=aki`
   なので、API を `year=all` で叩いた数（76件）とは違う（画面では8件）。
   チップに出ている件数と突き合わせる形にしてある
+
+---
+
+## 2026-08-24（追記）｜ main を取り込んで PR #25 の衝突を解いた ｜ wang
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/kuchikomi-batch2      # 51e7468
+python3 build.py && python3 server.py   # → http://localhost:8000
+for t in web_split tokens layout shell_inject scoring_gate reviews; do python3 tools/test_$t.py; done
+```
+
+PR #25 が CONFLICTING だったので `origin/main` を取り込んだ。衝突は
+`web/data/courses.built.json` の1本だけで、build.py の出力なので手で直さず焼き直した。
+テストは6本とも通る。口コミは **144 件／120 科目**のまま。
+
+**取り込みが必要だった理由**：分岐後に main へ入った学期フィルタ（779211a／27c62b5）が
+built JSON に `term_group` を足していた。分岐側の古い産物のまま合わせると
+`web/assets/app.js` の `state.sem` による絞り込みが**黙って効かなくなる**。
+焼き直した産物には `term_group` と `exam_bring_raw` が同居する（`137157` で両方確認）。
+
+### 2. 何をしていないか
+
+**PR #25 はまだマージしていない。** レビューは通していないので、合わせるかは読んだ人の判断。
+
+`build.py` が出す警告2本は今回も残っている（前からの穴、今回の変更とは無関係）：
+
+- **口コミ 144 件のうち 31 科目分が科目DBに無い**（全部 `191xxx` 台＝語学科目）。
+  KOAN の所属 `0:13` に語学が入っていないため。`reviews.built.json` には載るが、
+  科目ページには結び付かない
+- 回答が割れている科目 4 件（`135349`／`135357`／`135093`／`191111`）
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git fetch && gh pr view 25
+```
+
+### 4. 踏んだ罠
+
+**新しい口コミは、マージ前にもう本番へ出ていた。**
+
+`243ef07`「KOAN 公式シラバスへ直リンク」（8/24 00:45）が、汚れた作業ツリーで焼かれていた
+`web/data/reviews.built.json`（7,144 → 31,117 バイト）と `courses.built.json` を巻き込んで
+コミットしていた。それが `89b9a6b` で main に入り、そのまま自動デプロイされた。
+本番の `reviews.built.json` は 8/23 時点ですでに 120 科目／144 件だった。
+
+**より悪いのはこちら**：産物だけが main にあり、その素である `data/reviews.agg.json`
+（main では 32 科目のまま）と `data/sonota.json` は main に無かった。
+つまり **main 上で `build.py` を一度流すだけで、口コミが 36 件へ黙って巻き戻る**状態だった。
+この PR を合わせると素と産物が揃うので、そこで解消する。
+
+**教訓：産物（`web/data/*.built.json`）を無関係なコミットに混ぜない。**
+コミット前に `git status` ではなく `git diff --cached --stat` を見る。
+
+## 2026-08-24 ｜ 口コミ108件を取り込み・「その他（…）」を台帳にした ｜ wang
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/kuchikomi-batch2
+python3 build.py && python3 server.py     # → http://localhost:8000
+for t in web_split tokens layout shell_inject scoring_gate reviews; do python3 tools/test_$t.py; done
+```
+
+口コミ **36 → 144 件／32 → 120 科目**。しゅんやさんのフォームの
+08-19（med）・08-20（econ）・08-21（es/econ/hum/med）分です。テストは6本とも通ります。
+
+3件の門を越えて**採点に効くのは 135327・135349 の2科目だけ**です。
+`135851`／`135889`／`137717` は3件ありますが中身が1バイト違わず同一（`n_distinct=1`）なので
+門は開いていません。8/21 に入れた名寄せがそのまま効いています。
+
+**受講年**：6件だけ 2025 です（`137643`／`137553`／`137717`×3／`137661`）。
+2026年度秋冬は10月開始なので、8月に「1年 autumn」を答えられるのは前年度の履修者だけです。
+しゅんやさん本人に確認ずみ（「48〜53行は2025年度秋冬を医学部の生徒が答えてくれた」）。
+
+**新しく `data/sonota.json`（「その他（…）」の台帳）を置きました。**
+自由記述なので、選択肢のように既定値へ寄せず、1件ずつ人が判断して残す形にしています。
+
+```bash
+python3 tools/ingest_reviews.py <export.tsv>   # 未登録の言い回しは value:null で追記＋警告
+# data/sonota.json に value と why を書いてから ↓
+python3 tools/ingest_reviews.py x --renorm     # 取り込みずみの行にも遡って効く
+```
+
+原文は `attendance_raw` ／ `exam_bring_raw` に必ず残るので、判断は何度でもやり直せます。
+この回は8件が変わりました（例：`137157` の「その他（持ち帰り形式）」が**持込不可→可**、
+`135249` の「その他（分からない）」が**毎回→未回答**）。
+
+**畳んだ値の横に原文を添えて画面に出します** ―― `持ち込み: 可（持ち帰り形式）`。
+持ち帰りかオンラインかは学生の判断材料になるので、`可`／`不可` に畳んだままだと情報が落ちます。
+集計に `exam_bring_raw` を足し（`可`／`不可` と答えた行は対象外＝添えるものが無い）、
+`web/assets/app.js` の `reviewHtml()` が `その他（…）` の中身だけ取り出して括弧で足します。
+実データでの表示は `137157 → 可（持ち帰り形式）`／`135139 → 可（cle上で実施）`。
+
+**note を後から直すときは ingest を流し直さないこと。** 重複判定キーが
+`(course_id, at, note)` なので、直した note は「新しい行」として増えます。
+`data/reviews.json` を直接直してから `python3 -c "import reviews; reviews.dump_agg(...)"`
+（または `--renorm`）で agg を焼き直してください。今回もその手順で4行を差し替えています
+（**切れていた文が全文の先頭と一致することを確かめてから**差し替える ―― 同じ科目の
+別人のコメントを踏み潰さないため）。
+
+### 2. 何をしていないか
+
+- ~~note が3件、途中で切れたまま~~ → **2026-08-24 にしゅんやさんから全文をもらい、埋めました。**
+  マージを止める理由はもう無くなっています。
+- **`191xxx` の穴が 8 → 31 科目に広がりました。** 語学の口コミが集まり始めたのに
+  `courses.json` にID帯ごと無いので画面に出せません。件数が増えた分、優先度も上がっています → 政岡さん
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+python3 tools/ingest_reviews.py <export.tsv> --dry-run
+```
+
+**PDF ではなく TSV でもらってください**（ファイル → ダウンロード → タブ区切り）。
+今回 PDF から起こしたせいで note が3件欠けました。
+
+### 4. 踏んだ罠
+
+- **`ingest_reviews.py` が生データを書いた直後に `ModuleNotFoundError: No module named 'reviews'`
+  で落ちていました。** `python3 tools/xxx.py` で起動すると `sys.path[0]` が `tools/` になるためです。
+  質が悪いのは**落ちる前に `data/reviews.json` は書けている**こと ―― 失敗したと思って流し直すと、
+  重複判定のおかげで行は増えないのに**コミット対象の agg だけ古いまま**残ります。直しました。
+- **「その他」を既定値へ寄せると必ず事故ります。** 出席は一律 `2`（毎回）に寄せていたので
+  「その他（分からない）」＝未回答が**最大の拘束**として数えられ、持ち込みは `可` 以外を全部
+  持込不可にしていたので「その他（持ち帰り形式）」―― 持込可より緩い ―― が**持込不可**でした。
+  どちらも「聞いていないことを答えたことにする」側の間違いです。
 
 ---
 
