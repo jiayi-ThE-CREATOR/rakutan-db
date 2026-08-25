@@ -158,6 +158,8 @@ def main() -> None:
     ap.add_argument("--out", default=str(OUT))
     ap.add_argument("--allow-no-reviews", action="store_true",
                     help="口コミが0件でも上書きする（既定では止める）")
+    ap.add_argument("--allow-fewer-courses", action="store_true",
+                    help="いまの built.json より科目が減っても上書きする（既定では止める）")
     ap.add_argument("--out-reviews", default=str(OUT_REVIEWS))
     args = ap.parse_args()
 
@@ -189,6 +191,26 @@ def main() -> None:
                 f"      今回の実行では0件でした。上書きすると口コミが消えます。\n"
                 f"      data/reviews.agg.json が無いか、壊れていないか確認してください。\n"
                 f"      本当に口コミ抜きで作るなら --allow-no-reviews を付けてください。")
+
+    # 同じ守り方を科目数にも掛ける。data/courses.json は gitignore なので
+    # （シラバス原文と教員名を含む＝公開リポジトリに置けない）、全所属7,877件を
+    # 持っているのは取得した人だけ。共通教育1,112件しか持っていない人が流すと、
+    # 7,877件の built.json が黙って1,112件に焼き直され、語学と学部の専門科目が
+    # サイトから消える。2026-08-25 に口コミで同じことが起きている（112件→36件）。
+    if dest_now.exists():
+        try:
+            had_courses = len(json.loads(dest_now.read_text(encoding="utf-8"))
+                              .get("courses", []))
+        except (json.JSONDecodeError, OSError):
+            had_courses = 0
+        if had_courses > len(courses) and not args.allow_fewer_courses:
+            raise SystemExit(
+                f"中止: いまの {dest_now.name} には科目が {had_courses:,} 件入っていますが、\n"
+                f"      今回の入力（{SRC.name}）は {len(courses):,} 件しかありません。\n"
+                f"      上書きすると差の {had_courses - len(courses):,} 件がサイトから消えます。\n"
+                f"      {SRC.name} は gitignore なので、git pull では最新になりません。\n"
+                f"      全所属ぶんを持っている人から受け取ってから流してください。\n"
+                f"      本当に減らすなら --allow-fewer-courses を付けてください。")
 
     built = []
     for c in courses:
