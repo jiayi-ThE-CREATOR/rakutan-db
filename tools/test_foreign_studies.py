@@ -163,24 +163,67 @@ def test_senkogo_agrees_with_eligible_years():
             assert years in allowed[key], f"{c['title']} {key} {years}"
 
 
-def main():
-    for name, fn in sorted(globals().items()):
-        if name.startswith("test_"):
-            fn()
-            print(f"  OK  {name}")
-    print("外国語学部→区分: すべて通過")
-
-
-if __name__ == "__main__":
-    main()
-
-
 def test_track_of_language():
     from tools.foreign_studies import TRACKS, track_of
     assert len(TRACKS) == 25
-    assert track_of("10FOST2BK00") == "K"      # ドイツ語
-    assert track_of("10FOST3BL02") == "L"      # 英語（専攻科目も同じ位置）
-    assert track_of("10FOST2B001") is None     # 研究外国語は専攻に紐づかない
+    assert track_of("10FOST2BK00", "ドイツ語1") == "K"
+    assert track_of("10FOST3BL02", "【専攻科目】英米文学講義a") == "L"
+    assert track_of("10FOST2B001", "研究外国語(ドイツ語)a") is None
+
+
+def test_shared_courses_keep_no_track():
+    """★ 学部共通・高度教養・兼修語学は、言語コードを持っていてもトラック無し。
+
+    トラックが付くと、その言語の専攻を選んだ学生にしか出なくなる。
+    （学共-地域系）は全専攻が履修できる科目なので、付けてはいけない。
+    2026-08-26 まで 435件がこれで消えていた。
+    """
+    from tools.foreign_studies import track_of
+    # ナンバリングは実データそのまま。どれも9文字目に言語コードが入っている。
+    assert track_of("10FOST3BL02", "（学共-地域系）アメリカ史概論a") is None
+    assert track_of("10FOST2BF02", "（学共-特設）東方正教史a") is None
+    assert track_of("10FOST3BE02", "（高度教養）アフリカ地域論概説b") is None
+    assert track_of("10FOST2BB00", "＜兼修＞アラビア語初級a") is None
+    assert track_of("10FOST2BN00", "＜兼修（高度）＞イタリア語中級a(A)") is None
+
+
+def test_same_numbering_splits_by_the_title_mark():
+    """★ 同じ 3BL02 でも、マーカーが【専攻科目】なら専攻限定・（学共-…）なら全員。
+
+    ユーザーの言う「後ろが同じ名前でも前の括弧で扱いが変わる」がこれ。
+    ナンバリングだけ見ていると必ず取り違える。
+    """
+    from tools.foreign_studies import track_of
+    assert track_of("10FOST3BP01", "【専攻科目】スペイン語圏文学講義a") == "P"
+    assert track_of("10FOST3BP01", "（学共-地域系）スペイン語圏文化概論a") is None
+
+
+def test_undecided_senko_courses_are_still_track_bound():
+    """区分が割れない【専攻科目】21件も、専攻限定であることは動かない。"""
+    from tools.foreign_studies import divide_foreign_studies, track_of
+    assert divide_foreign_studies("【専攻科目】ハンガリー研究入門",
+                                  "10FOST3BG01") == (None, None)
+    assert track_of("10FOST3BG01", "【専攻科目】ハンガリー研究入門") == "G"
+
+
+def test_track_counts_in_built_data():
+    """★ 実データで、トラックが付く区分と件数を固定する。
+
+    ここが増えたら「専攻を選ぶと消える科目」が増えたということ。
+    """
+    from collections import Counter
+    from tools.division import track
+    built = ROOT / "web" / "data" / "courses.built.json"
+    if not built.exists():
+        print("  SKIP test_track_counts_in_built_data")
+        return
+    courses = [c for c in json.loads(built.read_text(encoding="utf-8"))["courses"]
+               if str(c.get("numbering") or "").startswith("10FOST")]
+    got = Counter(divide(c)[0] for c in courses if track(c))
+    expect = {"fs_senko_enshu": 427, "fs_senko_kogi": 299, "fs_senkogo_enshu": 271,
+              "fs_senkogo_1": 162, "fs_senkogo_2": 161, "fs_kyoshoku": 49,
+              None: 21}
+    assert dict(got) == expect, f"トラックの付き方が変わった: {dict(got)}"
 
 
 def test_every_language_code_is_unambiguous():
@@ -203,9 +246,22 @@ def test_every_language_code_is_unambiguous():
         if not n.startswith("10FOST") or n[9:11] != "00":
             continue
         m = lang.match(c["title"] or "")
-        if m and track_of(n):
-            seen[track_of(n)].add(m.group(1))
+        code = track_of(n, c["title"] or "")
+        if m and code:
+            seen[code].add(m.group(1))
     assert seen, "専攻語実習が1件も見つからない"
     for code, langs in seen.items():
         assert len(langs) == 1, f"{code} に複数言語: {langs}"
         assert TRACKS[code] in langs, f"{code} の表記ゆれ: {TRACKS[code]} vs {langs}"
+
+
+def main():
+    for name, fn in sorted(globals().items()):
+        if name.startswith("test_"):
+            fn()
+            print(f"  OK  {name}")
+    print("外国語学部→区分: すべて通過")
+
+
+if __name__ == "__main__":
+    main()
