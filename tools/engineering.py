@@ -58,8 +58,12 @@ CODE_TO_TRACK = {
 }
 
 
-def track_of(numbering: str) -> str | None:
-    """学科のキーを返す。学科に紐づかない科目（教職など）は None。"""
+def track_of(numbering: str, title: str = "") -> str | None:
+    """学科のキーを返す。学科に紐づかない科目（教職など）は None。
+
+    title は division.track() が両学部へ同じ形で渡すため受けるだけで、
+    ここでは見ない ―― 工学部の学科はナンバリングだけで一意に定まる。
+    """
     return CODE_TO_TRACK.get(numbering[2:6])
 
 

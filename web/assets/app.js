@@ -467,7 +467,11 @@ function card(c){
    j_s_cd=13 固定＝共通教育科目。
    実装は松下さん（PR #23）。作り直しで構造が変わったので、
    同じものを app.js へ移した（2026-08-24）。 */
-const koanUrl = id => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+// j_s_cd（所属コード）は科目ごとに違う（全学教育推進機構は13だが他学部は別値）。
+// courses.built.json の shozoku_cd を使う。無ければ13にフォールバック
+// （2026-08-26以前にビルドされた古いデータ・shozoku_cd未収集の科目向け。
+// その場合、全学教育推進機構以外の科目はリンクが無効になりうる）。
+const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=${encodeURIComponent(c.shozoku_cd || "13")}&j_cd=${encodeURIComponent(c.id)}&langkbn=j`;
 
 /* ── 口コミの中身 ─────────────────────
    数字だけ出しても「なぜ楽なのか」は伝わらない。件数・内訳・一言をまとめて出す。
@@ -540,7 +544,7 @@ function detailHtml(c){
       </div>
       ${reviewHtml(c)}
       ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
-      <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
+      <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
 }
 
