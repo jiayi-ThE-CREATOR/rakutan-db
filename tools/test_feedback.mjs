@@ -6,7 +6,7 @@
  *  2. 入口の正本は templates/shell.html ひとつで、両ページに注入ずみ
  *  3. Worker は クライアントを信じない ―― 長さも空も honeypot も自分で判定する
  */
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -32,7 +32,13 @@ check(shell.includes("/assets/feedback.css"), "shell.html が feedback.css を�
 check(existsSync(path.join(ROOT, "web/assets/feedback.js")), "web/assets/feedback.js が無い");
 check(existsSync(path.join(ROOT, "web/assets/feedback.css")), "web/assets/feedback.css が無い");
 
-for (const page of ["web/index.html", "web/about.html"]) {
+// ページを名指ししない。次の人がページを足したとき、
+// 意見箱と CSS が付いてこなければここで落ちる（kuchikomi.html で実際に漏れた）。
+const pages = readdirSync(path.join(ROOT, "web"))
+  .filter((f) => f.endsWith(".html"))
+  .map((f) => "web/" + f);
+check(pages.length >= 2, "web/*.html が見つからない");
+for (const page of pages) {
   const html = read(page);
   check(html.includes(LABEL), `${page} に入口が無い（build.py を流していない）`);
   check(html.includes("/assets/feedback.css"), `${page} に feedback.css が入っていない`);

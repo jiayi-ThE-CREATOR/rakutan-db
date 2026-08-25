@@ -24,6 +24,12 @@ const VIEWS = [
   { name: "09-about-desktop",  path: "/about",         w: 1280, h: 2000 },
   { name: "10-top-dark",       path: "/",              w: 1280, h: 1400, dark: true },
   { name: "11-progress",       path: "/progress.html", w: 1280, h: 1000 },
+  // 口コミ投稿。時間割は学期と学部を選ぶまで出ないので、kuchikomi:true で埋める。
+  // この画面は web/data/timetable.json だけを読むので、data/courses.json が
+  // 無い CI でも本番と同じ中身が撮れる。
+  { name: "12-kuchikomi-mobile",  path: "/kuchikomi", w: 390,  h: 2000, kuchikomi: true },
+  { name: "13-kuchikomi-desktop", path: "/kuchikomi", w: 1280, h: 1600, kuchikomi: true },
+  { name: "14-kuchikomi-dark",    path: "/kuchikomi", w: 390,  h: 2000, kuchikomi: true, dark: true },
 ];
 
 mkdirSync(outDir, { recursive: true });
@@ -42,6 +48,16 @@ for (const v of VIEWS) {
   if (v.q) {
     await page.fill("#q", v.q);
     await page.waitForTimeout(600);
+  }
+  if (v.kuchikomi) {
+    // 学部は requirements.json から入るので、決め打ちの value ではなく
+    // 「最初の実在する選択肢」を採る。学部が増減しても撮影が落ちない。
+    await page.selectOption("#grade-select", "1年");
+    await page.selectOption("#semester-select", "spring");
+    await page.selectOption("#faculty-select", { index: 1 });
+    await page.selectOption("#department-select", { index: 0 });
+    await page.waitForSelector("#timetable-section:not(.hidden)");
+    await page.waitForTimeout(300);
   }
   if (v.koma) {
     // 一覧は時間割起点で、コマを押すまで1件も出ない。2026-08-22 の作り直しで

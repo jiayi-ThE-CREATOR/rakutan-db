@@ -9,7 +9,8 @@
   /* ナビの現在地。ページを分けた以上、どこにいるか分からないのは事故。 */
   const here = location.pathname.replace(/\/$/, "") || "/";
   const key = (here === "/" || here === "/index.html") ? "home"
-            : here.startsWith("/about") ? "about" : null;
+            : here.startsWith("/about") ? "about"
+            : here.startsWith("/kuchikomi") ? "kuchikomi" : null;
   if (!key) return;
   const el = document.querySelector(`.nav a[data-nav="${key}"]`);
   if (el) el.setAttribute("aria-current", "page");
