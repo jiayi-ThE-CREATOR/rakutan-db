@@ -78,7 +78,7 @@ _N_RV = reviews_mod.apply(COURSES, _RV)
 BY_ID = {c["id"]: c for c in COURSES}
 
 DAYS = ["月", "火", "水", "木", "金"]
-PERIODS = ["1", "2", "3", "4", "5"]
+PERIODS = ["1", "2", "3", "4", "5", "6"]
 
 
 def _norm(s: str) -> str:

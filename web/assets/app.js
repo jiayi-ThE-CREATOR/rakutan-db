@@ -1,6 +1,6 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const DAYS = ["月","火","水","木","金"], PERIODS = ["1","2","3","4","5"];
+const DAYS = ["月","火","水","木","金"], PERIODS = ["1","2","3","4","5","6"];
 
 /* 判定の区分を必ず画面に出す。ここを出さないと「情報不足」も「拘束は軽い」も
    学生には見えず、相性の数字だけが独り歩きする。
@@ -759,7 +759,7 @@ async function boot(){
     categories: [...new Set(d.courses.map(c => c.category))].sort(),
     campuses:   [...new Set(d.courses.map(c => c.campus).filter(Boolean))].sort(),
     terms:      [...new Set(d.courses.map(c => c.term))].sort(),
-    days: ["月","火","水","木","金"], periods: ["1","2","3","4","5"],
+    days: ["月","火","水","木","金"], periods: ["1","2","3","4","5","6"],
     weights: m.weights, conditions: Object.keys(CONDITIONS),
     presets: m.presets, axis_labels: m.axis_label,
     min_for_scoring: m.min_for_scoring,
