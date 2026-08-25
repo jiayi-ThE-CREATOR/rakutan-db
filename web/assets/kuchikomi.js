@@ -32,10 +32,8 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbwopsnpuXTF6AS7hSxizw4e
    full（通年）はどちらでも履修できるので必ず通す（app.js と同じ扱い）。 */
 const TERM_GROUPS = { spring: ['haru', 'full'], autumn: ['aki', 'full'] };
 
-/* 受講した年の選択肢。今年から5年ぶんと「それ以前」。
-   **べた書きしない。** 年を書き足す作業を毎年発生させないためと、
-   「受講した学年」とモーダルの「2 受講年度」で一覧がずれないため
-   （ずれると、上で選んだ年がモーダルの選択肢に無い、という状態になる）。
+/* 受講年度（モーダルの設問2）の選択肢。今年から5年ぶんと「それ以前」。
+   **べた書きしない。** 年を書き足す作業を毎年発生させないため。
    値の形（"2026年度" / "2021年度以前"）は、しゅんやさんのシートに
    すでに入っている表記に合わせてある。変えると過去の行と混ざる。 */
 function takenYears() {
@@ -148,7 +146,6 @@ async function boot() {
 }
 
 function init() {
-  fillYearSelect(els.gradeSelect, '受講した学年を選択してください');
   fillYearSelect(els.modalYearSelect, '選択してください');
 
   /* 学部は requirements.json（＝卒業要件表）が正本。ここに一覧を持たない。 */
@@ -160,9 +157,12 @@ function init() {
   });
 
   const savedSettings = JSON.parse(localStorage.getItem('osaka_u_settings') || '{}');
-  /* 以前は学年（"2年"）を入れていた。選択肢に無い値をそのまま代入すると
-     select は無言で未選択のままになり、「選んだのに送れない」になる。 */
-  if (takenYears().includes(savedSettings.grade)) els.gradeSelect.value = savedSettings.grade;
+  /* 一時期ここに年度（"2024年度"）を入れていた（2026-08-26 の往復）。
+     選択肢に無い値をそのまま代入すると select は無言で未選択のままになり、
+     「選んだのに送れない」になるので、在ることを確かめてから入れる。 */
+  if ([...els.gradeSelect.options].some(o => o.value === savedSettings.grade)) {
+    els.gradeSelect.value = savedSettings.grade;
+  }
   if (savedSettings.semester) {
     els.semesterSelect.value = savedSettings.semester;
     state.semester = savedSettings.semester;
@@ -182,8 +182,8 @@ function init() {
   checkSubmitReady();
 
   els.gradeSelect.addEventListener('change', () => {
-    /* 受けた年で出る科目は変わらない（シラバスは2026年度ぶんしか無い）ので、
-       選びかけの科目は捨てない。捨てると年を選び直しただけで全部消える。 */
+    /* いまの学年は「誰が書いたか」の情報で、出る科目には効かない。
+       選びかけの科目は捨てない（捨てると選び直しただけで全部消える）。 */
     checkSubmitReady();
     saveSettingsToLocal();
   });
@@ -349,9 +349,11 @@ function saveSettingsToLocal() {
 
 /* ══ 科目の絞り込み ═════════════════════════════════ */
 
-/* 2026-08-26: 学年（eligible_years）での絞り込みをやめた。
-   ここに来る人は**もう受け終わった科目**を探している。「4年」を選んだ人から
-   1年配当の科目を隠すと、1年のときに受けた科目に口コミを書けなくなる。
+/* 2026-08-26: 学年（eligible_years）での絞り込みをやめた。理由は2つある。
+   ① ここに来る人は**もう受け終わった科目**を探している。1年配当の科目を
+      隠すと、1年のときに受けた科目に口コミを書けなくなる。
+   ② そもそも上で聞いているのは**いまの学年**であって、受けたときの学年ではない。
+      履修可能かどうかの判定には使えない値になった。
    探しに来た科目が出ないほうが、一覧が長いことより悪い。
    （科目をさがす側＝app.js の学年フィルタは「これから履修できるか」なので、
      こちらとは目的が違う。あちらはそのまま。） */
@@ -646,9 +648,7 @@ function restoreReview(review) {
 
 function resetModalForm() {
   els.formButtons.forEach(btn => btn.classList.remove('selected'));
-  /* 上で選んだ年を初期値に入れる。ほとんどの人は同じ年の科目をまとめて書くので、
-     毎回選ばせない。科目ごとに違うなら、その場で変えられる。 */
-  els.modalYearSelect.value = els.gradeSelect.value || '';
+  els.modalYearSelect.value = '';
 
   els.reportDetailsSection.classList.add('hidden');
   els.reportWordCount.value = 2000;
