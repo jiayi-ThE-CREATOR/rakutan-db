@@ -32,6 +32,27 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbwopsnpuXTF6AS7hSxizw4e
    full（通年）はどちらでも履修できるので必ず通す（app.js と同じ扱い）。 */
 const TERM_GROUPS = { spring: ['haru', 'full'], autumn: ['aki', 'full'] };
 
+/* 受講した年の選択肢。今年から5年ぶんと「それ以前」。
+   **べた書きしない。** 年を書き足す作業を毎年発生させないためと、
+   「受講した学年」とモーダルの「2 受講年度」で一覧がずれないため
+   （ずれると、上で選んだ年がモーダルの選択肢に無い、という状態になる）。
+   値の形（"2026年度" / "2021年度以前"）は、しゅんやさんのシートに
+   すでに入っている表記に合わせてある。変えると過去の行と混ざる。 */
+function takenYears() {
+  const now = new Date().getFullYear();
+  const years = [];
+  for (let i = 0; i < 5; i++) years.push(`${now - i}年度`);
+  years.push(`${now - 5}年度以前`);
+  return years;
+}
+
+function fillYearSelect(sel, placeholder) {
+  sel.innerHTML = '';
+  sel.appendChild(new Option(placeholder, ''));
+  sel.options[0].disabled = true;
+  takenYears().forEach(y => sel.appendChild(new Option(y, y)));
+}
+
 /* ══ 状態 ══════════════════════════════════════════ */
 
 const state = {
@@ -127,6 +148,9 @@ async function boot() {
 }
 
 function init() {
+  fillYearSelect(els.gradeSelect, '受講した学年を選択してください');
+  fillYearSelect(els.modalYearSelect, '選択してください');
+
   /* 学部は requirements.json（＝卒業要件表）が正本。ここに一覧を持たない。 */
   FACULTIES.forEach(f => {
     const option = document.createElement('option');
@@ -136,7 +160,9 @@ function init() {
   });
 
   const savedSettings = JSON.parse(localStorage.getItem('osaka_u_settings') || '{}');
-  if (savedSettings.grade) els.gradeSelect.value = savedSettings.grade;
+  /* 以前は学年（"2年"）を入れていた。選択肢に無い値をそのまま代入すると
+     select は無言で未選択のままになり、「選んだのに送れない」になる。 */
+  if (takenYears().includes(savedSettings.grade)) els.gradeSelect.value = savedSettings.grade;
   if (savedSettings.semester) {
     els.semesterSelect.value = savedSettings.semester;
     state.semester = savedSettings.semester;
@@ -156,9 +182,8 @@ function init() {
   checkSubmitReady();
 
   els.gradeSelect.addEventListener('change', () => {
-    /* 学年で出る科目が変わる。開いたままの選択は残さない。 */
-    state.selectedSubjects = {};
-    showPickers();
+    /* 受けた年で出る科目は変わらない（シラバスは2026年度ぶんしか無い）ので、
+       選びかけの科目は捨てない。捨てると年を選び直しただけで全部消える。 */
     checkSubmitReady();
     saveSettingsToLocal();
   });
@@ -324,20 +349,18 @@ function saveSettingsToLocal() {
 
 /* ══ 科目の絞り込み ═════════════════════════════════ */
 
-/* 学年。1〜6年は eligible_years で絞る。
-   修士・博士は学部科目のデータしか無いので絞らない（0件にはしない）。 */
-function gradeNumber() {
-  const m = /^([1-6])年$/.exec(els.gradeSelect.value || '');
-  return m ? Number(m[1]) : null;
-}
-
+/* 2026-08-26: 学年（eligible_years）での絞り込みをやめた。
+   ここに来る人は**もう受け終わった科目**を探している。「4年」を選んだ人から
+   1年配当の科目を隠すと、1年のときに受けた科目に口コミを書けなくなる。
+   探しに来た科目が出ないほうが、一覧が長いことより悪い。
+   （科目をさがす側＝app.js の学年フィルタは「これから履修できるか」なので、
+     こちらとは目的が違う。あちらはそのまま。） */
 function getSubjects(dayIndex, periodIndex) {
   if (!state.faculty || !state.semester) return [];
   const slot = `${days[dayIndex]}${periods[periodIndex]}`;
   const rows = SLOT_INDEX.get(slot) || [];
 
   const terms = TERM_GROUPS[state.semester] || [];
-  const year = gradeNumber();
   /* トラックは同じ軸の中でだけ効かせる。トラックを持たない科目
      （共通教育・学部共通など）は通す ―― 落とすと共通科目が全部消える。
      app.js の trackAxis と同じ規則。 */
@@ -347,7 +370,6 @@ function getSubjects(dayIndex, periodIndex) {
   return rows.filter(r => {
     if (r.faculty !== 'common' && r.faculty !== state.faculty) return false;
     if (!terms.includes(r.term_group)) return false;
-    if (year && Array.isArray(r.eligible_years) && !r.eligible_years.includes(year)) return false;
     if (trackAxis && r.track && r.track.startsWith(trackAxis) && r.track !== state.department) return false;
     return true;
   });
@@ -362,13 +384,11 @@ function getSubjects(dayIndex, periodIndex) {
 function extraCandidates() {
   if (!state.faculty || !state.semester) return { same: [], unknown: [] };
   const terms = TERM_GROUPS[state.semester] || [];
-  const year = gradeNumber();
   const q = (els.extraSearch.value || '').trim();
 
   const same = [], unknown = [];
   for (const r of EXTRA) {
     if (r.faculty !== 'common' && r.faculty !== state.faculty) continue;
-    if (year && Array.isArray(r.eligible_years) && !r.eligible_years.includes(year)) continue;
     if (q && !r.title.includes(q)) continue;
     if (terms.includes(r.term_group)) same.push(r);
     else if (r.term_group === 'unknown') unknown.push(r);
@@ -626,7 +646,9 @@ function restoreReview(review) {
 
 function resetModalForm() {
   els.formButtons.forEach(btn => btn.classList.remove('selected'));
-  els.modalYearSelect.value = '';
+  /* 上で選んだ年を初期値に入れる。ほとんどの人は同じ年の科目をまとめて書くので、
+     毎回選ばせない。科目ごとに違うなら、その場で変えられる。 */
+  els.modalYearSelect.value = els.gradeSelect.value || '';
 
   els.reportDetailsSection.classList.add('hidden');
   els.reportWordCount.value = 2000;

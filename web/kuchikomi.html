@@ -39,19 +39,13 @@
     <h3><span class="kkNum">1</span>あなたのこと</h3>
     <div class="kkFields">
       <div class="input-group">
-        <label for="grade-select">学年 <span class="required">*</span></label>
+        <label for="grade-select">受講した学年 <span class="required">*</span></label>
         <select id="grade-select" required>
-          <option value="" disabled selected>学年を選択してください</option>
-          <option value="1年">1年</option>
-          <option value="2年">2年</option>
-          <option value="3年">3年</option>
-          <option value="4年">4年</option>
-          <option value="5年">5年</option>
-          <option value="6年">6年</option>
-          <option value="修士">修士</option>
-          <option value="博士">博士</option>
+          <option value="" disabled selected>受講した学年を選択してください</option>
+          <!-- 選択肢は kuchikomi.js が今年から作る。年を書き足す作業を毎年
+               発生させない（モーダルの「2 受講年度」と同じ一覧を共有する）。 -->
         </select>
-        <span class="fine">※現在の学年ではなく、受講時の学年</span>
+        <span class="fine">※いま何年生かではなく、その科目を受けた年</span>
       </div>
 
       <div class="input-group">
@@ -182,13 +176,11 @@
           <label>2 受講年度 <span class="required">*</span></label>
           <select id="modal-year-select" class="full-width-select" required>
             <option value="" disabled selected>選択してください</option>
-            <option value="2026年度">2026年度</option>
-            <option value="2025年度">2025年度</option>
-            <option value="2024年度">2024年度</option>
-            <option value="2023年度">2023年度</option>
-            <option value="2022年度">2022年度</option>
-            <option value="2021年度以前">2021年度以前</option>
+            <!-- 上の「受講した学年」と同じ一覧を kuchikomi.js が入れる。
+                 べた書きに戻すと、年が変わったとき片方だけ古くなり、
+                 上で選んだ年がモーダルの選択肢に無い、という状態になる。 -->
           </select>
+          <span class="fine">※上で選んだ年が入っています。科目ごとに違うなら変えてください。</span>
         </div>
 
         <div class="form-section">
