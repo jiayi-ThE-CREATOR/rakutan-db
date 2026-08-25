@@ -532,12 +532,16 @@ html{scroll-behavior:smooth}
 .sheetLead b{color:var(--soft)}
 
 /* 運営の SNS。広告掲載ページで使う。
-   横に並べる箱にしてあるので、X などを足すときは <li> を増やすだけでいい。 */
-.prose ul.sns{list-style:none;margin:0 0 var(--sp-4);padding:0;
-  display:flex;flex-wrap:wrap;gap:var(--sp-3)}
+   アイコンを四角の色地にして、その下に名前を置く形。
+   X などを足すときは <li> を1行増やすだけで横に並ぶ。 */
+.prose ul.sns{list-style:none;margin:var(--sp-4) 0 0;padding:0;
+  display:flex;flex-wrap:wrap;gap:var(--sp-4)}
 .prose ul.sns li{margin:0}
-.prose ul.sns a{display:inline-flex;align-items:center;gap:8px;
-  padding:10px 14px;border:1px solid var(--rule);border-radius:10px;
-  color:var(--ink);text-decoration:none;font-size:var(--fs-sm);font-weight:700}
-.prose ul.sns a:hover{border-color:var(--brand);color:var(--brand)}
-.prose ul.sns svg{flex:none}
+.prose ul.sns a{display:flex;flex-direction:column;align-items:center;gap:6px;
+  text-decoration:none;color:var(--muted);font-size:12px;font-weight:700}
+.prose ul.sns a:hover{color:var(--ink)}
+.snsIcon{display:flex;align-items:center;justify-content:center;
+  width:46px;height:46px;border-radius:12px}
+.snsIcon.ig{background:linear-gradient(45deg,#F9CE34 4%,#EE2A7B 48%,#6228D7 96%)}
+.snsIcon.x{background:#000}
+.snsIcon.line{background:#06C755}
