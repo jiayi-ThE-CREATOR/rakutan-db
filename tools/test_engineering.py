@@ -39,7 +39,10 @@ def test_division_is_only_senmon():
 def test_track_is_namespaced():
     """トラックは軸名付きで返す。外国語学部の "L"（英語）と衝突させないため。"""
     assert track({"numbering": "08ELIE2H001"}) == "eng_dept:denshi"
-    assert track({"numbering": "10FOST2BL00"}) == "fs_lang:L"
+    # 外国語学部は科目名も見る（マーカーで専攻限定かどうかが決まる）。
+    assert track({"numbering": "10FOST2BL00", "title": "英語1"}) == "fs_lang:L"
+    assert track({"numbering": "10FOST3BL02",
+                  "title": "（学共-地域系）アメリカ史概論a"}) is None
     assert track({"numbering": "13LASC1Z100"}) is None
 
 

@@ -34,6 +34,14 @@ https://www.sfs.osaka-u.ac.jp/guide/
     〇〇語Ia〜Xb   271件 → [3,4] 257 ／ [4] 8 ／ [3] 6
 出所の違う2つが例外なく一致したので、この3分割は規則にしてよいと判断した。
 
+■ 専攻を選んだときに絞られるのは、マーカーが【専攻科目】のものだけ
+ナンバリング9文字目の言語コードは、専攻に縛られない科目にも入っている。
+（学共-地域系）アメリカ史概論＝10FOST3BL02 は L（英語）を持つが学部共通で、
+スペイン語専攻でも履修できる。名前の後ろが似ていても（「〇〇語圏学」）、
+前のマーカーが【専攻科目】ならその専攻だけ、（学共-…）なら全員。
+どちらになるかはナンバリングでは割れない ―― 3BL02 は両方にある。
+よってトラックは区分（＝マーカー）から決める。TRACK_BOUND_DIVISIONS 参照。
+
 ■ 判定しないもの
 【専攻科目】のうち、名前に講義とも演習とも書いていない21件
 （「ハンガリー研究入門」「書道」「日本語教育実習」など）は None にする。
@@ -219,8 +227,45 @@ TRACKS = {
 }
 
 
-def track_of(numbering: str) -> str | None:
-    """専攻語のコードを返す。専攻に紐づかない科目（研究外国語・学部共通など）は None。"""
+# 専攻を選んだときに絞り込みが効く区分。ここに無い区分は、ナンバリングに
+# 言語コードが入っていても「専攻がどこでも履修できる」科目として通す。
+#
+# 入れていないものと、その理由:
+#   fs_kyotsu_hoho / chiiki / tokusetsu … 学部共通科目。全専攻が対象
+#     （地域系121件・特設3件が言語コードを持つ。落とすと専攻を選んだ
+#      学生の画面から消える ―― これが 2026-08-26 に見つかった不具合）
+#   kodo_kyoyo … 高度教養は共通教育の区分で、他学部生も履修する（70件）
+#   fs_kenshu / fs_kenshu_kokusai … 兼修語学は専攻語の「ほかに」学ぶ language。
+#     専攻で絞ると自分の専攻語だけが残り、選ぶ意味が反転する（241件）
+#   fs_kenkyu_gaikokugo / fs_sotsuron … そもそも言語コードを持たない
+TRACK_BOUND_DIVISIONS = frozenset({
+    "fs_senkogo_1", "fs_senkogo_2", "fs_senkogo_enshu",   # 専攻語実習・演習
+    "fs_senko_kogi", "fs_senko_enshu",                    # 【専攻科目】
+    # 〜語科教育法。マーカーは無いが科目名の言語がそのまま専攻語で、
+    # 他専攻の学生には出しても選べない（49件）。
+    "fs_kyoshoku",
+})
+
+
+def is_track_bound(title: str, numbering: str) -> bool:
+    """その科目が専攻語に縛られるか。区分（＝科目名のマーカー）で決める。"""
+    if title.startswith(SENKO_MARK):
+        # 講義とも演習とも書いていない21件は区分が None になるが、
+        # マーカーが【専攻科目】である以上、専攻限定なのは動かない。
+        return True
+    key, _ = divide_foreign_studies(title, numbering)
+    return key in TRACK_BOUND_DIVISIONS
+
+
+def track_of(numbering: str, title: str) -> str | None:
+    """専攻語のコードを返す。専攻に縛られない科目は None。
+
+    title が要るのは、ナンバリングだけでは割れないため ―― 10FOST3BL02 には
+    （学共-地域系）アメリカ史概論（全員履修可）と【専攻科目】の英語系講義
+    （英語専攻のみ）の両方がいる。モジュール冒頭の節も参照。
+    """
+    if not is_track_bound(title, numbering):
+        return None
     code = numbering[8:9]
     return code if code in TRACKS else None
 

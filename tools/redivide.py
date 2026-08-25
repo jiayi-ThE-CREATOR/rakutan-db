@@ -76,8 +76,12 @@ def main() -> int:
     if args.dry_run:
         print("  --dry-run のため書き出していません")
         return 0
-    BUILT.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
-    TIMETABLE.write_text(json.dumps(tt, ensure_ascii=False), encoding="utf-8")
+    # 書き方は build.py と揃える。separators を既定のままにすると
+    # 全行が差分になり、末尾に改行を足すと同じことが起きる（HANDOFF 2026-08-26）。
+    BUILT.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")),
+                     encoding="utf-8")
+    TIMETABLE.write_text(json.dumps(tt, ensure_ascii=False, separators=(",", ":")),
+                         encoding="utf-8")
     REQ_DEST.write_text(json.dumps(req, ensure_ascii=False, indent=1), encoding="utf-8")
     for p in (BUILT, TIMETABLE, REQ_DEST):
         print(f"→ {p.relative_to(ROOT)}")

@@ -450,6 +450,14 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   border-radius:0 var(--r-md) var(--r-md) 0;
   padding:var(--sp-3) var(--sp-4);color:var(--ink)}
 
+/* About「How to join us」のCTA。koanLink（下線リンク）と違い、
+   新歓導線なのでボタンとして目立たせる。
+   文字色は --brand-ink（tools/test_tokens.py で検証済みのペア。
+   白文字 #fff だと --brand 地では 3.64:1 しかなく通常文字の基準に届かない）。 */
+.joinBtn{display:inline-block;background:var(--brand);color:var(--brand-ink);
+  padding:var(--sp-2) var(--sp-4);border-radius:var(--r-md);
+  font-weight:700;text-decoration:none}
+
 /* 左カラムから About へ渡す導線。 */
 .railNote{margin-top:var(--sp-5);font-size:var(--fs-sm)}
 .railNote a{color:var(--brand-text);text-decoration:none}
@@ -530,3 +538,18 @@ html{scroll-behavior:smooth}
    利用者に伝えるべきなのは「何を聞かれるか」と「どれくらいで終わるか」。 */
 .sheetLead{margin:0;font-size:var(--fs-sm);color:var(--muted)}
 .sheetLead b{color:var(--soft)}
+
+/* 運営の SNS。広告掲載ページで使う。
+   アイコンを四角の色地にして、その下に名前を置く形。
+   X などを足すときは <li> を1行増やすだけで横に並ぶ。 */
+.prose ul.sns{list-style:none;margin:var(--sp-4) 0 0;padding:0;
+  display:flex;flex-wrap:wrap;gap:var(--sp-4)}
+.prose ul.sns li{margin:0}
+.prose ul.sns a{display:flex;flex-direction:column;align-items:center;gap:6px;
+  text-decoration:none;color:var(--muted);font-size:12px;font-weight:700}
+.prose ul.sns a:hover{color:var(--ink)}
+.snsIcon{display:flex;align-items:center;justify-content:center;
+  width:46px;height:46px;border-radius:12px}
+.snsIcon.ig{background:linear-gradient(45deg,#F9CE34 4%,#EE2A7B 48%,#6228D7 96%)}
+.snsIcon.x{background:#000}
+.snsIcon.line{background:#06C755}

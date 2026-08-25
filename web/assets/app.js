@@ -467,7 +467,11 @@ function card(c){
    j_s_cd=13 固定＝共通教育科目。
    実装は松下さん（PR #23）。作り直しで構造が変わったので、
    同じものを app.js へ移した（2026-08-24）。 */
-const koanUrl = id => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+// j_s_cd（所属コード）は科目ごとに違う（全学教育推進機構は13だが他学部は別値）。
+// courses.built.json の shozoku_cd を使う。無ければ13にフォールバック
+// （2026-08-26以前にビルドされた古いデータ・shozoku_cd未収集の科目向け。
+// その場合、全学教育推進機構以外の科目はリンクが無効になりうる）。
+const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=${encodeURIComponent(c.shozoku_cd || "13")}&j_cd=${encodeURIComponent(c.id)}&langkbn=j`;
 
 /* ── 口コミの中身 ─────────────────────
    数字だけ出しても「なぜ楽なのか」は伝わらない。件数・内訳・一言をまとめて出す。
@@ -540,7 +544,7 @@ function detailHtml(c){
       </div>
       ${reviewHtml(c)}
       ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
-      <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
+      <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
 }
 
@@ -612,12 +616,37 @@ const norm = s => String(s || "").replace(/[\s　]+/g, "").toLowerCase();
 const reviewCount = c => ((c.reviews || {}).n) || 0;
 
 /* server.py の CONDITIONS と同じ内容。片方だけ足さないこと。 */
+/* 成績評価の内訳が「最後まで分かっている」科目か。
+   eval_unclassified が残っている＝ scrape/parse.py が振り分けられなかった項目が
+   あるということ。**その残りに出席や試験が隠れている可能性がある**ので、
+   「出席なし」「レポートのみ」を名乗らせない（411件が該当）。
+   内訳そのものが取れていない152件も同じ理由で外す。 */
+const evalKnown = c => !!c.eval_ratio && !c.eval_unclassified;
+
+/* 2026-08-26: 「出席なし」「レポートのみ」「集中講義」の3つは、全7,877件に対して
+   **常に0件**だった。原因は判定のほうにあり、データは正しかった。
+
+     出席なし・レポートのみ … scrape/parse.py:152 が
+         `{k: v for k, v in buckets.items() if v > 0}`
+       で **0% の項目をキーごと落としている**。つまり `attendance === 0` や
+       `exam === 0` は構造上ありえない。0% は「キーが無い」として表れる。
+     集中講義 … class_format の実値は 演習科目/講義科目/実習科目/実験科目 の4種で、
+       "集中講義" という値は存在しない。集中講義は KOAN の開講区分（term）が
+       「集中」になっている（191件）。day_period が「他」の1,060件は
+       "曜限が決まっていない" であって集中講義とは別物（通年305・秋冬210 を含む）。
+
+   server.py の CONDITIONS と同じ内容。片方だけ足さない・直さないこと。 */
 const CONDITIONS = {
-  "出席なし":     c => (c.eval_ratio || {}).attendance === 0,
-  "レポートのみ": c => (c.eval_ratio || {}).exam === 0,
+  // 出席・平常点が評価に入らない科目。毎回の小テストも「毎週の拘束」なので外す
+  // （score.py の出席軸が weekly_quiz を出席側の負担として足しているのと揃える）。
+  "出席なし":     c => evalKnown(c) && !c.eval_ratio.attendance && !c.weekly_quiz,
+  // レポートだけで成績が付く科目。試験も出席も内訳に無いこと。
+  // いまのデータでは 482件すべてが report 100%。
+  "レポートのみ": c => evalKnown(c) && (c.eval_ratio.report || 0) > 0
+                       && !c.eval_ratio.exam && !c.eval_ratio.attendance,
   "持ち込み可":   c => c.exam_type === "持込可",
   "1限以外":      c => !/1$/.test(c.day_period || ""),
-  "集中講義":     c => c.class_format === "集中講義",
+  "集中講義":     c => c.term === "集中",
   "小テストなし": c => c.weekly_quiz === false,
   "口コミあり":   c => ((c.reviews || {}).n || 0) > 0,
 };

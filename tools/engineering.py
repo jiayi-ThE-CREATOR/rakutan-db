@@ -58,8 +58,12 @@ CODE_TO_TRACK = {
 }
 
 
-def track_of(numbering: str) -> str | None:
+def track_of(numbering: str, title: str = "") -> str | None:
     """学科のキーを返す。学科に紐づかない科目（教職など）は None。
+
+    title は division.track() が全学部へ同じ形で渡すため受けるだけで、
+    ここでは見ない ―― 工学部の学科はナンバリングだけで一意に定まる
+    （外国語学部は専攻限定かどうかが科目名のマーカーでしか割れないので見る）。
 
     ナンバリングは `08MEEN…,08ELIE…` のようにカンマ区切りで複数入ることがある
     （工学部711件のうち151件。うち44件は学科をまたぐ）。**先頭だけ見ると、

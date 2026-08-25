@@ -136,8 +136,12 @@ def divide_senmon(title: str, numbering: str) -> tuple[str | None, str | None]:
     return f"{_slug(faculty)}_{_SUFFIX.get(kind, 'senko')}", "kitei"
 
 
-def track_of(numbering: str) -> str | None:
-    """学科のキーを返す。学科セレクタを持たない学部と、複数学科にまたがる科目は None。"""
+def track_of(numbering: str, title: str = "") -> str | None:
+    """学科のキーを返す。学科セレクタを持たない学部と、複数学科にまたがる科目は None。
+
+    title は division.track() が全学部へ同じ形で渡すため受けるだけで、ここでは見ない
+    ―― この9学部の学科はナンバリングだけで一意に定まる（外国語学部だけが違う）。
+    """
     faculty = SHOZOKU.get(numbering[:2])
     if faculty not in TRACKS:
         return None
