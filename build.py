@@ -116,6 +116,39 @@ def term_group(term: str | None) -> str:
 _SLOT = re.compile(r"[月火水木金][1-6]")
 
 
+def guard_not_fewer(dests: list[Path], n_new: int, allow: bool) -> None:
+    """科目が減る焼き直しを止める。減らないなら黙って通す。
+
+    ★ **科目ごとの書き出し先は全部見る。** courses.built.json だけ見ていたのでは
+    足りない ―― `--out` で別ファイルへ焼いたとき、`--out` の効かない
+    timetable.json は既定の場所へ書かれるのに、護りは「新しい出力先はまだ無い」と
+    見て素通りする。2026-08-26 に実際に踏んだ（timetable.json が 7,877件 →
+    1,112件 に黙って上書きされた）。検算のために一時ファイルへ焼くときは
+    `--out-timetable` も一緒に向けること。
+
+    data/courses.json は gitignore なので（シラバス原文と教員名を含む＝公開
+    リポジトリに置けない）、全所属7,877件を持っているのは取得した人だけ。
+    共通教育1,112件しか持っていない人が流すと、語学と学部の専門科目が
+    サイトから消える。2026-08-25 に口コミで同じことが起きている（112件→36件）。
+    """
+    for dst in dests:
+        if not dst.exists():
+            continue
+        try:
+            doc = json.loads(dst.read_text(encoding="utf-8"))
+            had = len(doc.get("courses", doc) if isinstance(doc, dict) else doc)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if had > n_new and not allow:
+            raise SystemExit(
+                f"中止: いまの {dst.name} には科目が {had:,} 件入っていますが、\n"
+                f"      今回の入力（{SRC.name}）は {n_new:,} 件しかありません。\n"
+                f"      上書きすると差の {had - n_new:,} 件がサイトから消えます。\n"
+                f"      {SRC.name} は gitignore なので、git pull では最新になりません。\n"
+                f"      全所属ぶんを持っている人から受け取ってから流してください。\n"
+                f"      本当に減らすなら --allow-fewer-courses を付けてください。")
+
+
 def timetable_rows(courses: list[dict]) -> list[dict]:
     """口コミ投稿の画面が読む投影。
 
@@ -201,6 +234,7 @@ def main() -> None:
     ap.add_argument("--allow-fewer-courses", action="store_true",
                     help="いまの built.json より科目が減っても上書きする（既定では止める）")
     ap.add_argument("--out-reviews", default=str(OUT_REVIEWS))
+    ap.add_argument("--out-timetable", default=str(OUT_TIMETABLE))
     args = ap.parse_args()
 
     raw = json.loads(SRC.read_text(encoding="utf-8"))
@@ -237,20 +271,8 @@ def main() -> None:
     # 持っているのは取得した人だけ。共通教育1,112件しか持っていない人が流すと、
     # 7,877件の built.json が黙って1,112件に焼き直され、語学と学部の専門科目が
     # サイトから消える。2026-08-25 に口コミで同じことが起きている（112件→36件）。
-    if dest_now.exists():
-        try:
-            had_courses = len(json.loads(dest_now.read_text(encoding="utf-8"))
-                              .get("courses", []))
-        except (json.JSONDecodeError, OSError):
-            had_courses = 0
-        if had_courses > len(courses) and not args.allow_fewer_courses:
-            raise SystemExit(
-                f"中止: いまの {dest_now.name} には科目が {had_courses:,} 件入っていますが、\n"
-                f"      今回の入力（{SRC.name}）は {len(courses):,} 件しかありません。\n"
-                f"      上書きすると差の {had_courses - len(courses):,} 件がサイトから消えます。\n"
-                f"      {SRC.name} は gitignore なので、git pull では最新になりません。\n"
-                f"      全所属ぶんを持っている人から受け取ってから流してください。\n"
-                f"      本当に減らすなら --allow-fewer-courses を付けてください。")
+    guard_not_fewer([dest_now, Path(args.out_timetable)], len(courses),
+                    args.allow_fewer_courses)
 
     built = []
     for c in courses:
@@ -338,10 +360,12 @@ def main() -> None:
     # 時間割の投影。courses.built.json と同じ元データから同じ実行で焼くので、
     # 片方だけ古くなることが無い。
     tt = timetable_rows(courses)
-    OUT_TIMETABLE.write_text(json.dumps(tt, ensure_ascii=False,
-                                        separators=(",", ":")), encoding="utf-8")
+    tt_dest = Path(args.out_timetable)
+    tt_dest.parent.mkdir(parents=True, exist_ok=True)
+    tt_dest.write_text(json.dumps(tt, ensure_ascii=False,
+                                  separators=(",", ":")), encoding="utf-8")
     n_slot = sum(1 for r in tt if r["slots"])
-    print(f"→ {OUT_TIMETABLE}  {len(tt)} 件"
+    print(f"→ {tt_dest}  {len(tt)} 件"
           f"（時間割のマスに置ける {n_slot} 件／置けない {len(tt) - n_slot} 件）")
 
     kb = dest.stat().st_size / 1024

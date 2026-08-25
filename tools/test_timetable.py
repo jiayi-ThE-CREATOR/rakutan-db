@@ -8,6 +8,7 @@ timetable.json は courses.built.json から build.py が焼く投影。
   python3 tools/test_timetable.py
 """
 import json
+import pathlib
 import sys
 from pathlib import Path
 
@@ -82,3 +83,62 @@ for f in fails:
     print(f"  NG  {f}")
 print("OK" if not fails else "NG")
 sys.exit(1 if fails else 0)
+
+
+# ── 焼き直しで科目が減るのを止める護り ──────────────
+# 2026-08-26：`--out` で別ファイルへ検算しようとしたら、`--out` の効かない
+# timetable.json だけが既定の場所へ 1,112件 で上書きされた。護りは
+# courses.built.json しか見ておらず、その新しい出力先は存在しないので素通りした。
+def _tmp(tmpdir, name, n, wrap):
+    p = pathlib.Path(tmpdir) / name
+    rows = [{"id": str(i)} for i in range(n)]
+    p.write_text(json.dumps({"courses": rows} if wrap else rows), encoding="utf-8")
+    return p
+
+
+def test_guard_not_fewer():
+    import tempfile
+    with tempfile.TemporaryDirectory() as td:
+        built = _tmp(td, "courses.built.json", 7877, True)    # dict 形
+        tt = _tmp(td, "timetable.json", 7877, False)          # 配列形
+
+        # ★ 本命：courses.built.json 側が存在しなくても、timetable.json で止まる
+        try:
+            build.guard_not_fewer([pathlib.Path(td) / "nowhere.json", tt], 1112, False)
+            check(False, "timetable.json だけが減るケースで止まらなかった")
+        except SystemExit as e:
+            check("timetable.json" in str(e), "止まったが、どのファイルか言っていない")
+            check("1,112" in str(e) and "7,877" in str(e), "件数を出していない")
+
+        # 減らないなら通す
+        try:
+            build.guard_not_fewer([built, tt], 7877, False)
+            check(True, "")
+        except SystemExit:
+            check(False, "同数なのに止まった")
+
+        # 増えるのも通す
+        try:
+            build.guard_not_fewer([built, tt], 9000, False)
+            check(True, "")
+        except SystemExit:
+            check(False, "増えるのに止まった")
+
+        # --allow-fewer-courses なら通す
+        try:
+            build.guard_not_fewer([built, tt], 10, True)
+            check(True, "")
+        except SystemExit:
+            check(False, "--allow-fewer-courses が効いていない")
+
+        # 壊れた JSON は護りの対象外（ここで落とすと焼き直しができなくなる）
+        broken = pathlib.Path(td) / "broken.json"
+        broken.write_text("{ not json", encoding="utf-8")
+        try:
+            build.guard_not_fewer([broken], 1, False)
+            check(True, "")
+        except SystemExit:
+            check(False, "壊れた JSON で止まってはいけない")
+
+
+test_guard_not_fewer()
