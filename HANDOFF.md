@@ -17,6 +17,57 @@
 
 ---
 
+## 2026-08-25 ｜ PR #25 の衝突を解いて main に合わせられる状態にした（政岡さん依頼③） ｜ wang
+
+政岡さんの 8/25 01:03 の依頼「③ #25 をマージして `data/reviews.agg.json` を最新にしてください」への対応。
+生データ `data/reviews.json` は gitignore なので、agg を焼けるのは wang だけ、というのが依頼の理由。
+
+### 1. 何が動く状態か
+
+```bash
+git checkout feat/kuchikomi-batch2      # 9591aef（main 0433220 を取り込みずみ）
+python3 build.py && python3 server.py   # → http://localhost:8000
+for t in web_split tokens layout shell_inject scoring_gate reviews division requirements eligibility; do python3 tools/test_$t.py; done
+python3 -m http.server 8141 --directory web & node tools/smoke.mjs http://localhost:8141
+node tools/check_division_ui.mjs http://localhost:8141
+```
+
+- **`data/reviews.agg.json` は生データ 144 件から焼き直して差分ゼロ**を確認した
+  （`reviews.dump_agg(reviews.aggregate(reviews.load()))` の出力が、ブランチにコミット済みのものと1バイトも違わない）。
+  main 側は 32 科目／36 件のままなので、**この PR を合わせた瞬間に素と産物が揃う**
+- 衝突は3本。`HANDOFF.md`（両側の追記 → 日付順に並べ直しただけ・欠落なし）、
+  `web/data/courses.built.json`（build.py の産物 → 手で直さず焼き直し）、
+  `web/assets/app.js`（自動マージで解決。担当教員＝main 側と「その他（…）」の原文表示＝本ブランチ側は別の箇所）
+- python テスト9本すべて OK。`smoke.mjs` 319件・コンソールエラーなし。`check_division_ui.mjs` 19項目すべて OK
+
+### 2. 何をしていないか
+
+- **`shots`（スクショ差分）の失敗は直していない。**`05-search-mobile` で `.card` を 30 秒待って落ちる。
+  これは #25 のせいではなく**開いている PR 全部で落ちている**既知の穴で、
+  直しは **PR #27（`feat/wang-shots-koma`）にある**（そのブランチでだけ success）。
+  #27 を先に main へ入れれば以後の PR から緑になる
+- **`Workers Builds` の fail も #25 由来か未確認**（main の同ジョブは success）。マージ後のデプロイで確認が要る
+- build.py の警告2本は前からの穴で今回も残る：口コミ 144 件のうち **31 科目分が科目DBに無い**
+  （全部 `191xxx` 台＝語学。KOAN の所属 `0:13` に語学が入っていないため。政岡さんが取得中の所属 `0:14` が入れば埋まる）、
+  回答が割れている科目 4 件（`135349`／`135357`／`135093`／`191111`）
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+gh pr view 25 && gh pr merge 25 --merge     # 合わせたら約80秒で本番へ自動デプロイ
+```
+
+マージが済んだら政岡さんに「③ 完了」と伝える。政岡さん側の④（`git pull` → `build.py` → PR）が動き出せる。
+
+### 4. 踏んだ罠
+
+**産物の衝突を手で解こうとしない。** `web/data/courses.built.json` は 1.7MB の build.py の出力で、
+衝突マーカーごと手で直すと素（`courses.json` ＋ `reviews.agg.json`）と食い違った産物が残る。
+`git checkout --theirs` で main 側を採ってから `build.py` で焼き直すのが正解。
+`HANDOFF.md` の 2026-08-24（追記）の項と同じ罠で、**2回目**。
+
+---
+
 ## 2026-08-25 ｜ 全科目に担当教員名を出した ｜ wang
 
 `feat/wang-instructor`（`main` から分岐）。**`web/index.html` と `web/assets/app.css`
