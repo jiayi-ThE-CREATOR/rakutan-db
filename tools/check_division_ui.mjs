@@ -163,7 +163,9 @@ for (const [key, label, nChip, nTrack] of [
 // 11 学科を選ぶと絞られる。学科を持たない科目（複数学科にまたがる科目）は残す
 await p.selectOption("#facSel", "science");
 await p.waitForTimeout(400);
-await p.evaluate(() => [...document.querySelectorAll(".chip.on")].forEach(b => b.click()));
+// 区分の chip だけ外す（学年・学期・プリセットの chip には data-d が無い）
+await p.evaluate(() =>
+  [...document.querySelectorAll("#facSec .chip.on[data-d]")].forEach(b => b.click()));
 await p.waitForTimeout(400);
 const beforeTrack = await p.evaluate(() => +document.querySelector("#count").textContent);
 await p.selectOption("#trackSel", "science_dept:math");
@@ -185,6 +187,52 @@ const kept = await p.evaluate(() => ({
 t("12 学部を変えると学科が効かなくなる",
   kept.hidden && !/track=/.test(kept.url) && kept.count > afterTrack,
   JSON.stringify(kept));
+
+// 13 学部を変えたら「その学部だけの区分」の選択は捨てる（共通の区分は残す）
+await p.selectOption("#facSel", "economics");
+await p.waitForTimeout(400);
+await p.evaluate(() =>
+  [...document.querySelectorAll("#facSec .chip.on[data-d]")].forEach(b => b.click()));
+await p.waitForTimeout(400);
+const all = await p.evaluate(() => +document.querySelector("#count").textContent);
+await p.click('#divsOwn button[data-d="economics_hisshu"]');
+await p.waitForTimeout(500);
+const onlyEcon = await p.evaluate(() => +document.querySelector("#count").textContent);
+t("13 学部だけの区分で絞れる", onlyEcon > 0 && onlyEcon < all, `${all} → ${onlyEcon}件`);
+
+await p.selectOption("#facSel", "science");
+await p.waitForTimeout(500);
+const moved = await p.evaluate(() => ({
+  count: +document.querySelector("#count").textContent,
+  on: [...document.querySelectorAll("#facSec .chip.on[data-d]")].map(b => b.dataset.d),
+}));
+t("13b 学部を変えると選択が消える", moved.count === all && moved.on.length === 0,
+  `${moved.count}件 / 選択 ${moved.on.join("/") || "なし"}`);
+
+// 共通の区分は学部をまたいでも残る（学部は「どれが必要か」を並べる軸でしかない）
+await p.click('#divs button[data-d="joho"]');
+await p.waitForTimeout(500);
+const joho = await p.evaluate(() => +document.querySelector("#count").textContent);
+await p.selectOption("#facSel", "law");
+await p.waitForTimeout(500);
+const afterFac = await p.evaluate(() => ({
+  count: +document.querySelector("#count").textContent,
+  on: [...document.querySelectorAll("#facSec .chip.on[data-d]")].map(b => b.dataset.d),
+}));
+t("13c 共通の区分は残る", afterFac.count === joho && afterFac.on.includes("joho"),
+  `${afterFac.count}件 / ${afterFac.on.join("/")}`);
+
+// 学部を外したときも同じ
+await p.click('#divsOwn button[data-d="law_hisshu"]');
+await p.waitForTimeout(500);
+await p.selectOption("#facSel", "");
+await p.waitForTimeout(500);
+const cleared2 = await p.evaluate(() => ({
+  count: +document.querySelector("#count").textContent,
+  on: [...document.querySelectorAll("#facSec .chip.on[data-d]")].map(b => b.dataset.d),
+}));
+t("13d 学部を外しても同じ", cleared2.count === joho && cleared2.on.join() === "joho",
+  `${cleared2.count}件 / ${cleared2.on.join("/")}`);
 
 console.log(`\n=== ${url}  幅${width}px ===`);
 ok.forEach(x => console.log("  OK  " + x));

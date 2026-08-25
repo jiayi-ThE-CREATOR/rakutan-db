@@ -184,6 +184,27 @@ function divisionPlan(){
   };
 }
 
+/* いま選んでいる学部の画面に出ていない区分の選択を捨てる。
+
+   学部だけの区分（only 付き）は、学部を変えると chip が画面から消える。
+   選択だけ state に残ると、**押していない条件が見えないまま効き続ける**
+   ―― 経済学部で「必修科目」を選び、理学部へ移ると、理学部の画面なのに
+   経済学部の必修45件だけが出る。押した覚えのない絞り込みは、原因が
+   画面から読めないぶん「壊れている」と読まれる。
+
+   共通の区分（only の無いもの）は捨てない。あれはどの学部でも同じ意味で、
+   学部は「どの区分が自分に必要か」を並べ替えるためだけの軸だから
+   （学部を外しても情報教育科目の選択は残るのが正しい）。
+
+   load() の0件で捨てる処理では間に合わない ―― division_facets は
+   区分で絞る**前**に数えているので、他学部の区分も件数を持っている。 */
+function dropForeignDivisions(){
+  for (const k of [...state.division]){
+    const d = ((REQ && REQ.divisions) || []).find(x => x.key === k);
+    if (d && d.only && !isOwnDivision(d)) state.division.delete(k);
+  }
+}
+
 function divisionChip(d, facets){
   const n = facets?.[d.key] ?? 0;
   const on = state.division.has(d.key);
@@ -227,10 +248,13 @@ function buildFaculty(facets){
     $("#facSel").innerHTML = `<option value="">学部を選ぶ</option>`
       + ((REQ.faculties || []).map(f =>
           `<option value="${esc(f.key)}">${esc(f.label)}</option>`).join(""));
-    // 学部を変えたらトラックは必ず捨てる。学部をまたいで残すと
-    // 「ドイツ語専攻のまま工学部」のような、存在しない絞り込みになる。
+    // 学部を変えたらトラックと「その学部だけの区分」は必ず捨てる。
+    // 学部をまたいで残すと「ドイツ語専攻のまま工学部」のような、
+    // 存在しない絞り込みになる。
     $("#facSel").onchange = e => {
-      state.faculty = e.target.value; state.track = ""; load();
+      state.faculty = e.target.value; state.track = "";
+      dropForeignDivisions();
+      load();
     };
     $("#trackSel").onchange = e => { state.track = e.target.value; load(); };
     $("#divTog").onclick = () => {
