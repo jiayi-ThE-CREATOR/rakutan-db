@@ -62,14 +62,22 @@ t("3c 合計の説明が title に", /人文科学系・社会科学系・自然
 t("3d 学問への扉 2単位", /2単位/.test(sci.tobira || ""), sci.tobira);
 t("3e 注記に自然科学系", /自然科学系.*卒業要件外/.test(sci.notes || ""), (sci.notes||"").slice(0,60));
 
-// 4 0件は disabled
-// 第1外国語（lang1）は chip:false なのでここでは見ない。内訳の総合英語を見る。
-const dis = await p.evaluate(() => ["lang1_sogo","lang2","adv_seminar","kodo_kyoyo"].map(k => {
-  const b = document.querySelector(`#divs button[data-d="${k}"]`);
-  return { k, disabled: !!b?.disabled, title: b?.title };
-}));
-t("4 0件は押せない", dis.every(d => d.disabled), JSON.stringify(dis.map(d=>d.k+":"+d.disabled)));
-t("4b 理由が出る", dis.every(d => /まだ取れていません/.test(d.title || "")));
+// 4 0件は disabled、0件でないものは押せる
+// どの区分が0件かはデータの入り具合で変わるので区分名を決め打ちしない。
+// 2026-08-25 に語学1,160件が入って lang1_sogo / lang2 が0件でなくなり、
+// 名指しで「押せないこと」を確かめていた旧版が落ちた（＝仕様どおりの変化）。
+const divChips = await p.evaluate(() =>
+  [...document.querySelectorAll("#divs button[data-d]")].map(b => ({
+    k: b.dataset.d,
+    n: +(b.querySelector(".n")?.textContent || 0),
+    disabled: !!b.disabled,
+    title: b.title,
+  })));
+const zero = divChips.filter(c => c.n === 0);
+t("4 0件は押せない", zero.every(c => c.disabled) && divChips.every(c => c.n > 0 ? !c.disabled : true),
+  `0件 ${zero.length}個（${zero.map(c=>c.k).join("/") || "なし"}）／ 非0 ${divChips.length - zero.length}個`);
+t("4b 理由が出る", zero.every(c => /まだ取れていません/.test(c.title || "")),
+  zero.map(c => c.title).join(" | ").slice(0, 80));
 
 // 5 情報教育科目を押す
 // ※ 画面の既定は year=1 / sem=aki なので、API 全件（76件）とは数が違う。

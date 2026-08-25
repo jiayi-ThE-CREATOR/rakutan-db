@@ -113,12 +113,20 @@ def test_multilingual_rules_do_not_leak_into_shozoku13():
 
 
 def test_counts_match_the_design_doc():
-    """全件の件数が design.md 3章・4章の表と一致すること。"""
+    """共通教育（所属13）の件数が design.md 3章・4章の表と一致すること。
+
+    design.md の表は共通教育科目だけを数えたもの。2026-08-25 に語学（所属14）と
+    学部の専門（5,605件）が入って courses.built.json が 7,877件になったので、
+    numbering の頭2桁で所属13に絞ってから数える。全件で数えると、この表と
+    比べようがない数字（None が5,666件）になって、区分判定の回帰を検出できない。
+    """
     built = ROOT / "web" / "data" / "courses.built.json"
     if not built.exists():
         print("  SKIP test_counts_match_the_design_doc（courses.built.json が無い）")
         return
-    courses = json.loads(built.read_text(encoding="utf-8"))["courses"]
+    all_courses = json.loads(built.read_text(encoding="utf-8"))["courses"]
+    courses = [c for c in all_courses
+               if str(c.get("numbering") or "").startswith("13")]
     got = Counter(divide(x)[0] for x in courses)
     expect = {"tobira": 250, "senmon_kiso": 302, "health_sports": 144,
               "kiban_jinbun": 92, "kiban_sogo": 82, "kiban_shakai": 78,
