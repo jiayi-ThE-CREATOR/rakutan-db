@@ -18,6 +18,11 @@
  *   FEEDBACK_DISCORD_WEBHOOK  … 意見箱の落とし先。未設定なら 503
  */
 
+// LINEに載せる「サイトのURL」は固定でこちらを使う。
+// リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
+// 登録した旧URL（*.workers.dev）のままになってしまうため（2026-08-25 吉村さん申請の新ドメイン）。
+const SITE_URL = "https://rakuhan.nocode-sol.co.jp";
+
 const PRESET_NAMES = ["バイト優先", "GPA重視", "とにかく軽い", "テストが苦手"];
 const GRADE_KANJI = { 1: "1年", 2: "2年", 3: "3年", 4: "4年", 5: "5年", 6: "6年" };
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -277,7 +282,7 @@ async function handleWebhook(request, env, ctx) {
     console.error("loadData error", e);
   }
 
-  const siteOrigin = new URL(request.url).origin;
+  const siteOrigin = SITE_URL;
   const tasks = [];
   for (const event of payload.events || []) {
     if (event.type === "follow") {
