@@ -441,6 +441,7 @@ function card(c){
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
   const tags = [...r.tags, ...r.notes];
   const rv = reviewMark(c.reviews);
+  const fav = rkStore.isFavorite(c.id);
   return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
@@ -454,6 +455,8 @@ function card(c){
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
+    <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
+            aria-label="お気に入り">${fav ? "★" : "☆"}</button>
     <div class="detail"></div>
   </article>`;
 }
@@ -541,7 +544,9 @@ function detailHtml(c){
       ${reviewHtml(c)}
       ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
       <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
-      <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
+      <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
+      <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.isFavorite(c.id)}"
+              aria-label="お気に入り">${rkStore.isFavorite(c.id) ? "★" : "☆"}</button>`;
 }
 
 /* ── 口コミを1件ずつ ───────────────────
@@ -1292,6 +1297,20 @@ function applyPostMode() {
   const initId = new URL(location.href).searchParams.get("c");
   if (initId) openPanel(initId, false);
 })();
+
+/* お気に入りの星。カードは絞り込みのたびに作り直されるので、
+   1枚ずつに onclick を付けず、親で受ける（.panelBtn と同じ型）。 */
+for (const sel of ["#list", "#inspector"]) {
+  $(sel).addEventListener("click", e => {
+    const btn = e.target.closest(".favBtn");
+    if (!btn) return;
+    const now = rkStore.toggleFavorite(btn.dataset.id);
+    /* 一覧と詳細に同じ科目の星が同時に出ていることがある。両方直す。 */
+    document.querySelectorAll(`.favBtn[data-id="${CSS.escape(btn.dataset.id)}"]`)
+      .forEach(b => { b.setAttribute("aria-pressed", String(now));
+                      b.textContent = now ? "★" : "☆"; });
+  });
+}
 
 /* 画面幅で出す番号の数を変えているので、幅が変わったら描き直す。
    スマホを横にしたときに「…」の畳み方が古いままになるのを防ぐ。 */

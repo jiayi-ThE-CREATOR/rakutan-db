@@ -530,3 +530,15 @@ html{scroll-behavior:smooth}
    利用者に伝えるべきなのは「何を聞かれるか」と「どれくらいで終わるか」。 */
 .sheetLead{margin:0;font-size:var(--fs-sm);color:var(--muted)}
 .sheetLead b{color:var(--soft)}
+
+/* お気に入りの星。.head の外に在るので、押しても詳細は開かない。 */
+.card { position: relative; }
+.favBtn{
+  position:absolute; top:6px; right:6px;
+  width:40px; height:40px;              /* 指で押せる大きさ。44px 未満にしない場合は要検討 */
+  border:0; background:transparent; cursor:pointer;
+  font-size:20px; line-height:1; color:var(--brand);
+  border-radius:8px;
+}
+.favBtn:hover{ background:rgba(219,98,9,.08); }
+.favBtn[aria-pressed="false"]{ color:#b9b9b9; }
