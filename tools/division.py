@@ -7,9 +7,11 @@
 
 ■ 学部ごとの規則は別ファイル
 ここが扱うのは共通教育（所属13）とマルチリンガル（所属14）＝全11学部に共通の
-CELAS 区分。学部の専門科目は出所が学部のチェックシートで系統が違うので、
-`tools/<学部>.py` に分けてナンバリングの接頭辞で振り分ける。
-いまあるのは tools/foreign_studies.py（外国語学部＝10FOST）だけ。
+CELAS 区分。学部の専門科目は出所が学部のチェックシート・学部規程で系統が違うので、
+別ファイルに分けてナンバリングの所属コードで振り分ける。
+    tools/foreign_studies.py … 外国語学部（10FOST）。科目名の【専攻科目】等の印で割る
+    tools/engineering.py     … 工学部（08）。学科コードだけ。必修は科目の側で割れない
+    tools/senmon.py          … 残り9学部。学部規程の別表に科目名を引きに行く
 
 ■ 判定できないものは None にする（「その他」は画面のラベルであって区分ではない）
 ナンバリング 1V の接頭辞なし179件のうち35件は
@@ -31,7 +33,7 @@ from __future__ import annotations
 
 import re
 
-from tools import engineering, foreign_studies
+from tools import engineering, foreign_studies, senmon
 
 # 科目名の接頭辞。KOAN の科目名に元から付いている（例：【人文】ことばの学問入門）。
 PREFIX = {
@@ -113,6 +115,9 @@ def divide(course: dict) -> tuple[str | None, str | None]:
         return foreign_studies.divide_foreign_studies(title, numbering)
     if numbering.startswith(engineering.NUMBERING_PREFIX):
         return engineering.divide_engineering(title, numbering)
+    # 残り9学部は学部規程の別表（data/senmon_tables.json）を引く。
+    if numbering[:2] in senmon.SHOZOKU:
+        return senmon.divide_senmon(title, numbering)
 
     m = _PREFIX_RE.match(title)
     if m and m.group(1) in PREFIX:
@@ -181,6 +186,8 @@ TRACK_FACULTY = {
     foreign_studies.NUMBERING_PREFIX: (foreign_studies.TRACK_KEY,
                                        foreign_studies.track_of),
     engineering.NUMBERING_PREFIX: (engineering.TRACK_KEY, engineering.track_of),
+    **{code: (senmon.track_key(fac), senmon.track_of)
+       for code, fac in senmon.SHOZOKU.items() if senmon.track_key(fac)},
 }
 
 
