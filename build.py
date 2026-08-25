@@ -81,7 +81,7 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "eval_ratio", "eval_raw", "eval_unclassified",
         "exam_type", "report_count", "report_words",
         "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years",
-        "reviews"]
+        "reviews", "shozoku_cd"]
 
 
 def term_group(term: str | None) -> str:

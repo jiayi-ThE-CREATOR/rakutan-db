@@ -61,8 +61,12 @@ function presetFromText(text) {
 }
 
 // web/assets/app.js の koanUrl() と同じ形式（セッション不要で直接開ける）。
-function koanUrl(id) {
-  return `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+// j_s_cd（所属コード）は科目ごとに違う。courses.built.json の shozoku_cd を
+// 使い、無ければ13にフォールバック（2026-08-26 wangさん報告：固定値13だと
+// 全学教育推進機構以外の科目でリンクが無効になっていた）。
+function koanUrl(c) {
+  const shozokuCd = c.shozoku_cd || "13";
+  return `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=${encodeURIComponent(shozokuCd)}&j_cd=${encodeURIComponent(c.id)}&langkbn=j`;
 }
 
 // 科目1件ぶんのFlex Messageバブル。
@@ -121,7 +125,7 @@ function courseBubble(c) {
           style: "primary",
           height: "sm",
           color: "#DB6209",
-          action: { type: "uri", label: "KOAN公式シラバス", uri: koanUrl(c.id) },
+          action: { type: "uri", label: "KOAN公式シラバス", uri: koanUrl(c) },
         },
       ],
     },
