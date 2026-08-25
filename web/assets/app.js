@@ -115,7 +115,13 @@ function buildYears(){
 
 const DIV_OTHER = "other";   // 「まだ判定していない」科目の置き場。データには書かない
 
-function divisionsOf(){ return (REQ && REQ.divisions) || []; }
+/* チップにする区分だけを返す。chip:false の区分（第1外国語）は、内訳の
+   総合英語・実践英語が実在する区分なので、親はチップにしない
+   ―― 親に直接ぶら下がる科目が無く、必ず0件になって壊れて見えるため。
+   要件表の行としてはデータに残っている（内訳の検算に使う）。 */
+function divisionsOf(){
+  return ((REQ && REQ.divisions) || []).filter(d => d.chip !== false);
+}
 function facultyOf(key){ return ((REQ && REQ.faculties) || []).find(f => f.key === key); }
 
 /* 要件表の生文字列（"2" / "－" / "＊" / "＊6"）を画面の言葉にする。

@@ -46,6 +46,28 @@ NUMBERING = {
 # 1V を「健康・スポーツ教育科目」と見なすために科目名へ要求する語。
 SPORTS_WORDS = ("スポーツ", "健康", "ヘルス", "運動", "体育", "フィットネス")
 
+# ── マルチリンガル教育センター（所属14）の科目 ────────────────
+# ナンバリングが 14CMLE で始まるものだけに使う規則。所属13 には当てない。
+# 2026-08-25 時点でこの1,165件はまだ取得できていない（政岡さん作業中）が、
+# KOAN の一覧から題名は実測ずみなので、入った瞬間に効くようにしてある。
+MULTILINGUAL_PREFIX = "14CMLE"
+
+# 各学部規程が「第2外国語」として名指ししている4言語。11学部すべてで同じ。
+DAI2_LANGS = ("ドイツ語", "フランス語", "ロシア語", "中国語")
+
+# グローバル理解科目。規程に名前が出ているものだけを入れている。
+#   歯学部規程「グローバル理解で指定された授業科目の…『国際コミュニケーション演習』
+#              又は『地域言語文化演習』の科目のいずれかを選択し」
+#   人間科学部規程「グローバル理解の『多文化コミュニケーション (日本語) 』の科目」
+GLOBAL_PREFIXES = ("国際コミュニケーション演習", "地域言語文化演習",
+                   "多文化コミュニケーション")
+
+# 選択外国語。人間科学部規程が挙げる「英語、ドイツ語、フランス語、ロシア語、
+# 中国語、ギリシャ語及びラテン語」のうち、第2外国語の4言語と重ならないものと、
+# 実測で出た他言語。「英語選択」は科目名がそのまま選択外国語を指す。
+LANG_OPT_PREFIXES = ("英語選択", "スペイン語", "イタリア語", "朝鮮語",
+                     "ギリシャ語", "ラテン語")
+
 _PREFIX_RE = re.compile(r"^【([^】]+)】")
 
 
@@ -64,10 +86,44 @@ def divide(course: dict) -> tuple[str | None, str | None]:
     if m and m.group(1) in PREFIX:
         return PREFIX[m.group(1)], "title"
 
-    seg = (course.get("numbering") or "")[6:8]
+    numbering = course.get("numbering") or ""
+
+    # マルチリンガル教育センターの科目は題名で分ける。
+    # ナンバリングは 総合英語 と 実践英語 で同じ値（14CMLE1BLB3）になるため
+    # 使えない ―― 2026-08-25 に KOAN の詳細ページで実測した。
+    if numbering.startswith(MULTILINGUAL_PREFIX):
+        return _divide_multilingual(title)
+
+    seg = numbering[6:8]
     if seg in NUMBERING:
         return NUMBERING[seg], "numbering"
     if seg == "1V" and any(w in title for w in SPORTS_WORDS):
         return "health_sports", "numbering"
 
+    return None, None
+
+
+def _divide_multilingual(title: str) -> tuple[str | None, str | None]:
+    """所属14（マルチリンガル教育センター）の科目を区分へ割り当てる。
+
+    「特別外国語演習」「専門日本語」「総合日本語」は、どの学部規程にも
+    区分の名指しが無いので None にする。留学生向けの特例が絡むため、
+    見ていない規則を書くと外れる。
+
+    なお **第2外国語と選択外国語は科目の属性ではない**。ドイツ語の同じ科目でも、
+    その学生が第2外国語として選んだのなら第2外国語、そうでなければ選択外国語に
+    なりうる（人間科学部規程ほか）。ここでは「第2外国語として名指しされている
+    4言語は第2外国語」という多数派に寄せている。絞り込みの入口としては
+    これで足りるが、単位計算に使ってはいけない。
+    """
+    if title.startswith("総合英語"):
+        return "lang1_sogo", "title"
+    if title.startswith("実践英語"):
+        return "lang1_jissen", "title"
+    if any(title.startswith(w) for w in GLOBAL_PREFIXES):
+        return "global", "title"
+    if any(title.startswith(w) for w in LANG_OPT_PREFIXES):
+        return "lang_opt", "title"
+    if any(title.startswith(w) for w in DAI2_LANGS):
+        return "lang2", "title"
     return None, None

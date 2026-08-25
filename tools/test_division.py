@@ -10,7 +10,7 @@ from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tools.division import SPORTS_WORDS, divide
+from tools.division import DAI2_LANGS, SPORTS_WORDS, divide
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -63,6 +63,53 @@ def test_unknown_is_none_not_a_guess():
 def test_sports_words_are_all_used():
     for w in SPORTS_WORDS:
         assert divide(c(f"テスト{w}講座", "13LASC1V000"))[0] == "health_sports", w
+
+
+# ── マルチリンガル教育センター（所属14）────────────────
+# 2026-08-25 に KOAN の一覧から実測した題名を使う。科目そのものはまだ
+# 取得できていない（政岡さん作業中）が、入った瞬間に効くことを先に確かめる。
+def ml(title):
+    return divide({"title": title, "numbering": "14CMLE1BLB3"})
+
+
+def test_multilingual_english_split():
+    assert ml("総合英語III") == ("lang1_sogo", "title")
+    assert ml("実践英語（e-learning入門）") == ("lang1_jissen", "title")
+
+
+def test_multilingual_second_language():
+    for lang in DAI2_LANGS:
+        assert ml(f"{lang}上級")[0] == "lang2", lang
+
+
+def test_multilingual_global_understanding():
+    # 歯学部規程・人間科学部規程が「グローバル理解」として名指ししている科目
+    assert ml("国際コミュニケーション演習（ドイツ語）")[0] == "global"
+    assert ml("地域言語文化演習（イタリア語）")[0] == "global"
+    assert ml("多文化コミュニケーション（日本語）")[0] == "global"
+
+
+def test_multilingual_optional_language():
+    assert ml("英語選択")[0] == "lang_opt"
+    for lang in ("スペイン語中級", "イタリア語初級I", "朝鮮語中級",
+                 "ギリシャ語初級I選択", "ラテン語初級"):
+        assert ml(lang)[0] == "lang_opt", lang
+
+
+def test_multilingual_unknown_stays_none():
+    # どの学部規程にも区分の名指しが無いもの。留学生向けの特例が絡むので猜わない
+    assert ml("特別外国語演習（インドネシア語）I") == (None, None)
+    assert ml("専門日本語A") == (None, None)
+    assert ml("総合日本語") == (None, None)
+
+
+def test_multilingual_rules_do_not_leak_into_shozoku13():
+    # 所属13 の科目に 14CMLE の規則が当たってはいけない
+    assert divide({"title": "総合英語III", "numbering": "13LASC1B002"})[0] == "kiban_jinbun" \
+        or divide({"title": "総合英語III", "numbering": "13LASC1Z100"})[0] == "tobira"
+    # 「中国語」で始まる 所属13 の科目が lang2 に化けないこと
+    got = divide({"title": "中国語圏の文学A", "numbering": "13LASC1A000"})
+    assert got[0] != "lang2", got
 
 
 def test_counts_match_the_design_doc():
