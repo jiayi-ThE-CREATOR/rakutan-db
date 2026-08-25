@@ -421,6 +421,13 @@ class Handler(BaseHTTPRequestHandler):
         CAN_POST=false で投稿口が閉じていたので露見していなかっただけで、
         D1 を繋いだ瞬間に事故になる状態だった。
 
+        **「いまの学年」（grade）はここでは集めていない。** 2026-08-26 に
+        正典（サイト内フォーム /kuchikomi → GAS → ingest_reviews.py）へ
+        足した項目で、こちらの投稿口は塞がったまま（CAN_POST=false）なので
+        追随させていない。ここから入った行は grade が無く、
+        reviews.py は None として扱う（画面には何も出ない）。
+        この投稿口を開けるときは、設問に「いまの学年」を足すこと。
+
         workload（課題の量）と grading（成績の付き方）は捨てた。
         前者は in_class / out_class の2軸に対応が付かず、後者は正典側に
         該当する項目が無い。無理に寄せると「聞いていないことを答えたことに

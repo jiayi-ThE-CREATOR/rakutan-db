@@ -583,8 +583,15 @@ function panelEntry(row){
   if (examBits.length) lines.push(examBits.join(" ・ "));
   if (row.report_words != null) lines.push(`レポート 1本あたり約${row.report_words.toLocaleString()}字`);
 
+  /* 書いた人の学年。「自分より上の学年の人が先に受けている」と分かると、
+     同じ内容でも効き方が違う ―― これを出すためだけに持っている値。
+     **受講時ではなく、書いた時点の学年**なので「書いた人」と明示する。
+     2026-08-26 より前の口コミには入っていないので、無ければ何も出さない
+     （「不明」と書くと、古い口コミ全部に無意味な行が付く）。 */
+  const who = row.grade ? `<span class="pWho">書いた人：${esc(row.grade)}</span>` : "";
+
   return `<div class="pEntry">
-      <div class="pYear">${esc(yearLabel)}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
+      <div class="pYear">${esc(yearLabel)}${who}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
       ${lines.map(l => `<div class="pLine">${esc(l)}</div>`).join("")}
       ${row.note ? `<div class="pNote">${esc(row.note)}</div>` : ""}
     </div>`;

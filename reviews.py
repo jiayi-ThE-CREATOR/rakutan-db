@@ -207,6 +207,12 @@ def public_rows(rows: list[dict]) -> dict[str, list[dict]]:
             {**{k: r.get(k) for k in _PUBLIC},
              "taken_year": r.get("taken_year"),
              "taken_year_before": bool(r.get("taken_year_before")),
+             # 書いた人の「いまの学年」（受講時ではない）。
+             # 「自分より上の学年の人が先に受けている」と分かると、
+             # 同じ内容でも読み手への効き方が違う、というのが載せる理由。
+             # 2026-08-26 より前の行と、学年の列が無いフォームからの行は None。
+             # **採点には一切使わない** ―― aggregate() はこの値を見ない。
+             "grade": r.get("grade"),
              "note": r["note"] if (r.get("note") and r.get("publish", True))
                      else None}
             for r in sorted(rs, key=_sort_key, reverse=True)

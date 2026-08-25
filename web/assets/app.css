@@ -255,6 +255,9 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .pYear{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data);margin-bottom:5px}
 /* 古い回答であることの但し書き。年そのものと同じ強さにはしない。 */
 .pOld{margin-left:var(--sp-2);color:var(--muted)}
+/* 書いた人の学年。受講年と同じ行に並ぶ添え物なので、
+   目立たせない（数字そのものではなく、読むときの重みづけの材料）。 */
+.pWho{margin-left:var(--sp-2);color:var(--soft)}
 .pLine{font-size:var(--fs-sm);color:var(--soft);line-height:1.6;margin-bottom:3px}
 /* 本人が書いた一言。上の選択式の行より強くする ―― ここだけが自由記述で、
    KOAN にも集計にも出てこない情報。 */
