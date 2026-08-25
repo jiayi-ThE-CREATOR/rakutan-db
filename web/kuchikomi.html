@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>口コミを書く ― ラクハン</title>
+<meta name="description" content="受けた科目の出席・課題・テスト・レポートを、時間割から選んで投稿できます。選択式で1科目1分。登録もログインも要りません。">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/kuchikomi.css">
+<!--SHELL:HEAD-->
+<!-- 全ページ共通の <head> 資源。ページごとに手で書くと必ず片方が古くなるので、
+     ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
+     ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
+<link rel="stylesheet" href="/assets/feedback.css">
+<!--/SHELL:HEAD-->
+</head>
+<body><!--SHELL:HEADER-->
+<header>
+  <div class="hd">
+    <!-- マークが「ラ」の字形なので、読み上げは h1 側でまとめて与える。
+         そうしないと「ラ」が絵として飛ばされ「クハン」だけが読まれる。 -->
+    <a class="lockup" href="/">
+      <h1 aria-label="ラクハン ― 阪大 全学部の科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学部の科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/ads" data-nav="ads">広告掲載</a><a href="/about" data-nav="about">About ラクハン</a><a href="/kuchikomi" data-nav="kuchikomi">口コミを書く</a></nav></div>
+</header>
+<!--/SHELL:HEADER-->
+
+<div class="wrap kuchikomi">
+
+  <section class="kkHead">
+    <h2>受けた科目の口コミを書く</h2>
+    <p>KOAN のシラバスには載っていない「実際どうだったか」を集めています。選択式で、1科目あたり1分ほど。<b>登録もログインも要りません。</b></p>
+  </section>
+
+  <div class="note" id="load-note">科目データを読み込み中…</div>
+
+  <section class="kkStep">
+    <h3><span class="kkNum">1</span>あなたのこと</h3>
+    <div class="kkFields">
+      <div class="input-group">
+        <!-- ここは「いま何年生か」。受けたときの学年でも年度でもない。
+             口コミを読む人が「自分より上の学年の人が先に受けている」と分かると、
+             同じ内容でも効き方が違う。だから書いた人の現在地を持っておく。
+             **その科目をいつ受けたか**は、科目ごとにモーダルの「2 受講年度」で聞く。 -->
+        <label for="grade-select">いまの学年 <span class="required">*</span></label>
+        <select id="grade-select" required>
+          <option value="" disabled selected>いまの学年を選択してください</option>
+          <option value="1年">1年</option>
+          <option value="2年">2年</option>
+          <option value="3年">3年</option>
+          <option value="4年">4年</option>
+          <option value="5年">5年</option>
+          <option value="6年">6年</option>
+          <option value="修士">修士</option>
+          <option value="博士">博士</option>
+        </select>
+        <span class="fine">※受けたときではなく、いま何年生か。受けた年は科目ごとに聞きます</span>
+      </div>
+
+      <div class="input-group">
+        <label for="semester-select">学期 <span class="required">*</span></label>
+        <select id="semester-select" required>
+          <option value="" disabled selected>学期を選択してください</option>
+          <option value="spring">春・夏学期</option>
+          <option value="autumn">秋・冬学期</option>
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="faculty-select">学部 <span class="required">*</span></label>
+        <select id="faculty-select" required>
+          <option value="" disabled selected>学部を選択してください</option>
+          <!-- requirements.json（卒業要件表）から kuchikomi.js が入れる -->
+        </select>
+      </div>
+
+      <div class="input-group">
+        <label for="department-select" id="department-label">学科</label>
+        <select id="department-select" disabled>
+          <option value="" disabled selected>先に学部を選択してください</option>
+          <!-- 学部を選ぶと kuchikomi.js が入れ替える -->
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section id="timetable-section" class="kkStep timetable-section hidden">
+    <div class="timetable-header">
+      <h3><span class="kkNum">2</span>時間割から科目を選ぶ</h3>
+      <p>受けたコマを押すと、その曜限に開講されている科目が出ます。数字はその枠の科目数です。</p>
+    </div>
+
+    <div class="timetable-grid" id="timetable-grid">
+      <!-- kuchikomi.js が生成 -->
+    </div>
+
+  </section>
+
+  <!-- 時間割のマスに置けない科目（集中講義・土曜など1,069件）。
+       ここが無いと、理学部は667件中443件に口コミを付けようが無い。 -->
+  <section id="extra-section" class="kkStep hidden">
+    <h3><span class="kkNum">3</span>時間割に無い科目</h3>
+    <p class="kkLead">集中講義や土曜開講など、時間割のマスに置けない科目です。受けたものがあれば、ここから選んでください。<b>無ければ飛ばして構いません。</b></p>
+
+    <div class="kkExtra">
+      <input type="search" id="extra-search" placeholder="科目名でしぼりこむ" autocomplete="off">
+      <select id="extra-select">
+        <!-- kuchikomi.js が生成 -->
+      </select>
+      <div class="kkExtraFoot">
+        <p class="fine" id="extra-count"></p>
+        <button type="button" id="extra-open" class="secondary-btn" disabled>この科目の口コミを書く</button>
+      </div>
+    </div>
+
+    <ul class="extraList" id="extra-list"></ul>
+  </section>
+
+  <div id="submit-area" class="action-area hidden">
+    <button id="submit-survey" class="primary-btn" disabled>アンケートを送信する</button>
+    <p class="fine">時間割で選んだ科目と、上で選んだ科目をまとめて送ります。何科目でも構いません。</p>
+  </div>
+
+</div>
+
+<!--SHELL:FOOTER-->
+<footer><p class="disclaimer">数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。<b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b>科目を選ぶと出る「KOAN公式シラバスを見る」から開けます。</p>
+  <!-- ブランド資料のレッドライン「学生団体であることを明記」への対応。
+       ロゴには入れず、ここと About で出す、という整理。消さないこと。 -->
+  <p class="who"><b>学生団体 GUILD が運営しています。</b>大阪大学の公式サービスではありません。</p>
+  <!-- 意見箱の入口。「意見箱は一番下にあるもの」という感覚に合わせ、
+       運営表記のさらに下に置く。順番を入れ替えないこと（tools/test_feedback.mjs が見張っている）。 -->
+  <p class="fbLine"><button type="button" class="fbOpen" id="fbOpen">&#128161; サイトへのご意見・改善要望</button></p>
+</footer>
+
+<!-- 外部フォームへ飛ばさず、その場で書いて閉じられるようにする。
+     <dialog> なのは ESC で閉じる・背後にフォーカスを漏らさないを自前で書かないため。 -->
+<dialog class="fbDlg" id="fbDlg" aria-labelledby="fbTitle">
+  <form class="fbForm" id="fbForm">
+    <h2 id="fbTitle">サイトへのご意見・改善要望</h2>
+    <p class="fbNote">科目の口コミではなく、<b>サイトそのもの</b>への意見をここへ。ログイン不要、匿名で送れます。</p>
+
+    <label class="fbLabel" for="fbText">気づいたこと・こうしてほしいこと</label>
+    <textarea id="fbText" name="text" rows="5" maxlength="1000" placeholder="例：スマホだと学部の絞り込みが押しにくい"></textarea>
+    <p class="fbCount" id="fbCount">0 / 1000</p>
+
+    <label class="fbLabel" for="fbContact">返事がほしいときだけ（任意）</label>
+    <input id="fbContact" name="contact" type="text" maxlength="200" autocomplete="off" placeholder="Discord ID・メールなど">
+
+    <!-- honeypot。人には見えないので、埋まっていれば bot。CSS で画面外へ出している。 -->
+    <div class="fbHp" aria-hidden="true"><label>website<input type="text" id="fbWebsite" name="website" tabindex="-1" autocomplete="off"></label></div>
+
+    <p class="fbMsg" id="fbMsg" role="status"></p>
+    <div class="fbBtns">
+      <button type="button" class="fbCancel" id="fbCancel">閉じる</button>
+      <button type="submit" class="fbSend" id="fbSend" disabled>送る</button>
+    </div>
+  </form>
+</dialog>
+<script src="/assets/feedback.js" defer></script>
+<!--/SHELL:FOOTER-->
+
+<!-- 科目選択と口コミのモーダル -->
+<div id="class-modal" class="modal-overlay hidden">
+  <div class="modal-content form-modal">
+    <div class="modal-header">
+      <h3 id="modal-title">口コミを書く <span class="modal-subtitle" id="modal-slot-info"></span></h3>
+      <button id="close-modal" class="close-btn" aria-label="閉じる">&times;</button>
+    </div>
+    <div class="modal-body form-body">
+      <p class="modal-desc">※選択肢にない授業もあるかもしれませんが、リストにあるものだけで構いませんのでご回答いただけると助かります🙇‍♂️</p>
+
+      <div class="form-section">
+        <label>1 どの科目？ <span class="required">*</span></label>
+        <select id="modal-subject-select" class="full-width-select" required>
+          <!-- kuchikomi.js が生成 -->
+        </select>
+        <div id="no-subjects-msg" class="hidden no-subjects">
+          <p>この時限に登録されている科目はありません。</p>
+        </div>
+      </div>
+
+      <div class="review-questions" id="review-questions">
+        <div class="form-section">
+          <label>2 受講年度 <span class="required">*</span></label>
+          <select id="modal-year-select" class="full-width-select" required>
+            <option value="" disabled selected>選択してください</option>
+            <!-- 上の「受講した学年」と同じ一覧を kuchikomi.js が入れる。
+                 べた書きに戻すと、年が変わったとき片方だけ古くなり、
+                 上で選んだ年がモーダルの選択肢に無い、という状態になる。 -->
+          </select>
+        </div>
+
+        <div class="form-section">
+          <label>3 出席は取られた？ <span class="required">*</span></label>
+          <div class="button-group" id="group-attendance">
+            <button type="button" class="form-btn" data-value="毎回">毎回</button>
+            <button type="button" class="form-btn" data-value="たまに">たまに</button>
+            <button type="button" class="form-btn" data-value="なし">なし</button>
+            <button type="button" class="form-btn" data-value="その他">その他</button>
+          </div>
+          <input type="text" id="attendance-other-text" class="hidden other-input" placeholder="例：毎回の小テストを通じて。">
+        </div>
+
+        <div class="form-section">
+          <label>4 授業中の課題はあった？ <span class="required">*</span></label>
+          <div class="button-group" id="group-assignment-inclass">
+            <button type="button" class="form-btn" data-value="重い">重い</button>
+            <button type="button" class="form-btn" data-value="ふつう">ふつう</button>
+            <button type="button" class="form-btn" data-value="軽い">軽い</button>
+            <button type="button" class="form-btn" data-value="なかった">なかった</button>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label>5 授業外の課題はあった？ <span class="required">*</span></label>
+          <div class="button-group" id="group-assignment-outclass">
+            <button type="button" class="form-btn" data-value="重い">重い</button>
+            <button type="button" class="form-btn" data-value="ふつう">ふつう</button>
+            <button type="button" class="form-btn" data-value="軽い">軽い</button>
+            <button type="button" class="form-btn" data-value="なかった">なかった</button>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label>6 テストはあった？ <span class="required">*</span></label>
+          <div class="button-group" id="group-exam-presence">
+            <button type="button" class="form-btn" data-value="あり">あり</button>
+            <button type="button" class="form-btn" data-value="なし">なし</button>
+          </div>
+        </div>
+
+        <div id="exam-details-section" class="hidden">
+          <div class="form-section">
+            <label>↳ テストの持ち込みは？ <span class="required">*</span></label>
+            <div class="button-group" id="group-exam">
+              <button type="button" class="form-btn" data-value="可">可</button>
+              <button type="button" class="form-btn" data-value="不可">不可</button>
+              <button type="button" class="form-btn" data-value="その他">その他</button>
+            </div>
+            <input type="text" id="exam-other-text" class="hidden other-input" placeholder="例：教科書と授業スライドのみ可。">
+          </div>
+
+          <div class="form-section">
+            <label>↳ テストの難易度は？ (1:簡単 〜 10:難しい) <span class="required">*</span></label>
+            <div class="slider-container">
+              <input type="range" id="exam-difficulty" min="1" max="10" step="1" value="5" class="styled-slider">
+              <div class="slider-value-display">
+                レベル <span id="exam-difficulty-display" class="highlight-text">5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label>7 レポートはあった？ <span class="required">*</span></label>
+          <div class="button-group" id="group-report">
+            <button type="button" class="form-btn" data-value="あり">あり</button>
+            <button type="button" class="form-btn" data-value="なし">なし</button>
+          </div>
+        </div>
+
+        <div class="form-section hidden" id="report-details-section">
+          <label>↳ レポートの語数は？ <span class="required">*</span></label>
+          <div class="slider-container">
+            <input type="range" id="report-word-count" min="500" max="30000" step="500" value="2000" class="styled-slider">
+            <div class="slider-value-display">
+              <span id="report-word-display" class="highlight-text">2000</span> 字 くらい
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label>一言（任意）</label>
+          <input type="text" id="comment" placeholder="例：過去問があれば余裕">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="clear-cell-btn" class="secondary-btn hidden">選択と口コミを解除</button>
+      <button id="save-review-btn" class="primary-btn" disabled>保存する</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden" role="status">
+  送信が完了しました！ご協力ありがとうございます。
+</div>
+
+<script src="/assets/shell.js" defer></script>
+<script src="/assets/kuchikomi.js" defer></script>
+</body>
+</html>

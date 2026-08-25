@@ -16,7 +16,11 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
    選べない科目が7割混ざった一覧を最初に見せることになる。
    ⚠️ 春夏の履修登録期（3〜4月）には "haru" へ変えること。
    値が日本語でないのは、クエリ文字列で文字化けするため。 */
-const state = { q:"", year:"1", sem:"aki", day:"", period:"", cond:new Set(), sort:"fit",
+/* 既定は学年も学期も「すべて」。最初に見た人へ、まず**扱っている量**を見せる
+   （7,877件／空きコマの数字も全部入りになる）。絞り込みはそこから始める。
+   2026-08-26 まで 1年・秋冬 が既定で、初回表示は 319件だった。
+   server.py の search() の既定も同じ値にしてある。片方だけ変えないこと。 */
+const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), sort:"fit",
                 preset:"とにかく軽い", weights:null,
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
@@ -327,6 +331,9 @@ function chipRow(el, names, facets){
   el.querySelectorAll("button").forEach(b => b.onclick = () => {
     const c = b.dataset.c;
     state.cond.has(c) ? state.cond.delete(c) : state.cond.add(c);
+    /* load() より先に呼ぶ。後だと、外した直後の1回だけ
+       意味を失った並び順のまま描いてしまう。 */
+    syncReviewSortOptions();
     load();
   });
 }
@@ -334,6 +341,31 @@ function chipRow(el, names, facets){
 function buildConds(facets){
   chipRow($("#conds"), META.conditions.filter(c => !TRUST_CONDS.includes(c)), facets);
   chipRow($("#trust"), META.conditions.filter(c =>  TRUST_CONDS.includes(c)), facets);
+  syncReviewSortOptions();
+}
+
+/* 口コミの件数で並べる2つは「口コミあり」を押しているときだけ出す。
+   押していないと6,000件以上が0件で並び、「少ない順」はほぼ全科目が
+   同点になって並び替えとして意味を持たない。
+
+   **チップを外したときに並び替えも戻す。** 戻さないと、意味を失った
+   並び順のまま一覧が残り、しかも選択中の値がドロップダウンから消えて
+   「何順で並んでいるのか画面から読めない」状態になる。 */
+function syncReviewSortOptions(){
+  const on = state.cond.has("口コミあり");
+  let reset = false;
+  for (const v of ["reviews_many", "reviews_few"]){
+    const o = $(`#sort option[value="${v}"]`);
+    if (!o) continue;
+    o.hidden = !on;
+    o.disabled = !on;
+    if (!on && state.sort === v) reset = true;
+  }
+  if (reset){
+    state.sort = "fit";
+    $("#sort").value = "fit";
+  }
+  return reset;
 }
 
 /* ── カード ───────────────────────────── */
@@ -435,7 +467,11 @@ function card(c){
    j_s_cd=13 固定＝共通教育科目。
    実装は松下さん（PR #23）。作り直しで構造が変わったので、
    同じものを app.js へ移した（2026-08-24）。 */
-const koanUrl = id => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+// j_s_cd（所属コード）は科目ごとに違う（全学教育推進機構は13だが他学部は別値）。
+// courses.built.json の shozoku_cd を使う。無ければ13にフォールバック
+// （2026-08-26以前にビルドされた古いデータ・shozoku_cd未収集の科目向け。
+// その場合、全学教育推進機構以外の科目はリンクが無効になりうる）。
+const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=${encodeURIComponent(c.shozoku_cd || "13")}&j_cd=${encodeURIComponent(c.id)}&langkbn=j`;
 
 /* ── 口コミの中身 ─────────────────────
    数字だけ出しても「なぜ楽なのか」は伝わらない。件数・内訳・一言をまとめて出す。
@@ -508,7 +544,7 @@ function detailHtml(c){
       </div>
       ${reviewHtml(c)}
       ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
-      <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
+      <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>`;
 }
 
@@ -575,6 +611,9 @@ async function panelListHtml(id){
 const DATA = { mode: null, courses: [] };
 
 const norm = s => String(s || "").replace(/[\s　]+/g, "").toLowerCase();
+
+/* 口コミの件数。reviews を持たない科目は0件として扱う（server.py と同じ）。 */
+const reviewCount = c => ((c.reviews || {}).n) || 0;
 
 /* server.py の CONDITIONS と同じ内容。片方だけ足さないこと。 */
 const CONDITIONS = {
@@ -663,15 +702,39 @@ function queryLocal(){
   if (state.period) results = results.filter(e => (e.day_period || "").endsWith(state.period));
 
   const nul = v => v === null || v === undefined;
+  /* 相性順。同点や未算出のときの並びをここで1回決め、他の並び替えの
+     第2キーとしても使う（同じ件数の科目が毎回違う順に出ないように）。 */
+  const byFit = (a,b) => (nul(a.match.fit) - nul(b.match.fit))
+                      || ((b.match.fit||0) - (a.match.fit||0));
+
   if (state.sort === "rakutan")
     results.sort((a,b) => (nul(a.rakutan.overall) - nul(b.rakutan.overall))
                        || ((b.rakutan.overall||0) - (a.rakutan.overall||0)));
   else if (state.sort === "confidence"){
     const o = { high:0, mid:1, low:2 };
     results.sort((a,b) => o[a.rakutan.confidence.level] - o[b.rakutan.confidence.level]);
-  } else
-    results.sort((a,b) => (nul(a.match.fit) - nul(b.match.fit))
-                       || ((b.match.fit||0) - (a.match.fit||0)));
+  }
+  /* 口コミの件数。server.py の search() と同じ順序にすること。
+     同じ件数のときは相性順に落とす ―― 件数だけだと同点が大量に出る
+     （「口コミあり」でも1件の科目が一番多い）。 */
+  else if (state.sort === "reviews_many")
+    results.sort((a,b) => (reviewCount(b) - reviewCount(a)) || byFit(a,b));
+  else if (state.sort === "reviews_few")
+    results.sort((a,b) => (reviewCount(a) - reviewCount(b)) || byFit(a,b));
+  /* 科目名順。2026-08-26 まで、この分岐が無く相性順に落ちていた
+     （本番は静的配信なので server.py の title は使われず、
+     ドロップダウンで選んでも並びが変わらなかった）。
+
+     localeCompare("ja") にしているのは、ラテン文字→かな→漢字 の順になり、
+     先頭の【人文】【総合】等が重みの低い記号として扱われるため
+     ―― 学生が期待する「名前順」になる。
+     **server.py はコードポイント順で、ここだけ並びが揃っていない**
+     （標準ライブラリに日本語の照合順序が無いため。理由は server.py 側に
+     書いてある）。本番＝静的配信なので、利用者に見えるのはこちら。 */
+  else if (state.sort === "title")
+    results.sort((a,b) => a.title.localeCompare(b.title, "ja"));
+  else
+    results.sort(byFit);
 
   return { count: results.length, results, slots, facets, weights: w,
            division_facets: divisionFacets };
