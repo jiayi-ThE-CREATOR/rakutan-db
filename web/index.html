@@ -103,6 +103,12 @@
           <option value="fit">あなたとの相性順</option>
           <option value="rakutan">全体の軽い順</option>
           <option value="confidence">情報が揃っている順</option>
+          <!-- 口コミの件数で並べる2つは「口コミあり」を押しているときだけ出す。
+               押していないと6,000件以上が0件で並ぶので、「少ない順」は
+               ほぼ全科目が同点になり、並び替えとして意味を持たない。
+               出し入れは app.js の syncReviewSortOptions() が行う。 -->
+          <option value="reviews_many" hidden disabled>口コミが多い順</option>
+          <option value="reviews_few" hidden disabled>口コミが少ない順</option>
           <option value="title">科目名順</option>
         </select>
       </div>

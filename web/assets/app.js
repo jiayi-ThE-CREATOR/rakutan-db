@@ -327,6 +327,9 @@ function chipRow(el, names, facets){
   el.querySelectorAll("button").forEach(b => b.onclick = () => {
     const c = b.dataset.c;
     state.cond.has(c) ? state.cond.delete(c) : state.cond.add(c);
+    /* load() より先に呼ぶ。後だと、外した直後の1回だけ
+       意味を失った並び順のまま描いてしまう。 */
+    syncReviewSortOptions();
     load();
   });
 }
@@ -334,6 +337,31 @@ function chipRow(el, names, facets){
 function buildConds(facets){
   chipRow($("#conds"), META.conditions.filter(c => !TRUST_CONDS.includes(c)), facets);
   chipRow($("#trust"), META.conditions.filter(c =>  TRUST_CONDS.includes(c)), facets);
+  syncReviewSortOptions();
+}
+
+/* 口コミの件数で並べる2つは「口コミあり」を押しているときだけ出す。
+   押していないと6,000件以上が0件で並び、「少ない順」はほぼ全科目が
+   同点になって並び替えとして意味を持たない。
+
+   **チップを外したときに並び替えも戻す。** 戻さないと、意味を失った
+   並び順のまま一覧が残り、しかも選択中の値がドロップダウンから消えて
+   「何順で並んでいるのか画面から読めない」状態になる。 */
+function syncReviewSortOptions(){
+  const on = state.cond.has("口コミあり");
+  let reset = false;
+  for (const v of ["reviews_many", "reviews_few"]){
+    const o = $(`#sort option[value="${v}"]`);
+    if (!o) continue;
+    o.hidden = !on;
+    o.disabled = !on;
+    if (!on && state.sort === v) reset = true;
+  }
+  if (reset){
+    state.sort = "fit";
+    $("#sort").value = "fit";
+  }
+  return reset;
 }
 
 /* ── カード ───────────────────────────── */
@@ -576,6 +604,9 @@ const DATA = { mode: null, courses: [] };
 
 const norm = s => String(s || "").replace(/[\s　]+/g, "").toLowerCase();
 
+/* 口コミの件数。reviews を持たない科目は0件として扱う（server.py と同じ）。 */
+const reviewCount = c => ((c.reviews || {}).n) || 0;
+
 /* server.py の CONDITIONS と同じ内容。片方だけ足さないこと。 */
 const CONDITIONS = {
   "出席なし":     c => (c.eval_ratio || {}).attendance === 0,
@@ -663,15 +694,39 @@ function queryLocal(){
   if (state.period) results = results.filter(e => (e.day_period || "").endsWith(state.period));
 
   const nul = v => v === null || v === undefined;
+  /* 相性順。同点や未算出のときの並びをここで1回決め、他の並び替えの
+     第2キーとしても使う（同じ件数の科目が毎回違う順に出ないように）。 */
+  const byFit = (a,b) => (nul(a.match.fit) - nul(b.match.fit))
+                      || ((b.match.fit||0) - (a.match.fit||0));
+
   if (state.sort === "rakutan")
     results.sort((a,b) => (nul(a.rakutan.overall) - nul(b.rakutan.overall))
                        || ((b.rakutan.overall||0) - (a.rakutan.overall||0)));
   else if (state.sort === "confidence"){
     const o = { high:0, mid:1, low:2 };
     results.sort((a,b) => o[a.rakutan.confidence.level] - o[b.rakutan.confidence.level]);
-  } else
-    results.sort((a,b) => (nul(a.match.fit) - nul(b.match.fit))
-                       || ((b.match.fit||0) - (a.match.fit||0)));
+  }
+  /* 口コミの件数。server.py の search() と同じ順序にすること。
+     同じ件数のときは相性順に落とす ―― 件数だけだと同点が大量に出る
+     （「口コミあり」でも1件の科目が一番多い）。 */
+  else if (state.sort === "reviews_many")
+    results.sort((a,b) => (reviewCount(b) - reviewCount(a)) || byFit(a,b));
+  else if (state.sort === "reviews_few")
+    results.sort((a,b) => (reviewCount(a) - reviewCount(b)) || byFit(a,b));
+  /* 科目名順。2026-08-26 まで、この分岐が無く相性順に落ちていた
+     （本番は静的配信なので server.py の title は使われず、
+     ドロップダウンで選んでも並びが変わらなかった）。
+
+     localeCompare("ja") にしているのは、ラテン文字→かな→漢字 の順になり、
+     先頭の【人文】【総合】等が重みの低い記号として扱われるため
+     ―― 学生が期待する「名前順」になる。
+     **server.py はコードポイント順で、ここだけ並びが揃っていない**
+     （標準ライブラリに日本語の照合順序が無いため。理由は server.py 側に
+     書いてある）。本番＝静的配信なので、利用者に見えるのはこちら。 */
+  else if (state.sort === "title")
+    results.sort((a,b) => a.title.localeCompare(b.title, "ja"));
+  else
+    results.sort(byFit);
 
   return { count: results.length, results, slots, facets, weights: w,
            division_facets: divisionFacets };

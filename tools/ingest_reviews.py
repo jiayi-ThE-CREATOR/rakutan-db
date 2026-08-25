@@ -198,8 +198,19 @@ def main() -> None:
     print(f"    DBに在る科目  {len(hit):3} 件 / {len({r['course_id'] for r in hit})} 科目")
     print(f"    DBに無い科目  {len(miss):3} 件 / {len({r['course_id'] for r in miss})} 科目")
     if miss:
-        print("      → 語学科目など、共通教育（所属 0:13）に入っていないもの。")
-        print("        科目を取得しない限り採点には反映されない。")
+        # 2026-08-26: 口コミ投稿がサイト内へ移り、全所属7,877件から選べるように
+        # なった。それまでこの行に来るのは「まだ取得していない科目」だけだったが、
+        # いまは **流している人の courses.json が全所属ぶんではない** ほうが
+        # 起きやすい。原因が2つあるので、どちらなのかを言い分ける。
+        print(f"      いまの {COURSES.name} は {len(known)} 件です。")
+        if len(known) < 7000:
+            print("      → 全所属（7,877件）の courses.json ではありません。"
+                  "学部の専門科目・語学の口コミがここに落ちます。")
+            print("        全所属ぶんを持っている人が取り込み直すと拾えます"
+                  "（行は捨てないので、あとから効きます）。")
+        else:
+            print("      → まだ取得していない科目です。")
+            print("        科目を取得しない限り採点には反映されない。")
     hard = [r["exam_hard10"] for r in hit if r["exam_hard10"] is not None]
     if hard:
         print(f"    テスト難易度が入った  {len(hard)} 件（平均 {sum(hard)/len(hard):.1f} / 10）")
