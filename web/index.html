@@ -129,21 +129,64 @@
 
 <button class="fab" id="fab">口コミを書く</button>
 
+<!-- 口コミを1件ずつ読むシート（スマホ用）。
+     PC（1024px 以上）では右カラムの詳細の下に展開するので、これは使わない。
+     投稿フォームと同じ .sheet を使い回している ―― 位置ぎめ・幕・最大高さ・
+     スクロールは app.css の .sheet / .sheet .inner にもうあるので、
+     ここで作り直すと同じものが2つになり、片方だけ直る事故が起きる。
+     中身（見出しと1件ずつ）は app.js が入れる。 -->
+<div class="sheet" id="panel">
+  <div class="inner">
+    <div class="panelHead">
+      <h3 id="panelTitle"></h3>
+      <button class="panelClose" id="panelClose" aria-label="口コミを閉じる">✕</button>
+    </div>
+    <div id="panelBody"></div>
+  </div>
+</div>
+
 <div class="sheet" id="sheet">
   <div class="inner">
     <h3>口コミを書く</h3>
     <p class="sheetLead">選択式の3問と、最後に一言だけ。<b>1分もかかりません。</b></p>
 
+    <!-- 設問は正典（しゅんやさんのフォーム → tools/ingest_reviews.py → data/reviews.json）に
+         合わせてある。data-k / id は server.py の do_POST が読むキーと1対1。
+         2026-08-21 まで workload / grading を聞いていたが、集計する reviews.py が読むのは
+         in_class / out_class / exam_hard10 で、サイトから入った口コミは出席と一言以外
+         まるごと落ちていた。CAN_POST=false で塞がっていたので露見しなかっただけ。
+         キー名を変えるときは server.py の do_POST と一緒に変えること。 -->
     <div class="q"><p><b>1</b>どの科目？</p><select id="rvCourse"></select></div>
     <div class="q"><p><b>2</b>出席は取られた？</p>
       <div class="row2" data-k="attendance">
         <button data-v="2">毎回</button><button data-v="1">たまに</button><button data-v="0">なし</button></div></div>
-    <div class="q"><p><b>3</b>課題の量は？</p>
-      <div class="row2" data-k="workload">
+    <div class="q"><p><b>3</b>授業中の課題は？</p>
+      <div class="row2" data-k="in_class">
         <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button></div></div>
-    <div class="q"><p><b>4</b>成績の付き方は？</p>
-      <div class="row2" data-k="grading">
-        <button data-v="2">厳しい</button><button data-v="1">ふつう</button><button data-v="0">甘い</button></div></div>
+    <div class="q"><p><b>4</b>授業外の課題は？</p>
+      <div class="row2" data-k="out_class">
+        <button data-v="2">重い</button><button data-v="1">ふつう</button><button data-v="0">軽い</button></div></div>
+    <!-- 受講年を聞かないと、口コミが古びたことに誰も気付けない。1件ずつの表示もこれで並ぶ。
+         年はべた書きせず app.js が今年から作る（来年もこのまま使える）。 -->
+    <div class="q"><p><b>5</b>いつ受けた？</p>
+      <div class="row4" id="rvYearRow"></div></div>
+
+    <!-- テストとレポートは分岐。「なかった」人に必須項目を増やさないため。 -->
+    <div class="q"><p>テストはあった？</p>
+      <div class="row2" data-k="exam">
+        <button data-v="1">あった</button><button data-v="0">なかった</button></div></div>
+    <div class="q" id="qExamBring" hidden><p>持ち込みは？</p>
+      <div class="row2" data-k="exam_bring">
+        <button data-v="可">可</button><button data-v="不可">不可</button></div></div>
+    <div class="q" id="qExamHard" hidden><p>難易度は？（1＝簡単　10＝難しい）</p>
+      <select id="rvHard"></select></div>
+
+    <div class="q"><p>レポートはあった？</p>
+      <div class="row2" data-k="report">
+        <button data-v="1">あった</button><button data-v="0">なかった</button></div></div>
+    <div class="q" id="qReportWords" hidden><p>1本あたり何字くらい？</p>
+      <input type="number" id="rvWords" min="1" step="1" inputmode="numeric" placeholder="例：2000"></div>
+
     <div class="q"><p>一言（任意）</p>
       <input type="text" id="rvNote" maxlength="60" placeholder="例：過去問があれば余裕"></div>
 

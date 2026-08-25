@@ -78,6 +78,17 @@
   --band-mid-bg:#fdf0d5;    --band-mid-ink:#8a6008;
   --band-heavy-bg:#fce4e4;  --band-heavy-ink:#a32b2b;
 
+  /* 「まだ数字に入っていない」の帯。色相を増やさず、地の反転で強さを出す。
+     --brand 系（押せるもの）でも --scale-* 系（データ目盛り）でもない第3の役割。
+     候補だった濃いオレンジ #8A3A12 は、--brand との見分けが 2.14、
+     --scale-heavy との見分けが 1.43 しかなく、
+     「ブランドの色」「この科目は重い」と混ざるので却下した。
+     2026-08-24 実測：明地 帯#1A1A1A vs card#fff = 17.4 ／ 白文字 17.4
+                      暗地 帯#eef1ec vs card#1b1e23 = 14.67 ／ #16181d 15.58
+     暗地で帯を #2f3540 にすると card との差が 1.36 しかなく消えるので反転させる。 */
+  --alert-face:#1A1A1A;
+  --alert-ink:#fff;
+
   /* ── 文字 ─────────────────────────── */
   --body:"Hiragino Sans","ヒラギノ角ゴシック",system-ui,sans-serif;
   --data:"Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -119,6 +130,9 @@
     --band-light-bg:#15302b;  --band-light-ink:#5fd3b4;
     --band-mid-bg:#33290f;    --band-mid-ink:#dcb45f;
     --band-heavy-bg:#38201c;  --band-heavy-ink:#ef8f7a;
+    /* 注意帯は暗地では反転する（明るい面に暗い文字）。理由は明地側のコメント。 */
+    --alert-face:#eef1ec;
+    --alert-ink:#16181d;
   }
 }
 
