@@ -10,7 +10,8 @@
   const here = location.pathname.replace(/\/$/, "") || "/";
   const key = (here === "/" || here === "/index.html") ? "home"
             : here.startsWith("/ads") ? "ads"
-            : here.startsWith("/about") ? "about" : null;
+            : here.startsWith("/about") ? "about"
+            : here.startsWith("/kuchikomi") ? "kuchikomi" : null;
   if (!key) return;
   const el = document.querySelector(`.nav a[data-nav="${key}"]`);
   if (el) el.setAttribute("aria-current", "page");

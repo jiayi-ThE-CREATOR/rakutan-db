@@ -9,6 +9,12 @@
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
 <link rel="stylesheet" href="/assets/tokens.css">
 <link rel="stylesheet" href="/assets/app.css">
+<!--SHELL:HEAD-->
+<!-- 全ページ共通の <head> 資源。ページごとに手で書くと必ず片方が古くなるので、
+     ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
+     ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
+<link rel="stylesheet" href="/assets/feedback.css">
+<!--/SHELL:HEAD-->
 </head>
 <body><!--SHELL:HEADER-->
 <header>
@@ -16,7 +22,7 @@
     <!-- マークが「ラ」の字形なので、読み上げは h1 側でまとめて与える。
          そうしないと「ラ」が絵として飛ばされ「クハン」だけが読まれる。 -->
     <a class="lockup" href="/">
-      <h1 aria-label="ラクハン ― 阪大 全学部の科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学部の科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/ads" data-nav="ads">広告掲載</a><a href="/about" data-nav="about">About ラクハン</a><a href="https://magnificent-scone-0d2071.netlify.app/" target="_blank" rel="noopener">口コミを書く<span class="ext" aria-hidden="true">↗</span></a></nav></div>
+      <h1 aria-label="ラクハン ― 阪大 全学部の科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学部の科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/ads" data-nav="ads">広告掲載</a><a href="/about" data-nav="about">About ラクハン</a><a href="/kuchikomi" data-nav="kuchikomi">口コミを書く</a></nav></div>
 </header>
 <!--/SHELL:HEADER-->
 
@@ -61,8 +67,8 @@
       <section>
         <h2>あなたの優先度</h2>
         <div class="chips" id="presets"></div>
-        <button class="toggle" id="tog">スライダーで細かく調整する</button>
-        <div class="sliders" id="sliders"></div>
+        <button class="toggle" id="tog">スライダーを閉じる</button>
+        <div class="sliders open" id="sliders"></div>
       </section>
 
       <section>
@@ -81,7 +87,7 @@
       </section>
 
       <section>
-        <h2>学年 <span class="sub">履修できない科目は出しません</span></h2>
+        <h2>学年 <span class="sub">選ぶと履修できない科目を外します</span></h2>
         <div class="chips" id="years"></div>
       </section>
 
@@ -97,6 +103,12 @@
           <option value="fit">あなたとの相性順</option>
           <option value="rakutan">全体の軽い順</option>
           <option value="confidence">情報が揃っている順</option>
+          <!-- 口コミの件数で並べる2つは「口コミあり」を押しているときだけ出す。
+               押していないと6,000件以上が0件で並ぶので、「少ない順」は
+               ほぼ全科目が同点になり、並び替えとして意味を持たない。
+               出し入れは app.js の syncReviewSortOptions() が行う。 -->
+          <option value="reviews_many" hidden disabled>口コミが多い順</option>
+          <option value="reviews_few" hidden disabled>口コミが少ない順</option>
           <option value="title">科目名順</option>
         </select>
       </div>
@@ -124,7 +136,36 @@
   <!-- ブランド資料のレッドライン「学生団体であることを明記」への対応。
        ロゴには入れず、ここと About で出す、という整理。消さないこと。 -->
   <p class="who"><b>学生団体 GUILD が運営しています。</b>大阪大学の公式サービスではありません。</p>
+  <!-- 意見箱の入口。「意見箱は一番下にあるもの」という感覚に合わせ、
+       運営表記のさらに下に置く。順番を入れ替えないこと（tools/test_feedback.mjs が見張っている）。 -->
+  <p class="fbLine"><button type="button" class="fbOpen" id="fbOpen">&#128161; サイトへのご意見・改善要望</button></p>
 </footer>
+
+<!-- 外部フォームへ飛ばさず、その場で書いて閉じられるようにする。
+     <dialog> なのは ESC で閉じる・背後にフォーカスを漏らさないを自前で書かないため。 -->
+<dialog class="fbDlg" id="fbDlg" aria-labelledby="fbTitle">
+  <form class="fbForm" id="fbForm">
+    <h2 id="fbTitle">サイトへのご意見・改善要望</h2>
+    <p class="fbNote">科目の口コミではなく、<b>サイトそのもの</b>への意見をここへ。ログイン不要、匿名で送れます。</p>
+
+    <label class="fbLabel" for="fbText">気づいたこと・こうしてほしいこと</label>
+    <textarea id="fbText" name="text" rows="5" maxlength="1000" placeholder="例：スマホだと学部の絞り込みが押しにくい"></textarea>
+    <p class="fbCount" id="fbCount">0 / 1000</p>
+
+    <label class="fbLabel" for="fbContact">返事がほしいときだけ（任意）</label>
+    <input id="fbContact" name="contact" type="text" maxlength="200" autocomplete="off" placeholder="Discord ID・メールなど">
+
+    <!-- honeypot。人には見えないので、埋まっていれば bot。CSS で画面外へ出している。 -->
+    <div class="fbHp" aria-hidden="true"><label>website<input type="text" id="fbWebsite" name="website" tabindex="-1" autocomplete="off"></label></div>
+
+    <p class="fbMsg" id="fbMsg" role="status"></p>
+    <div class="fbBtns">
+      <button type="button" class="fbCancel" id="fbCancel">閉じる</button>
+      <button type="submit" class="fbSend" id="fbSend" disabled>送る</button>
+    </div>
+  </form>
+</dialog>
+<script src="/assets/feedback.js" defer></script>
 <!--/SHELL:FOOTER-->
 </div>
 

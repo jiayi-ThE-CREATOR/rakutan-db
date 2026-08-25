@@ -33,6 +33,20 @@ binding = "ASSETS"
 # （?year=1&cond=…）で、パスは / しか無いので、SPA フォールバックを入れると
 # 存在しないURLまで index.html を返してしまう。
 
+# お気に入り・検索履歴の保存先（2026-08-25 wangさんの登録制の方針）。
+# LINEユーザーIDをキーに保存する。個人情報（学部・学年など）は今回入れない。
+[[d1_databases]]
+binding = "DB"
+database_name = "rakutan-favorites"
+database_id = "9176d42b-a737-4a9e-971b-c5bed3449e41"
+
 # シークレットはここに書かない。デプロイ後に以下で登録する:
 #   npx wrangler secret put LINE_CHANNEL_SECRET
 #   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
+#   npx wrangler secret put FEEDBACK_DISCORD_WEBHOOK
+#
+# FEEDBACK_DISCORD_WEBHOOK は意見箱（POST /api/feedback）の落とし先。
+# Discord の「サイトへのご意見」チャンネル → 設定 → 連携サービス →
+# ウェブフック → 新規ウェブフック で URL を作って貼る。
+# 未設定のあいだ /api/feedback は 503 を返し、画面には
+# 「いまは受け取れませんでした」と出る（受け取ったふりをして捨てない）。

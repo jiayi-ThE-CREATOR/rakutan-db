@@ -30,7 +30,7 @@ from pathlib import Path
 
 import reviews
 import score as scoring
-from tools import engineering, foreign_studies
+from tools import engineering, faculty as faculty_mod, foreign_studies
 from tools.division import JP_ONLY_TITLES, divide, track
 
 ROOT = Path(__file__).parent
@@ -40,6 +40,11 @@ OUT = ROOT / "web" / "data" / "courses.built.json"
 # 全件なめるので、件数に比例して伸びるものを混ぜない。詳細パネルを最初に
 # 開いた時だけ取りに行けば足りる（server.py も同じURLで返す）。
 OUT_REVIEWS = ROOT / "web" / "data" / "reviews.built.json"
+# 口コミ投稿の時間割（web/kuchikomi.html）が読む投影。courses.built.json は
+# 12MB あり、時間割に要るのは科目名・担当・曜限・学部・学年だけなので、
+# 全部を持って行かせない（reviews.built.json を分けたのと同じ理由）。
+# 実測 gzip 531KB → 135KB。スマホで開く画面なので、この差は効く。
+OUT_TIMETABLE = ROOT / "web" / "data" / "timetable.json"
 SHELL = ROOT / "templates" / "shell.html"
 PAGES = sorted((ROOT / "web").glob("*.html"))
 
@@ -76,7 +81,7 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "eval_ratio", "eval_raw", "eval_unclassified",
         "exam_type", "report_count", "report_words",
         "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years",
-        "reviews"]
+        "reviews", "shozoku_cd"]
 
 
 def term_group(term: str | None) -> str:
@@ -99,6 +104,73 @@ def term_group(term: str | None) -> str:
     if "春" in t or "夏" in t:
         return "haru"
     return "unknown"
+
+
+# 時間割のマスに置ける曜限。「月3」の形を1つずつ取り出す。
+# 「金3,金4,金5」のように複数コマにまたがる科目があるので、単数ではなく配列。
+#
+# **空配列になる科目も落とさない。** 「他」（集中講義など1,060件）と土曜9件は
+# マスが無いが、実在して履修されている。落とすと永久に口コミが付けられない
+# ―― 理学部は667件中443件がこちらで、落とすと学部ごと投稿できなくなる。
+# 画面は slots が空のものを「時間割に無い科目」として別の入口に出す。
+_SLOT = re.compile(r"[月火水木金][1-6]")
+
+
+def guard_not_fewer(dests: list[Path], n_new: int, allow: bool) -> None:
+    """科目が減る焼き直しを止める。減らないなら黙って通す。
+
+    ★ **科目ごとの書き出し先は全部見る。** courses.built.json だけ見ていたのでは
+    足りない ―― `--out` で別ファイルへ焼いたとき、`--out` の効かない
+    timetable.json は既定の場所へ書かれるのに、護りは「新しい出力先はまだ無い」と
+    見て素通りする。2026-08-26 に実際に踏んだ（timetable.json が 7,877件 →
+    1,112件 に黙って上書きされた）。検算のために一時ファイルへ焼くときは
+    `--out-timetable` も一緒に向けること。
+
+    data/courses.json は gitignore なので（シラバス原文と教員名を含む＝公開
+    リポジトリに置けない）、全所属7,877件を持っているのは取得した人だけ。
+    共通教育1,112件しか持っていない人が流すと、語学と学部の専門科目が
+    サイトから消える。2026-08-25 に口コミで同じことが起きている（112件→36件）。
+    """
+    for dst in dests:
+        if not dst.exists():
+            continue
+        try:
+            doc = json.loads(dst.read_text(encoding="utf-8"))
+            had = len(doc.get("courses", doc) if isinstance(doc, dict) else doc)
+        except (json.JSONDecodeError, OSError):
+            continue
+        if had > n_new and not allow:
+            raise SystemExit(
+                f"中止: いまの {dst.name} には科目が {had:,} 件入っていますが、\n"
+                f"      今回の入力（{SRC.name}）は {n_new:,} 件しかありません。\n"
+                f"      上書きすると差の {had - n_new:,} 件がサイトから消えます。\n"
+                f"      {SRC.name} は gitignore なので、git pull では最新になりません。\n"
+                f"      全所属ぶんを持っている人から受け取ってから流してください。\n"
+                f"      本当に減らすなら --allow-fewer-courses を付けてください。")
+
+
+def timetable_rows(courses: list[dict]) -> list[dict]:
+    """口コミ投稿の画面が読む投影。
+
+    ここに置くのは「絞り込みに要る事実」だけ。点数も口コミも入れない
+    ―― 入れた瞬間に courses.built.json と同じものが2つになる。
+    """
+    rows = []
+    for c in courses:
+        rows.append({
+            "id": c["id"],
+            "title": c["title"],
+            "instructor": c.get("instructor"),
+            "slots": _SLOT.findall(c.get("day_period") or ""),
+            # 「他」「土3」など、マスに置けない科目の原文。画面がそのまま出す
+            # ―― 「集中講義」なのか「土曜」なのかで、学生の心当たりが違う。
+            "day_period": c.get("day_period"),
+            "term_group": term_group(c.get("term")),
+            "faculty": faculty_mod.faculty_of(c),
+            "eligible_years": c.get("eligible_years"),
+            "track": c.get("track"),
+        })
+    return rows
 
 
 def slim(course: dict) -> dict:
@@ -126,7 +198,7 @@ def read_shell() -> dict[str, str]:
     """
     t = SHELL.read_text(encoding="utf-8")
     parts = {}
-    for name in ("HEADER", "FOOTER"):
+    for name in ("HEAD", "HEADER", "FOOTER"):
         open_, close = f"<!--PART:{name}-->", f"<!--/PART:{name}-->"
         parts[name] = t[t.index(open_) + len(open_):t.index(close)].strip()
     return parts
@@ -162,6 +234,7 @@ def main() -> None:
     ap.add_argument("--allow-fewer-courses", action="store_true",
                     help="いまの built.json より科目が減っても上書きする（既定では止める）")
     ap.add_argument("--out-reviews", default=str(OUT_REVIEWS))
+    ap.add_argument("--out-timetable", default=str(OUT_TIMETABLE))
     args = ap.parse_args()
 
     raw = json.loads(SRC.read_text(encoding="utf-8"))
@@ -198,20 +271,8 @@ def main() -> None:
     # 持っているのは取得した人だけ。共通教育1,112件しか持っていない人が流すと、
     # 7,877件の built.json が黙って1,112件に焼き直され、語学と学部の専門科目が
     # サイトから消える。2026-08-25 に口コミで同じことが起きている（112件→36件）。
-    if dest_now.exists():
-        try:
-            had_courses = len(json.loads(dest_now.read_text(encoding="utf-8"))
-                              .get("courses", []))
-        except (json.JSONDecodeError, OSError):
-            had_courses = 0
-        if had_courses > len(courses) and not args.allow_fewer_courses:
-            raise SystemExit(
-                f"中止: いまの {dest_now.name} には科目が {had_courses:,} 件入っていますが、\n"
-                f"      今回の入力（{SRC.name}）は {len(courses):,} 件しかありません。\n"
-                f"      上書きすると差の {had_courses - len(courses):,} 件がサイトから消えます。\n"
-                f"      {SRC.name} は gitignore なので、git pull では最新になりません。\n"
-                f"      全所属ぶんを持っている人から受け取ってから流してください。\n"
-                f"      本当に減らすなら --allow-fewer-courses を付けてください。")
+    guard_not_fewer([dest_now, Path(args.out_timetable)], len(courses),
+                    args.allow_fewer_courses)
 
     built = []
     for c in courses:
@@ -295,6 +356,17 @@ def main() -> None:
     if pub is not None:
         rv_dest.write_text(json.dumps(pub, ensure_ascii=False,
                                       separators=(",", ":")), encoding="utf-8")
+
+    # 時間割の投影。courses.built.json と同じ元データから同じ実行で焼くので、
+    # 片方だけ古くなることが無い。
+    tt = timetable_rows(courses)
+    tt_dest = Path(args.out_timetable)
+    tt_dest.parent.mkdir(parents=True, exist_ok=True)
+    tt_dest.write_text(json.dumps(tt, ensure_ascii=False,
+                                  separators=(",", ":")), encoding="utf-8")
+    n_slot = sum(1 for r in tt if r["slots"])
+    print(f"→ {tt_dest}  {len(tt)} 件"
+          f"（時間割のマスに置ける {n_slot} 件／置けない {len(tt) - n_slot} 件）")
 
     kb = dest.stat().st_size / 1024
     src_label = {"raw": "生データ", "agg": "集約ずみ", "none": "なし"}[rv_src]
