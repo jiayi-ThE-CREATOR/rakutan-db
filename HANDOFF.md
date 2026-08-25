@@ -43,6 +43,19 @@ open http://localhost:8143      # 学部＝外国語学部 → 専攻語＝ス�
 トラックを外したので、どの専攻を選んでも通る。
 `test_shared_divisions_are_visible_from_every_track` が25専攻ぶん検算する。
 
+### 1-b. main を取り込むときに見つけた build.py のバグも直した
+
+`build.py` の時間割の投影が `timetable_rows(courses)` ―― **built ではなく元データ**を
+見ていて、`track` は `base` にしか入れていなかった。つまり **build.py は
+timetable.json に track を一度も書いたことが無い**。それまで値が入っていたのは
+手で当て直していたぶんで、`0b17580`（KOANリンクの焼き直し）で**2,525件が丸ごと
+null になった**。口コミ画面（`web/kuchikomi.html`）の学科・専攻語の絞り込みが
+黙って全通しになる。
+
+`base["track"] = c["track"] = track(c)` の1行で直した。すぐ上の `c["tags"]` と
+同じ書き戻し方。**`tools/test_timetable.py` の①がこれを見張っていて、
+origin/main はいま実際に落ちる**（2,525行が食い違う）。マージ後は通る。
+
 原因は `foreign_studies.track_of()` が**ナンバリング9文字目の言語コードだけ**を
 見ていたこと。このコードは専攻に縛られない科目にも入っている ――
 `（学共-地域系）アメリカ史概論a` は `10FOST3BL02` で L（英語）を持つが、
@@ -92,6 +105,14 @@ cd web && python3 -m http.server 8143 &
   **末尾改行なし**。手で当て直すときに `+ "\n"` を付けると全文が差分になる
 - worktree には `data/courses.json` が無い（gitignore）。本体から symlink すると
   テストの実データ検算が通る
+- **`tools/test_tokens.py` は main 由来で落ちている**（私の変更ではない）。
+  `app.css` に裸の hex `#06C755`（LINE緑）`#6228D7 / #EE2A7B / #F9CE34`
+  （Instagram グラデ）が入った。SNS のブランド色はトークンに寄せられないので、
+  テスト側に除外を足すのが筋。手を付けていない
+- **この機械では `build.py` の検算ができない。** `data/courses.json` が1,112件で、
+  しかもその中に外国語学部・工学部の科目が1件も無い（所属13だけ）。
+  `--allow-fewer-courses` で流しても track は0件のままなので、
+  build.py の修正は `tools/test_timetable.py` で確かめること
 
 ---
 

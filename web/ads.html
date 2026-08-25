@@ -1,15 +1,21 @@
-<!-- ラクハン 共有の外殻
-     ここが唯一の正本。build.py が各ページの <!--SHELL:XXX--> へ注入する。
-     ページごとに手でコピーすると必ず片方が古くなるので、直接 HTML へ書かないこと。 -->
-
-<!--PART:HEAD-->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>今後のステップ ― ラクハン</title>
+<meta name="description" content="ラクハンが今後取り組む予定の活動のご案内です。広告掲載、サークル・部活紹介、阪大キャンパス周りのグルメ・古着屋さんの紹介などを予定しています。">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/app.css">
+<!--SHELL:HEAD-->
 <!-- 全ページ共通の <head> 資源。ページごとに手で書くと必ず片方が古くなるので、
      ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
-<!--/PART:HEAD-->
-
-<!--PART:HEADER-->
+<!--/SHELL:HEAD-->
+</head>
+<body><!--SHELL:HEADER-->
 <header>
   <div class="hd">
     <!-- マークが「ラ」の字形なので、読み上げは h1 側でまとめて与える。
@@ -17,7 +23,22 @@
     <a class="lockup" href="/">
       <h1 aria-label="ラクハン ― 阪大 全学部の科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学部の科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/ads" data-nav="ads">今後のステップ</a><a href="/about" data-nav="about">About ラクハン</a><a href="/kuchikomi" data-nav="kuchikomi">口コミを書く</a></nav></div>
 </header>
-<!--/PART:HEADER--><!--PART:FOOTER-->
+<!--/SHELL:HEADER--><div class="wrap prose"><h2 id="ads">今後のステップ</h2>
+<p>ラクハンは阪大生の履修選びを助けるサービスとしてスタートしましたが、これから取り組んでいきたい活動がいくつかあります。</p>
+
+<h3>広告掲載</h3>
+<p>ラクハンは阪大生が履修を決めるときに使うサービスです。サークルの新歓、学生向けのサービス、アルバイトの募集など、<b>阪大生に届けたい告知</b>をお考えの企業・団体の方に向けて、広告の掲載をご用意する予定です。掲載の形式・時期・費用は現在検討中です。先にご相談いただくことも可能ですので、<a href="/about#who">運営までお問い合わせ</a>ください。</p>
+
+<h3>サークル紹介・部活紹介</h3>
+<p>阪大のサークル・部活動を、興味のある新入生に向けて紹介するページを予定しています。</p>
+
+<h3>阪大キャンパス周りのグルメ・古着屋さんの紹介</h3>
+<p>キャンパス周辺の飲食店や古着屋さんなど、学生生活に役立つ情報の紹介を予定しています。</p>
+
+<p class="callout">内容が決まりしだい、このページでご案内します。</p>
+</div>
+
+<!--SHELL:FOOTER-->
 <footer><p class="disclaimer">数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。<b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b>科目を選ぶと出る「KOAN公式シラバスを見る」から開けます。</p>
   <!-- ブランド資料のレッドライン「学生団体であることを明記」への対応。
        ロゴには入れず、ここと About で出す、という整理。消さないこと。 -->
@@ -52,4 +73,8 @@
   </form>
 </dialog>
 <script src="/assets/feedback.js" defer></script>
-<!--/PART:FOOTER-->
+<!--/SHELL:FOOTER-->
+
+<script src="/assets/shell.js" defer></script>
+</body>
+</html>
