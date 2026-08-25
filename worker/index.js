@@ -133,6 +133,24 @@ function qrPostback(label, data, displayText) {
   };
 }
 
+// 検索結果・おすすめの返信に、ラクハンサイトを直接開けるボタンを付ける。
+// 本文末尾の「ラクハン: URL」はテキストのままなので、タップしやすいボタンを別に添える。
+export function withSiteButton(text, siteOrigin) {
+  if (!siteOrigin) return text;
+  return {
+    type: "text",
+    text,
+    quickReply: {
+      items: [
+        {
+          type: "action",
+          action: { type: "uri", label: "ラクハンで見る", uri: `${siteOrigin}/` },
+        },
+      ],
+    },
+  };
+}
+
 export function greetingMessage() {
   return {
     type: "text",
@@ -272,7 +290,7 @@ async function handleWebhook(request, env, ctx) {
       } else {
         try {
           const result = handlePostback(data, event.postback?.data || "", siteOrigin);
-          reply = result.message || result.text;
+          reply = result.message || withSiteButton(result.text, siteOrigin);
         } catch (e) {
           reply = "エラーが発生しました。少し時間をおいて試してください。";
           console.error("handlePostback error", e);
@@ -289,7 +307,7 @@ async function handleWebhook(request, env, ctx) {
       answer = DATA_UNAVAILABLE_MESSAGE;
     } else {
       try {
-        answer = handleText(event.message.text || "", data, siteOrigin);
+        answer = withSiteButton(handleText(event.message.text || "", data, siteOrigin), siteOrigin);
       } catch (e) {
         answer = "エラーが発生しました。少し時間をおいて試してください。";
         console.error("handleText error", e);
