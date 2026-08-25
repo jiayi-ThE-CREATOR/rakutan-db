@@ -267,6 +267,46 @@ feat/<名前>-<内容>       例: feat/matsushita-mobile
 
 `main` に直接 push しない。PR を出すとスクショが撮られ、Discord に流れる。
 
+### 並行作業は worktree で分ける（2026-08-25 追加）
+
+**`git checkout` は、リポジトリに1つしかない作業ツリーを切り替える。**
+同じリポジトリで2つの作業が同時に動くと ―― 人が2人でも、Claude Code の
+セッションが2つでも ―― 片方の checkout が、もう片方の commit 先を書き換える。
+
+2026-08-25 に実際に起きたこと（1回のセッション中に3回）:
+
+1. A が担当教員名の変更を `main` にマージして push
+2. B が同じツリーで `feat/wang-lang1-split` → `feat/kuchikomi-batch2` へ checkout
+3. A が「まだ `main` にいるつもり」で `git commit` → **B のブランチ（PR #25）に落ちた**
+4. A の `git push origin main` は `Everything up-to-date` と返すだけなので、**間違いに気づけない**
+5. さらに A の `git merge main` が fast-forward になり、B のブランチの ref が勝手に進んだ
+
+被害はどれも復旧できたが、復旧に使った時間は作業そのものより長い。
+
+**だから、並行で動くときは作業ツリーごと分ける。**
+
+```bash
+# 自分専用の作業ツリーを作る（本体の checkout は動かない）
+git worktree add ../rakutan-<自分の名前>-<内容> -b feat/<名前>-<内容>
+cd ../rakutan-<名前>-<内容>
+#   …作業・テスト・commit・push…
+cd -
+git worktree remove ../rakutan-<名前>-<内容>
+```
+
+- **本体（`~/Developer/rakutan-db`）は `main` に置いたままにする。** ここで作業しない
+- `git worktree list` で今いくつ開いているか分かる。**終わったら消す**
+- 共有ツリーで `git checkout` / `git rebase` / `git reset` をしない。
+  他のブランチを触る必要があるときも、そのブランチを worktree に出して触る
+- **`git commit` の前に `git rev-parse --abbrev-ref HEAD` で今どこにいるか確かめる。**
+  上の事故は、この1行があれば起きなかった
+
+> **新しい worktree には `data/courses.json` が無い**（`.gitignore` 対象）。
+> `server.py` はダミー30件へ自動で落ち、起動時に
+> `⚠️ ダミーデータで起動しています（30件・全て架空）` と警告を出す（2026-08-14 政岡さんの罠⑥）。
+> 本番相当の1,112件で確認したいときは、本体から `data/courses.json` をコピーしてから
+> `python3 build.py` を打つ（`build.py` はフォールバックしないので、無いと落ちる）。
+
 ---
 
 ## ファイル
