@@ -129,14 +129,15 @@ def search(params: dict) -> dict:
     q = get("q")
     # 学年。既定は1年 ―― 履修できない科目を薦めないための既定値。
     # year=all で全学年（2〜4年生が使うとき）。
-    year = get("year") or "1"
+    # 既定は「すべて」。web/assets/app.js の state と同じ値にすること。
+    year = get("year") or "all"
     category, campus, term = get("category"), get("campus"), get("term")
     # sem は学期のまとまり（haru / aki / all）。既定は aki。
     # 9/2 に始まるのは秋冬学期の履修登録で、春夏の757件（68%）はいま登録できない。
     # 既存の term パラメータ（生の学期名で完全一致）とは別物なので名前を分けてある。
     # 判定は build.py の term_group() が焼いた値を見るだけ
     # ―― ここで学期名を再解釈すると画面側と食い違う。
-    sem = get("sem") or "aki"
+    sem = get("sem") or "all"
     day, period = get("day"), get("period")
     min_conf = get("min_confidence")
     conds = [c for c in (params.get("cond") or []) if c in CONDITIONS]
