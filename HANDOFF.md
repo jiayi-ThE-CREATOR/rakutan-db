@@ -17,6 +17,48 @@
 
 ---
 
+## 2026-08-26 ｜ 常に0件だった条件チップ3つを直した ｜ wang → 次の人
+
+ブランチ `feat/wang-fix-conditions`。
+
+### 1. 何が動く状態か
+
+**「出席なし」「レポートのみ」「集中講義」が、押せるのに1件も出ない状態だった。**
+判定のほうが間違っていて、データは正しかった。
+
+```bash
+python3 tools/test_conditions.py                      # 件数を検算
+cd web && python3 -m http.server 8144 &
+node tools/test_conditions.mjs http://localhost:8144  # 画面の数字どおり絞れるか
+```
+
+| チップ | 前 | 後 | 判定 |
+|---|---|---|---|
+| 出席なし | 0件 | **1,536件** | 内訳が最後まで分かっている ＋ attendance キーが無い ＋ 毎回小テストも無い |
+| レポートのみ | 0件 | **482件** | 同上 ＋ report>0 ＋ exam も attendance も無い（実データでは全件 report 100%）|
+| 集中講義 | 0件 | **191件** | `term === "集中"` |
+
+**原因**：`scrape/parse.py:152` が
+`{k: v for k, v in buckets.items() if v > 0}` で **0% の項目をキーごと落としている**。
+つまり `attendance == 0` や `exam == 0` は構造上ありえない。0% は「キーが無い」として表れる。
+集中講義のほうは、`class_format` の実値が 演習科目/講義科目/実習科目/実験科目 の4種だけで、
+**"集中講義" という値がそもそも存在しない**。
+
+### 2. 何をしていないか
+
+- **`eval_unclassified` が残っている411件と、内訳が取れていない152件は、
+  「出席なし」「レポートのみ」に入れていない。** 未分類の残りに出席や試験が
+  隠れている可能性があるため。**黙って「なし」と名乗らせない**、という判断
+- **「レポートのみ」なのに「出席なし」でない科目が1件ある**（083119 海事政策論）。
+  レポート100%だが本文に毎回小テストの記述があり、成績には効かないが毎週の拘束はある。
+  `tools/test_conditions.py` がこの例外ごと固定してある
+- **`day_period` が「他」の1,060件を集中講義とは見なしていない。** あれは
+  「曜限が決まっていない」であって別物（通年305・秋冬210 を含む）。
+  最初これで判定しようとして、データを見て取りやめた
+- **集中講義191件は全部が学部の専門科目で、共通教育には1件も無い。**
+  `data/courses.json` が共通教育1,112件ぶんしか無い環境で `server.py` を動かすと、
+  このチップは**正しく0件になる**。`tools/test_conditions.mjs` は母数7,000件未満なら
+  「0件でないこと」の判定を飛ばす
 ## 2026-08-26 ｜ 専攻語を選ぶと学部共通科目が消えていたのを直した ｜ 次の人へ
 
 ブランチ `feat/fs-track-scope`。
@@ -90,6 +132,9 @@ origin/main はいま実際に落ちる**（2,525行が食い違う）。マー�
 
 ```bash
 git pull
+python3 tools/test_conditions.py
+cd web && python3 -m http.server 8144 &
+node tools/test_conditions.mjs http://localhost:8144
 python3 tools/test_foreign_studies.py    # 2,016件の内訳＋トラックの付き方
 python3 tools/test_engineering.py
 python3 tools/test_division.py
@@ -98,6 +143,15 @@ cd web && python3 -m http.server 8143 &
 
 ### 4. 踏んだ罠
 
+- **`CONDITIONS` は `server.py` と `web/assets/app.js` の両方にある。**
+  本番は静的配信なので、実際に絞り込んでいるのは app.js のほう。
+  server.py だけ直すと本番は0件のまま、という直し漏れが起きる。
+  それを見張るのが `tools/test_conditions.mjs`（チップの数字と、押した結果の
+  件数を突き合わせる。期待値は書かない ―― 書くと .py と二重管理になる）
+- **「0件のチップは異常」は、全所属ぶんのデータがあるときだけの話。**
+  母数で判定を分けないと、データ不足を不具合として落としてしまう
+- 件数を検算するテストで `import server` すると、ダミーデータの警告が
+  テスト出力に混ざる。`contextlib.redirect_stdout` で飲み込んでいる
 - `tools/test_foreign_studies.py` の `main()` が**ファイル途中**にあり、
   その後ろで定義した `test_track_of_language` などが `globals()` に無く
   **走っていなかった**。`main()` を末尾へ移した。テストを足すときは位置に注意
