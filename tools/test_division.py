@@ -66,10 +66,11 @@ def test_sports_words_are_all_used():
 
 
 # ── マルチリンガル教育センター（所属14）────────────────
-# 2026-08-25 に KOAN の一覧から実測した題名を使う。科目そのものはまだ
-# 取得できていない（政岡さん作業中）が、入った瞬間に効くことを先に確かめる。
-def ml(title):
-    return divide({"title": title, "numbering": "14CMLE1BLB3"})
+# 2026-08-25 に KOAN の一覧から実測した題名を使う。ナンバリングの既定は
+# 総合英語の 14CMLE1BLB3。区分コード（末尾2文字）で分かれる規則を見るときは
+# 第2引数で実物のナンバリングを渡す。
+def ml(title, numbering="14CMLE1BLB3"):
+    return divide({"title": title, "numbering": numbering})
 
 
 def test_multilingual_english_split():
@@ -96,11 +97,31 @@ def test_multilingual_optional_language():
         assert ml(lang)[0] == "lang_opt", lang
 
 
+def test_special_foreign_language_is_global_by_numbering():
+    """特別外国語演習はナンバリング末尾 A7＝グローバル理解で拾う。
+
+    2026-08-25 まで None にしていた（どの学部規程にも名前が出ないので
+    猜わない、という判断）。1,160件の実測で A7 の193件が例外なく global
+    だと分かったので、題名ではなく区分コードを出所にして拾う。
+    """
+    assert ml("特別外国語演習（インドネシア語）I", "14CMLE1B4A7") == ("global", "numbering")
+    assert ml("特別外国語演習（広東語）I", "14CMLE1BUA7") == ("global", "numbering")
+
+
+def test_japanese_for_international_students_is_lang2():
+    """留学生向けの日本語科目は CELAS どおり第2外国語に置く。
+
+    日本人学生は履修できないが、それは区分ではなくタグで断る
+    （build.py が「日本人履修不可」を付ける）。区分を割ると chip が増えて
+    卒業要件の表と1対1で対応しなくなる。
+    """
+    assert ml("専門日本語", "14CMLE1BYB4") == ("lang2", "title")
+    assert ml("総合日本語", "14CMLE1BYB4") == ("lang2", "title")
+
+
 def test_multilingual_unknown_stays_none():
-    # どの学部規程にも区分の名指しが無いもの。留学生向けの特例が絡むので猜わない
-    assert ml("特別外国語演習（インドネシア語）I") == (None, None)
-    assert ml("専門日本語A") == (None, None)
-    assert ml("総合日本語") == (None, None)
+    # 区分コードにも題名の規則にも当たらないものは、いまでも猜わない
+    assert ml("何かの新設科目", "14CMLE1BZZ9") == (None, None)
 
 
 def test_multilingual_rules_do_not_leak_into_shozoku13():

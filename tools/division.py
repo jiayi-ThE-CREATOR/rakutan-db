@@ -52,6 +52,21 @@ SPORTS_WORDS = ("スポーツ", "健康", "ヘルス", "運動", "体育", "フ�
 # KOAN の一覧から題名は実測ずみなので、入った瞬間に効くようにしてある。
 MULTILINGUAL_PREFIX = "14CMLE"
 
+# マルチリンガル科目のナンバリング末尾2文字は CELAS の区分そのもの。
+# 1,160件で実測（2026-08-25）：
+#   A7 グローバル理解  207件（うち193件は題名の規則で既に global）
+#   B3 第1外国語(英語)  588件   B4 第2外国語系 321件   B5 選択外国語系 44件
+# B4/B5 は第2外国語と選択外国語が混ざる ―― どちらになるかは
+# 「その学生が第2外国語として選んだか」で決まる科目の外の属性なので、
+# 末尾だけでは割れない。A7 だけは 193/193 が global で例外が無いので使う。
+GLOBAL_NUMBERING_SUFFIX = "A7"
+
+# 留学生向けの日本語科目。CELAS の区分は「第２外国語（日本語）」＝ lang2 だが、
+# 日本人学生はこの枠で履修できない。区分を分けると chip が増えて
+# 卒業要件の表と1対1で対応しなくなるので、区分は lang2 のままにして
+# カードのタグ（build.py）で断る。
+JP_ONLY_TITLES = ("専門日本語", "総合日本語")
+
 # 各学部規程が「第2外国語」として名指ししている4言語。11学部すべてで同じ。
 DAI2_LANGS = ("ドイツ語", "フランス語", "ロシア語", "中国語")
 
@@ -92,7 +107,7 @@ def divide(course: dict) -> tuple[str | None, str | None]:
     # ナンバリングは 総合英語 と 実践英語 で同じ値（14CMLE1BLB3）になるため
     # 使えない ―― 2026-08-25 に KOAN の詳細ページで実測した。
     if numbering.startswith(MULTILINGUAL_PREFIX):
-        return _divide_multilingual(title)
+        return _divide_multilingual(title, numbering)
 
     seg = numbering[6:8]
     if seg in NUMBERING:
@@ -103,12 +118,16 @@ def divide(course: dict) -> tuple[str | None, str | None]:
     return None, None
 
 
-def _divide_multilingual(title: str) -> tuple[str | None, str | None]:
+def _divide_multilingual(title: str, numbering: str) -> tuple[str | None, str | None]:
     """所属14（マルチリンガル教育センター）の科目を区分へ割り当てる。
 
-    「特別外国語演習」「専門日本語」「総合日本語」は、どの学部規程にも
-    区分の名指しが無いので None にする。留学生向けの特例が絡むため、
-    見ていない規則を書くと外れる。
+    「特別外国語演習」「専門日本語」「総合日本語」はどの学部規程にも
+    区分の名指しが無い。2026-08-25 までは None にしていたが（規程に無い＝
+    猜わない）、CELAS の区分コード（ナンバリング末尾2文字）で割れることが
+    1,160件の実測で分かったので、そちらを出所にして拾っている。
+
+    「日本人学生が履修できるか」は区分とは別の話で、区分は CELAS どおりに
+    置き、履修可否はタグで断る（JP_ONLY_TITLES と build.py）。
 
     なお **第2外国語と選択外国語は科目の属性ではない**。ドイツ語の同じ科目でも、
     その学生が第2外国語として選んだのなら第2外国語、そうでなければ選択外国語に
@@ -125,5 +144,15 @@ def _divide_multilingual(title: str) -> tuple[str | None, str | None]:
     if any(title.startswith(w) for w in LANG_OPT_PREFIXES):
         return "lang_opt", "title"
     if any(title.startswith(w) for w in DAI2_LANGS):
+        return "lang2", "title"
+    # 題名の規則から漏れたものは、ナンバリング末尾の区分コードで拾う。
+    # 「特別外国語演習（タイ語）」等14件がここに来る ―― どの学部規程にも
+    # 名前が出ないが、CELAS の区分コードは A7＝グローバル理解で、同じ
+    # コードの193件は例外なく global。
+    if numbering.endswith(GLOBAL_NUMBERING_SUFFIX):
+        return "global", "numbering"
+    # 留学生向けの日本語科目。CELAS の「第２外国語（日本語）」に当たる。
+    # 日本人学生が履修できないことは build.py のタグで断る。
+    if title in JP_ONLY_TITLES:
         return "lang2", "title"
     return None, None

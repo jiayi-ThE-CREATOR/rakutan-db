@@ -30,7 +30,7 @@ from pathlib import Path
 
 import reviews
 import score as scoring
-from tools.division import divide
+from tools.division import JP_ONLY_TITLES, divide
 
 ROOT = Path(__file__).parent
 SRC = ROOT / "data" / "courses.json"
@@ -214,6 +214,12 @@ def main() -> None:
 
     built = []
     for c in courses:
+        # 留学生向けの日本語科目。区分は CELAS どおり第2外国語（＝lang2）に
+        # 置いてあるので、そのままだと日本人学生の絞り込みに混ざる。
+        # 区分を分けると卒業要件の表と1対1で対応しなくなるため、
+        # カードのタグで断る（タグは score.py 経由で rakutan.tags に入る）。
+        if c.get("title") in JP_ONLY_TITLES:
+            c["tags"] = [*(c.get("tags") or []), "日本人履修不可"]
         base = dict(c) if args.full else slim(c)
         base["rakutan"] = scoring.score(c)      # 採点は必ず元データに対して行う
         # 科目区分。政岡さんの取得が入るまでは科目名とナンバリングからの推定で、
