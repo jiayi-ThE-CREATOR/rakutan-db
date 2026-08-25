@@ -30,7 +30,7 @@ from pathlib import Path
 
 import reviews
 import score as scoring
-from tools import engineering, faculty as faculty_mod, foreign_studies
+from tools import engineering, faculty as faculty_mod, foreign_studies, senmon
 from tools.division import JP_ONLY_TITLES, divide, track
 
 ROOT = Path(__file__).parent
@@ -416,6 +416,7 @@ def main() -> None:
         # 作り直すファイルなので、あちらへ直接書くと次のスクレイプで消える。
         req = foreign_studies.apply_to_requirements(req)
         req = engineering.apply_to_requirements(req)
+        req = senmon.apply_to_requirements(req)
         req_dest = ROOT / "web" / "data" / "requirements.json"
         req_dest.write_text(json.dumps(req, ensure_ascii=False, indent=1),
                             encoding="utf-8")

@@ -61,10 +61,18 @@ CODE_TO_TRACK = {
 def track_of(numbering: str, title: str = "") -> str | None:
     """学科のキーを返す。学科に紐づかない科目（教職など）は None。
 
-    title は division.track() が両学部へ同じ形で渡すため受けるだけで、
-    ここでは見ない ―― 工学部の学科はナンバリングだけで一意に定まる。
+    title は division.track() が全学部へ同じ形で渡すため受けるだけで、
+    ここでは見ない ―― 工学部の学科はナンバリングだけで一意に定まる
+    （外国語学部は専攻限定かどうかが科目名のマーカーでしか割れないので見る）。
+
+    ナンバリングは `08MEEN…,08ELIE…` のようにカンマ区切りで複数入ることがある
+    （工学部711件のうち151件。うち44件は学科をまたぐ）。**先頭だけ見ると、
+    5学科に開いている科目が1学科の科目に化ける**ので、全部を見て一致したときだけ返す。
+    2026-08-26 に修正 ―― それまでは先頭のコードだけを見ていた。
     """
-    return CODE_TO_TRACK.get(numbering[2:6])
+    got = {CODE_TO_TRACK.get(c.strip()[2:6]) for c in (numbering or "").split(",")
+           if c.strip()}
+    return got.pop() if len(got) == 1 else None
 
 
 def divide_engineering(title: str, numbering: str) -> tuple[str | None, str | None]:
@@ -81,7 +89,8 @@ def divide_engineering(title: str, numbering: str) -> tuple[str | None, str | No
     ここへ来ない（division.py の入口で外れる）。ナンバリングが空の3件も同じ。
     知らないコードが増えたときは None にする ―― 専門教育科目だと決めつけない。
     """
-    if CODE_TO_TRACK.get(numbering[2:6]) is None:
+    if track_of(numbering) is None and not any(
+            CODE_TO_TRACK.get(c.strip()[2:6]) for c in (numbering or "").split(",")):
         return None, None
     return "eng_senmon", "numbering"
 
