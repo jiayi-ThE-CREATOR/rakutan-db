@@ -173,3 +173,39 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def test_track_of_language():
+    from tools.foreign_studies import TRACKS, track_of
+    assert len(TRACKS) == 25
+    assert track_of("10FOST2BK00") == "K"      # ドイツ語
+    assert track_of("10FOST3BL02") == "L"      # 英語（専攻科目も同じ位置）
+    assert track_of("10FOST2B001") is None     # 研究外国語は専攻に紐づかない
+
+
+def test_every_language_code_is_unambiguous():
+    """★ 専攻語実習で、1コード＝1言語であることを実データで確かめる。
+
+    コードが1言語に定まらなくなったら、専攻セレクタが別の言語の科目を
+    混ぜて出すことになる。2026-08-25 の実測では594件すべてで例外が無かった。
+    """
+    import re
+    from collections import defaultdict
+    from tools.foreign_studies import TRACKS, track_of
+    built = ROOT / "web" / "data" / "courses.built.json"
+    if not built.exists():
+        print("  SKIP test_every_language_code_is_unambiguous")
+        return
+    lang = re.compile(r"^([ァ-ヶー]+語|中国語|朝鮮語|日本語|英語)")
+    seen = defaultdict(set)
+    for c in json.loads(built.read_text(encoding="utf-8"))["courses"]:
+        n = str(c.get("numbering") or "")
+        if not n.startswith("10FOST") or n[9:11] != "00":
+            continue
+        m = lang.match(c["title"] or "")
+        if m and track_of(n):
+            seen[track_of(n)].add(m.group(1))
+    assert seen, "専攻語実習が1件も見つからない"
+    for code, langs in seen.items():
+        assert len(langs) == 1, f"{code} に複数言語: {langs}"
+        assert TRACKS[code] in langs, f"{code} の表記ゆれ: {TRACKS[code]} vs {langs}"

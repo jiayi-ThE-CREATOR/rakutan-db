@@ -193,6 +193,14 @@
    "only": [
     "foreign-s"
    ]
+  },
+  {
+   "key": "eng_senmon",
+   "label": "専門教育科目",
+   "group": "工学部",
+   "only": [
+    "engineering"
+   ]
   }
  ],
  "faculties": [
@@ -919,7 +927,111 @@
     "専攻語科目 1年実習は上限10単位（ロシア語は12単位）。",
     "兼修語学の【同一言語で修得】と【上記以外で修得】は、どちらになるかが学生の選び方で決まるため、科目の側では分けていません。",
     "国際交流科目と選択科目（他大学・他学部）は、科目の属性ではないので区分にしていません。"
-   ]
+   ],
+   "tracks": [
+    {
+     "key": "fs_lang:1",
+     "label": "中国語"
+    },
+    {
+     "key": "fs_lang:2",
+     "label": "朝鮮語"
+    },
+    {
+     "key": "fs_lang:3",
+     "label": "モンゴル語"
+    },
+    {
+     "key": "fs_lang:4",
+     "label": "インドネシア語"
+    },
+    {
+     "key": "fs_lang:5",
+     "label": "フィリピン語"
+    },
+    {
+     "key": "fs_lang:6",
+     "label": "タイ語"
+    },
+    {
+     "key": "fs_lang:7",
+     "label": "ベトナム語"
+    },
+    {
+     "key": "fs_lang:8",
+     "label": "ビルマ語"
+    },
+    {
+     "key": "fs_lang:9",
+     "label": "ヒンディー語"
+    },
+    {
+     "key": "fs_lang:A",
+     "label": "ウルドゥー語"
+    },
+    {
+     "key": "fs_lang:B",
+     "label": "アラビア語"
+    },
+    {
+     "key": "fs_lang:C",
+     "label": "ペルシア語"
+    },
+    {
+     "key": "fs_lang:D",
+     "label": "トルコ語"
+    },
+    {
+     "key": "fs_lang:E",
+     "label": "スワヒリ語"
+    },
+    {
+     "key": "fs_lang:F",
+     "label": "ロシア語"
+    },
+    {
+     "key": "fs_lang:G",
+     "label": "ハンガリー語"
+    },
+    {
+     "key": "fs_lang:H",
+     "label": "デンマーク語"
+    },
+    {
+     "key": "fs_lang:J",
+     "label": "スウェーデン語"
+    },
+    {
+     "key": "fs_lang:K",
+     "label": "ドイツ語"
+    },
+    {
+     "key": "fs_lang:L",
+     "label": "英語"
+    },
+    {
+     "key": "fs_lang:M",
+     "label": "フランス語"
+    },
+    {
+     "key": "fs_lang:N",
+     "label": "イタリア語"
+    },
+    {
+     "key": "fs_lang:P",
+     "label": "スペイン語"
+    },
+    {
+     "key": "fs_lang:Q",
+     "label": "ポルトガル語"
+    },
+    {
+     "key": "fs_lang:R",
+     "label": "日本語"
+    }
+   ],
+   "tracks_label": "専攻語を選ぶ",
+   "tracks_source": "外国語学部 単位修得状況チェックシート（2025年度以降入学者用） https://www.sfs.osaka-u.ac.jp/guide/"
   },
   {
    "key": "science",
@@ -1632,11 +1744,49 @@
       "4",
       "4"
      ]
+    },
+    {
+     "divisions": [
+      "eng_senmon"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "工学部 履修案内（令和8年度）学科別履修指針 https://www.eng.osaka-u.ac.jp/wp-content/uploads/pdf/student/ug_curriculum/2026_1_bc_curriculum.pdf"
     }
    ],
    "notes": [
-    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
-   ]
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
+    "学科を選ぶと、その学科の専門科目だけになります。必修か選択かはコースごとに違う（同じ科目が別のコースでは履修できない）ため、科目の側では分けていません。履修案内で確認してください。"
+   ],
+   "tracks": [
+    {
+     "key": "eng_dept:shizen",
+     "label": "応用自然科学科"
+    },
+    {
+     "key": "eng_dept:riko",
+     "label": "応用理工学科"
+    },
+    {
+     "key": "eng_dept:denshi",
+     "label": "電子情報工学科"
+    },
+    {
+     "key": "eng_dept:kanene",
+     "label": "環境・エネルギー工学科"
+    },
+    {
+     "key": "eng_dept:chikyu",
+     "label": "地球総合工学科"
+    }
+   ],
+   "tracks_label": "学科を選ぶ",
+   "tracks_source": "工学部 履修案内（令和8年度）学科別履修指針 https://www.eng.osaka-u.ac.jp/wp-content/uploads/pdf/student/ug_curriculum/2026_1_bc_curriculum.pdf"
   },
   {
    "key": "engr-sci",

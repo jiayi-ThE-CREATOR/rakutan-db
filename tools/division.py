@@ -31,7 +31,7 @@ from __future__ import annotations
 
 import re
 
-from tools import foreign_studies
+from tools import engineering, foreign_studies
 
 # 科目名の接頭辞。KOAN の科目名に元から付いている（例：【人文】ことばの学問入門）。
 PREFIX = {
@@ -111,6 +111,8 @@ def divide(course: dict) -> tuple[str | None, str | None]:
     # 別系統なので別ファイルに置いてある（tools/foreign_studies.py）。
     if numbering.startswith(foreign_studies.NUMBERING_PREFIX):
         return foreign_studies.divide_foreign_studies(title, numbering)
+    if numbering.startswith(engineering.NUMBERING_PREFIX):
+        return engineering.divide_engineering(title, numbering)
 
     m = _PREFIX_RE.match(title)
     if m and m.group(1) in PREFIX:
@@ -169,3 +171,28 @@ def _divide_multilingual(title: str, numbering: str) -> tuple[str | None, str | 
     if title in JP_ONLY_TITLES:
         return "lang2", "title"
     return None, None
+
+
+# ── トラック（学部の中でさらに絞る軸）──────────────
+# 区分（＝卒業要件のどの枠か）とは別の軸。外国語学部の専攻語、工学部の学科の
+# ように「これが決まると科目の顔ぶれが変わる」もの。chip ではなく学部セレクタの
+# 下に置く（区分の列に混ぜると、卒業要件の表と1対1で対応しなくなる）。
+TRACK_FACULTY = {
+    foreign_studies.NUMBERING_PREFIX: (foreign_studies.TRACK_KEY,
+                                       foreign_studies.track_of),
+    engineering.NUMBERING_PREFIX: (engineering.TRACK_KEY, engineering.track_of),
+}
+
+
+def track(course: dict) -> str | None:
+    """トラックを "<軸>:<値>" で返す。持たない科目は None。
+
+    軸を前に付けるのは、学部をまたいでコードが衝突しないようにするため
+    （外国語学部の "L"＝英語 と、工学部の学科キーが同じ空間に入る）。
+    """
+    numbering = course.get("numbering") or ""
+    for prefix, (key, fn) in TRACK_FACULTY.items():
+        if numbering.startswith(prefix):
+            got = fn(numbering)
+            return f"{key}:{got}" if got else None
+    return None

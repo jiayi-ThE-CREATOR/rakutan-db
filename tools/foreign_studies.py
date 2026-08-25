@@ -188,7 +188,43 @@ def apply_to_requirements(req: dict) -> dict:
                 r["note"] = ("CELAS の卒業要件表は要件外としているが、"
                              "学部チェックシートには行がある。紙を採った。")
 
+    fac["tracks"] = tracks_for_requirements()
+    fac["tracks_label"] = "専攻語を選ぶ"
+    fac["tracks_source"] = SOURCE
+
     for t in NOTES:
         if t not in fac.setdefault("notes", []):
             fac["notes"].append(t)
     return req
+
+
+# ── 専攻語（トラック）─────────────────────
+# ナンバリング9文字目が言語コード。専攻語実習594件で実測したところ、
+# 25コードすべてが1言語に定まり、混在は0件だった（2026-08-25）。
+# 専攻科目（3B）も同じ位置に同じコードを持つので、専攻を選ぶと
+# 専攻語と専攻科目が一緒に絞れる。
+#
+# 「専攻が違えば出てくる専攻語科目が違う」―― 区分（実習か演習か）だけでは
+# 足りず、どの言語かが要る。ただし言語は区分ではないので、chip ではなく
+# 学部の下のセレクタに置く。
+TRACK_KEY = "fs_lang"
+TRACKS = {
+    "1": "中国語", "2": "朝鮮語", "3": "モンゴル語", "4": "インドネシア語",
+    "5": "フィリピン語", "6": "タイ語", "7": "ベトナム語", "8": "ビルマ語",
+    "9": "ヒンディー語", "A": "ウルドゥー語", "B": "アラビア語", "C": "ペルシア語",
+    "D": "トルコ語", "E": "スワヒリ語", "F": "ロシア語", "G": "ハンガリー語",
+    "H": "デンマーク語", "J": "スウェーデン語", "K": "ドイツ語", "L": "英語",
+    "M": "フランス語", "N": "イタリア語", "P": "スペイン語", "Q": "ポルトガル語",
+    "R": "日本語",
+}
+
+
+def track_of(numbering: str) -> str | None:
+    """専攻語のコードを返す。専攻に紐づかない科目（研究外国語・学部共通など）は None。"""
+    code = numbering[8:9]
+    return code if code in TRACKS else None
+
+
+def tracks_for_requirements() -> list[dict]:
+    """要件表へ載せる専攻語の一覧。並びは五十音ではなくコード順（表と突き合わせやすい）。"""
+    return [{"key": f"{TRACK_KEY}:{k}", "label": v} for k, v in TRACKS.items()]

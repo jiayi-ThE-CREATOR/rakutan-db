@@ -30,8 +30,8 @@ from pathlib import Path
 
 import reviews
 import score as scoring
-from tools import foreign_studies
-from tools.division import JP_ONLY_TITLES, divide
+from tools import engineering, foreign_studies
+from tools.division import JP_ONLY_TITLES, divide, track
 
 ROOT = Path(__file__).parent
 SRC = ROOT / "data" / "courses.json"
@@ -227,6 +227,9 @@ def main() -> None:
         # 出所を一緒に持たせる（画面で「推定」と断るため）。判定できないものは
         # null のまま ―― 画面では「その他」に集まる。
         base["division"], base["division_source"] = divide(c)
+        # 学部の中でさらに絞る軸（外国語学部の専攻語・工学部の学科）。
+        # 区分ではないので chip にはしない ―― 画面では学部セレクタの下に出る。
+        base["track"] = track(c)
         built.append(base)
 
     # プリセット4つ分の順位を焼いておくと、LINE側は採点ロジックを持たずに済む。
@@ -335,6 +338,7 @@ def main() -> None:
         # data/faculty_requirements.json は fetch_requirements.py が CELAS から
         # 作り直すファイルなので、あちらへ直接書くと次のスクレイプで消える。
         req = foreign_studies.apply_to_requirements(req)
+        req = engineering.apply_to_requirements(req)
         req_dest = ROOT / "web" / "data" / "requirements.json"
         req_dest.write_text(json.dumps(req, ensure_ascii=False, indent=1),
                             encoding="utf-8")

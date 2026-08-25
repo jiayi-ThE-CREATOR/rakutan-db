@@ -20,7 +20,7 @@ const state = { q:"", year:"1", sem:"aki", day:"", period:"", cond:new Set(), so
                 preset:"とにかく軽い", weights:null,
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
-                faculty:"", division:new Set() };
+                faculty:"", track:"", division:new Set() };
 const SEMS = [["aki","秋・冬学期"],["haru","春・夏学期"],["all","すべて"]];
 const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
                ["5","5年"],["6","6年"],["all","すべて"]];
@@ -48,6 +48,7 @@ function qs(){
   p.set("sort", state.sort);
   state.cond.forEach(c => p.append("cond", c));
   if (state.faculty) p.set("faculty", state.faculty);
+  if (state.track) p.set("track", state.track);
   state.division.forEach(d => p.append("division", d));
   if (state.weights) for (const [k,v] of Object.entries(state.weights)) p.set("w_"+k, v);
   else if (state.preset) p.set("preset", state.preset);
@@ -119,13 +120,18 @@ const DIV_OTHER = "other";   // 「まだ判定していない」科目の置き
    総合英語・実践英語が実在する区分なので、親はチップにしない
    ―― 親に直接ぶら下がる科目が無く、必ず0件になって壊れて見えるため。
    要件表の行としてはデータに残っている（内訳の検算に使う）。 */
-/* only 付きの区分は、その学部を選んでいるときだけ出す。学部の専門科目の区分は
-   他学部の学生には意味が無い（工学部の学生に「専攻語 1年実習」を見せない）。
-   自分の学部のぶんを先頭に置く ―― チェックシートを上から順に追えるように。 */
+/* 画面は3段。
+     上 …… 全学部に共通の卒業要件区分（only の無い区分）
+     中 …… 学部セレクタ ＋ その学部のトラック（外国語学部＝専攻語、工学部＝学科）
+     下 …… その学部だけの区分（only 付き）
+   学部の専門科目の区分は他学部の学生には意味が無いので、選んでいるときだけ出す
+   （工学部の学生に「専攻語 1年実習」を見せない）。 */
+function isOwnDivision(d){ return !!(d.only && d.only.includes(state.faculty)); }
+
 function divisionsOf(){
-  const all = ((REQ && REQ.divisions) || []).filter(d => d.chip !== false);
-  return all.filter(d => (d.only || []).includes(state.faculty))
-     .concat(all.filter(d => !d.only));
+  return ((REQ && REQ.divisions) || [])
+    .filter(d => d.chip !== false)
+    .filter(d => !d.only || isOwnDivision(d));
 }
 function facultyOf(key){ return ((REQ && REQ.faculties) || []).find(f => f.key === key); }
 
@@ -194,10 +200,20 @@ function buildFaculty(facets){
   if (!sec){
     sec = document.createElement("section");
     sec.id = "facSec";
+    // 3段に分ける。上は全学部に共通の区分で、学部を選んでいなくても意味がある。
+    // 下は選んだ学部にしか無い区分なので、選ぶまで丸ごと隠す。
     sec.innerHTML =
-      `<h2>学部からさがす <span class="sub">選ぶと卒業要件にある区分が上に出ます</span></h2>
-       <select id="facSel"></select>
+      `<h2>卒業要件の区分でしぼる <span class="sub">全学部に共通の区分です</span></h2>
        <div class="chips" id="divs"></div>
+
+       <h2 class="facH">学部からさがす <span class="sub">選ぶと、その学部だけの区分が下に出ます</span></h2>
+       <select id="facSel"></select>
+       <select id="trackSel" hidden></select>
+
+       <div id="facOwn" hidden>
+         <h2 class="facH" id="facOwnH"></h2>
+         <div class="chips" id="divsOwn"></div>
+       </div>
        <button class="toggle" id="divTog" hidden></button>
        <div class="chips" id="divsOff" hidden></div>
        <p class="railNote" id="facNotes"></p>`;
@@ -207,7 +223,12 @@ function buildFaculty(facets){
     $("#facSel").innerHTML = `<option value="">学部を選ぶ</option>`
       + ((REQ.faculties || []).map(f =>
           `<option value="${esc(f.key)}">${esc(f.label)}</option>`).join(""));
-    $("#facSel").onchange = e => { state.faculty = e.target.value; load(); };
+    // 学部を変えたらトラックは必ず捨てる。学部をまたいで残すと
+    // 「ドイツ語専攻のまま工学部」のような、存在しない絞り込みになる。
+    $("#facSel").onchange = e => {
+      state.faculty = e.target.value; state.track = ""; load();
+    };
+    $("#trackSel").onchange = e => { state.track = e.target.value; load(); };
     $("#divTog").onclick = () => {
       const box = $("#divsOff");
       box.hidden = !box.hidden;
@@ -221,8 +242,35 @@ function buildFaculty(facets){
   const plan = divisionPlan();
   const other = { key:DIV_OTHER, label:"その他", badge:null,
                   title:"区分がまだ分かっていない科目" };
-  $("#divs").innerHTML = plan.need.concat([other])
+
+  // 上段＝共通の区分。「その他」は共通側に置く（学部に紐づかない置き場なので）。
+  const shared = plan.need.filter(d => !isOwnDivision(d));
+  $("#divs").innerHTML = shared.concat([other])
     .map(d => divisionChip(d, facets)).join("");
+
+  // 中段＝トラック（外国語学部＝専攻語、工学部＝学科）。持たない学部では出さない。
+  const fac = facultyOf(state.faculty);
+  const tracks = (fac && fac.tracks) || [];
+  const tsel = $("#trackSel");
+  tsel.hidden = !tracks.length;
+  if (tracks.length){
+    tsel.innerHTML = `<option value="">${esc(fac.tracks_label || "すべて")}</option>`
+      + tracks.map(t => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join("");
+    tsel.value = state.track;
+  } else if (state.track){
+    state.track = "";
+  }
+
+  // 下段＝その学部だけの区分。
+  const own = plan.need.filter(isOwnDivision);
+  $("#facOwn").hidden = own.length === 0;
+  if (own.length){
+    $("#facOwnH").innerHTML = `${esc(fac.label)}だけの区分`
+      + ` <span class="sub">学部の履修表の行に合わせています</span>`;
+    $("#divsOwn").innerHTML = own.map(d => divisionChip(d, facets)).join("");
+  } else {
+    $("#divsOwn").innerHTML = "";
+  }
 
   const tog = $("#divTog"), box = $("#divsOff");
   tog.hidden = plan.off.length === 0;
@@ -573,6 +621,7 @@ function matchLocal(r, w){
 function queryLocal(){
   const w = state.weights || META.presets[state.preset] || META.presets["とにかく軽い"];
   const conds = [...state.cond].filter(k => k in CONDITIONS);
+  const trackAxis = state.track ? state.track.split(":")[0] + ":" : "";
 
   const base = [];
   for (const c of DATA.courses){
@@ -581,6 +630,10 @@ function queryLocal(){
     // full（通年）はどちらの学期でも履修できるので必ず通す。
     if (state.sem !== "all" && c.term_group !== state.sem && c.term_group !== "full") continue;
     if (conds.some(k => !CONDITIONS[k](c))) continue;
+    // トラック（専攻語・学科）は同じ軸の中でだけ効かせる。トラックを持たない
+    // 科目（共通教育・学部共通など）は通す ―― 落とすと上段の共通区分が
+    // まるごと0件になる。
+    if (trackAxis && c.track && c.track.startsWith(trackAxis) && c.track !== state.track) continue;
     base.push({ ...c, match: matchLocal(c.rakutan, w) });
   }
 
@@ -968,10 +1021,21 @@ function renderPager(){
   });
 }
 
-async function load(){
+async function load(retry){
   const d = DATA.mode === "api"
     ? await (await fetch("/api/courses?" + qs())).json()
     : queryLocal();
+
+  // 学年や学期を変えると、選んでいた区分が0件になることがある
+  // （「専攻語 1年実習」を選んだまま2年へ切り替える等）。選択を残すと
+  // chip が disabled になったまま条件だけ効き続け、「何も押していないのに
+  // 1件も出ない」状態になって、原因が画面から読めない。だから外す。
+  if (!retry && state.division.size){
+    const f = d.division_facets || {};
+    let dropped = false;
+    for (const k of [...state.division]) if (!(f[k] > 0)){ state.division.delete(k); dropped = true; }
+    if (dropped) return load(true);
+  }
   courses = d.results;
   buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
   $("#count").textContent = d.count;

@@ -22,7 +22,7 @@ from urllib.parse import parse_qs, urlparse
 
 import reviews as reviews_mod
 import score as scoring
-from tools.division import divide
+from tools.division import divide, track
 # 学期の畳み方は build.py の term_group() が正本。
 # server.py は生データ（data/courses.json）を読むので term_group が焼かれていない。
 # ここで同じ判定をもう一度書くと、必ず片方だけ古くなる。
@@ -62,6 +62,7 @@ COURSES: list[dict] = _raw["courses"]
 # scoring.enrich() は dict(course) のコピーなので、ここで入れれば API まで届く。
 for _c in COURSES:
     _c["division"], _c["division_source"] = divide(_c)
+    _c["track"] = track(_c)
 DATA_META: dict = dict(_raw.get("_meta") or {})
 DATA_META["is_sample"] = IS_SAMPLE
 DATA_META.setdefault(
@@ -141,6 +142,11 @@ def search(params: dict) -> dict:
     conds = [c for c in (params.get("cond") or []) if c in CONDITIONS]
     # 区分（複数可・OR）。data には無い "other" は「まだ判定していない」科目のこと。
     divisions = [d for d in (params.get("division") or []) if d]
+    # トラック（外国語学部＝専攻語、工学部＝学科）。区分とは別の軸で、
+    # 同じ軸を持つ科目の中でだけ効く。トラックを持たない科目は通す
+    # ―― 落とすと共通教育がまるごと消える。
+    trk = get("track")
+    trk_axis = trk.split(":")[0] + ":" if trk else ""
     weights = scoring.parse_weights(params)
 
     base = []
@@ -159,6 +165,9 @@ def search(params: dict) -> dict:
         if term and c.get("term") != term:
             continue
         if any(not CONDITIONS[k](c) for k in conds):
+            continue
+        if trk_axis and (c.get("track") or "").startswith(trk_axis) \
+                and c.get("track") != trk:
             continue
         e = scoring.enrich(c)
         if min_conf and e["rakutan"]["confidence"]["level"] not in _conf_ok(min_conf):
@@ -254,6 +263,9 @@ def openapi() -> dict:
                         {"name": "term", "in": "query", "schema": {"type": "string"}},
                         {"name": "day", "in": "query", "schema": {"type": "string", "enum": DAYS}},
                         {"name": "period", "in": "query", "schema": {"type": "string", "enum": PERIODS}},
+                        {"name": "track", "in": "query",
+                         "schema": {"type": "string"},
+                         "description": "専攻語・学科（例 fs_lang:K／eng_dept:denshi）"},
                         {"name": "division", "in": "query",
                          "schema": {"type": "array", "items": {"type": "string"}},
                          "description": "科目区分。複数指定で OR。other は未判定"},
