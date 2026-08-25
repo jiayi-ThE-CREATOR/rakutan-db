@@ -30,7 +30,7 @@ from pathlib import Path
 
 import reviews
 import score as scoring
-from tools import engineering, foreign_studies
+from tools import engineering, faculty as faculty_mod, foreign_studies
 from tools.division import JP_ONLY_TITLES, divide, track
 
 ROOT = Path(__file__).parent
@@ -40,6 +40,11 @@ OUT = ROOT / "web" / "data" / "courses.built.json"
 # 全件なめるので、件数に比例して伸びるものを混ぜない。詳細パネルを最初に
 # 開いた時だけ取りに行けば足りる（server.py も同じURLで返す）。
 OUT_REVIEWS = ROOT / "web" / "data" / "reviews.built.json"
+# 口コミ投稿の時間割（web/kuchikomi.html）が読む投影。courses.built.json は
+# 12MB あり、時間割に要るのは科目名・担当・曜限・学部・学年だけなので、
+# 全部を持って行かせない（reviews.built.json を分けたのと同じ理由）。
+# 実測 gzip 531KB → 135KB。スマホで開く画面なので、この差は効く。
+OUT_TIMETABLE = ROOT / "web" / "data" / "timetable.json"
 SHELL = ROOT / "templates" / "shell.html"
 PAGES = sorted((ROOT / "web").glob("*.html"))
 
@@ -99,6 +104,37 @@ def term_group(term: str | None) -> str:
     if "春" in t or "夏" in t:
         return "haru"
     return "unknown"
+
+
+# 時間割のマスに置ける曜限だけ。「月3」の形を1つずつ取り出す。
+# 「金3,金4,金5」のように複数コマにまたがる科目があるので、単数ではなく配列。
+# 「他」（集中講義など1,060件）と土曜9件はマスが無いので、ここで落ちる
+# ―― 時間割から投稿できないという既知の穴（HANDOFF 参照）。
+_SLOT = re.compile(r"[月火水木金][1-6]")
+
+
+def timetable_rows(courses: list[dict]) -> list[dict]:
+    """口コミ投稿の時間割が読む投影。
+
+    ここに置くのは「絞り込みに要る事実」だけ。点数も口コミも入れない
+    ―― 入れた瞬間に courses.built.json と同じものが2つになる。
+    """
+    rows = []
+    for c in courses:
+        slots = _SLOT.findall(c.get("day_period") or "")
+        if not slots:
+            continue
+        rows.append({
+            "id": c["id"],
+            "title": c["title"],
+            "instructor": c.get("instructor"),
+            "slots": slots,
+            "term_group": term_group(c.get("term")),
+            "faculty": faculty_mod.faculty_of(c),
+            "eligible_years": c.get("eligible_years"),
+            "track": c.get("track"),
+        })
+    return rows
 
 
 def slim(course: dict) -> dict:
@@ -295,6 +331,13 @@ def main() -> None:
     if pub is not None:
         rv_dest.write_text(json.dumps(pub, ensure_ascii=False,
                                       separators=(",", ":")), encoding="utf-8")
+
+    # 時間割の投影。courses.built.json と同じ元データから同じ実行で焼くので、
+    # 片方だけ古くなることが無い。
+    tt = timetable_rows(courses)
+    OUT_TIMETABLE.write_text(json.dumps(tt, ensure_ascii=False,
+                                        separators=(",", ":")), encoding="utf-8")
+    print(f"→ {OUT_TIMETABLE}  時間割に置ける {len(tt)} 件 / 全 {len(courses)} 件")
 
     kb = dest.stat().st_size / 1024
     src_label = {"raw": "生データ", "agg": "集約ずみ", "none": "なし"}[rv_src]
