@@ -137,9 +137,10 @@ export function greetingMessage() {
   return {
     type: "text",
     text:
-      "友だち追加ありがとうございます！ラクハンです。\n" +
-      "学年や優先度を教えてもらうと絞り込んで返せますが、答えたくなければ" +
-      "そのまま「とにかく楽単を知りたい」を選んでもらってもOKです。",
+      "友だち追加ありがとうございます！\n" +
+      "阪大最強のAIコミュニティ「GUILD」による楽単情報bot「ラクハン」です。\n\n" +
+      "学年や条件があれば絞れるよ！答えたくなければ" +
+      "『とにかく楽単を知りたい』を選ぶだけでOK。",
     quickReply: {
       items: [
         qrPostback("学年などを教える", "action=start_personal", "学年などを教えて絞り込みたい"),
@@ -156,7 +157,7 @@ export function gradeQuestionMessage() {
   items.push(qrPostback("答えたくない", "action=quick_default", "答えたくない"));
   return {
     type: "text",
-    text: "今の学年を教えてください（答えたくなければ「答えたくない」でOKです）。",
+    text: "今何年生？（答えたくなければ「答えたくない」でOK）",
     quickReply: { items },
   };
 }
@@ -167,7 +168,7 @@ export function presetQuestionMessage(grade) {
   );
   return {
     type: "text",
-    text: "何を優先しますか？",
+    text: "何を優先する？",
     quickReply: { items },
   };
 }
