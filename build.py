@@ -106,29 +106,32 @@ def term_group(term: str | None) -> str:
     return "unknown"
 
 
-# 時間割のマスに置ける曜限だけ。「月3」の形を1つずつ取り出す。
+# 時間割のマスに置ける曜限。「月3」の形を1つずつ取り出す。
 # 「金3,金4,金5」のように複数コマにまたがる科目があるので、単数ではなく配列。
-# 「他」（集中講義など1,060件）と土曜9件はマスが無いので、ここで落ちる
-# ―― 時間割から投稿できないという既知の穴（HANDOFF 参照）。
+#
+# **空配列になる科目も落とさない。** 「他」（集中講義など1,060件）と土曜9件は
+# マスが無いが、実在して履修されている。落とすと永久に口コミが付けられない
+# ―― 理学部は667件中443件がこちらで、落とすと学部ごと投稿できなくなる。
+# 画面は slots が空のものを「時間割に無い科目」として別の入口に出す。
 _SLOT = re.compile(r"[月火水木金][1-6]")
 
 
 def timetable_rows(courses: list[dict]) -> list[dict]:
-    """口コミ投稿の時間割が読む投影。
+    """口コミ投稿の画面が読む投影。
 
     ここに置くのは「絞り込みに要る事実」だけ。点数も口コミも入れない
     ―― 入れた瞬間に courses.built.json と同じものが2つになる。
     """
     rows = []
     for c in courses:
-        slots = _SLOT.findall(c.get("day_period") or "")
-        if not slots:
-            continue
         rows.append({
             "id": c["id"],
             "title": c["title"],
             "instructor": c.get("instructor"),
-            "slots": slots,
+            "slots": _SLOT.findall(c.get("day_period") or ""),
+            # 「他」「土3」など、マスに置けない科目の原文。画面がそのまま出す
+            # ―― 「集中講義」なのか「土曜」なのかで、学生の心当たりが違う。
+            "day_period": c.get("day_period"),
             "term_group": term_group(c.get("term")),
             "faculty": faculty_mod.faculty_of(c),
             "eligible_years": c.get("eligible_years"),
@@ -337,7 +340,9 @@ def main() -> None:
     tt = timetable_rows(courses)
     OUT_TIMETABLE.write_text(json.dumps(tt, ensure_ascii=False,
                                         separators=(",", ":")), encoding="utf-8")
-    print(f"→ {OUT_TIMETABLE}  時間割に置ける {len(tt)} 件 / 全 {len(courses)} 件")
+    n_slot = sum(1 for r in tt if r["slots"])
+    print(f"→ {OUT_TIMETABLE}  {len(tt)} 件"
+          f"（時間割のマスに置ける {n_slot} 件／置けない {len(tt) - n_slot} 件）")
 
     kb = dest.stat().st_size / 1024
     src_label = {"raw": "生データ", "agg": "集約ずみ", "none": "なし"}[rv_src]

@@ -85,11 +85,32 @@
       <!-- kuchikomi.js が生成 -->
     </div>
 
-    <div class="action-area">
-      <button id="submit-survey" class="primary-btn" disabled>アンケートを送信する</button>
-      <p class="fine">選んだ科目をまとめて送ります。何コマでも構いません。</p>
-    </div>
   </section>
+
+  <!-- 時間割のマスに置けない科目（集中講義・土曜など1,069件）。
+       ここが無いと、理学部は667件中443件に口コミを付けようが無い。 -->
+  <section id="extra-section" class="kkStep hidden">
+    <h3><span class="kkNum">3</span>時間割に無い科目</h3>
+    <p class="kkLead">集中講義や土曜開講など、時間割のマスに置けない科目です。受けたものがあれば、ここから選んでください。<b>無ければ飛ばして構いません。</b></p>
+
+    <div class="kkExtra">
+      <input type="search" id="extra-search" placeholder="科目名でしぼりこむ" autocomplete="off">
+      <select id="extra-select">
+        <!-- kuchikomi.js が生成 -->
+      </select>
+      <div class="kkExtraFoot">
+        <p class="fine" id="extra-count"></p>
+        <button type="button" id="extra-open" class="secondary-btn" disabled>この科目の口コミを書く</button>
+      </div>
+    </div>
+
+    <ul class="extraList" id="extra-list"></ul>
+  </section>
+
+  <div id="submit-area" class="action-area hidden">
+    <button id="submit-survey" class="primary-btn" disabled>アンケートを送信する</button>
+    <p class="fine">時間割で選んだ科目と、上で選んだ科目をまとめて送ります。何科目でも構いません。</p>
+  </div>
 
 </div>
 

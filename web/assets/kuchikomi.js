@@ -11,6 +11,13 @@
  * **この画面には判断を書かない。** どの科目がどの学部のものかは
  * tools/faculty.py が決め、build.py が焼く。ここは絞り込むだけ。
  * （app.js の CONDITIONS と同じ約束。ブラウザ側に規則を持つと必ず漂う）
+ *
+ * ■ 入口が2つある理由
+ * 全7,877件のうち1,069件は曜限がマスに置けない（「他」＝集中講義など1,060件と
+ * 土曜9件）。時間割だけを入口にすると、この1,069件には永久に口コミが付かない
+ * ―― 理学部は667件中443件がこちらで、学部ごと投稿できなくなる。
+ * だから「時間割から選ぶ」と「時間割に無い科目から選ぶ」の2つを置く。
+ * 選んだあとの設問・保存・送信は完全に同じ道を通る。
  */
 
 /* ══ 定数 ══════════════════════════════════════════ */
@@ -38,6 +45,7 @@ const state = {
 let ROWS = [];            // web/data/timetable.json
 let FACULTIES = [];       // web/data/requirements.json の faculties
 let SLOT_INDEX = new Map(); // "月1" → その枠の科目の配列
+let EXTRA = [];           // 曜限がマスに置けない科目（集中講義・土曜）
 
 /* ══ DOM ═══════════════════════════════════════════ */
 
@@ -75,11 +83,21 @@ const els = {
   examDifficulty: document.getElementById('exam-difficulty'),
   examDifficultyDisplay: document.getElementById('exam-difficulty-display'),
 
+  extraSection: document.getElementById('extra-section'),
+  extraSearch: document.getElementById('extra-search'),
+  extraSelect: document.getElementById('extra-select'),
+  extraCount: document.getElementById('extra-count'),
+  extraOpen: document.getElementById('extra-open'),
+  extraList: document.getElementById('extra-list'),
+  submitArea: document.getElementById('submit-area'),
+
   loadNote: document.getElementById('load-note'),
   toast: document.getElementById('toast'),
 };
 
-let currentEditingCell = null;   // { day: index, period: index }
+/* いま編集しているもの。時間割のマスと「時間割に無い科目」で形が違うので、
+   どちらなのかを kind で持つ。key は selectedSubjects の鍵。 */
+let currentTarget = null;   // { kind:'slot'|'extra', key, day?, period?, id? }
 
 /* ══ 起動 ══════════════════════════════════════════ */
 
@@ -91,10 +109,14 @@ async function boot() {
   ROWS = rows;
   FACULTIES = req.faculties || [];
 
+  /* 曜限を持たない科目は時間割に置けない。別の入口へ回す。 */
+  EXTRA = ROWS.filter(r => !r.slots.length)
+              .sort((a, b) => a.title.localeCompare(b.title, 'ja'));
+
   /* 枠ごとに引けるようにしておく。マスを開くたびに 6,808件を
      なめると、押した瞬間に固まる。 */
   for (const row of ROWS) {
-    for (const slot of row.slots) {
+    for (const slot of row.slots) {   // 曜限が無い科目はここを1周もしない
       if (!SLOT_INDEX.has(slot)) SLOT_INDEX.set(slot, []);
       SLOT_INDEX.get(slot).push(row);
     }
@@ -130,17 +152,13 @@ function init() {
     }
   }
 
-  if (state.semester && state.department) {
-    generateTimetable();
-    els.timetableSection.classList.remove('hidden');
-  }
-
+  showPickers();
   checkSubmitReady();
 
   els.gradeSelect.addEventListener('change', () => {
     /* 学年で出る科目が変わる。開いたままの選択は残さない。 */
     state.selectedSubjects = {};
-    if (state.semester && state.department) generateTimetable();
+    showPickers();
     checkSubmitReady();
     saveSettingsToLocal();
   });
@@ -184,6 +202,15 @@ function init() {
 
   els.modalSubjectSelect.addEventListener('change', checkModalFormReady);
   els.modalYearSelect.addEventListener('change', checkModalFormReady);
+
+  /* 時間割に無い科目。理学部4年は1画面に343件出るので、絞り込みが要る。 */
+  els.extraSearch.addEventListener('input', renderExtraSelect);
+  els.extraSelect.addEventListener('change', () => {
+    els.extraOpen.disabled = !els.extraSelect.value;
+  });
+  els.extraOpen.addEventListener('click', () => {
+    if (els.extraSelect.value) openEditor({ kind: 'extra', id: els.extraSelect.value });
+  });
 
   els.reportWordCount.addEventListener('input', (e) => {
     els.reportWordDisplay.textContent = e.target.value;
@@ -246,10 +273,7 @@ function departmentLabel() {
 function handleSemesterChange(e) {
   state.semester = e.target.value;
   state.selectedSubjects = {};
-  if (state.department) {
-    generateTimetable();
-    els.submitBtn.disabled = true;
-  }
+  showPickers();
   checkSubmitReady();
   saveSettingsToLocal();
 }
@@ -259,15 +283,10 @@ function handleFacultyChange(e) {
   state.department = null;
   fillDepartments(state.faculty);
 
+  /* 学科が1つしか無い学部は fillDepartments が state.department を確定させている。
+     そこまで出しておかないと、選ぶものが無いのに先へ進めない。 */
   state.selectedSubjects = {};
-  if (state.semester && state.department) {
-    /* 学科が1つしか無い学部は fillDepartments が確定させている。
-       ここで時間割まで出しておかないと、選ぶものが無いのに先へ進めない。 */
-    generateTimetable();
-    els.timetableSection.classList.remove('hidden');
-  } else {
-    els.timetableSection.classList.add('hidden');
-  }
+  showPickers();
   checkSubmitReady();
   saveSettingsToLocal();
 }
@@ -275,14 +294,22 @@ function handleFacultyChange(e) {
 function handleDepartmentChange(e) {
   state.department = e.target.value;
   state.selectedSubjects = {};
-
-  if (state.department) {
-    generateTimetable();
-    els.timetableSection.classList.remove('hidden');
-    els.submitBtn.disabled = true;
-  }
+  showPickers();
   checkSubmitReady();
   saveSettingsToLocal();
+}
+
+/* 学期と学部（＋学科）が揃うまで、選ぶ画面は出さない。
+   3か所で同じ条件を書いていたのをここへ寄せた。 */
+function showPickers() {
+  const ready = !!(state.semester && state.department);
+  els.timetableSection.classList.toggle('hidden', !ready);
+  els.extraSection.classList.toggle('hidden', !ready);
+  els.submitArea.classList.toggle('hidden', !ready);
+  if (!ready) return;
+  generateTimetable();
+  renderExtraSelect();
+  renderExtraList();
 }
 
 function saveSettingsToLocal() {
@@ -326,6 +353,98 @@ function getSubjects(dayIndex, periodIndex) {
   });
 }
 
+/* ══ 時間割に無い科目 ═══════════════════════════════ */
+
+/* 学期が分からない科目が276件ある（KOAN に学期の記載が無いもの）。
+   時間割のマスと違って、ここで落とすと**その科目は永久に投稿できない**。
+   「分からない」を「該当しない」と読み替えないために、どちらの学期でも出し、
+   選択肢の側で分けて見せる（欠損を勝手に埋めない、の同じ考え方）。 */
+function extraCandidates() {
+  if (!state.faculty || !state.semester) return { same: [], unknown: [] };
+  const terms = TERM_GROUPS[state.semester] || [];
+  const year = gradeNumber();
+  const q = (els.extraSearch.value || '').trim();
+
+  const same = [], unknown = [];
+  for (const r of EXTRA) {
+    if (r.faculty !== 'common' && r.faculty !== state.faculty) continue;
+    if (year && Array.isArray(r.eligible_years) && !r.eligible_years.includes(year)) continue;
+    if (q && !r.title.includes(q)) continue;
+    if (terms.includes(r.term_group)) same.push(r);
+    else if (r.term_group === 'unknown') unknown.push(r);
+  }
+  return { same, unknown };
+}
+
+function submittedKeys() {
+  return JSON.parse(localStorage.getItem('osaka_u_submitted') || '{}');
+}
+
+function renderExtraSelect() {
+  const { same, unknown } = extraCandidates();
+  const done = submittedKeys();
+  const sel = els.extraSelect;
+  const keep = sel.value;
+
+  const option = r => {
+    const o = document.createElement('option');
+    o.value = r.id;
+    const mark = done[`${state.semester}-x-${r.id}`] ? '✅ ' : '';
+    const who = r.instructor ? `（${r.instructor}）` : '';
+    o.textContent = `${mark}${r.title}${who}　[${r.day_period || '曜限なし'}]`;
+    return o;
+  };
+
+  sel.innerHTML = '';
+  const total = same.length + unknown.length;
+  if (!total) {
+    sel.appendChild(new Option('該当する科目はありません', ''));
+    sel.disabled = true;
+  } else {
+    sel.disabled = false;
+    sel.appendChild(new Option('科目を選択してください', ''));
+    if (same.length) {
+      const g = document.createElement('optgroup');
+      g.label = state.semester === 'spring' ? '春・夏学期の科目' : '秋・冬学期の科目';
+      same.forEach(r => g.appendChild(option(r)));
+      sel.appendChild(g);
+    }
+    if (unknown.length) {
+      const g = document.createElement('optgroup');
+      g.label = '学期が分からない科目';
+      unknown.forEach(r => g.appendChild(option(r)));
+      sel.appendChild(g);
+    }
+    if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  }
+
+  els.extraCount.textContent = total
+    ? `${total}件${unknown.length ? `（うち学期が分からないもの ${unknown.length}件）` : ''}`
+    : '集中講義・土曜開講の科目は、この条件では見つかりませんでした。';
+  els.extraOpen.disabled = !sel.value;
+}
+
+/* 選んだ（まだ送っていない）時間割外の科目。時間割のマスと同じ役割。 */
+function renderExtraList() {
+  const picked = Object.keys(state.selectedSubjects).filter(k => k.startsWith('x-'));
+  els.extraList.innerHTML = '';
+  picked.forEach(k => {
+    const s = state.selectedSubjects[k];
+    const li = document.createElement('li');
+    li.className = 'extraItem';
+    const name = document.createElement('span');
+    name.className = 'extraName';
+    name.textContent = s.teacher ? `${s.name}（${s.teacher}）` : s.name;
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'extraEdit';
+    edit.textContent = '書き直す';
+    edit.addEventListener('click', () => openEditor({ kind: 'extra', id: s.id }));
+    li.append(name, edit);
+    els.extraList.appendChild(li);
+  });
+}
+
 /* ══ 時間割グリッド ═════════════════════════════════ */
 
 function generateTimetable() {
@@ -355,9 +474,9 @@ function generateTimetable() {
       cell.tabIndex = 0;
       cell.setAttribute('role', 'button');
       cell.setAttribute('aria-label', `${day}曜${period}限の科目を選ぶ`);
-      cell.addEventListener('click', () => openModal(dIndex, pIndex));
+      cell.addEventListener('click', () => openEditor({ kind: 'slot', day: dIndex, period: pIndex }));
       cell.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(dIndex, pIndex); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openEditor({ kind: 'slot', day: dIndex, period: pIndex }); }
       });
       els.timetableGrid.appendChild(cell);
       updateCellUI(dIndex, pIndex);
@@ -403,14 +522,23 @@ function updateCellUI(dayIndex, periodIndex) {
 
 /* ══ モーダル ══════════════════════════════════════ */
 
-function openModal(dayIndex, periodIndex) {
-  currentEditingCell = { day: dayIndex, period: periodIndex };
+/* 設問から先はマスも時間割外も完全に同じ道を通る。
+   違うのは「候補が何件か」と「どの鍵に入れるか」だけ。 */
+function openEditor(target) {
+  const slot = target.kind === 'slot';
+  currentTarget = slot
+    ? { ...target, key: `${target.day}-${target.period}` }
+    : { ...target, key: `x-${target.id}` };
 
   els.modalTitle.firstChild.textContent = '口コミを書く ';
-  els.modalSlotInfo.textContent = `(${days[dayIndex]}曜日 ${periods[periodIndex]}限)`;
+  els.modalSlotInfo.textContent = slot
+    ? `(${days[target.day]}曜日 ${periods[target.period]}限)`
+    : '(時間割に無い科目)';
 
-  const subjects = getSubjects(dayIndex, periodIndex);
-  const key = `${dayIndex}-${periodIndex}`;
+  const subjects = slot
+    ? getSubjects(target.day, target.period)
+    : EXTRA.filter(r => r.id === target.id);
+  const key = currentTarget.key;
   const selectedData = state.selectedSubjects[key];
 
   resetModalForm();
@@ -434,6 +562,9 @@ function openModal(dayIndex, periodIndex) {
       option.textContent = subj.instructor ? `${subj.title}（${subj.instructor}）` : subj.title;
       els.modalSubjectSelect.appendChild(option);
     });
+
+    /* 時間割外は「どの科目か」がもう決まっている。選び直させない。 */
+    if (!slot) els.modalSubjectSelect.value = target.id;
 
     if (selectedData) {
       els.modalSubjectSelect.value = selectedData.id;
@@ -538,7 +669,7 @@ function checkModalFormReady() {
 
 function closeModal() {
   els.modal.classList.add('hidden');
-  currentEditingCell = null;
+  currentTarget = null;
 }
 
 /* ══ 保存 ══════════════════════════════════════════ */
@@ -551,11 +682,12 @@ function slotToKey(slot) {
 }
 
 function handleSaveReview() {
-  const { day, period } = currentEditingCell;
-  const key = `${day}-${period}`;
-
+  if (!currentTarget) return;
+  const slot = currentTarget.kind === 'slot';
   const subjectId = els.modalSubjectSelect.value;
-  const subject = getSubjects(day, period).find(s => s.id === subjectId);
+  const subject = slot
+    ? getSubjects(currentTarget.day, currentTarget.period).find(s => s.id === subjectId)
+    : EXTRA.find(r => r.id === subjectId);
   if (!subject) return;
 
   const attendanceBtnVal = document.querySelector('#group-attendance .selected').dataset.value;
@@ -584,42 +716,49 @@ function handleSaveReview() {
     comment: els.commentInput.value.trim(),
   };
 
-  /* 同じ科目が別のコマにも出る（「金3,金4,金5」など）。
-     以前は全データを舐めて探していたが、いまは科目が自分の曜限を持っている。
-     マスに無い曜限（土曜・集中）は落ちるので、その場合は押したマスだけ。 */
-  const keys = subject.slots.map(slotToKey).filter(Boolean);
-  const uniqueKeys = [...new Set(keys.length ? keys : [key])];
+  /* 同じ科目が別のコマにも出る（「金3,金4,金5」など）。科目が自分の曜限を
+     持っているので、該当するマスをまとめて埋める。時間割外は鍵ひとつ。 */
+  const keys = slot
+    ? [...new Set(subject.slots.map(slotToKey).filter(Boolean))]
+    : [`x-${subject.id}`];
 
-  uniqueKeys.forEach(k => {
+  keys.forEach(k => {
     /* GAS へ送る形は以前のまま（name / teacher）。列を変えない。 */
     state.selectedSubjects[k] = {
       id: subject.id,
       name: subject.title,
       teacher: subject.instructor,
+      /* 時間割外の科目は曜限がマスに無い。原文（「他」「土3」）をそのまま持つ。 */
+      day_period: slot ? null : (subject.day_period || '他'),
       review: review,
     };
-    const [d, p] = k.split('-');
-    updateCellUI(Number(d), Number(p));
   });
+  refresh(keys);
 
   checkSubmitReady();
   closeModal();
 }
 
-function handleClearCell() {
-  if (!currentEditingCell) return;
-  const { day, period } = currentEditingCell;
-  const key = `${day}-${period}`;
+/* 鍵の形で描き直し先を振り分ける。"0-1" はマス、"x-138531" は時間割外。 */
+function refresh(keys) {
+  let extra = false;
+  keys.forEach(k => {
+    if (k.startsWith('x-')) { extra = true; return; }
+    const [d, p] = k.split('-');
+    updateCellUI(Number(d), Number(p));
+  });
+  if (extra) { renderExtraList(); renderExtraSelect(); }
+}
 
-  if (state.selectedSubjects[key]) {
-    const subjectId = state.selectedSubjects[key].id;
-    Object.keys(state.selectedSubjects).forEach(k => {
-      if (state.selectedSubjects[k].id === subjectId) {
-        delete state.selectedSubjects[k];
-        const [d, p] = k.split('-');
-        updateCellUI(Number(d), Number(p));
-      }
-    });
+function handleClearCell() {
+  if (!currentTarget) return;
+  const entry = state.selectedSubjects[currentTarget.key];
+  if (entry) {
+    /* 同じ科目IDが付いた鍵をまとめて外す（複数コマの科目のため）。 */
+    const gone = Object.keys(state.selectedSubjects)
+      .filter(k => state.selectedSubjects[k].id === entry.id);
+    gone.forEach(k => delete state.selectedSubjects[k]);
+    refresh(gone);
   }
 
   checkSubmitReady();
@@ -627,6 +766,7 @@ function handleClearCell() {
 }
 
 function checkSubmitReady() {
+  /* 時間割のマスと時間割外を同じ入れ物で数えているので、分岐は要らない。 */
   const hasSelection = Object.keys(state.selectedSubjects).length > 0;
   const hasStudentInfo = els.gradeSelect.value !== '' && els.semesterSelect.value !== '';
   els.submitBtn.disabled = !(hasSelection && hasStudentInfo);
@@ -648,12 +788,15 @@ async function handleSubmit() {
     faculty: facultyLabel(),
     department: departmentLabel(),
     selections: Object.keys(state.selectedSubjects).map(key => {
+      const item = state.selectedSubjects[key];
+      /* 時間割に無い科目には曜日も時限も無い。数字をでっち上げず、
+         KOAN の原文（「他」「土3」）を day に入れ、period は null で送る。
+         ingest_reviews.py が読むのは科目コードなので、取り込みには影響しない。 */
+      if (key.startsWith('x-')) {
+        return { day: item.day_period || '他', period: null, subject: item };
+      }
       const [d, p] = key.split('-');
-      return {
-        day: days[d],
-        period: periods[p],
-        subject: state.selectedSubjects[key],
-      };
+      return { day: days[d], period: periods[p], subject: item };
     }),
   };
 
@@ -680,6 +823,8 @@ async function handleSubmit() {
 
       state.selectedSubjects = {};
       generateTimetable();
+      renderExtraSelect();
+      renderExtraList();
     } else {
       alert('送信に失敗しました: ' + (result.message || '不明なエラー'));
     }
