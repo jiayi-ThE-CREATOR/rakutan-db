@@ -387,6 +387,77 @@ async function handleFeedback(request, env) {
   return fbJson(200, { ok: true });
 }
 
+/* ── お気に入り（GET/POST/DELETE /api/favorites） ──────────────────
+ * D1（binding: DB）に保存する。2026-08-25 wangさんの登録制の方針の第一弾。
+ * まずお気に入りだけ。検索履歴は同じテーブル構成の要領で後から足す。
+ *
+ * line_user_id はサイト側（LIFF経由）から渡ってくる想定。
+ * ここでは形式チェックのみ行い、LINEのアクセストークンでの検証はしない
+ * （検証にはLIFF側のIDトークンをサーバーで確認する必要があり、今回は
+ *   スコープ外。うそのuserIdを送られても、他人のお気に入りが見えたり
+ *   壊れたりはしない設計だが、なりすまし追加はできてしまう点は既知の制約）。
+ */
+const LINE_USER_ID_RE = /^U[0-9a-f]{32}$/;
+
+function favJson(status, body) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+async function handleFavorites(request, env) {
+  if (!env.DB) return favJson(503, { ok: false, error: "not_configured" });
+
+  if (request.method === "GET") {
+    const lineUserId = new URL(request.url).searchParams.get("lineUserId") || "";
+    if (!LINE_USER_ID_RE.test(lineUserId)) {
+      return favJson(400, { ok: false, error: "invalid_line_user_id" });
+    }
+    const { results } = await env.DB.prepare(
+      "SELECT course_id FROM favorites WHERE line_user_id = ? ORDER BY created_at DESC"
+    )
+      .bind(lineUserId)
+      .all();
+    return favJson(200, { ok: true, courseIds: results.map((r) => r.course_id) });
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return favJson(400, { ok: false, error: "bad_json" });
+  }
+  const lineUserId = typeof body.lineUserId === "string" ? body.lineUserId : "";
+  const courseId = typeof body.courseId === "string" ? body.courseId.trim().slice(0, 20) : "";
+  if (!LINE_USER_ID_RE.test(lineUserId)) {
+    return favJson(400, { ok: false, error: "invalid_line_user_id" });
+  }
+  if (!courseId) return favJson(400, { ok: false, error: "invalid_course_id" });
+
+  if (request.method === "POST") {
+    await env.DB.prepare(
+      "INSERT INTO favorites (line_user_id, course_id, created_at) VALUES (?, ?, ?) " +
+        "ON CONFLICT (line_user_id, course_id) DO NOTHING"
+    )
+      .bind(lineUserId, courseId, Date.now())
+      .run();
+    return favJson(200, { ok: true });
+  }
+
+  if (request.method === "DELETE") {
+    await env.DB.prepare("DELETE FROM favorites WHERE line_user_id = ? AND course_id = ?")
+      .bind(lineUserId, courseId)
+      .run();
+    return favJson(200, { ok: true });
+  }
+
+  return new Response("method not allowed", {
+    status: 405,
+    headers: { allow: "GET, POST, DELETE" },
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -402,6 +473,9 @@ export default {
         return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
       }
       return handleFeedback(request, env);
+    }
+    if (url.pathname === "/api/favorites") {
+      return handleFavorites(request, env);
     }
     return env.ASSETS.fetch(request);
   },
