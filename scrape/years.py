@@ -27,13 +27,14 @@ COURSES = ROOT / "data" / "courses.json"
 YEARS = ("1", "2", "3", "4", "5", "6")
 
 
-def ids_for_year(k: Koan, year: str, nendo: str = "2026") -> set[str]:
+def ids_for_year(k: Koan, year: str, shozoku: str = K.SHOZOKU_KYOTSU,
+                 nendo: str = "2026") -> set[str]:
     """その学年が履修できる科目の時間割コード一覧。"""
     k.refresh()
     data = {
         "s_no": "0", "_flowExecutionKey": k.key, "_eventId": "search",
         "nendo": nendo, "categoryFlg": "2",
-        "jShozokuCodeMajor": "00", "jShozokucdSubjects": K.SHOZOKU_KYOTSU,
+        "jShozokuCodeMajor": "00", "jShozokucdSubjects": shozoku,
         "kaikokbncd": "", "yobi": "", "jigen": "", "nenji": year, "bunyacd": "",
         "kaikoKamokunm": "", "kyokannm": "", "kyokankn": "",
         "freeword": "", "freewordCondition": "0",
@@ -55,16 +56,24 @@ def ids_for_year(k: Koan, year: str, nendo: str = "2026") -> set[str]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--delay", type=float, default=2.0)
+    ap.add_argument("--shozoku", action="append", default=None,
+                    help="所属コード。複数指定できる（既定: 0:13 共通教育）")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
+    shozokus = args.shozoku or [K.SHOZOKU_KYOTSU]
     k = Koan(delay=args.delay)
-    per_year: dict[str, set[str]] = {}
+    per_year: dict[str, set[str]] = {y: set() for y in YEARS}
+    for sz in shozokus:
+        print(f"  所属 {sz}")
+        for y in YEARS:
+            got = ids_for_year(k, y, sz)
+            per_year[y] |= got
+            print(f"    {y}年が履修できる  {len(got):5} 件")
     for y in YEARS:
-        per_year[y] = ids_for_year(k, y)
-        print(f"  {y}年が履修できる  {len(per_year[y]):5} 件")
+        print(f"  合計 {y}年  {len(per_year[y]):5} 件")
 
-    doc = json.loads(COURSES.read_text())
+    doc = json.loads(COURSES.read_text(encoding="utf-8"))
     cs = doc["courses"]
     miss = 0
     for c in cs:
@@ -79,7 +88,8 @@ def main():
     if args.dry_run:
         print("\n  --dry-run のため書き込んでいない")
         return
-    COURSES.write_text(json.dumps(doc, ensure_ascii=False, indent=1))
+    COURSES.write_text(json.dumps(doc, ensure_ascii=False, indent=1),
+                       encoding="utf-8")
     print(f"\n  → {COURSES} に eligible_years を書き込んだ")
 
 
