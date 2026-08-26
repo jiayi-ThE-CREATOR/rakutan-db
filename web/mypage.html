@@ -4,6 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>マイページ — ラクハン</title>
+<meta name="description" content="自分だけの時間割・お気に入り科目・プロフィールを、この端末のブラウザにだけ保存できるページです。サーバーには送っていません。">
+<meta property="og:title" content="マイページ — ラクハン">
+<meta property="og:description" content="自分だけの時間割・お気に入り科目・プロフィールを、この端末のブラウザにだけ保存できるページです。サーバーには送っていません。">
+<meta property="og:url" content="https://rakuhan.nocode-sol.co.jp/mypage">
+<!-- 正本のURL。同じ本文が別のURLでも配られているため必要（他ページと同じ理由）。
+     このページ自体は下の noindex（web/_headers）で検索結果には出さないが、
+     LINE 等でURLを直接共有されたときの OGP カード生成は検索クローラとは
+     別経路で動くので、canonical・description・OGP は他ページと揃えておく。 -->
+<link rel="canonical" href="https://rakuhan.nocode-sol.co.jp/mypage">
+<!-- ここは localStorage（時間割・お気に入り・プロフィール）を読んでJSで
+     組み立てるだけの個人用ページで、他人と共有できる内容が無い。
+     検索エンジンが取りに来ても空のシェルしか見えないので、
+     web/_headers の /mypage パス規則で noindex にしている
+     （2026-08-26 マージレビュー指摘・[Minor] mypage が index gate 方針から漏れている）。 -->
 <!-- ファビコンは「アプリアイコン適用形」＝ベタ地に白抜き。
      ロゴ本体はコンテナを持たない（ヘッダの lockup がロゴ本体）。 -->
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>

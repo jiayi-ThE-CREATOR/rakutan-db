@@ -2,6 +2,11 @@
 <!-- 手で書く。ページが5つしか無いので生成は要らない。
      ページを足したらここにも足すこと（robots.txt がこのURLを指している）。
 
+     /mypage はここに載せない（意図的）。中身は localStorage を読んでJSで
+     組み立てるだけの個人用ページで、他人と共有できる内容が無い。
+     web/_headers 側で noindex にしている（tools/test_index_gate.mjs が
+     NOINDEX_PAGES として検証する）。
+
      科目の個別URL（/?c=<course_id>）は、いまは載せていない。
      中身は courses.built.json を読んでから JS で組み立てるので、
      7,877件を並べても Google が全部レンダリングしに来るとは限らず、

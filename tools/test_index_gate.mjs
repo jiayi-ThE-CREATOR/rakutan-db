@@ -15,7 +15,7 @@
  *      Worker より先に配られるため。詳しくは worker/index.js の CANONICAL_HOST）
  *  4. 静的側（robots.txt・_headers・canonical・sitemap）が上と矛盾していない
  */
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -66,15 +66,52 @@ const robotsTxt = read("web/robots.txt");
 check(!/^\s*Disallow:\s*\/\s*$/m.test(robotsTxt), "robots.txt がまだサイト全体を Disallow している");
 check(/^\s*Sitemap:\s*https:\/\//m.test(robotsTxt), "robots.txt に Sitemap 行が無い");
 
-const headers = read("web/_headers");
-check(!/^\s*X-Robots-Tag/mi.test(headers), "web/_headers に X-Robots-Tag が残っている（全ページが検索に載らない）");
+const headersFile = read("web/_headers");
+// 「全ページ noindex」の目印は /* パス規則。/mypage のような個別パスの
+// noindex（後述の NOINDEX_PAGES）は意図的に許すので、ここは /* ブロックの
+// 中だけを見る（全文を見ると /mypage の noindex に誤反応する）。
+const globalBlock = /^\/\*\r?\n((?:[ \t].*\r?\n?)*)/m.exec(headersFile);
+check(!globalBlock || !/X-Robots-Tag/i.test(globalBlock[1]), "web/_headers の /* 規則に X-Robots-Tag が残っている（全ページが検索に載らない）");
 
 const sitemap = read("web/sitemap.xml");
-const pages = { "index": `https://${HOST}/`, "about": `https://${HOST}/about`, "ads": `https://${HOST}/ads`, "kuchikomi": `https://${HOST}/kuchikomi`, "partners": `https://${HOST}/partners` };
-for (const [name, url] of Object.entries(pages)) {
-  check(sitemap.includes(`<loc>${url}</loc>`), `sitemap.xml に ${url} が無い`);
+
+// ページ一覧は web/*.html を実際に数えて作る。前は
+// {index, about, ads, kuchikomi, partners} と べた書きしていたため、
+// 新しいページ（mypage）が増えても検査対象に自動で入らず、この門が
+// 素通りされていた（2026-08-26 マージレビュー [Minor] 指摘）。
+const pageNames = readdirSync(path.join(ROOT, "web"))
+  .filter((f) => f.endsWith(".html"))
+  .map((f) => f.slice(0, -".html".length))
+  .sort();
+check(pageNames.length >= 6, `web/*.html の検出件数がおかしい（${pageNames.length}件） ―― readdir の絞り込みが壊れていないか確認`);
+
+// 「検索に載せない」と決めたページはここに理由コメント付きで足す。
+// 足し忘れると sitemap 不在チェックに引っかかって気づける（＝黙って漏れない）。
+const NOINDEX_PAGES = new Set([
+  // localStorage（時間割・お気に入り・プロフィール）だけを読んでJSで
+  // 組み立てる個人用ページ。他人と共有できる内容が無いので検索に載せない。
+  // web/_headers の /mypage パス規則で noindex にしている。
+  "mypage",
+]);
+
+for (const name of pageNames) {
+  const url = name === "index" ? `https://${HOST}/` : `https://${HOST}/${name}`;
   const html = read(`web/${name}.html`);
+  // noindex なページも canonical 自体は他ページと揃えておく方針（OGP共有用）
+  // なので、canonical チェックは noindex かどうかに関わらず全ページにかける。
   check(html.includes(`<link rel="canonical" href="${url}">`), `${name}.html の canonical が ${url} になっていない`);
+
+  if (NOINDEX_PAGES.has(name)) {
+    check(!sitemap.includes(`<loc>${url}</loc>`), `sitemap.xml に noindex のはずの ${url} が載っている（NOINDEX_PAGES との矛盾）`);
+    // web/_headers に /<name> のパス規則ブロックがあり、その中に
+    // X-Robots-Tag: noindex が書かれているかを見る（ブロックの終わりは
+    // 次の空行またはファイル末尾）。
+    const blockRe = new RegExp(`^/${name}\\r?\\n((?:[ \\t].*\\r?\\n?)*)`, "m");
+    const block = blockRe.exec(headersFile);
+    check(!!block && /X-Robots-Tag:\s*noindex/i.test(block[1]), `web/_headers に /${name} の noindex 規則が無い（NOINDEX_PAGES に入れたなら実際に効かせること）`);
+  } else {
+    check(sitemap.includes(`<loc>${url}</loc>`), `sitemap.xml に ${url} が無い`);
+  }
 }
 
 // ── 5. /l/<slug> で開いても中身が出ること ───────────────
