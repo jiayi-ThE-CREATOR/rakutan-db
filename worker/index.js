@@ -25,6 +25,16 @@ const SITE_URL = "https://rakuhan.nocode-sol.co.jp";
 
 const PRESET_NAMES = ["バイト優先", "GPA重視", "とにかく軽い", "テストが苦手"];
 const GRADE_KANJI = { 1: "1年", 2: "2年", 3: "3年", 4: "4年", 5: "5年", 6: "6年" };
+// 学部の問診用の一覧。表示用の写しで、正本は web/data/requirements.json の
+// faculties。Worker は env.ASSETS 経由で requirements.json を読めるが、
+// 問診の選択肢に必要なのは key と label の11組だけなので、そのために
+// 200KB を毎回読むのは重い（tools/test_bot_flow.mjs が正本とのずれを見張る）。
+const FACULTIES = [
+  ["letters", "文学部"], ["human-sci", "人間科学部"], ["law", "法学部"],
+  ["economics", "経済学部"], ["foreign-s", "外国語学部"], ["science", "理学部"],
+  ["medicine", "医学部"], ["dentistry", "歯学部"], ["pharmacy", "薬学部"],
+  ["engineering", "工学部"], ["engr-sci", "基礎工学部"],
+];
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const USAGE_HINT = "「1年 とにかく軽い」のように送ると、おすすめを返します。";
 const DATA_UNAVAILABLE_MESSAGE =
@@ -175,21 +185,42 @@ export function greetingMessage() {
   };
 }
 
+// 降り口はここには置かない ―― 降りるのは greeting の
+// 「とにかく楽単を知りたい」1箇所だけ、というのがサイト側と揃えた線
+// （設問ごとに逃げ道を作らない）。
 export function gradeQuestionMessage() {
   const items = [1, 2, 3, 4, 5, 6].map((g) =>
     qrPostback(`${g}年`, `action=grade&grade=${g}`, `${g}年です`)
   );
-  items.push(qrPostback("答えたくない", "action=quick_default", "答えたくない"));
   return {
     type: "text",
-    text: "今何年生？（答えたくなければ「答えたくない」でOK）",
+    text: "今何年生？",
     quickReply: { items },
   };
 }
 
-export function presetQuestionMessage(grade) {
+/* 学部。降り口はここにも置かない ―― 理由は gradeQuestionMessage と同じ。
+   quick reply の上限は13件なので、11学部はそのまま入る
+  （tools/test_bot_flow.mjs で確認）。 */
+export function facultyQuestionMessage(grade) {
+  return {
+    type: "text",
+    text: "学部はどこ？",
+    quickReply: {
+      items: FACULTIES.map(([key, label]) =>
+        qrPostback(label, `action=faculty&grade=${grade}&fac=${key}`, label)
+      ),
+    },
+  };
+}
+
+// fac は学部キー（省略可）。推薦結果には使わない ―― preset_top は学年だけで
+// 引いているので、ここで受け取った fac は次の postback に引き継ぐだけ。
+export function presetQuestionMessage(grade, fac) {
   const items = PRESET_NAMES.map((name) =>
-    qrPostback(name, `action=preset&grade=${grade}&preset=${encodeURIComponent(name)}`, name)
+    qrPostback(name,
+      `action=preset&grade=${grade}&fac=${encodeURIComponent(fac || "")}&preset=${encodeURIComponent(name)}`,
+      name)
   );
   return {
     type: "text",
@@ -205,11 +236,17 @@ export function handlePostback(data, evData, siteOrigin) {
   if (action === "start_personal") return { message: gradeQuestionMessage() };
   if (action === "grade") {
     const grade = params.get("grade") || "1";
-    return { message: presetQuestionMessage(grade) };
+    return { message: facultyQuestionMessage(grade) };
+  }
+  if (action === "faculty") {
+    const grade = params.get("grade") || "1";
+    return { message: presetQuestionMessage(grade, params.get("fac") || "") };
   }
   if (action === "preset") {
     const grade = params.get("grade") || "1";
     const preset = params.get("preset") || "とにかく軽い";
+    // fac（学部）は推薦のロジックには一切入れない。preset_top は学年だけで
+    // 引いており、学部を渡しても buildRecommendation は受け取らない。
     return { text: buildRecommendation(grade, preset, data, siteOrigin) };
   }
   if (action === "quick_default") {
