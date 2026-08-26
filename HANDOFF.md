@@ -17,6 +17,72 @@
 
 ---
 
+## 2026-08-26 ｜ 🚨 301 で本番を2分止めた／独自ドメインは Cloudflare を向いていない ｜ wang → 次の人
+
+旧ドメインを独自ドメインへ 301 で寄せる変更（PR #70）を入れたら**本番が壊れた**ので
+revert した（PR #71）。**同じことを試す前に、この項を必ず読むこと。**
+
+### 1. 何が動く状態か
+
+**元に戻っている。**（17:19:44 に復旧を確認。壊れていたのは 17:17:27〜17:19:44 の約2分20秒）
+
+```bash
+curl -sS -o /dev/null -w '%{http_code}\n' https://rakuhan.nocode-sol.co.jp/   # 200
+curl -sSI https://rakuhan.nocode-sol.co.jp/l/kasai | grep -i x-robots-tag      # noindex（意図どおり）
+curl -sS https://rakutan-db.wjy20050815.workers.dev/line/health                # ok
+node tools/test_index_gate.mjs                                                # 22件
+```
+
+### 2. 何が起きたか ── 独自ドメインは Cloudflare を向いていない
+
+```
+dig +short rakuhan.nocode-sol.co.jp   → 162.43.39.4                    ← Cloudflare ではない（nginx の VPS）
+dig +short rakutan-db.…workers.dev    → 104.21.54.33 / 172.67.223.27   ← Cloudflare
+```
+
+**利用者 → nginx（162.43.39.4）→ 旧ドメイン（Cloudflare・Worker）** という経路。
+nginx が Host を書き換えずに渡しているので、**Worker から見た Host は常に旧ドメイン**。
+だから「Host が旧ドメインなら独自ドメインへ 301」が独自ドメインのアクセスにも当たり、
+転送先がまた nginx を通って**ループ**した。独自ドメインの全ページが 301 を返す状態。
+
+**ここから出る結論を3つ、必ず覚えておくこと:**
+
+1. **Worker のコードでは2つのドメインを区別できない。** ホスト名で分岐する仕組み
+   （301・ドメイン別の noindex・出し分け）は、いまの構成では全部この罠を踏む。
+   `worker/index.js` の `CANONICAL_HOST` が「Worker が走る経路」でしか効かないのは
+   そのままにしてあるが、**あれもホスト判定なので当てにしないこと**
+2. **`workers_dev = false` は絶対にやってはいけない。** 旧ドメインは「LINE の Webhook 用に
+   残してある予備」ではなく、**独自ドメインの上流そのもの**。消すとサイトごと落ちる
+3. **旧ドメインを検索から外す手段は canonical だけ。** 実際それは効いている
+   （両ドメインとも `<link rel="canonical">` が独自ドメインを指している）
+
+### 3. 次の人が最初にやること
+
+301 をやり直したいなら、**先にインフラ側**。リポジトリだけでは解けない。
+
+- **案A（おすすめ）**: 独自ドメインを Cloudflare の Custom Domain として Worker に直付け
+  （DNS を Cloudflare へ向ける）。nginx の1段が消え、Host も正しく届く。
+  アクセス元IPも正しくなる（**いまは全リクエストが nginx の IP に見えている**）
+- **案B**: nginx 側に `proxy_set_header Host $host;` を入れてもらい、Worker 側の判定を戻す
+- どちらも `nocode-sol.co.jp` を持っている側（吉村さん）の作業。
+  **9/2 の履修登録が終わるまでは触らないほうが安全**
+
+### 4. 踏んだ罠
+
+- 🚨 **「本物のランタイムで確かめた」でも足りなかった。** `wrangler dev` に `Host:` を付けて
+  4パターン検証し、テスト29件を通し、`--dry-run` も通してからマージした。
+  **それでも壊れたのは、本番のリクエストが nginx を1段挟むことを知らなかったから。**
+  ローカルで再現できるのは「自分が想定した経路」だけ
+- **見るべきだったのは `dig` 1発だった。** 最初の調査で `server: nginx/1.28.3 (Ubuntu)` という
+  レスポンスヘッダを見ていたのに流した。**Cloudflare の Worker のはずなのに
+  `server: cloudflare` でない**時点で、構成が想定と違う
+- **80秒デプロイのおかげで巻き戻しは速い。** 気づいてから revert PR → マージ → 復旧まで
+  2分20秒。**原因の切り分けより先に戻す**判断でよかった（宣伝の最中だった）
+- **revert は HANDOFF ごと巻き戻る。** PR #70 の引き継ぎ記録も一緒に消えたので、
+  この項で書き直している。**記録を残したいなら revert とは別コミットで書く**
+
+---
+
 ## 2026-08-26（追記）｜ 旧ドメインの noindex は効いていなかった（本番実測） ｜ wang → 次の人
 
 ブランチ `fix/wang-index-gate-truth`。**サイトの挙動は変えていない**（コメントとテストの訂正）。
