@@ -611,7 +611,19 @@ async function handleTrackingLink(request, env, slug) {
  * 旧ドメイン（rakutan-db.*.workers.dev）はいまも生きていて、独自ドメインと
  * 同じ本文を配っている。LINE Developers に登録した Webhook URL がこちらの
  * 可能性があるので止められない ―― だから「動かすが、検索には載せない」。
- * 各ページの <link rel="canonical"> と合わせて二重に効かせている。
+ *
+ * 🚨 ただし、ここで付ける noindex が届くのは **Worker が走る経路だけ**。
+ * Workers の静的アセットは Worker スクリプトより先に配られるので、
+ * `/` や `/about` のような「アセットが存在するパス」はこの関数を通らない
+ * （2026-08-26 に本番で実測。`/l/kasai` には付くのに `/` には付かなかった）。
+ * つまり旧ドメインのページを検索から外しているのは、実際には
+ * 各ページの <link rel="canonical"> のほう。ここが効くのは
+ * /l/<slug>・/api/*・/line/* といった Worker 側のURLに限られる。
+ *
+ * ページにも確実に付けたいなら wrangler.toml の [assets] に
+ * run_worker_first = ["/", "/about", "/ads", "/kuchikomi", "/partners"]
+ * を足す（＝ページ表示1回ごとに Worker が1回走る）。9/2 のピークを前に
+ * 配信経路を変えたくないので、今日は入れていない。
  */
 const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
 

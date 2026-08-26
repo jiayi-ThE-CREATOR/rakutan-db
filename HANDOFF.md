@@ -17,6 +17,56 @@
 
 ---
 
+## 2026-08-26（追記）｜ 旧ドメインの noindex は効いていなかった（本番実測） ｜ wang → 次の人
+
+ブランチ `fix/wang-index-gate-truth`。**サイトの挙動は変えていない**（コメントとテストの訂正）。
+
+### 1. 何が動く状態か
+
+公開は成立している。本番で確かめた結果:
+
+```
+https://rakuhan.nocode-sol.co.jp/          x-robots-tag なし   ← 検索に載る
+https://rakuhan.nocode-sol.co.jp/l/kasai   noindex, nofollow  ← 計測リンクは載せない
+https://rakutan-db.…workers.dev/           x-robots-tag なし   ← ★効いていない
+https://rakutan-db.…workers.dev/l/kasai    noindex, nofollow
+```
+
+★の行が、直前の変更で意図していたものと違う。**旧ドメインのページを検索から
+外しているのは、いま `<link rel="canonical">` だけ**（本番のHTMLに出ていることは確認ずみ）。
+
+### 2. 何をしていないか
+
+- **`run_worker_first` を入れていない。** これを入れればページも Worker を通り、
+  ホスト判定が効く。9/2 のピークを前に配信経路を変えたくないので今日は見送り。
+  入れるなら `wrangler.toml` の `[assets]` に
+  `run_worker_first = ["/", "/about", "/ads", "/kuchikomi", "/partners"]`
+  （ページ表示1回につき Worker が1回走る。JSON・CSS・JS はアセットのまま）
+- 実害は小さいと判断した。旧ドメインはどこにも貼っていない（宣伝リンクは全部
+  独自ドメイン、`worker/index.js` の `SITE_URL` も独自ドメイン）ので、
+  クローラが辿り着く経路自体がほぼ無い
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git pull
+node tools/test_index_gate.mjs
+curl -sI https://rakutan-db.wjy20050815.workers.dev/ | grep -i x-robots-tag   # 出ないのが現状（canonical で守っている）
+```
+
+### 4. 踏んだ罠
+
+- 🚨 **Workers の静的アセットは Worker スクリプトより先に配られる。**
+  `export default { fetch }` に書いたヘッダ操作は、**アセットが存在するパスには届かない**。
+  `/l/<slug>` には効いて `/` には効かなかったのはこれが理由（`/l/` はアセットが無いので
+  Worker が走る）。8/18 から noindex が効いていたのも `_headers`＝アセット側の仕組みだったから。
+  **「Worker に書いたのに効かない」ときは、まず同名のアセットが無いか疑う**
+- **テストが通っても本番が同じとは限らない。** `test_index_gate.mjs` は Worker の関数を
+  直接呼ぶので、アセットが先に配られる経路を再現しない。**通ったあとに本番を curl したから
+  見つかった** ―― ヘッダ回りは deploy 後の実測までやること
+
+---
+
 ## 2026-08-26 ｜ noindex を外して公開した（＋重複URLの後始末） ｜ wang → 次の人
 
 ブランチ `feat/wang-open-index`（作業ツリー `../rakutan-open`）。

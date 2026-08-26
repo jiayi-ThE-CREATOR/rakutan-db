@@ -9,7 +9,10 @@
  * 守りたいのは4つ:
  *  1. 独自ドメインの通常ページに noindex が付いていない（＝公開されている）
  *  2. /l/<slug> は本文を返すが noindex（消すと重複ページが14個できる）
- *  3. 旧ドメイン *.workers.dev は全部 noindex（LINE の Webhook 用に生かしてある）
+ *  3. 旧ドメイン *.workers.dev のページは canonical で正本へ寄る
+ *     （LINE の Webhook 用に生かしてあるので止められない。なお Worker 側の
+ *      noindex は「Worker が走る経路」にしか届かない ―― 静的アセットは
+ *      Worker より先に配られるため。詳しくは worker/index.js の CANONICAL_HOST）
  *  4. 静的側（robots.txt・_headers・canonical・sitemap）が上と矛盾していない
  */
 import { readFileSync } from "node:fs";
@@ -49,8 +52,12 @@ check(/noindex/.test(track.headers.get("x-robots-tag") || ""), "/l/kasai に noi
 check(track.headers.get("cache-control") === "no-store", "/l/kasai がキャッシュされる（別URLとして数えられなくなる）");
 check((await get(`https://${HOST}/l/dare-mo-shiranai`)).status === 404, "知らない slug が 404 でない");
 
-check(/noindex/.test(await robots(`https://${OLD_HOST}/`) || ""), "旧ドメインのトップに noindex が無い（独自ドメインと重複する）");
-check(/noindex/.test(await robots(`https://${OLD_HOST}/about`) || ""), "旧ドメインの /about に noindex が無い");
+// 🚨 旧ドメインの「ページ」はここでは守れない。Workers の静的アセットは
+// Worker スクリプトより先に配られるので、index.html が存在する `/` は
+// この関数を通らない（2026-08-26 に本番で実測）。守っているのは canonical のほう。
+// ここで確かめられるのは「Worker が走る経路」だけ。
+const oldTrack = await get(`https://${OLD_HOST}/l/kasai`);
+check(/noindex/.test(oldTrack.headers.get("x-robots-tag") || ""), "旧ドメインの計測リンクに noindex が無い");
 const health = await get(`https://${OLD_HOST}/line/health`);
 check(health.status === 200 && (await health.text()) === "ok", "旧ドメインの /line/health が壊れた（LINE の Webhook もこのドメイン）");
 
