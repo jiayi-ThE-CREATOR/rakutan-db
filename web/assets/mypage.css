@@ -1,8 +1,30 @@
 .mypage{ padding:20px 16px 60px; max-width:760px; margin:0 auto; }
 .mpTitle{ font-size:22px; margin:0 0 4px; }
-.mpLead{ font-size:13px; color:#666; margin:0 0 24px; line-height:1.6; }
+.mpLead{ font-size:13px; color:var(--soft); margin:0 0 24px; line-height:1.6; }
 .mypage section{ margin:0 0 32px; }
 .mypage h3{ font-size:16px; margin:0 0 12px; }
 .mpRow{ display:flex; align-items:center; gap:12px; margin:0 0 10px; }
-.mpRow label{ width:4em; font-size:14px; color:#555; }
-.mpRow select{ flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:15px; }
+.mpRow label{ width:4em; font-size:14px; color:var(--soft); }
+.mpRow select{ flex:1; padding:10px; border:1px solid var(--rule); border-radius:8px; font-size:15px; }
+/* データ読み込み失敗時の案内。他に色は要らないので --soft のみ使う。 */
+.mpError{ font-size:13px; color:var(--soft); background:var(--dim); border-radius:8px; padding:12px; }
+
+.mpTerms{ display:flex; gap:8px; margin:0 0 12px; }
+.mpGrid{ display:grid; grid-template-columns:2em repeat(5,1fr); gap:3px; }
+.mpH{ font-size:11px; color:var(--muted); text-align:center; padding:4px 0; }
+.mpCell{
+  min-height:52px; border:1px solid var(--rule); border-radius:6px;
+  background:var(--card); font-size:10px; line-height:1.3; padding:4px;
+  cursor:pointer; overflow:hidden; word-break:break-all;
+}
+/* ブランド面に載る文字は白ではなく --brand-ink（tokens.css 参照：
+   #fff は 3.64:1 で通常文字の 4.5:1 に届かない）。 */
+.mpCell.filled{ background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }
+#mpPicker{ border:0; border-radius:14px; padding:20px; max-width:420px; width:90vw; }
+#mpPicker::backdrop{ background:var(--scrim); }
+.mpPick{ display:block; width:100%; text-align:left; padding:10px;
+  border:1px solid var(--rule); border-radius:8px; background:var(--card); margin:0 0 6px; cursor:pointer; }
+.mpPick small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+#mpPickerList{ max-height:50vh; overflow-y:auto; margin:0 0 12px; }
+.mpExtraRow{ display:flex; justify-content:space-between; align-items:center;
+  padding:8px 0; border-bottom:1px solid var(--rule); font-size:13px; }

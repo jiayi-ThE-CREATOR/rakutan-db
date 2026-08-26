@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>マイページ — ラクハン</title>
+<!-- ファビコンは「アプリアイコン適用形」＝ベタ地に白抜き。
+     ロゴ本体はコンテナを持たない（ヘッダの lockup がロゴ本体）。 -->
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
 <link rel="stylesheet" href="/assets/tokens.css">
 <link rel="stylesheet" href="/assets/app.css">
 <link rel="stylesheet" href="/assets/mypage.css">
@@ -53,6 +56,12 @@
     <div id="mpFavList"></div>
   </section>
 </div>
+
+<dialog id="mpPicker">
+  <h3 id="mpPickerTitle"></h3>
+  <div id="mpPickerList"></div>
+  <button id="mpPickerClose">閉じる</button>
+</dialog>
 
 <!--SHELL:FOOTER-->
 <footer><p class="disclaimer">数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。<b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b>科目を選ぶと出る「KOAN公式シラバスを見る」から開けます。</p>

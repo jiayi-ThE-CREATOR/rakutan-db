@@ -31,6 +31,9 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TOKENS = ROOT / "web" / "assets" / "tokens.css"
 APP = ROOT / "web" / "assets" / "app.css"
+# mypage.css も同じ理由で見張る（2026-08-26 追加：ここが未検査だったせいで
+# 前回タスクの裸色がすり抜けた）。
+MYPAGE = ROOT / "web" / "assets" / "mypage.css"
 
 # ── 検査する組み合わせ ────────────────────────
 # (説明, 文字の色, 下地の色, 最低比)
@@ -166,6 +169,7 @@ def vars_of(css):
 
 check(TOKENS.is_file(), "web/assets/tokens.css が無い")
 check(APP.is_file(), "web/assets/app.css が無い")
+check(MYPAGE.is_file(), "web/assets/mypage.css が無い")
 if fails:
     print("NG")
     for f in fails:
@@ -189,14 +193,15 @@ check("#b4532a" not in raw.lower(),
 check("prefers-reduced-motion" in raw, "prefers-reduced-motion の打ち消しが無い")
 check("prefers-color-scheme: dark" in raw, "ダークモードの定義が無い")
 
-# ── app.css に裸の色が無いこと ────────────────
-app = strip_comments(APP.read_text(encoding="utf-8"))
-bare_hex = re.findall(r"#[0-9a-fA-F]{3,8}\b", app)
-check(not bare_hex, f"app.css に裸の hex がある: {sorted(set(bare_hex))[:8]}")
-bare_fn = re.findall(r"\b(?:rgba?|hsla?)\([^)]*\)", app)
-check(not bare_fn, f"app.css に裸の rgba/hsl がある: {sorted(set(bare_fn))[:8]}")
-check(":root{" not in app.replace(" ", ""),
-      "app.css に :root がある（tokens.css へ移すこと）")
+# ── app.css / mypage.css に裸の色が無いこと ──────
+for path in (APP, MYPAGE):
+    css = strip_comments(path.read_text(encoding="utf-8"))
+    bare_hex = re.findall(r"#[0-9a-fA-F]{3,8}\b", css)
+    check(not bare_hex, f"{path.name} に裸の hex がある: {sorted(set(bare_hex))[:8]}")
+    bare_fn = re.findall(r"\b(?:rgba?|hsla?)\([^)]*\)", css)
+    check(not bare_fn, f"{path.name} に裸の rgba/hsl がある: {sorted(set(bare_fn))[:8]}")
+    check(":root{" not in css.replace(" ", ""),
+          f"{path.name} に :root がある（tokens.css へ移すこと）")
 
 # ── コントラスト ────────────────────────────
 for label, fg_name, bg_name, need in CONTRAST:

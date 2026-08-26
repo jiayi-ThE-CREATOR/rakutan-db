@@ -4,6 +4,8 @@
  */
 import { chromium } from "playwright";
 
+const DAYS_X_PERIODS = 5 * 6;   // 月〜金 × 1〜6限
+
 const BASE = process.argv[2] || "http://localhost:8140";
 const fails = [];
 let n = 0;
@@ -40,6 +42,37 @@ await page.selectOption("#mpGrade", "3");
 const set = JSON.parse(await page.evaluate(() => localStorage.getItem("osaka_u_settings")));
 check(set.grade === "3", "学年の変更が保存されない");
 check(set.semester === "autumn", "kuchikomi の semester を壊した");
+
+// ── 時間割 ────────────────────────────────
+await page.waitForSelector(".mpCell[data-slot='月2']");
+check(await page.locator(".mpCell").count() === DAYS_X_PERIODS,
+      `マスが ${DAYS_X_PERIODS} 個であるべき`);
+
+await page.click(".mpCell[data-slot='月2']");
+await page.waitForSelector("#mpPicker[open]");
+const opts = await page.locator("#mpPicker .mpPick").count();
+check(opts > 0, "月2 の科目が1つも出てこない");
+
+const pickedId = await page.locator("#mpPicker .mpPick").first().getAttribute("data-id");
+await page.locator("#mpPicker .mpPick").first().click();
+check(await page.locator(".mpCell[data-slot='月2']").textContent() !== "",
+      "選んだのにマスが空のまま");
+
+let tt = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(tt.aki.slots["月2"] === pickedId, "aki の 月2 に入っていない");
+check(!tt.haru.slots["月2"], "haru にも漏れている（学期は別の表）");
+
+// 学期を切り替えると空であること
+await page.click("[data-term='haru']");
+check(await page.locator(".mpCell[data-slot='月2']").textContent().then(t => t.trim()) === "",
+      "春学期に秋学期の科目が出ている");
+await page.click("[data-term='aki']");
+
+// 再読込しても残る
+await page.reload();
+await page.waitForSelector(".mpCell[data-slot='月2']");
+check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() !== "",
+      "再読込で時間割が消えた");
 
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
