@@ -20,6 +20,12 @@ let n = 0;
 const fails = [];
 const check = (cond, msg) => { n++; if (!cond) fails.push(msg); };
 
+// 開屏の問診に邪魔されないよう、済んだことにしてから開く（test_favorite.mjs と同じ）。
+await p.addInitScript(() => {
+  try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
+  try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
+});
+
 await p.goto(base, { waitUntil: "networkidle" });
 // 既定の絞り込み（1年・秋冬）だと口コミつきが少ないので、まず全部にする。
 await p.click('#years button[data-y="all"]');

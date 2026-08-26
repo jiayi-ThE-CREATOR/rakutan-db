@@ -21,6 +21,12 @@ const expected = t => /\/api\/(health|meta|requirements)/.test(t) || /status of 
 p.on("console", m => m.type() === "error" && !expected(m.text()) && errs.push(m.text()));
 p.on("pageerror", e => errs.push(String(e)));
 
+// 開屏の問診に邪魔されないよう、済んだことにしてから開く（test_favorite.mjs と同じ）。
+await p.addInitScript(() => {
+  try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
+  try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
+});
+
 await p.goto(url, { waitUntil: "networkidle" });
 await p.waitForSelector(".card", { timeout: 15000 });
 

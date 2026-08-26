@@ -43,6 +43,13 @@ for (const v of VIEWS) {
     // 中身が変わっていなくても差分が毎回出る。撮影時は必ず止める。
     reducedMotion: "reduce",
   });
+  // 開屏の問診に邪魔されないよう、済んだことにしてから開く（test_favorite.mjs と同じ）。
+  // これが無いと全ページの1枚目が「問診オーバーレイの写真」になり、
+  // PR の before/after 差分が事実上死ぬ（レビューできる画面が写らない）。
+  await page.addInitScript(() => {
+    try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
+    try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
+  });
   await page.goto(base + v.path, { waitUntil: "networkidle" });
 
   if (v.q) {
