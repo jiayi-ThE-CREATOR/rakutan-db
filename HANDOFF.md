@@ -17,6 +17,81 @@
 
 ---
 
+## 2026-08-27 ｜ マイページ・お気に入り・開屏の問診（Phase 1）を main にマージ ｜ wang
+
+### 1. 何が動く状態か
+
+**本番に入っている**（`27caceb`）。ログインは一切要らない。状態は全部ブラウザの localStorage。
+
+- **6限がグリッドに出る** ―― `PERIODS` が 1..5 だったため、**6限にしか開かれない29件**が
+  空きコマグリッドから永久に辿れなかった。`server.py:81` / `app.js` の2箇所に散っていたので
+  `tools/test_periods.mjs` で3箇所の一致を見張る
+- **お気に入り**（☆/★）―― 一覧のカードと詳細パネル。絞り込みにも並び替えにも効かない、ただのしおり
+- **開屏の問診** ―― 学部・学年を一生に一度だけ聞く。**降りるのは問診そのもので、設問ごとではない**
+- **/mypage** ―― プロフィール／私の時間割（5×6・学期ごとに独立）／お気に入り。
+  星＝候補、コマに入れて確定、の2段構え
+- **LINE bot** ―― 学年 → 学部 → 優先度。学年の設問から「答えたくない」を外し、
+  降り口を greeting の1箇所に揃えた（サイト側と同じ線）
+
+```bash
+git pull
+cd web && python3 -m http.server 8140 &
+for f in tools/test_*.mjs; do node "$f" http://localhost:8140 || echo "FAIL $f"; done
+for f in tools/test_*.py; do python3 "$f" >/dev/null || echo "FAIL $f"; done
+kill %1
+```
+
+### 2. 何をしていないか
+
+- **Phase 2（LINE ログインと端末間の同期）は未着手。** 設計だけ在る
+  （`docs/plans/2026-08-26-line-login-mypage-design.md` の4章）。
+  方式は「署名リンク＋リンクコード」で、**LINE Login チャネルの新規申請は不要**。
+  ただし前提が2つ未了 ―― **プライバシーポリシーが全サイトに1つも無い**（4.1）と **D1 未接続**
+- **`docs/plans/…-plan-phase1.md` の参考コードは初版のまま。** 実装中に**12件の欠陥**が
+  そこで見つかり、コード側だけ直した。**この plan から写経しないこと。**
+  実際に落ちた版はコードそのものが正
+- **口コミ投稿ページの時間割とはデータを共有していない**（意味が違う：マイページ＝これから受ける／
+  kuchikomi＝もう受けた）。共有しているのは `osaka_u_settings`（学部・学年）だけ
+- **既存の赤2件は直していない**（このブランチ由来ではない・main でも赤）：
+  `tools/check_division_ui.mjs` の NG 2件、`tools/shots.mjs` が消えた `/progress.html` を撮っている
+
+### 3. 次の人が最初にやること
+
+```bash
+git pull                       # 本体の checkout は 6c925eb のままなので必ず
+python3 tools/test_index_gate.mjs   # ページを足したら必ずここを通る（一覧は自動導出に変えた）
+```
+
+新しいページを足すときは `templates/shell.html` だけ直して注入を流す:
+```bash
+python3 -c "
+import build
+parts = build.read_shell()
+print('注入:', [p.name for p in build.PAGES if build.inject_shell(p, parts)])"
+```
+
+### 4. 踏んだ罠
+
+- **plan に書いた参考コードを信じすぎた。** レビューが12件の欠陥を見つけ、うち3件は
+  実害があった ―― スマホで星が押せない（重なって pointer events を奪っていた）、
+  「相性」の数字を押すと詳細でなくお気に入りが切り替わる、
+  `requirements.json` の取得に失敗すると問診が**リロードしても抜けられない**行き止まりになる。
+  **全部レビューで見つかった。書いた本人には見えていなかった**
+- **dispatch する「必ず走らせるテスト」の一覧を絞ると回帰が抜ける。** 4本だけ挙げていたため
+  `test_sort.mjs`（問診の幕が pointer events を奪う）と `test_tokens.py`（裸の色）の
+  2件の回帰が3タスク分すり抜けた。**`tools/test_*` は全部走らせる**
+- **UI を駆動するスクリプトは全部 `rk_onboarded` を立ててから goto する。**
+  とくに `tools/shots.mjs` ―― PR のスクショ差分 CI が使うので、忘れると
+  **全ページのスクショが問診の幕になり、差分レビューが静かに無意味になる**（エラーは出ない）
+- **生成ページの衝突を `git checkout --ours` で片付けてはいけない。** 自動マージ済みの
+  main 側の変更（canonical・OGP・description・hero）まで捨てる。`git merge-file` で三方マージし、
+  そのあと `inject_shell()` を流す。しかも **`全学部の科目` は `<title>` と description の本文に居る**ので、
+  canonical だけ見ても取り違えに気づけない
+- **`main` は作業中に4回進んだ**（`eaf4f9b`→`3e42d25`→`eaf4f9b`→`10d939c`→`6c925eb`）。
+  設計を書く前と書き終えた後の2回 `git log` を見ること
+
+---
+
 ## 2026-08-26 ｜ スマホのヘッダを2段に組み直した（ロゴ行と menu 行）｜ 次の人へ
 
 `main` へ直接入れた（見た目だけの変更で、データにも API にも触っていない）。
