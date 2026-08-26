@@ -141,6 +141,45 @@ function load(initial, throws) {
   check(s.isFavorite("222") === false, "配列形 ids で isFavorite が true を返す");
 }
 
+// ── memFallback の非対称throw（quota 枯渇の再現）──
+// getItem は生きたまま setItem だけが例外を投げる。iOS 7〜10 の私的モードとは
+// 違い、これは 2026年でも quota 枯渇で実際に起こる（final-review.md §2.1）。
+// この状態で write が memFallback に退避したのに read がそれを見なければ、
+// 「星を押した直後は★に見えるが、次の再描画で☆に戻る」という、
+// Task 2 が潰したはずの症状が別の引き金で復活する。
+{
+  let setItemThrows = true;
+  const m = new Map();
+  const ls = {
+    getItem: (k) => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => { if (setItemThrows) throw new Error("QuotaExceededError"); m.set(k, String(v)); },
+    removeItem: (k) => void m.delete(k),
+  };
+  const ctx = { window: {}, localStorage: ls, console };
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(SRC, ctx);
+  const s = ctx.window.rkStore;
+
+  // setItem が落ちている間も、書いた値がそのまま読み戻せること
+  // （非対称throwの穴：getItem は例外を投げないので、read が memFallback を
+  //   見ていないと localStorage の古い値＝未書き込みの null を返してしまう）。
+  const r1 = s.toggleFavorite("333");
+  check(r1 === true, "setItem throw 下で toggleFavorite(初回) が true を返さない");
+  check(s.isFavorite("333") === true,
+        "setItem throw 下で isFavorite が memFallback を見ずに古い値を返している");
+  check(!m.has("rk_favorites"), "setItem throw 下なのに本物の localStorage に書けている（前提が壊れている）");
+
+  // setItem が復帰したあと、本物の書き込みが memFallback の古い退避値に勝つこと
+  // （delete を省略すると、退避したキーは書けるようになっても永久に古い値のまま）。
+  setItemThrows = false;
+  const r2 = s.toggleFavorite("333"); // 外す。今度は本物の localStorage に書ける
+  check(r2 === false, "setItem 復帰後の2回目 toggle が false を返さない");
+  check(m.has("rk_favorites"), "setItem 復帰後なのに本物の localStorage に書かれていない（delete 漏れ）");
+  check(s.isFavorite("333") === false,
+        "setItem 復帰後の本物の書き込みが memFallback の古い値に負けている（delete 漏れ）");
+}
+
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);
 process.exit(fails.length ? 1 : 0);

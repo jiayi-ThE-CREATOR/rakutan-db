@@ -45,7 +45,9 @@ function buildProfile(){
   const p = rkStore.getProfile();
   $("#mpFaculty").innerHTML =
     `<option value="">選ばない</option>` +
-    REQ.faculties.map(f => `<option value="${f.key}">${f.label}</option>`).join("");
+    /* requirements.json 由来でも app.js の buildFaculty と同じく esc() を通す
+       （final-review.md §6：写した元は esc していたのに写し先が落としていた）。 */
+    REQ.faculties.map(f => `<option value="${esc(f.key)}">${esc(f.label)}</option>`).join("");
   $("#mpGrade").innerHTML =
     `<option value="">選ばない</option>` +
     [1,2,3,4,5,6].map(g => `<option value="${g}">${g}年</option>`).join("");
@@ -63,9 +65,17 @@ function buildProfile(){
 
 /* 学期は haru / aki の2つだけ。timetable.json の term_group と同じ語彙で、
    full（通年）はどちらの学期でも履修できるので必ず通す（app.js と同じ扱い）。
-   kuchikomi の spring / autumn とは別語彙。混ぜないこと。 */
+   kuchikomi の spring / autumn とは別語彙。混ぜないこと。
+
+   unknown（282件）も両学期に通す。データが「学期が分からない」と
+   言っているだけで「他方の学期だ」とは言っていない。unknown を
+   どちらの学期からも弾くと、inTerm が両方 false を返し、
+   renderFavorites は「秋・冬学期の科目です／春・夏学期の科目です」と
+   出す ―― これは実際には確認していない、事実でない断定になる
+   （final-review.md §3-①）。時間割に入れる手立てが1つも無くなる方が
+   実害も大きいので、full と同じ扱いで両学期へ通す。 */
 const TERMS = [["aki","秋・冬学期"],["haru","春・夏学期"]];
-const TERM_GROUPS = { haru:["haru","full"], aki:["aki","full"] };
+const TERM_GROUPS = { haru:["haru","full","unknown"], aki:["aki","full","unknown"] };
 
 function buildTerms(){
   $("#mpTerms").innerHTML = TERMS.map(([v,label]) =>
@@ -86,7 +96,11 @@ function renderTimetable(){
       const slot = d + p;
       const id = tt.slots[slot];
       const c = id ? BY_ID.get(id) : null;
-      html += `<button class="mpCell${c?" filled":""}" data-slot="${slot}">`
+      /* 読み上げ利用者には「ボタン」としか聞こえない（aria-label が無いと
+         accessible name が空になる）。何曜何限で、何が入っているかを
+         1つの文字列にして持たせる。app.js の buildGrid() と同じ考え方。 */
+      html += `<button class="mpCell${c?" filled":""}" data-slot="${slot}"`
+            + ` aria-label="${slot} ${c ? esc(c.title) : "空き"}">`
             + (c ? esc(c.title) : "") + `</button>`;
     }
   }

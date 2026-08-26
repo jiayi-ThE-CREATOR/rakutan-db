@@ -19,15 +19,33 @@
   const K_FAV = "rk_favorites";
   const K_TT  = "rk_timetable";
   const TERMS = ["haru", "aki"];
-  /* プライベートモード時のメモリ内フォールバック。
-     localStorage が利用不可でも、その回のセッションは状態を保持できる。 */
+  /* localStorage への書き込みが失敗したキーだけを持つメモリ内フォールバック
+     （プライベートモードの全滅・quota 枯渇のどちらでも使う）。
+     書けなかった値をここに退避し、書けるようになった瞬間に write() が
+     自分で片付ける（下記）。だからここに残っているキーは
+     「いま localStorage には書けていない」の印でもある。 */
   const memFallback = new Map();
 
+  /* getItem/setItem は非対称に落ちることがある（quota 枯渇は setItem だけが
+     QuotaExceededError を投げ、getItem は正常に働く）。この状態を
+     「setItem が失敗したら catch する」だけで済ませると、write の失敗を
+     memFallback に退避したのに read はそれを見ずに localStorage の
+     古い値を返し続け、星を押しても次の描画で元に戻る事故になる
+     （final-review.md §2.1）。だから read はまず memFallback を見る。 */
   const read = (k) => {
-    try { return localStorage.getItem(k); } catch (e) { return memFallback.get(k) || null; }
+    if (memFallback.has(k)) return memFallback.get(k);
+    try { return localStorage.getItem(k); } catch (e) { return null; }
   };
   const write = (k, v) => {
-    try { localStorage.setItem(k, v); } catch (e) { memFallback.set(k, v); }
+    try {
+      localStorage.setItem(k, v);
+      /* delete は省略できない。省略すると、一度でも setItem が落ちて
+         退避したキーは、その後 localStorage への書き込みが成功しても
+         read() が memFallback を先に見る限り永久に古い退避値を返し続け、
+         本物の書き込みが二度と見えなくなる。memFallback は
+         「いま書けていないキーだけ」を持つ集合でなければならない。 */
+      memFallback.delete(k);
+    } catch (e) { memFallback.set(k, v); }
   };
   /* JSON.parse は壊れた値でも投げる。既定値へ落として先へ進む。
      「情報が無い」で止めない ―― 止めると画面が真っ白になる。 */

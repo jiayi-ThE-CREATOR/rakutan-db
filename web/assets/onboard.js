@@ -47,7 +47,7 @@
     el.setAttribute("aria-modal", "true");
     el.innerHTML = `<div class="onboardInner">
       <div class="onboardCard" data-card="gate">
-        <h2>学部と学年を教えてもらえますか</h2>
+        <h2 id="onboardTitle-gate">学部と学年を教えてもらえますか</h2>
         <p>あなたが履修できる科目だけを出せます。答えなくてもすべての機能が使えます。</p>
         <div class="onboardBtns">
           <button id="onboardStart" class="primary">教える</button>
@@ -55,11 +55,11 @@
         </div>
       </div>
       <div class="onboardCard" data-card="faculty">
-        <h2>学部はどれですか</h2>
+        <h2 id="onboardTitle-faculty">学部はどれですか</h2>
         <div class="onboardOpts" id="onboardFaculties"></div>
       </div>
       <div class="onboardCard" data-card="grade">
-        <h2>いま何年生ですか</h2>
+        <h2 id="onboardTitle-grade">いま何年生ですか</h2>
         <div class="onboardOpts" id="onboardGrades"></div>
       </div>
     </div>`;
@@ -70,10 +70,11 @@
        「答えるか、明示的に降りるか」を守れるのはマウスだけになる。 */
     el.addEventListener("keydown", trapTab);
 
-    /* 学部の一覧は requirements.json が正本。app.js が読んだものを借りる。 */
+    /* 学部の一覧は requirements.json が正本。app.js が読んだものを借りる。
+       app.js の buildFaculty と同じく esc() を通す（final-review.md §6）。 */
     const facs = (window.REQ && window.REQ.faculties) || [];
     document.getElementById("onboardFaculties").innerHTML = facs.map(f =>
-      `<button data-faculty="${f.key}">${f.label}</button>`).join("");
+      `<button data-faculty="${esc(f.key)}">${esc(f.label)}</button>`).join("");
     document.getElementById("onboardGrades").innerHTML = [1,2,3,4,5,6].map(g =>
       `<button data-grade="${g}">${g}年</button>`).join("");
 
@@ -116,6 +117,10 @@
 
   function step(name){
     el.dataset.step = name;
+    /* #onboard は role="dialog" aria-modal="true" を名乗っているのに
+       名前が無いと、読み上げは「ダイアログ」としか言わない
+       （final-review.md §3-③）。いま見えているカードの見出しを指す。 */
+    el.setAttribute("aria-labelledby", `onboardTitle-${name}`);
     const card = el.querySelector(`[data-card="${name}"]`);
     const first = card && card.querySelector("button");
     if (first) first.focus();

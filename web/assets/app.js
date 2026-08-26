@@ -456,7 +456,7 @@ function card(c){
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
-            aria-label="お気に入り">${fav ? "★" : "☆"}</button>
+            aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
     <div class="detail"></div>
   </article>`;
 }
@@ -546,7 +546,7 @@ function detailHtml(c){
       <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
       <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.isFavorite(c.id)}"
-              aria-label="お気に入り">${rkStore.isFavorite(c.id) ? "★" : "☆"}</button>`;
+              aria-label="お気に入り：${esc(c.title)}">${rkStore.isFavorite(c.id) ? "★" : "☆"}</button>`;
 }
 
 /* ── 口コミを1件ずつ ───────────────────
@@ -1281,6 +1281,24 @@ function applyPostMode() {
   await boot();
   window.REQ = REQ;   // onboard.js が学部の一覧を借りる（べた書きを作らないため）
   applyPostMode();
+
+  /* 問診で答えた学部・学年を、最初の load() より前に既定の絞り込みとして
+     あてる。rk:profile-set（下）はその場の1画面にしか効かず、翌日また
+     開くと state は毎回 "" / "all" に戻っていた ―― 「あなたが履修できる
+     科目だけを出せます」という約束が、答えた瞬間の1画面でしか成立しない
+     嘘になっていた（final-review.md §3-④）。
+     ただし共有リンクが明示した値には勝たせない。URL に ?year= や
+     ?faculty= が既に付いているなら、それを送った側の意図のほうが
+     保存済みのプロフィールより優先される。 */
+  {
+    const urlParams = new URL(location.href).searchParams;
+    const profile = rkStore.getProfile();
+    if (urlParams.has("faculty")) state.faculty = urlParams.get("faculty");
+    else if (profile.faculty) state.faculty = profile.faculty;
+    if (urlParams.has("year")) state.year = urlParams.get("year");
+    else if (profile.grade) state.year = profile.grade;
+  }
+
   $("#note").textContent = META.disclaimer;
   buildSems(); buildYears(); buildPresets(); buildSliders();
   buildYearRow(); buildHardSelect();
