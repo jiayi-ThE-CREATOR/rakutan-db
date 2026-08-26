@@ -73,6 +73,76 @@ async function fresh() {
   await ctx.close();
 }
 
+// ⑤ requirements.json が壊れていても行き止まりにしない（Critical 回帰）
+{
+  const { ctx, page } = await fresh();
+  // 学部データの読み込みだけを落とす。courses.built.json は生きているので
+  // 裏のページ自体は普通に描画される ―― 「問診だけが行き止まりになる」を再現する。
+  await page.route("**/data/requirements.json", route => route.abort());
+  await page.goto(BASE + "/");
+  await page.waitForSelector(".card", { timeout: 15000 }); // 裏のページは動いている
+  // splash 演出の完了（最長 1.4s + トランジション/フォールバック 600ms）を待ってから見る。
+  await page.waitForTimeout(2500);
+  check(await page.locator("#onboard").count() === 0,
+        "requirements.json が壊れているのに問診が出た（ボタン0個の行き止まり）");
+  check(await page.evaluate(() => localStorage.getItem("rk_onboarded")) !== "1",
+        "requirements.json が壊れているのに rk_onboarded を立てた（次回も同じ行き止まりを踏む）");
+  // 裏のページがまだ操作できること（星を押せる＝上に覆いが乗っていない）。
+  await page.click(".card .favBtn");
+  const pressed = await page.locator(".card .favBtn").first().getAttribute("aria-pressed");
+  check(pressed === "true", "裏のページが操作できない（問診オーバーレイが塞いでいる）");
+  await ctx.close();
+}
+
+// ⑥ rk:splash-done は一度だけ（transitionend と setTimeout の二重発火ガード）
+{
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  // splash.js より前にリスナーを仕込む。addInitScript はどのページスクリプトより先に走る。
+  await page.addInitScript(() => {
+    window.__splashDoneCount = 0;
+    window.addEventListener("rk:splash-done", () => { window.__splashDoneCount++; });
+  });
+  await page.goto(BASE + "/");
+  // 演出を実際に流させる（sessionStorage に rk_splash_seen を仕込まない）。
+  await page.waitForTimeout(2500);
+  const cnt = await page.evaluate(() => window.__splashDoneCount);
+  check(cnt === 1, `rk:splash-done が1回でない（いま ${cnt} 回）`);
+  await ctx.close();
+}
+
+// ⑦ フォーカストラップ：カードの境界から Tab / Shift+Tab しても #onboard の外に出ない
+{
+  const { ctx, page } = await fresh();
+  await page.goto(BASE + "/");
+  await page.waitForSelector("#onboard[data-step='gate']", { timeout: 15000 });
+
+  // 最後のボタン（そのまま使う）から Tab → 裏のページに抜けないこと
+  await page.locator("#onboardSkip").focus();
+  await page.keyboard.press("Tab");
+  const afterTab = await page.evaluate(() =>
+    document.getElementById("onboard").contains(document.activeElement));
+  check(afterTab, "gate の最後のボタンから Tab すると #onboard の外に出る");
+
+  // 最初のボタン（教える）から Shift+Tab → 裏のページに抜けないこと
+  await page.locator("#onboardStart").focus();
+  await page.keyboard.press("Shift+Tab");
+  const afterShiftTab = await page.evaluate(() =>
+    document.getElementById("onboard").contains(document.activeElement));
+  check(afterShiftTab, "gate の最初のボタンから Shift+Tab すると #onboard の外に出る");
+
+  // 設問側（学部11個）でも同じ境界が効くこと。「見えているカードだけ」を見ているかの確認。
+  await page.click("#onboardStart");
+  await page.waitForSelector("#onboard[data-step='faculty']");
+  const facButtons = page.locator("#onboard[data-step='faculty'] [data-faculty]");
+  await facButtons.last().focus();
+  await page.keyboard.press("Tab");
+  const afterFacTab = await page.evaluate(() =>
+    document.getElementById("onboard").contains(document.activeElement));
+  check(afterFacTab, "faculty の最後のボタンから Tab すると #onboard の外に出る");
+  await ctx.close();
+}
+
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);

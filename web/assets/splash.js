@@ -66,7 +66,14 @@
     if (finished) return;
     finished = true;
     el.classList.add("out");
+    // transitionend と時間切れの setTimeout が両方とも end() を呼びうる
+    // （通常はトランジションが先に終わるが、タブが裏に回っていると
+    // どちらが先か分からない）。done() と同じ形の一発ガードで、
+    // rk:splash-done が二重発火しないようにする。
+    let ended = false;
     const end = () => {
+      if (ended) return;
+      ended = true;
       el.hidden = true;
       document.documentElement.classList.remove("splash-on");
       document.documentElement.classList.add("splash-skip");

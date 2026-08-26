@@ -26,6 +26,14 @@
 
   function maybeShow(){
     if (shown || !splashDone || !appReady) return;
+    /* requirements.json が読めていない／空だと、学部ステップに
+       ボタンが1つも無い行き止まりになる。しかも「そのまま使う」は
+       gate にしか無い設計なので、この状態に入ると前にも後ろにも
+       進めなくなる。markOnboarded() も呼ばない ―― ここで問診を
+       消費した扱いにすると、直った次回の訪問でも二度と聞けなくなる。
+       半端な問診を見せるより、今回は黙って何も聞かないほうが安全。 */
+    const facs = window.REQ && window.REQ.faculties;
+    if (!Array.isArray(facs) || facs.length === 0) return;
     shown = true;
     build();
     step("gate");
@@ -56,6 +64,11 @@
       </div>
     </div>`;
     document.body.appendChild(el);
+    /* フォーカストラップ。#onboard は body の最後の子として足しているので、
+       何もしないと最後のボタンから Tab すると裏のページへ、最初のボタンから
+       Shift+Tab しても裏のページへ、それぞれ素通りしてしまう ――
+       「答えるか、明示的に降りるか」を守れるのはマウスだけになる。 */
+    el.addEventListener("keydown", trapTab);
 
     /* 学部の一覧は requirements.json が正本。app.js が読んだものを借りる。 */
     const facs = (window.REQ && window.REQ.faculties) || [];
@@ -80,6 +93,25 @@
     el.querySelectorAll("[data-grade]").forEach(b => b.onclick = () => {
       answer.grade = b.dataset.grade; finish(true);
     });
+  }
+
+  /* いま見えているカードの中だけで Tab / Shift+Tab を折り返す。
+     他のカードは data-step の CSS 切り替えで display:none になっており、
+     display:none の要素はブラウザが自然に tab 順から外すので、
+     ここで気にする必要があるのは「見えているカードの最初と最後」の
+     境界だけでいい（全カード分のボタンを対象にすると、隠れているカード
+     の方まで含めて間違った境界を作ってしまう）。 */
+  function trapTab(e){
+    if (e.key !== "Tab") return;
+    const card = el.querySelector(`[data-card="${el.dataset.step}"]`);
+    const focusables = card ? Array.from(card.querySelectorAll("button")) : [];
+    if (focusables.length === 0) return;
+    const first = focusables[0], last = focusables[focusables.length - 1];
+    if (e.shiftKey && document.activeElement === first){
+      e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && document.activeElement === last){
+      e.preventDefault(); first.focus();
+    }
   }
 
   function step(name){
