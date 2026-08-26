@@ -140,7 +140,12 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 
 .card{background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);
   margin-bottom:10px;overflow:hidden}
-.head{padding:13px 14px;cursor:pointer;display:grid;grid-template-columns:1fr 58px;gap:12px}
+/* 右パディングだけ広げて、星（.card > .favBtn／右上に絶対配置・
+   6px 空けて 44px 四方）の専有領域ぶんを空けておく。6+44=50px に
+   余白8pxを足した58px。値がずれると次に .head の右上に何か足した人が
+   また星と重なる事故を再現するので、変えるときは .card > .favBtn の
+   width/height/right とセットで見直すこと（2026-08-26 修正）。 */
+.head{padding:13px 58px 13px 14px;cursor:pointer;display:grid;grid-template-columns:1fr 58px;gap:12px}
 .title{font-size:16.5px;font-weight:700;margin:0 0 3px;line-height:1.35}
 .meta{font-size:12px;color:var(--muted);font-family:var(--data)}
 .meta span+span::before{content:"・";margin:0 3px}
@@ -547,10 +552,15 @@ html{scroll-behavior:smooth}
 .favBtn[aria-pressed="false"]{ color:#b9b9b9; }
 
 /* 一覧のカード直下の星だけ、右上に浮かせる。直接の子だけに絞るのは、
-   詳細パネル内（.detail の下）の星まで拾ってしまうと上と同じ事故になるため。 */
+   詳細パネル内（.detail の下）の星まで拾ってしまうと上と同じ事故になるため。
+   バグ修正（2026-08-26）：ここを浮かせるだけで .head 側の専有領域を
+   空けていなかったため、「相性」の数字（.fit、.head の中）と重なり、
+   数字を押したつもりが星に当たって詳細が開かなくなっていた。
+   コーナーをずらすのではなく .head の右パディングで場所を確保した
+   （上の .head 参照）ので、ここは指で押せる 44×44px に広げるだけでいい。 */
 .card > .favBtn{
   position:absolute; top:6px; right:6px;
-  width:40px; height:40px;              /* 指で押せる大きさ。44px 未満にしない場合は要検討 */
+  width:44px; height:44px;
 }
 
 /* 詳細パネル内の星は浮かせず、「口コミを見る」「口コミを書く」と同じ

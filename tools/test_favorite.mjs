@@ -118,6 +118,75 @@ await cardStar.click();
 check(await cardStar.getAttribute("aria-pressed") === "false", "一覧の星の aria-pressed が変わらない");
 check(await detailStar.getAttribute("aria-pressed") === "false", "一覧の星を押しても詳細側に反映されない");
 
+/* ── Critical 回帰：相性スコア(.fit)と星(.card > .favBtn)の重なり ──
+ * 星がカード右上に絶対配置（top:6px;right:6px、幅44px）されている一方、
+ * カード右上にはもともと .head の子として .fit（相性の数字、.head の
+ * 右列58px）があった。.head の右パディングを広げていないと、星が
+ * .fit の上に乗り、数字をタップしたつもりが星に当たって詳細が開かず
+ * 意図せずお気に入りが切り替わる（初期の閉じたカード状態で、モバイル・
+ * デスクトップ両方の幅で発生）。カードごとに新規ページを開いて他の
+ * チェックの状態変化から独立させ、モバイル幅・デスクトップ幅の両方で
+ * 「重ならない」「中心をクリックしても星に当たらない」「クリックすると
+ * 詳細は開くが星の状態は変わらない」を確かめる。 */
+for (const [label, viewport] of [
+  ["mobile 390px", { width: 390, height: 844 }],
+  ["desktop 1280px", { width: 1280, height: 900 }],
+]) {
+  const fp = await browser.newPage({ viewport });
+  await bypassOnboarding(fp);
+  await fp.goto(BASE + "/");
+  await fp.waitForSelector(".card .favBtn");
+
+  const fcard = fp.locator(".card").first();
+  const fcardId = await fcard.getAttribute("data-id");
+  const fcardSel = `.card[data-id="${fcardId}"]`;
+
+  /* 最初のカードはヘッダ類の下、ページのだいぶ下（2000px超）にある。
+     boundingBox() は自動でスクロールしないので、elementFromPoint と
+     マウスクリックを実座標で行うには先に画面内へスクロールしておく必要がある。
+     html{scroll-behavior:smooth} が効いているため behavior:"instant" を
+     明示しないとアニメーション中の座標を読んでしまう（実際にこれで
+     ハマった：スクロール未完了のまま計算して elementFromPoint が
+     null を返していた）。 */
+  await fp.locator(fcardSel).evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
+
+  const favBox = await fp.locator(`${fcardSel} > .favBtn`).boundingBox();
+  const fitBox = await fp.locator(`${fcardSel} .fit`).boundingBox();
+  check(!!favBox, `[${label}] .card > .favBtn の boundingBox が取れない`);
+  check(!!fitBox, `[${label}] .card .fit の boundingBox が取れない`);
+  check(!overlaps(favBox, fitBox), `[${label}] .fit と星(.card > .favBtn)の矩形が重なっている`);
+
+  const fitCenter = { x: fitBox.x + fitBox.width / 2, y: fitBox.y + fitBox.height / 2 };
+  const hit = await fp.evaluate(({ x, y }) => {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return { isFit: false, isInHead: false, isFav: false, tag: "none" };
+    return {
+      isFit: !!el.closest(".fit"),
+      isInHead: !!el.closest(".head"),
+      isFav: !!el.closest(".favBtn"),
+      tag: el.className || el.tagName,
+    };
+  }, fitCenter);
+  check(!hit.isFav, `[${label}] .fit の中心が elementFromPoint で星(.favBtn)に当たる`);
+  check(hit.isFit || hit.isInHead,
+        `[${label}] .fit の中心が .fit にも .head 内の要素にも当たっていない: ${hit.tag}`);
+
+  const pressedBefore = await fp.locator(`${fcardSel} > .favBtn`).getAttribute("aria-pressed");
+  await fp.mouse.click(fitCenter.x, fitCenter.y);
+  /* 開き先は幅で変わる（app.js の isDesktop()）：PC は #inspector、
+     スマホはカード自身の .detail。ここは .fit がどちらの経路の
+     クリックも .head 委譲まで正しく通っているかの確認なので、
+     開いた先を見る場所も同じ分岐に合わせる。 */
+  const openedByFit = viewport.width >= 1024
+    ? await fp.locator("#inspector .detail").evaluate(el => el.children.length > 0)
+    : await fp.locator(`${fcardSel} .detail`).evaluate(el => el.children.length > 0);
+  check(openedByFit === true, `[${label}] .fit の中心をクリックしても詳細が開かない`);
+  const pressedAfter = await fp.locator(`${fcardSel} > .favBtn`).getAttribute("aria-pressed");
+  check(pressedAfter === pressedBefore, `[${label}] .fit をクリックしたら星の aria-pressed が変わった`);
+
+  await fp.close();
+}
+
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);
