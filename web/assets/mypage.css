@@ -28,3 +28,14 @@
 #mpPickerList{ max-height:50vh; overflow-y:auto; margin:0 0 12px; }
 .mpExtraRow{ display:flex; justify-content:space-between; align-items:center;
   padding:8px 0; border-bottom:1px solid var(--rule); font-size:13px; }
+
+/* お気に入り一覧。色は裸の hex を使わず tokens.css から意味で選ぶ
+   （tools/test_tokens.py が mypage.css の裸色を見張っている）。 */
+.mpFav{ display:flex; justify-content:space-between; align-items:center; gap:12px;
+  padding:12px 0; border-bottom:1px solid var(--rule); font-size:14px; }
+.mpFav small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+.mpFavActions{ display:flex; gap:6px; flex-shrink:0; }
+.mpFavActions button{ padding:6px 10px; font-size:12px; border:1px solid var(--rule);
+  border-radius:6px; background:var(--card); cursor:pointer; white-space:nowrap; }
+.mpIn, .mpNote{ font-size:11px; color:var(--muted); align-self:center; white-space:nowrap; }
+.mpEmpty{ font-size:13px; color:var(--muted); }

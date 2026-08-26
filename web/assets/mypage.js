@@ -37,6 +37,7 @@ async function boot(){
   buildProfile();
   buildTerms();
   renderTimetable();
+  renderFavorites();
   $("#mpPickerClose").onclick = () => $("#mpPicker").close();
 }
 
@@ -92,6 +93,13 @@ function renderTimetable(){
   $("#mpGrid").innerHTML = html;
   $("#mpGrid").querySelectorAll(".mpCell").forEach(b => b.onclick = () => onCell(b.dataset.slot));
   renderExtra();
+  /* コマが埋まると「時間割に入れる」ボタンの出方（もう入っている／
+     上書きになる、など）が変わるので、お気に入り側も引き直す。
+     ループしないのは、renderFavorites 側からは renderTimetable を
+     直接呼ばないため（呼ぶのは mpPutCourse 経由の1回だけ）。
+     ここに renderFavorites → renderTimetable の直接呼び出しを足すと
+     無限ループになるので足さないこと。 */
+  renderFavorites();
 }
 window.mpRenderTimetable = renderTimetable;
 
@@ -142,13 +150,82 @@ function openPicker(slot){
 }
 
 /* 1科目が複数コマを持つとき（金4・金5・金6 の実験など）は全部のマスを埋める。
-   1つだけ埋めると、残りのコマが空いているように見えてしまう。 */
+   1つだけ埋めると、残りのコマが空いているように見えてしまう。
+   置き先のどれかに既に別の科目が入っているときは確認する。
+   ピッカー（openPicker → onCell が呼ぶ空きマスへの新規配置）と
+   お気に入り（renderFavorites の「時間割に入れる」）の、入り口が2つとも
+   最終的にここを通る。確認をここ1箇所にまとめたのは、
+   「お気に入り側は聞くのにピッカー側は黙って上書きする」という
+   不整合（前タスクのレビュー指摘）を、2箇所に同じ確認コードを
+   コピーするのではなく、通り道を1本にすることで無くすため。 */
 function putCourse(id, slot){
   const c = BY_ID.get(id);
   const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
+  const tt = rkStore.getTimetable(term);
+  const busy = slots.filter(s => tt.slots[s] && tt.slots[s] !== id);
+  if (busy.length){
+    const names = busy.map(s => `${s}：${(BY_ID.get(tt.slots[s]) || {}).title || tt.slots[s]}`);
+    if (!confirm(`次のコマを上書きします。\n\n${names.join("\n")}\n\nよろしいですか？`)) return;
+  }
   for (const s of slots) rkStore.setSlot(term, s, id);
   renderTimetable();
 }
 window.mpPutCourse = putCourse;
+
+function renderFavorites(){
+  const ids = rkStore.getFavorites();
+  if (!ids.length){
+    $("#mpFavList").innerHTML =
+      `<p class="mpEmpty">まだありません。科目の一覧で ☆ を押すと、ここに溜まります。</p>`;
+    return;
+  }
+  const tt = rkStore.getTimetable(term);
+  $("#mpFavList").innerHTML = ids.map(id => {
+    const c = BY_ID.get(id);
+    if (!c) return `<div class="mpFav"><span>${esc(id)}（この学期のデータにありません）</span>
+      <button data-fav="${esc(id)}">☆ 外す</button></div>`;
+
+    const slots = c.slots || [];
+    let action;
+    if (!slots.length){
+      /* 曜限がマスに置けない1,069件（集中講義・土曜）。extra へ。 */
+      const inExtra = tt.extra.includes(id);
+      action = inExtra
+        ? `<span class="mpIn">時間割に入っています</span>`
+        : `<button data-addextra="${esc(id)}">時間割に入れる</button>`;
+    } else if (!inTerm(c)){
+      /* 星は学期を問わず付けられるが、コマへ置けるのは今見ている学期の科目だけ。
+         黙って無視すると「押しても反応しない」に見えるので理由を出す。 */
+      action = `<span class="mpNote">${term==="aki"?"春・夏":"秋・冬"}学期の科目です</span>`;
+    } else {
+      /* 上書き確認は putCourse（mpPutCourse）側でまとめて行う。
+         ここでは「既に入っている」か「まだ」かの表示だけ分ける。 */
+      const already = slots.every(s => tt.slots[s] === id);
+      action = already
+        ? `<span class="mpIn">時間割に入っています</span>`
+        : `<button data-add="${esc(id)}">時間割に入れる</button>`;
+    }
+    return `<div class="mpFav">
+      <span><b>${esc(c.title)}</b><small>${esc(c.day_period || "曜限なし")}
+        ・${esc(c.instructor || "―")}</small></span>
+      <span class="mpFavActions">${action}
+        <button data-fav="${esc(id)}">☆ 外す</button></span>
+    </div>`;
+  }).join("");
+
+  $("#mpFavList").querySelectorAll("[data-add]").forEach(b => b.onclick = () => {
+    const id = b.dataset.add;
+    const c = BY_ID.get(id);
+    mpPutCourse(id, (c.slots || [])[0]);
+  });
+  $("#mpFavList").querySelectorAll("[data-addextra]").forEach(b => b.onclick = () => {
+    rkStore.addExtra(term, b.dataset.addextra);
+    renderTimetable();
+  });
+  $("#mpFavList").querySelectorAll("[data-fav]").forEach(b => b.onclick = () => {
+    rkStore.toggleFavorite(b.dataset.fav);
+    renderFavorites();
+  });
+}
 
 boot();

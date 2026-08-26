@@ -114,6 +114,67 @@ tt = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")))
 check(!Object.values(tt.aki.slots).includes(pickedId),
       "外したはずの単一コマ科目が aki.slots のどこかに残っている（回帰）");
 
+// ── ピッカー経由の上書きも確認すること（前タスクの持ち越し不具合の回帰）──
+// 137103（金4・金5・金6）を、金5 だけ別の科目で先に埋めた状態でピッカーから
+// 選ぶと、他コマを黙って上書きしないこと。お気に入り側と同じ確認を
+// putCourse（両方の入り口の合流点）が出すはず。
+await page.evaluate(() => localStorage.setItem("rk_timetable", JSON.stringify({
+  v: 1,
+  aki: { slots: { "金5": "999999" }, extra: [] },
+  haru: { slots: {}, extra: [] },
+})));
+await page.reload();
+await page.waitForSelector(".mpCell[data-slot='金4']");
+
+let dialogSeen = false;
+page.once("dialog", d => { dialogSeen = true; d.dismiss(); });
+await page.click(".mpCell[data-slot='金4']");
+await page.waitForSelector("#mpPicker[open]");
+await page.click(`#mpPicker .mpPick[data-id='${MULTI_ID}']`);
+await page.waitForTimeout(100);
+check(dialogSeen, "ピッカー経由の上書きで確認ダイアログが出ない（持ち越し不具合が残っている）");
+check((await page.locator(".mpCell[data-slot='金4']").textContent()).trim() === "",
+      "確認をキャンセルしたのに 金4 に置かれた");
+check((await page.locator(".mpCell[data-slot='金5']").textContent()).trim() === "",
+      "確認をキャンセルしたのに 金5 の表示が変わった");
+
+// 承諾すれば、確認どおり全コマに置かれる
+await page.click(".mpCell[data-slot='金4']");
+await page.waitForSelector("#mpPicker[open]");
+page.once("dialog", d => d.accept());
+await page.click(`#mpPicker .mpPick[data-id='${MULTI_ID}']`);
+for (const s of MULTI_SLOTS){
+  check((await page.locator(`.mpCell[data-slot='${s}']`).textContent()).trim() !== "",
+        `確認を承諾したのに ${s} が空のまま`);
+}
+tt = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(tt.aki.slots["金5"] === MULTI_ID, "承諾後も 金5 が上書きされていない");
+
+// ── お気に入り → 時間割 ──────────────────────
+await page.evaluate(() => {
+  localStorage.setItem("rk_favorites",
+    JSON.stringify({ v:1, ids:{ "137094": Date.now() } }));   // 木6・haru
+});
+await page.reload();
+await page.waitForSelector("#mpFavList .mpFav");
+check(await page.locator("#mpFavList .mpFav").count() === 1, "お気に入りが出ない");
+
+// 木6 は春学期。秋学期のままだと入れられない旨が出ること
+// （ブリーフのコメントはこう書いてあったが、テスト本体は学期を
+//   切り替える前の状態を確かめていなかったので、ここで確かめる）
+check(await page.locator("#mpFavList .mpFav .mpNote").count() === 1,
+      "学期違いの科目なのに理由が出ない（秋学期のまま）");
+check(await page.locator("#mpFavList .mpFav [data-add]").count() === 0,
+      "学期違いなのに時間割に入れるボタンが出ている");
+await page.click("[data-term='haru']");
+await page.click("#mpFavList .mpFav [data-add='137094']");
+let tt2 = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(tt2.haru.slots["木6"] === "137094", "お気に入りから時間割に入らない");
+
+// 外すと一覧から消える
+await page.click("#mpFavList .mpFav [data-fav='137094']");
+check(await page.locator("#mpFavList .mpFav").count() === 0, "お気に入りを外せない");
+
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);
