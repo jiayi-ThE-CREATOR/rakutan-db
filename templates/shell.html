@@ -7,6 +7,18 @@
      ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
+<!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
+     これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
+     大きく出る」が成立せず、ただの文字列リンクになる。
+     og:title / og:description / og:url はページごとに違うので各ページ側に置く。
+     ここに置くのは全ページで同じものだけ。 -->
+<meta property="og:site_name" content="ラクハン">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:image" content="https://rakuhan.nocode-sol.co.jp/assets/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <!--/PART:HEAD-->
 
 <!--PART:HEADER-->

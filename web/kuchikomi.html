@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>口コミを書く ― ラクハン</title>
 <meta name="description" content="受けた科目の出席・課題・テスト・レポートを、時間割から選んで投稿できます。選択式で1科目1分。登録もログインもしなくていい。">
+<meta property="og:title" content="口コミを書く ― ラクハン">
+<meta property="og:description" content="受けた科目の出席・課題・テスト・レポートを、時間割から選んで投稿できます。選択式で1科目1分。登録もログインもしなくていい。">
+<meta property="og:url" content="https://rakuhan.nocode-sol.co.jp/kuchikomi">
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
 <link rel="stylesheet" href="/assets/tokens.css">
 <link rel="stylesheet" href="/assets/app.css">
@@ -14,6 +17,18 @@
      ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
+<!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
+     これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
+     大きく出る」が成立せず、ただの文字列リンクになる。
+     og:title / og:description / og:url はページごとに違うので各ページ側に置く。
+     ここに置くのは全ページで同じものだけ。 -->
+<meta property="og:site_name" content="ラクハン">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:image" content="https://rakuhan.nocode-sol.co.jp/assets/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <!--/SHELL:HEAD-->
 </head>
 <body><!--SHELL:HEADER-->
