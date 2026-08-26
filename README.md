@@ -7,8 +7,12 @@
 > **日程・担当・公開の判定基準は [`ROADMAP.md`](./ROADMAP.md) が最新です。**
 > 配布ずみの企画書PDF・ロードマップPDF（v4以前）は内容が古いので参照しないでください。
 
-**本番** ── https://rakutan-db.wjy20050815.workers.dev
-`main` にマージすると約80秒で自動反映されます。**公開日（8/26）まで学内には拡散しないでください**（`noindex` 中）。
+**本番** ── https://rakuhan.nocode-sol.co.jp
+`main` にマージすると約80秒で自動反映されます。**2026-08-26 に公開しました**（`noindex` はこの日に外した）。
+
+> 旧URL https://rakutan-db.wjy20050815.workers.dev も同じ内容を配っていますが、
+> LINE Developers に登録した Webhook のために生かしてあるだけで、**検索には載せていません**
+> （`worker/index.js` の `CANONICAL_HOST`）。人に配るURLは上の独自ドメインのほうです。
 
 > **その自動反映をやっているのは `.github/workflows/` ではありません。**
 > Cloudflare の **Workers Builds（GitHub App `cloudflare-workers-and-pages`）** が

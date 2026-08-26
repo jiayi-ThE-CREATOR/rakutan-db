@@ -17,6 +17,75 @@
 
 ---
 
+## 2026-08-26 ｜ noindex を外して公開した（＋重複URLの後始末） ｜ wang → 次の人
+
+ブランチ `feat/wang-open-index`（作業ツリー `../rakutan-open`）。
+
+### 1. 何が動く状態か
+
+**検索エンジンに載る状態になった。** 8/18 から付けていた `noindex` を外し、
+外した瞬間に生まれる「同じ本文の重複URL」を同じ変更で塞いである。
+
+```bash
+node tools/test_index_gate.mjs      # 23件（サーバ不要・Worker を直接呼ぶ）
+```
+
+| URL | 検索 | なぜ |
+|---|---|---|
+| `https://rakuhan.nocode-sol.co.jp/` ほか5ページ | **載る** | ここが正本 |
+| `/l/<slug>` 14本 | 載らない | トップと同じ本文を14個のURLで返しているため |
+| `rakutan-db.wjy20050815.workers.dev` 全部 | 載らない | 独自ドメインと同じ本文。LINE の Webhook 用に生かしてある |
+
+入れたもの:
+
+- `web/robots.txt` ── 全 Disallow をやめ、`Sitemap:` 行を足した
+- `web/_headers` ── `X-Robots-Tag` を削除（ここにはもう規則が無い。コメントだけ）
+- `web/sitemap.xml`（新規）── 5ページ。手書き
+- 5ページに `<link rel="canonical">` ── クエリ付きURL（`?year=2&sem=haru…`）も正本へ寄る
+- `worker/index.js` ── `/l/` と 旧ドメインに `X-Robots-Tag: noindex` を付ける。
+  ルータを `route()` に切り出し、`fetch()` はホスト名を見て包むだけにした
+
+### 2. 何をしていないか
+
+- ★**Cloudflare Web Analytics のビーコンが本番の HTML に入っていない。**
+  13:07 に入れた計測リンク14本（`/l/<slug>`）は、**いま何も数えていない**。
+  `wrangler.toml` に `[observability]` も無いのでサーバ側の経路別集計も出ない。
+  ダッシュボードでサイトを登録してトークンを取り、`templates/shell.html` に
+  `<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"…"}'></script>`
+  を足せば全ページに入る。**今夜の宣伝の効果は、これが入るまで測れない**
+- **旧ドメインを 301 で寄せてはいない。** LINE Developers に登録した Webhook URL が
+  旧ドメインの可能性があり、確認せずに転送を入れると Bot が止まるため。
+  確認できたら 301 に変えたほうが検索上はきれい（`GET` だけ転送し `/line/webhook`・`/api/*` は残す）
+- **科目の個別URL（`/?c=<id>` 7,877件）は sitemap に入れていない。** 中身は JS で
+  組み立てるので、全部レンダリングしに来るとは限らない。やるなら `build.py` で生成する
+- **Search Console への登録はしていない**（sitemap を出しただけ）。インデックス状況を
+  見たいなら登録が要る。ドメインの所有権確認は `nocode-sol.co.jp` 側の権限が要る
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+git pull
+node tools/test_index_gate.mjs
+curl -sI https://rakuhan.nocode-sol.co.jp/        | grep -i x-robots-tag   # 何も出なければ公開できている
+curl -sI https://rakuhan.nocode-sol.co.jp/l/kasai | grep -i x-robots-tag   # noindex が出るのが正しい
+```
+
+### 4. 踏んだ罠
+
+- **`web/_headers` に `/l/*` の規則を書いても効かない。** `/l/<slug>` は
+  `env.ASSETS.fetch("/")` でトップの本文を引いているので、付くヘッダは「`/`」のもの。
+  パス規則はアセットの側で解決されるため、Worker が作ったURLには届かない。
+  → noindex は Worker のコードで付けている
+- **robots.txt で `/l/` を Disallow するのは逆効果。** 取りに来なくなると
+  noindex ヘッダが読まれず、URL だけが検索結果に残る。「取りに来させて、載せるなと言う」が正しい
+- **`/data/` も Disallow してはいけない。** 画面の中身は `courses.built.json` を
+  読んでから組み立てるので、塞ぐと Google からは空のページに見える
+- **worktree には `node_modules` が無い**ので `test_sort.mjs` / `test_conditions.mjs` /
+  `smoke.mjs` が `ERR_MODULE_NOT_FOUND` で落ちる。`ln -s ../rakutan-db/node_modules node_modules`
+  で借りれば動く（終わったら消す。3本とも通ることは確認ずみ）
+
+---
+
 ## 2026-08-26 ｜ 学部を変えても前の学部の区分が効き続けていたのを直した ｜ wang → 次の人
 
 ブランチ `feat/wang-division-scope`。

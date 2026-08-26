@@ -600,35 +600,59 @@ async function handleTrackingLink(request, env, slug) {
   const headers = new Headers(res.headers);
   // 同じ本文でも「別のURL」として数えたいので、キャッシュはさせない。
   headers.set("cache-control", "no-store");
+  // 検索には載せない。本文はトップと同じなので、14本ぶんの重複ページを
+  // 作ることになる。web/_headers のパス規則は効かない ―― ここは ASSETS から
+  // 「/」を引いているので、付くヘッダも「/」のものになるため。
+  headers.set("x-robots-tag", "noindex, nofollow");
   return new Response(res.body, { status: res.status, headers });
+}
+
+/* ── 正本のホスト ───────────────────────────────────────
+ * 旧ドメイン（rakutan-db.*.workers.dev）はいまも生きていて、独自ドメインと
+ * 同じ本文を配っている。LINE Developers に登録した Webhook URL がこちらの
+ * 可能性があるので止められない ―― だから「動かすが、検索には載せない」。
+ * 各ページの <link rel="canonical"> と合わせて二重に効かせている。
+ */
+const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
+
+function markNoindex(res) {
+  const headers = new Headers(res.headers);
+  headers.set("x-robots-tag", "noindex, nofollow");
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
 }
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
-    if (url.pathname.startsWith("/l/")) {
-      const slug = url.pathname.slice(3);
-      const res = await handleTrackingLink(request, env, slug);
-      if (res) return res;
-      return new Response("not found", { status: 404 });
-    }
-
-    if (url.pathname === "/line/webhook" && request.method === "POST") {
-      return handleWebhook(request, env, ctx);
-    }
-    if (url.pathname === "/line/health") {
-      return new Response("ok");
-    }
-    if (url.pathname === "/api/feedback") {
-      if (request.method !== "POST") {
-        return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
-      }
-      return handleFeedback(request, env);
-    }
-    if (url.pathname === "/api/favorites") {
-      return handleFavorites(request, env);
-    }
-    return env.ASSETS.fetch(request);
+    const res = await route(request, env, ctx);
+    // 独自ドメイン以外（旧 workers.dev・ローカル）は検索に載せない。
+    return new URL(request.url).hostname === CANONICAL_HOST ? res : markNoindex(res);
   },
 };
+
+async function route(request, env, ctx) {
+  const url = new URL(request.url);
+
+  if (url.pathname.startsWith("/l/")) {
+    const slug = url.pathname.slice(3);
+    const res = await handleTrackingLink(request, env, slug);
+    if (res) return res;
+    return new Response("not found", { status: 404 });
+  }
+
+  if (url.pathname === "/line/webhook" && request.method === "POST") {
+    return handleWebhook(request, env, ctx);
+  }
+  if (url.pathname === "/line/health") {
+    return new Response("ok");
+  }
+  if (url.pathname === "/api/feedback") {
+    if (request.method !== "POST") {
+      return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+    }
+    return handleFeedback(request, env);
+  }
+  if (url.pathname === "/api/favorites") {
+    return handleFavorites(request, env);
+  }
+  return env.ASSETS.fetch(request);
+}

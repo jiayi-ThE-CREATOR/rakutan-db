@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 手で書く。ページが5つしか無いので生成は要らない。
+     ページを足したらここにも足すこと（robots.txt がこのURLを指している）。
+
+     科目の個別URL（/?c=<course_id>）は、いまは載せていない。
+     中身は courses.built.json を読んでから JS で組み立てるので、
+     7,877件を並べても Google が全部レンダリングしに来るとは限らず、
+     効果が読めないため。載せるなら build.py で生成する形にすること。 -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://rakuhan.nocode-sol.co.jp/</loc>
+    <lastmod>2026-08-26</lastmod>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://rakuhan.nocode-sol.co.jp/kuchikomi</loc>
+    <lastmod>2026-08-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://rakuhan.nocode-sol.co.jp/about</loc>
+    <lastmod>2026-08-26</lastmod>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://rakuhan.nocode-sol.co.jp/ads</loc>
+    <lastmod>2026-08-26</lastmod>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://rakuhan.nocode-sol.co.jp/partners</loc>
+    <lastmod>2026-08-26</lastmod>
+    <priority>0.3</priority>
+  </url>
+</urlset>

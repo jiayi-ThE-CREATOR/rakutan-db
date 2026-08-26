@@ -120,6 +120,11 @@
 
 ### 🚨 8/26 に最初にやること
 
+> **✅ 2026-08-26 に実施ずみ**（ブランチ `feat/wang-open-index`）。以下は記録です。
+> 実際にやったのは2手だけではありません ―― 外した瞬間に「同じ本文の重複URL」
+> （旧ドメインと計測リンク14本）が一緒に載ってしまうため、canonical・sitemap・
+> それぞれの noindex を同じ変更で入れています。`node tools/test_index_gate.mjs` が見張り。
+
 ```bash
 git rm web/robots.txt
 # web/_headers から「X-Robots-Tag」の行を削除
