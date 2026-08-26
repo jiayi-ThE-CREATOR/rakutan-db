@@ -612,34 +612,20 @@ async function handleTrackingLink(request, env, slug) {
  * 同じ本文を配っている。LINE Developers に登録した Webhook URL がこちらの
  * 可能性があるので止められない ―― だから「動かすが、検索には載せない」。
  *
- * 🚨 この関数が走るのは wrangler.toml の [assets] に run_worker_first を
- * 書いたから。静的アセットは既定で Worker より先に配られるので、それが
- * 無いあいだ `/` や `/about` はここを通っていなかった（2026-08-26 に本番で実測。
- * `/l/kasai` には noindex が付くのに `/` には付かなかった）。
- * assets/ と data/ は今も Worker を通らない ―― 通す必要が無いため。
+ * 🚨 ただし、ここで付ける noindex が届くのは **Worker が走る経路だけ**。
+ * Workers の静的アセットは Worker スクリプトより先に配られるので、
+ * `/` や `/about` のような「アセットが存在するパス」はこの関数を通らない
+ * （2026-08-26 に本番で実測。`/l/kasai` には付くのに `/` には付かなかった）。
+ * つまり旧ドメインのページを検索から外しているのは、実際には
+ * 各ページの <link rel="canonical"> のほう。ここが効くのは
+ * /l/<slug>・/api/*・/line/* といった Worker 側のURLに限られる。
+ *
+ * ページにも確実に付けたいなら wrangler.toml の [assets] に
+ * run_worker_first = ["/", "/about", "/ads", "/kuchikomi", "/partners"]
+ * を足す（＝ページ表示1回ごとに Worker が1回走る）。9/2 のピークを前に
+ * 配信経路を変えたくないので、今日は入れていない。
  */
 const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
-
-/* 旧ドメインへ来た人を独自ドメインへ寄せる。
- *
- * 転送しないもの:
- *   - /line/*  … LINE Developers に登録した Webhook URL が旧ドメインの可能性がある。
- *                転送すると POST が失われて Bot が黙る（301 は POST を GET に変える）
- *   - /api/*   … 意見箱・お気に入り。同じ理由
- *   - GET/HEAD 以外のメソッド … 上の2つを外し忘れたときの保険
- * localhost（wrangler dev・python -m http.server）は転送しない。
- * 開発中に本番へ飛ばされたら手も足も出なくなるため。
- */
-function redirectToCanonical(request, url) {
-  if (!url.hostname.endsWith(".workers.dev")) return null;
-  if (request.method !== "GET" && request.method !== "HEAD") return null;
-  if (url.pathname.startsWith("/line/") || url.pathname.startsWith("/api/")) return null;
-  const to = new URL(url);
-  to.protocol = "https:";
-  to.hostname = CANONICAL_HOST;
-  to.port = "";
-  return Response.redirect(to.toString(), 301);
-}
 
 function markNoindex(res) {
   const headers = new Headers(res.headers);
@@ -649,13 +635,9 @@ function markNoindex(res) {
 
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-    if (url.hostname === CANONICAL_HOST) return route(request, env, ctx);
-    // 旧ドメインの見える経路（ページ・robots.txt・/l/）は独自ドメインへ寄せる。
-    const moved = redirectToCanonical(request, url);
-    if (moved) return moved;
-    // 転送しない経路（Webhook・API・ローカル）は、せめて検索に載せない。
-    return markNoindex(await route(request, env, ctx));
+    const res = await route(request, env, ctx);
+    // 独自ドメイン以外（旧 workers.dev・ローカル）は検索に載せない。
+    return new URL(request.url).hostname === CANONICAL_HOST ? res : markNoindex(res);
   },
 };
 
