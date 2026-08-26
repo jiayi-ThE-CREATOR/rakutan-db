@@ -13,8 +13,10 @@ body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);
 /* ── header ─────────────────────────── */
 /* 常に出ている案内帯。エラーではないので警告色を使わない。
    データ目盛り色（--scale-*）は4軸と band 専用、という取り決めもあるので、
-   ここは中立の面で出す。 */
-.note{background:var(--dim);color:var(--soft);font-size:var(--fs-xs);
+   ここは中立の面で出す。
+   2026-08-26 松下判断で非表示化。DOM自体は残す（起動時に app.js が
+   $("#note").textContent を無条件に叩くため、要素を消すと初期化が落ちる）。 */
+.note{display:none;background:var(--dim);color:var(--soft);font-size:var(--fs-xs);
   padding:7px var(--pad);text-align:center;line-height:1.5;
   border-bottom:1px solid var(--rule)}
 /* ヘッダは濃色帯。マークが「ラ」そのものなので、
