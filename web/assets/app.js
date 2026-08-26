@@ -753,7 +753,14 @@ function queryLocal(){
   const nul = v => v === null || v === undefined;
   /* 相性順。同点や未算出のときの並びをここで1回決め、他の並び替えの
      第2キーとしても使う（同じ件数の科目が毎回違う順に出ないように）。 */
-  const byFit = (a,b) => (nul(a.match.fit) - nul(b.match.fit))
+  /* 🚨 第1キーは「テストの難しさが確認できているか」（needs_review）。
+     相性だけで並べると、一番目立つ場所に「誰も難しさを確かめていない
+     一発試験の科目」が来る ―― 検証していないから薦めている状態になる
+     （2026-08-26 実測：おすすめ上位371件が全部それだった）。
+     build.py の preset_top と server.py の search() も同じ順序。 */
+  const unverified = c => (c.rakutan && c.rakutan.needs_review) ? 1 : 0;
+  const byFit = (a,b) => (unverified(a) - unverified(b))
+                      || (nul(a.match.fit) - nul(b.match.fit))
                       || ((b.match.fit||0) - (a.match.fit||0));
 
   if (state.sort === "rakutan")
@@ -783,7 +790,7 @@ function queryLocal(){
   else if (state.sort === "title")
     results.sort((a,b) => a.title.localeCompare(b.title, "ja"));
   else
-    results.sort(byFit);
+    results.sort(byFit);   /* おすすめ順（既定）＝検証ずみ → 相性 */
 
   return { count: results.length, results, slots, facets, weights: w,
            division_facets: divisionFacets };

@@ -235,7 +235,11 @@ def search(params: dict) -> dict:
 
     sort = get("sort") or "fit"
     if sort == "fit":
-        results.sort(key=lambda r: (r["match"]["fit"] is None, -(r["match"]["fit"] or 0)))
+        # 第1キーは「テストの難しさが確認できているか」。理由は build.py の
+        # preset_top と同じ。app.js の byFit も同じ順序にすること。
+        results.sort(key=lambda r: (bool(r["rakutan"].get("needs_review")),
+                                    r["match"]["fit"] is None,
+                                    -(r["match"]["fit"] or 0)))
     elif sort == "rakutan":
         results.sort(key=lambda r: (r["rakutan"]["overall"] is None,
                                     -(r["rakutan"]["overall"] or 0)))
