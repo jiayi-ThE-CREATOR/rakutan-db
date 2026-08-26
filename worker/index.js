@@ -575,9 +575,44 @@ async function handleFavorites(request, env) {
   });
 }
 
+/* ── 計測リンク（/l/<slug>） ──────────────────────────────
+ * 宣伝マニュアル §3。人ごと・チャネルごとに違う URL を配り、
+ * 「どのチャネルが効いたか」を Cloudflare Web Analytics で数える。
+ *
+ * 転送（302）はしない。転送するとアドレス欄が「/」に変わり、
+ * Analytics のページ別集計から slug が消えて数えられなくなるため
+ * （マニュアルにも明記）。/l/kasai のまま、中身はトップと同じものを返す。
+ * クエリ文字列（/?s=kasai）でも同じ理由で数えられない。
+ */
+const TRACKING_SLUGS = new Set([
+  "kasai", "shunya", "kimura", "wang",
+  "oc1", "oc2", "oc3", "oc4", "oc5",
+  "ig", "story", "dm-a", "dm-b", "x",
+]);
+
+async function handleTrackingLink(request, env, slug) {
+  if (!TRACKING_SLUGS.has(slug)) return null;
+  // トップページの中身をそのまま返す。アドレス欄は /l/<slug> のまま残る。
+  // ASSETS は /index.html を / へ 307 で寄せるので、リダイレクトは
+  // ここで解決して「本文」を取りに行く（そのまま返すとブラウザが / へ飛び、
+  // アドレス欄から slug が消えて数えられなくなる）。
+  const res = await env.ASSETS.fetch(new Request(new URL("/", request.url), request));
+  const headers = new Headers(res.headers);
+  // 同じ本文でも「別のURL」として数えたいので、キャッシュはさせない。
+  headers.set("cache-control", "no-store");
+  return new Response(res.body, { status: res.status, headers });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/l/")) {
+      const slug = url.pathname.slice(3);
+      const res = await handleTrackingLink(request, env, slug);
+      if (res) return res;
+      return new Response("not found", { status: 404 });
+    }
 
     if (url.pathname === "/line/webhook" && request.method === "POST") {
       return handleWebhook(request, env, ctx);
