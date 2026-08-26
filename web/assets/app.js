@@ -1289,13 +1289,23 @@ function applyPostMode() {
      嘘になっていた（final-review.md §3-④）。
      ただし共有リンクが明示した値には勝たせない。URL に ?year= や
      ?faculty= が既に付いているなら、それを送った側の意図のほうが
-     保存済みのプロフィールより優先される。 */
+     保存済みのプロフィールより優先される。
+
+     「キーが在るだけ」を明示扱いにしてはいけない。?year= のように
+     キーはあっても値が空だと urlYear は "" になり、queryLocal() の
+     +state.year は 0 になる。timetable.json に eligible_years が 0 の
+     科目は無いので一覧が黙って0件に落ち、しかも "" は YEARS のどの値
+     とも一致しないので年チップもどれも選択状態にならない ――
+     「絞り込んでいるように見えないまま0件」という一番タチの悪い形になる
+     （final-review.md 再レビュー指摘）。だから値が空でないことまで見る。 */
   {
     const urlParams = new URL(location.href).searchParams;
     const profile = rkStore.getProfile();
-    if (urlParams.has("faculty")) state.faculty = urlParams.get("faculty");
+    const urlFaculty = urlParams.get("faculty");
+    const urlYear = urlParams.get("year");
+    if (urlFaculty) state.faculty = urlFaculty;
     else if (profile.faculty) state.faculty = profile.faculty;
-    if (urlParams.has("year")) state.year = urlParams.get("year");
+    if (urlYear) state.year = urlYear;
     else if (profile.grade) state.year = profile.grade;
   }
 
