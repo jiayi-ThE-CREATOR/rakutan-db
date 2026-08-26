@@ -110,9 +110,17 @@ function renderExtra(){
 
 function onCell(slot){
   const tt = rkStore.getTimetable(term);
-  if (tt.slots[slot]){
-    /* 埋まっているマスは外す。確認は出さない ―― 1タップで戻せるので。 */
-    rkStore.clearSlot(term, slot);
+  const id = tt.slots[slot];
+  if (id){
+    /* 置くときは科目の全コマを埋める（putCourse）ので、外すときも対称に
+       全コマ外す。クリックしたマスだけ外すと、複数コマの科目
+       （金4・金5・金6 の実験など。timetable.json に528件ある）が
+       半分残ったまま「埋まっている」ように見えてしまう。
+       確認は出さない ―― 1タップで科目ごと戻せるので。 */
+    const c = BY_ID.get(id);
+    /* BY_ID に無い＝古いデータのまま残った id。せめてクリックしたマスは外す。 */
+    const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
+    for (const s of slots) rkStore.clearSlot(term, s);
     renderTimetable();
     return;
   }

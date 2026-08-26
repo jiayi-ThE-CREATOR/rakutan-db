@@ -74,6 +74,46 @@ await page.waitForSelector(".mpCell[data-slot='月2']");
 check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() !== "",
       "再読込で時間割が消えた");
 
+// ── 複数コマの科目は、外すときも全コマ対称に外れること ──────────
+// 137103（'【社会】心理学基礎実験'）は web/data/timetable.json で
+// slots:["金4","金5","金6"]・term_group:"aki" の実在の科目。
+const MULTI_ID = "137103";
+const MULTI_SLOTS = ["金4", "金5", "金6"];
+
+await page.click(".mpCell[data-slot='金4']");
+await page.waitForSelector("#mpPicker[open]");
+check(await page.locator(`#mpPicker .mpPick[data-id='${MULTI_ID}']`).count() === 1,
+      "137103 が 金4 の候補に出てこない（テストデータ側の前提が崩れている）");
+await page.click(`#mpPicker .mpPick[data-id='${MULTI_ID}']`);
+
+for (const s of MULTI_SLOTS){
+  check((await page.locator(`.mpCell[data-slot='${s}']`).textContent()).trim() !== "",
+        `複数コマ科目を置いたのに ${s} が空のまま`);
+}
+
+// クリックしたのは1コマだけ。外すときは科目ごと ―― 全コマ対称に外れるべき。
+await page.click(".mpCell[data-slot='金5']");
+for (const s of MULTI_SLOTS){
+  check((await page.locator(`.mpCell[data-slot='${s}']`).textContent()).trim() === "",
+        `${s} をクリックして外したのに ${s === "金5" ? "同じマス" : s + " が"} 埋まったまま（複数コマの片外れ）`);
+}
+
+tt = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(!Object.values(tt.aki.slots).includes(MULTI_ID),
+      "外したはずの複数コマ科目が aki.slots のどこかに残っている");
+
+// ── 単一コマの科目は、これまで通り1コマだけで置ける・外れること（回帰）──
+// 月2 は上のテストで pickedId（単一コマの科目）が入ったまま。
+check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() !== "",
+      "単一コマ科目の回帰確認の前提が崩れている（月2 が既に空）");
+await page.click(".mpCell[data-slot='月2']");
+check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() === "",
+      "単一コマ科目が1タップで外れない（回帰）");
+
+tt = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(!Object.values(tt.aki.slots).includes(pickedId),
+      "外したはずの単一コマ科目が aki.slots のどこかに残っている（回帰）");
+
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);
