@@ -3,7 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ラクハン — 阪大の全学教育科目をあなたの優先度で並べる</title>
+<title>ラクハン — 阪大 全学部の科目をあなたの優先度で並べる</title>
+<meta name="description" content="阪大 全学部の科目 7,877件の「重さ」を、シラバスの成績評価の内訳から試験・レポート・出席・規模の4軸で出します。登録もログインも不要。学生団体 GUILD が運営する非公認サービスです。">
+<meta property="og:title" content="ラクハン — 阪大 全学部の科目をあなたの優先度で並べる">
+<meta property="og:description" content="阪大 全学部の科目 7,877件の「重さ」を、シラバスの成績評価の内訳から試験・レポート・出席・規模の4軸で出します。登録もログインも不要。学生団体 GUILD が運営する非公認サービスです。">
+<meta property="og:url" content="https://rakuhan.nocode-sol.co.jp/">
+<!-- 正本のURL。同じ本文が別のURLでも配られているため必要:
+     旧ドメイン *.workers.dev / 計測リンク /l/<slug>（トップと同じ本文）/
+     絞り込みの付いたクエリ（?year=2&sem=haru…）。
+     canonical が無いと、どれが本物か Google が勝手に選ぶ。 -->
+<link rel="canonical" href="https://rakuhan.nocode-sol.co.jp/">
 <!-- ファビコンは「アプリアイコン適用形」＝ベタ地に白抜き。
      ロゴ本体はコンテナを持たない（ヘッダの lockup がロゴ本体）。 -->
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
@@ -14,6 +23,18 @@
      ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
+<!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
+     これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
+     大きく出る」が成立せず、ただの文字列リンクになる。
+     og:title / og:description / og:url はページごとに違うので各ページ側に置く。
+     ここに置くのは全ページで同じものだけ。 -->
+<meta property="og:site_name" content="ラクハン">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ja_JP">
+<meta property="og:image" content="https://rakuhan.nocode-sol.co.jp/assets/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <!--/SHELL:HEAD-->
 </head>
 <body><!--SHELL:HEADER-->
@@ -22,7 +43,7 @@
     <!-- マークが「ラ」の字形なので、読み上げは h1 側でまとめて与える。
          そうしないと「ラ」が絵として飛ばされ「クハン」だけが読まれる。 -->
     <a class="lockup" href="/">
-      <h1 aria-label="ラクハン ― 阪大 全学教育科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学教育科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/about" data-nav="about">About ラクハン</a><a href="/mypage" data-nav="mypage">マイページ</a><a href="/kuchikomi" data-nav="kuchikomi">口コミを書く</a></nav></div>
+      <h1 aria-label="ラクハン ― 阪大 全学部の科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学部の科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/ads" data-nav="ads">今後のステップ</a><a href="/about" data-nav="about">About ラクハン</a><a href="/mypage" data-nav="mypage">マイページ</a><a href="/kuchikomi" data-nav="kuchikomi">口コミを書く</a></nav></div>
 </header>
 <!--/SHELL:HEADER-->
 
@@ -41,7 +62,7 @@
 
 <section class="hero">
   <h2 class="heroT">その科目、どれくらい手間がかかるか。</h2>
-  <p class="heroP">阪大の全学教育科目・語学・学部の専門科目 7,877件を、試験・レポート・出席・規模の4軸で。登録もログインも要りません。</p>
+  <p class="heroP"><span>阪大 全学部の科目 7,877件を、試験・レポート・出席・規模の4軸で。</span><span>登録もログインもしなくていい。</span></p>
   <div class="heroActions">
     <a class="heroCta" href="#workbench">科目をさがす</a>
     <a class="heroSub" href="/about">ラクハンと GUILD について →</a>
@@ -67,8 +88,8 @@
       <section>
         <h2>あなたの優先度</h2>
         <div class="chips" id="presets"></div>
-        <button class="toggle" id="tog">スライダーで細かく調整する</button>
-        <div class="sliders" id="sliders"></div>
+        <button class="toggle" id="tog">スライダーを閉じる</button>
+        <div class="sliders open" id="sliders"></div>
       </section>
 
       <section>
@@ -166,6 +187,11 @@
   </form>
 </dialog>
 <script src="/assets/feedback.js" defer></script>
+<!-- Cloudflare Web Analytics。宣伝マニュアル §3・§8 の数字はここから取る。
+     /l/<slug> はページ別の集計に slug のまま出るので、チャネルごとの
+     効き目が比較できる（だから /l/ は転送していない）。
+     Cookie を置かず、個人を特定する情報も送らない。 -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "b0324782e4e44ca58b45e4dd0c270112"}'></script>
 <!--/SHELL:FOOTER-->
 </div>
 

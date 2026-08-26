@@ -88,12 +88,44 @@ def _norm(s: str) -> str:
 # 学生が実際に使う言葉での絞り込み条件。
 # 「検索窓に何を打てばいいか分からない」学生のための入口なので、
 # シラバス用語ではなく結果で書く。
+def _eval_known(c: dict) -> bool:
+    """成績評価の内訳が「最後まで分かっている」科目か。
+
+    eval_unclassified が残っている＝ scrape/parse.py が振り分けられなかった
+    項目がある、ということ。**その残りに出席や試験が隠れている可能性がある**ので、
+    「出席なし」「レポートのみ」を名乗らせない（411件が該当）。
+    内訳そのものが取れていない152件も同じ理由で外す。
+    """
+    return bool(c.get("eval_ratio")) and not c.get("eval_unclassified")
+
+
+# 2026-08-26: 「出席なし」「レポートのみ」「集中講義」の3つは、全7,877件に対して
+# **常に0件**だった。原因は判定のほうにあり、データは正しかった。
+#
+#   出席なし・レポートのみ … scrape/parse.py:152 が
+#       `{k: v for k, v in buckets.items() if v > 0}`
+#     で **0% の項目をキーごと落としている**。つまり `attendance == 0` や
+#     `exam == 0` は構造上ありえない。0% は「キーが無い」として表れる。
+#   集中講義 … class_format の実値は 演習科目/講義科目/実習科目/実験科目 の4種で、
+#     "集中講義" という値は存在しない。集中講義は KOAN の開講区分（term）が
+#     「集中」になっている（191件）。day_period が「他」の1,060件は
+#     "曜限が決まっていない" であって集中講義とは別物（通年305・秋冬210 を含む）。
 CONDITIONS = {
-    "出席なし":     lambda c: (c.get("eval_ratio") or {}).get("attendance") == 0,
-    "レポートのみ": lambda c: (c.get("eval_ratio") or {}).get("exam") == 0,
+    # 出席・平常点が評価に入らない科目。毎回の小テストも「毎週の拘束」なので外す
+    # （score.py の出席軸が weekly_quiz を出席側の負担として足しているのと揃える）。
+    "出席なし":     lambda c: (_eval_known(c)
+                               and not c["eval_ratio"].get("attendance")
+                               and not c.get("weekly_quiz")),
+    # レポートだけで成績が付く科目。試験も出席も内訳に無いこと。
+    # いまのデータでは 482件すべてが report 100% で、
+    # 「レポートが唯一の項目」＝「レポート100%」が一致している。
+    "レポートのみ": lambda c: (_eval_known(c)
+                               and (c["eval_ratio"].get("report") or 0) > 0
+                               and not c["eval_ratio"].get("exam")
+                               and not c["eval_ratio"].get("attendance")),
     "持ち込み可":   lambda c: c.get("exam_type") == "持込可",
     "1限以外":      lambda c: not (c.get("day_period") or "").endswith("1"),
-    "集中講義":     lambda c: c.get("class_format") == "集中講義",
+    "集中講義":     lambda c: c.get("term") == "集中",
     "小テストなし": lambda c: c.get("weekly_quiz") is False,
     # 口コミが1件でも入っている科目。KOAN から取れない5つ（定員／レポート本数／
     # 字数／時間外学習／毎回小テスト）が埋まっているのはこの科目だけなので、
@@ -203,7 +235,11 @@ def search(params: dict) -> dict:
 
     sort = get("sort") or "fit"
     if sort == "fit":
-        results.sort(key=lambda r: (r["match"]["fit"] is None, -(r["match"]["fit"] or 0)))
+        # 第1キーは「テストの難しさが確認できているか」。理由は build.py の
+        # preset_top と同じ。app.js の byFit も同じ順序にすること。
+        results.sort(key=lambda r: (bool(r["rakutan"].get("needs_review")),
+                                    r["match"]["fit"] is None,
+                                    -(r["match"]["fit"] or 0)))
     elif sort == "rakutan":
         results.sort(key=lambda r: (r["rakutan"]["overall"] is None,
                                     -(r["rakutan"]["overall"] or 0)))

@@ -24,7 +24,10 @@ data/reviews.json
 .env
 .dev.vars
 *.local.json
-node_modules/
+# 末尾のスラッシュを付けない。付けるとディレクトリにしか当たらず、
+# worktree で本体から張った symlink（`ln -s ../rakutan-db/node_modules .`）が
+# `git add -A` ですり抜けて commit に混ざる（2026-08-26 に実際に混ざった）。
+node_modules
 shots/
 
 # wrangler のローカル実行状態（キャッシュ・ローカルD1など）

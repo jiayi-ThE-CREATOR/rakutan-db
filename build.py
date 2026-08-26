@@ -30,7 +30,7 @@ from pathlib import Path
 
 import reviews
 import score as scoring
-from tools import engineering, faculty as faculty_mod, foreign_studies
+from tools import engineering, faculty as faculty_mod, foreign_studies, senmon
 from tools.division import JP_ONLY_TITLES, divide, track
 
 ROOT = Path(__file__).parent
@@ -81,7 +81,7 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "eval_ratio", "eval_raw", "eval_unclassified",
         "exam_type", "report_count", "report_words",
         "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years",
-        "reviews"]
+        "reviews", "shozoku_cd"]
 
 
 def term_group(term: str | None) -> str:
@@ -224,6 +224,58 @@ def inject_shell(page: Path, parts: dict[str, str]) -> bool:
     return False
 
 
+def preset_key(course: dict, weights: dict):
+    """おすすめ順の並び順。**ここが正本。**
+
+    🚨 第1キーは「テストの難しさが確認できているか」（needs_review）。相性はその次。
+    相性だけで並べると、一番目立つ場所に「誰も難しさを確かめていない一発試験の
+    科目」が来る ―― 検証していないから薦めている状態になる（2026-08-26 実測：
+    おすすめ上位371件が全部それだった。検証ずみは556件ある）。
+
+    server.py の search() と web/assets/app.js の byFit も同じ順序にすること。
+    片方だけ直すと API モードと静的モードで並びがズレる。
+    """
+    return (bool(course["rakutan"].get("needs_review")),
+            -scoring.match(course["rakutan"], weights)["fit"])
+
+
+def rank_presets(built: list[dict]) -> dict[str, dict[str, list[str]]]:
+    """学年 × プリセットごとの上位100件。LINE側はこれを読むだけで済む。
+
+    1年生が履修できない科目を上位に出すと、選べない科目を薦めることになるので
+    学年ごとに焼く。サイトの既定が1年なので、LINE も既定は "1" を読めばよい。
+    """
+    presets: dict[str, dict[str, list[str]]] = {}
+    for year in (1, 2, 3, 4, 5, 6):   # 医・歯学部は6年制
+        pool = [c for c in built
+                if c["rakutan"]["overall"] is not None
+                and year in (c.get("eligible_years") or [])]
+        for name, weights in scoring.PRESETS.items():
+            ranked = sorted(pool, key=lambda c: preset_key(c, weights))
+            presets.setdefault(str(year), {})[name] = [c["id"] for c in ranked[:100]]
+    return presets
+
+
+def represet(out: Path) -> None:
+    """焼き済みの courses.built.json の preset_top だけ組み直す。
+
+    生データ（data/courses.json 全所属ぶん）を持っていない人でも、並び順の
+    修正を本番へ出せるようにするための経路。**科目の中身には触らない** ――
+    読むのも書くのも既存の built ファイルで、順位のロジックは rank_presets()、
+    つまり通常のビルドと同じ1か所を使う。
+    """
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    before = payload.get("preset_top") or {}
+    payload["preset_top"] = rank_presets(payload["courses"])
+    out.write_text(json.dumps(payload, ensure_ascii=False,
+                              separators=(",", ":")), encoding="utf-8")
+    moved = sum(1 for y, ps in payload["preset_top"].items()
+                for n, ids in ps.items()
+                if ids != (before.get(y) or {}).get(n))
+    print(f"→ {out}  preset_top を組み直しました"
+          f"（学年×プリセット {moved} 通りで順位が変わりました）")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--full", action="store_true",
@@ -235,7 +287,14 @@ def main() -> None:
                     help="いまの built.json より科目が減っても上書きする（既定では止める）")
     ap.add_argument("--out-reviews", default=str(OUT_REVIEWS))
     ap.add_argument("--out-timetable", default=str(OUT_TIMETABLE))
+    ap.add_argument("--represet", action="store_true",
+                    help="焼き済みの courses.built.json の preset_top だけ組み直す"
+                         "（全所属ぶんの生データを持っていない人が並び順を直すとき）")
     args = ap.parse_args()
+
+    if args.represet:
+        represet(Path(args.out))
+        return
 
     raw = json.loads(SRC.read_text(encoding="utf-8"))
     courses = raw["courses"]
@@ -290,22 +349,18 @@ def main() -> None:
         base["division"], base["division_source"] = divide(c)
         # 学部の中でさらに絞る軸（外国語学部の専攻語・工学部の学科）。
         # 区分ではないので chip にはしない ―― 画面では学部セレクタの下に出る。
-        base["track"] = track(c)
+        # 元データ側にも書き戻す。時間割の投影（timetable_rows）は built では
+        # なく courses を見るので、書き戻さないと timetable.json の track が
+        # 丸ごと null になり、口コミ画面の学科・専攻語の絞り込みが黙って死ぬ
+        # （2026-08-26 まで実際にそうなっていた。手で当て直していたぶんが
+        #  0b17580 の焼き直しで消えて気付いた）。
+        base["track"] = c["track"] = track(c)
         built.append(base)
 
     # プリセット4つ分の順位を焼いておくと、LINE側は採点ロジックを持たずに済む。
     # 学年ごとに焼く。サイトの既定が1年なので、LINE も既定は "1" を読めばよい。
     # 1年生が履修できない科目を上位に出すと、選べない科目を薦めることになる。
-    presets: dict[str, dict[str, list[str]]] = {}
-    for year in (1, 2, 3, 4, 5, 6):   # 医・歯学部は6年制
-        pool = [c for c in built
-                if c["rakutan"]["overall"] is not None
-                and year in (c.get("eligible_years") or [])]
-        for name, weights in scoring.PRESETS.items():
-            ranked = sorted(
-                pool, key=lambda c: scoring.match(c["rakutan"], weights)["fit"],
-                reverse=True)
-            presets.setdefault(str(year), {})[name] = [c["id"] for c in ranked[:100]]
+    presets = rank_presets(built)
 
     judged = sum(1 for c in built if c["rakutan"]["overall"] is not None)
     payload = {
@@ -411,6 +466,7 @@ def main() -> None:
         # 作り直すファイルなので、あちらへ直接書くと次のスクレイプで消える。
         req = foreign_studies.apply_to_requirements(req)
         req = engineering.apply_to_requirements(req)
+        req = senmon.apply_to_requirements(req)
         req_dest = ROOT / "web" / "data" / "requirements.json"
         req_dest.write_text(json.dumps(req, ensure_ascii=False, indent=1),
                             encoding="utf-8")

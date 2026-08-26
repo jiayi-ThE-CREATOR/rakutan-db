@@ -184,6 +184,27 @@ function divisionPlan(){
   };
 }
 
+/* いま選んでいる学部の画面に出ていない区分の選択を捨てる。
+
+   学部だけの区分（only 付き）は、学部を変えると chip が画面から消える。
+   選択だけ state に残ると、**押していない条件が見えないまま効き続ける**
+   ―― 経済学部で「必修科目」を選び、理学部へ移ると、理学部の画面なのに
+   経済学部の必修45件だけが出る。押した覚えのない絞り込みは、原因が
+   画面から読めないぶん「壊れている」と読まれる。
+
+   共通の区分（only の無いもの）は捨てない。あれはどの学部でも同じ意味で、
+   学部は「どの区分が自分に必要か」を並べ替えるためだけの軸だから
+   （学部を外しても情報教育科目の選択は残るのが正しい）。
+
+   load() の0件で捨てる処理では間に合わない ―― division_facets は
+   区分で絞る**前**に数えているので、他学部の区分も件数を持っている。 */
+function dropForeignDivisions(){
+  for (const k of [...state.division]){
+    const d = ((REQ && REQ.divisions) || []).find(x => x.key === k);
+    if (d && d.only && !isOwnDivision(d)) state.division.delete(k);
+  }
+}
+
 function divisionChip(d, facets){
   const n = facets?.[d.key] ?? 0;
   const on = state.division.has(d.key);
@@ -227,10 +248,13 @@ function buildFaculty(facets){
     $("#facSel").innerHTML = `<option value="">学部を選ぶ</option>`
       + ((REQ.faculties || []).map(f =>
           `<option value="${esc(f.key)}">${esc(f.label)}</option>`).join(""));
-    // 学部を変えたらトラックは必ず捨てる。学部をまたいで残すと
-    // 「ドイツ語専攻のまま工学部」のような、存在しない絞り込みになる。
+    // 学部を変えたらトラックと「その学部だけの区分」は必ず捨てる。
+    // 学部をまたいで残すと「ドイツ語専攻のまま工学部」のような、
+    // 存在しない絞り込みになる。
     $("#facSel").onchange = e => {
-      state.faculty = e.target.value; state.track = ""; load();
+      state.faculty = e.target.value; state.track = "";
+      dropForeignDivisions();
+      load();
     };
     $("#trackSel").onchange = e => { state.track = e.target.value; load(); };
     $("#divTog").onclick = () => {
@@ -470,7 +494,11 @@ function card(c){
    j_s_cd=13 固定＝共通教育科目。
    実装は松下さん（PR #23）。作り直しで構造が変わったので、
    同じものを app.js へ移した（2026-08-24）。 */
-const koanUrl = id => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+// j_s_cd（所属コード）は科目ごとに違う（全学教育推進機構は13だが他学部は別値）。
+// courses.built.json の shozoku_cd を使う。無ければ13にフォールバック
+// （2026-08-26以前にビルドされた古いデータ・shozoku_cd未収集の科目向け。
+// その場合、全学教育推進機構以外の科目はリンクが無効になりうる）。
+const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=${encodeURIComponent(c.shozoku_cd || "13")}&j_cd=${encodeURIComponent(c.id)}&langkbn=j`;
 
 /* ── 口コミの中身 ─────────────────────
    数字だけ出しても「なぜ楽なのか」は伝わらない。件数・内訳・一言をまとめて出す。
@@ -543,7 +571,7 @@ function detailHtml(c){
       </div>
       ${reviewHtml(c)}
       ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
-      <a class="koanLink" href="${esc(koanUrl(c.id))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
+      <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
       <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.isFavorite(c.id)}"
               aria-label="お気に入り：${esc(c.title)}">${rkStore.isFavorite(c.id) ? "★" : "☆"}</button>`;
@@ -560,7 +588,7 @@ function detailHtml(c){
 let reviewsCache = null;
 async function fetchReviewsData(){
   if (reviewsCache) return reviewsCache;
-  reviewsCache = await (await fetch("data/reviews.built.json")).json();
+  reviewsCache = await (await fetch("/data/reviews.built.json")).json();
   return reviewsCache;
 }
 
@@ -617,12 +645,37 @@ const norm = s => String(s || "").replace(/[\s　]+/g, "").toLowerCase();
 const reviewCount = c => ((c.reviews || {}).n) || 0;
 
 /* server.py の CONDITIONS と同じ内容。片方だけ足さないこと。 */
+/* 成績評価の内訳が「最後まで分かっている」科目か。
+   eval_unclassified が残っている＝ scrape/parse.py が振り分けられなかった項目が
+   あるということ。**その残りに出席や試験が隠れている可能性がある**ので、
+   「出席なし」「レポートのみ」を名乗らせない（411件が該当）。
+   内訳そのものが取れていない152件も同じ理由で外す。 */
+const evalKnown = c => !!c.eval_ratio && !c.eval_unclassified;
+
+/* 2026-08-26: 「出席なし」「レポートのみ」「集中講義」の3つは、全7,877件に対して
+   **常に0件**だった。原因は判定のほうにあり、データは正しかった。
+
+     出席なし・レポートのみ … scrape/parse.py:152 が
+         `{k: v for k, v in buckets.items() if v > 0}`
+       で **0% の項目をキーごと落としている**。つまり `attendance === 0` や
+       `exam === 0` は構造上ありえない。0% は「キーが無い」として表れる。
+     集中講義 … class_format の実値は 演習科目/講義科目/実習科目/実験科目 の4種で、
+       "集中講義" という値は存在しない。集中講義は KOAN の開講区分（term）が
+       「集中」になっている（191件）。day_period が「他」の1,060件は
+       "曜限が決まっていない" であって集中講義とは別物（通年305・秋冬210 を含む）。
+
+   server.py の CONDITIONS と同じ内容。片方だけ足さない・直さないこと。 */
 const CONDITIONS = {
-  "出席なし":     c => (c.eval_ratio || {}).attendance === 0,
-  "レポートのみ": c => (c.eval_ratio || {}).exam === 0,
+  // 出席・平常点が評価に入らない科目。毎回の小テストも「毎週の拘束」なので外す
+  // （score.py の出席軸が weekly_quiz を出席側の負担として足しているのと揃える）。
+  "出席なし":     c => evalKnown(c) && !c.eval_ratio.attendance && !c.weekly_quiz,
+  // レポートだけで成績が付く科目。試験も出席も内訳に無いこと。
+  // いまのデータでは 482件すべてが report 100%。
+  "レポートのみ": c => evalKnown(c) && (c.eval_ratio.report || 0) > 0
+                       && !c.eval_ratio.exam && !c.eval_ratio.attendance,
   "持ち込み可":   c => c.exam_type === "持込可",
   "1限以外":      c => !/1$/.test(c.day_period || ""),
-  "集中講義":     c => c.class_format === "集中講義",
+  "集中講義":     c => c.term === "集中",
   "小テストなし": c => c.weekly_quiz === false,
   "口コミあり":   c => ((c.reviews || {}).n || 0) > 0,
 };
@@ -705,7 +758,14 @@ function queryLocal(){
   const nul = v => v === null || v === undefined;
   /* 相性順。同点や未算出のときの並びをここで1回決め、他の並び替えの
      第2キーとしても使う（同じ件数の科目が毎回違う順に出ないように）。 */
-  const byFit = (a,b) => (nul(a.match.fit) - nul(b.match.fit))
+  /* 🚨 第1キーは「テストの難しさが確認できているか」（needs_review）。
+     相性だけで並べると、一番目立つ場所に「誰も難しさを確かめていない
+     一発試験の科目」が来る ―― 検証していないから薦めている状態になる
+     （2026-08-26 実測：おすすめ上位371件が全部それだった）。
+     build.py の preset_top と server.py の search() も同じ順序。 */
+  const unverified = c => (c.rakutan && c.rakutan.needs_review) ? 1 : 0;
+  const byFit = (a,b) => (unverified(a) - unverified(b))
+                      || (nul(a.match.fit) - nul(b.match.fit))
                       || ((b.match.fit||0) - (a.match.fit||0));
 
   if (state.sort === "rakutan")
@@ -735,7 +795,7 @@ function queryLocal(){
   else if (state.sort === "title")
     results.sort((a,b) => a.title.localeCompare(b.title, "ja"));
   else
-    results.sort(byFit);
+    results.sort(byFit);   /* おすすめ順（既定）＝検証ずみ → 相性 */
 
   return { count: results.length, results, slots, facets, weights: w,
            division_facets: divisionFacets };
@@ -754,10 +814,14 @@ async function boot(){
   } catch (e) { /* 静的配信では届かない。想定内。 */ }
 
   DATA.mode = "static";
-  const d = await (await fetch("data/courses.built.json")).json();
+  // データは必ず絶対パスで取る。計測リンク /l/<slug> は転送せずトップの本文を
+  // そのまま返すので、相対パスだと基準URLが「/l/」になり /l/data/… を叩いて
+  // 404 になる（Worker は /l/ 配下を slug としてしか見ない）。宣伝で配った
+  // 14本のリンクから開いた人だけ一覧が「読み込み中…」で止まった原因がこれ。
+  const d = await (await fetch("/data/courses.built.json")).json();
   DATA.courses = d.courses;
   // 要件表が無くても他は全部動く。学部のセクションが出ないだけ。
-  try { REQ = await (await fetch("data/requirements.json")).json(); }
+  try { REQ = await (await fetch("/data/requirements.json")).json(); }
   catch (e) { REQ = null; }
   const m = d._meta;
   META = {

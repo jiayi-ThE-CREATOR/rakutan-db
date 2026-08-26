@@ -23,6 +23,12 @@
   --on-dark-faint:rgba(255,255,255,.52);  /* 5.53:1。AI Community はここが一番弱い、が意図 */
   --on-dark-line:rgba(255,255,255,.34);  /* .28 だと 2.53:1 で図形の基準に届かない */
 
+  /* 濃色帯の中の「もう一段の帯」（狭い画面のナビ）。面と罫であって文字ではないので
+     コントラストの対象外。地の --brand-ground との差が小さいのは意図で、
+     ロゴの帯と切れて見えれば足りる。強くすると2本目のヘッダに見える。 */
+  --on-dark-band:rgba(255,255,255,.06);
+  --on-dark-band-line:rgba(255,255,255,.14);
+
   /* 影とスクリム。文字ではないのでコントラストの対象外。 */
   --shadow-card:rgba(0,0,0,.16);
   --shadow-fab:rgba(0,0,0,.22);
@@ -35,6 +41,11 @@
      明地ではコントラストが足りないので、小さい文字には使わない。
      面（塗り）と図形の線にだけ使うこと。 */
   --brand:#DB6209;
+
+  /* 外部サービスの公式色。ブランド色ではないので --brand とは分けて置く。
+     app.css に直書きすると test_tokens が落ちる（裸の hex を禁じている）。 */
+  --sns-ig-a:#F9CE34; --sns-ig-b:#EE2A7B; --sns-ig-c:#6228D7;
+  --sns-x:#0b0b0b; --sns-line:#06C755;
 
   /* オレンジの面に載せる文字は「白ではなく黒」。
      2026-08-22 実測：
@@ -99,6 +110,9 @@
   --body:"Hiragino Sans","ヒラギノ角ゴシック",system-ui,sans-serif;
   --data:"Helvetica Neue",Helvetica,Arial,sans-serif;
   --fs-xs:11.5px; --fs-sm:13px; --fs-base:15px; --fs-lg:17px;
+  /* ヘッダのロゴ以外の文字（阪大 全学部の科目 / Designed by GUILD /
+     AI COMMUNITY / ナビ）を1つの大きさに揃えるための1本。 */
+  --fs-hdr-sub:14px;
   --fs-h2:17px; --fs-hero:clamp(28px,4.2vw,44px);
 
   /* ── 余白（4px グリッド）─────────────── */
@@ -113,6 +127,11 @@
   --dur-fast:120ms; --dur:200ms; --dur-slow:320ms; --dur-brand:1400ms;
   --ease-out:cubic-bezier(.2,.8,.2,1);
   --ease-brand:cubic-bezier(.65,0,.35,1);
+}
+
+/* 狭い画面ではヘッダの添え書き類も一段落とす（ロゴ本体は app.css 側）。 */
+@media (max-width:639px){
+  :root{ --fs-hdr-sub:13px; }
 }
 
 @media (prefers-color-scheme: dark){

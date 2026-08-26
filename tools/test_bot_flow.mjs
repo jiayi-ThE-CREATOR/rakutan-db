@@ -37,12 +37,12 @@ check(labels(f).length <= 13, "quick reply の上限13を超えている");
 
 // 学年 → 学部 → 優先度 の順で進むこと
 const r1 = mod.handlePostback(null, "action=grade&grade=2", "https://example.test");
-check(r1.message && labels(r1.message).includes("法学部"),
+check(r1 && labels(r1).includes("法学部"),
       "学年のあとに学部を聞いていない");
 const r2 = mod.handlePostback(null, "action=faculty&grade=2&fac=law", "https://example.test");
-check(r2.message && labels(r2.message).includes("GPA重視"),
+check(r2 && labels(r2).includes("GPA重視"),
       "学部のあとに優先度を聞いていない");
-check(JSON.stringify(r2.message).includes("fac=law"),
+check(JSON.stringify(r2).includes("fac=law"),
       "学部が次の postback に引き継がれていない");
 
 /* worker/index.js の FACULTIES は表示用の写し。正本は requirements.json。

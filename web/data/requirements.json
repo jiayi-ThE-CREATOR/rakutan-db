@@ -201,6 +201,190 @@
    "only": [
     "engineering"
    ]
+  },
+  {
+   "key": "letters_hisshu",
+   "label": "必修科目",
+   "group": "文学部",
+   "only": [
+    "letters"
+   ]
+  },
+  {
+   "key": "letters_senko",
+   "label": "専攻科目",
+   "group": "文学部",
+   "only": [
+    "letters"
+   ]
+  },
+  {
+   "key": "human_sci_hisshu",
+   "label": "必修科目",
+   "group": "人間科学部",
+   "only": [
+    "human-sci"
+   ]
+  },
+  {
+   "key": "human_sci_senhitsu",
+   "label": "選択必修科目",
+   "group": "人間科学部",
+   "only": [
+    "human-sci"
+   ]
+  },
+  {
+   "key": "human_sci_senko",
+   "label": "専攻科目",
+   "group": "人間科学部",
+   "only": [
+    "human-sci"
+   ]
+  },
+  {
+   "key": "law_hisshu",
+   "label": "必修科目",
+   "group": "法学部",
+   "only": [
+    "law"
+   ]
+  },
+  {
+   "key": "law_senhitsu",
+   "label": "選択必修科目",
+   "group": "法学部",
+   "only": [
+    "law"
+   ]
+  },
+  {
+   "key": "law_senko",
+   "label": "専攻科目",
+   "group": "法学部",
+   "only": [
+    "law"
+   ]
+  },
+  {
+   "key": "economics_hisshu",
+   "label": "必修科目",
+   "group": "経済学部",
+   "only": [
+    "economics"
+   ]
+  },
+  {
+   "key": "economics_senhitsu",
+   "label": "選択必修科目",
+   "group": "経済学部",
+   "only": [
+    "economics"
+   ]
+  },
+  {
+   "key": "economics_senko",
+   "label": "専攻科目",
+   "group": "経済学部",
+   "only": [
+    "economics"
+   ]
+  },
+  {
+   "key": "science_hisshu",
+   "label": "必修科目",
+   "group": "理学部",
+   "only": [
+    "science"
+   ]
+  },
+  {
+   "key": "science_senhitsu",
+   "label": "選択必修科目",
+   "group": "理学部",
+   "only": [
+    "science"
+   ]
+  },
+  {
+   "key": "science_senko",
+   "label": "専攻科目",
+   "group": "理学部",
+   "only": [
+    "science"
+   ]
+  },
+  {
+   "key": "medicine_hisshu",
+   "label": "必修科目",
+   "group": "医学部",
+   "only": [
+    "medicine"
+   ]
+  },
+  {
+   "key": "medicine_senko",
+   "label": "専攻科目",
+   "group": "医学部",
+   "only": [
+    "medicine"
+   ]
+  },
+  {
+   "key": "dentistry_hisshu",
+   "label": "必修科目",
+   "group": "歯学部",
+   "only": [
+    "dentistry"
+   ]
+  },
+  {
+   "key": "dentistry_senko",
+   "label": "専攻科目",
+   "group": "歯学部",
+   "only": [
+    "dentistry"
+   ]
+  },
+  {
+   "key": "pharmacy_hisshu",
+   "label": "必修科目",
+   "group": "薬学部",
+   "only": [
+    "pharmacy"
+   ]
+  },
+  {
+   "key": "pharmacy_senko",
+   "label": "専攻科目",
+   "group": "薬学部",
+   "only": [
+    "pharmacy"
+   ]
+  },
+  {
+   "key": "engr_sci_hisshu",
+   "label": "必修科目",
+   "group": "基礎工学部",
+   "only": [
+    "engr-sci"
+   ]
+  },
+  {
+   "key": "engr_sci_senhitsu",
+   "label": "選択必修科目",
+   "group": "基礎工学部",
+   "only": [
+    "engr-sci"
+   ]
+  },
+  {
+   "key": "engr_sci_senko",
+   "label": "専攻科目",
+   "group": "基礎工学部",
+   "only": [
+    "engr-sci"
+   ]
   }
  ],
  "faculties": [
@@ -319,11 +503,31 @@
      "values": [
       "8"
      ]
+    },
+    {
+     "divisions": [
+      "letters_hisshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学文学部規程 履修規程第3条 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000151.html"
+    },
+    {
+     "divisions": [
+      "letters_senko"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学文学部規程 履修規程第3条 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000151.html"
     }
    ],
    "notes": [
     "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
-    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
+    "文学部の規程には科目の別表がありません。必修は本文が名指しする「文学部共通概説」「卒業論文」だけです。所属する専修ごとの必修28単位は、どの専修に入るかで変わるため科目の側では分けていません。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
    ]
   },
   {
@@ -441,11 +645,39 @@
      "values": [
       "4"
      ]
+    },
+    {
+     "divisions": [
+      "human_sci_hisshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学人間科学部規程 別表3 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000156.html"
+    },
+    {
+     "divisions": [
+      "human_sci_senhitsu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学人間科学部規程 別表3 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000156.html"
+    },
+    {
+     "divisions": [
+      "human_sci_senko"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学人間科学部規程 別表3 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000156.html"
     }
    ],
    "notes": [
     "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
-    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
    ]
   },
   {
@@ -563,12 +795,52 @@
      "values": [
       "4"
      ]
+    },
+    {
+     "divisions": [
+      "law_hisshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学法学部規程 別表2―1・2―2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000164.html"
+    },
+    {
+     "divisions": [
+      "law_senhitsu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学法学部規程 別表2―1・2―2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000164.html"
+    },
+    {
+     "divisions": [
+      "law_senko"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学法学部規程 別表2―1・2―2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000164.html"
     }
    ],
    "notes": [
     "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
-    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
-   ]
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
+   ],
+   "tracks": [
+    {
+     "key": "law_dept:law",
+     "label": "法学科"
+    },
+    {
+     "key": "law_dept:inpp",
+     "label": "国際公共政策学科"
+    }
+   ],
+   "tracks_label": "学科を選ぶ",
+   "tracks_source": "大阪大学法学部規程 別表2―1・2―2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000164.html"
   },
   {
    "key": "economics",
@@ -685,11 +957,39 @@
      "values": [
       "4"
      ]
+    },
+    {
+     "divisions": [
+      "economics_hisshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学経済学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000169.html"
+    },
+    {
+     "divisions": [
+      "economics_senhitsu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学経済学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000169.html"
+    },
+    {
+     "divisions": [
+      "economics_senko"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学経済学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000169.html"
     }
    ],
    "notes": [
     "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
-    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。"
+    "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
    ]
   },
   {
@@ -1192,13 +1492,70 @@
       "2",
       "2"
      ]
+    },
+    {
+     "divisions": [
+      "science_hisshu"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学理学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000174.html"
+    },
+    {
+     "divisions": [
+      "science_senhitsu"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学理学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000174.html"
+    },
+    {
+     "divisions": [
+      "science_senko"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学理学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000174.html"
     }
    ],
    "notes": [
     "＊アドヴァンスト・セミナーの修得単位の取り扱いは、各学部発行の便覧等にて確認してください。",
     "＊高度教養教育科目は、全学共通教育科目のほか、各学部においても開講されています。必要科目・単位数は各学部発行の便覧等にて確認してください。",
-    "注１：「自然科学系」科目は、卒業要件外とする"
-   ]
+    "注１：「自然科学系」科目は、卒業要件外とする",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
+   ],
+   "tracks": [
+    {
+     "key": "science_dept:math",
+     "label": "数学科"
+    },
+    {
+     "key": "science_dept:phys",
+     "label": "物理学科"
+    },
+    {
+     "key": "science_dept:chem",
+     "label": "化学科"
+    },
+    {
+     "key": "science_dept:bisc",
+     "label": "生物科学科"
+    }
+   ],
+   "tracks_label": "学科を選ぶ",
+   "tracks_source": "大阪大学理学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000174.html"
   },
   {
    "key": "medicine",
@@ -1349,12 +1706,57 @@
       "4",
       "4"
      ]
+    },
+    {
+     "divisions": [
+      "medicine_hisshu"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学医学部規程 別表2―2・別表4 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000183.html"
+    },
+    {
+     "divisions": [
+      "medicine_senko"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学医学部規程 別表2―2・別表4 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000183.html"
     }
    ],
    "notes": [
     "＊「自然科学系科目」から4単位以上を履修し、計8単位を修得すること。",
-    "＊「基盤教養教育科目」から4単位以上を履修し、計6単位を修得すること。"
-   ]
+    "＊「基盤教養教育科目」から4単位以上を履修し、計6単位を修得すること。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
+   ],
+   "tracks": [
+    {
+     "key": "medicine_dept:medi",
+     "label": "医学科"
+    },
+    {
+     "key": "medicine_dept:nurs",
+     "label": "保健学科看護学専攻"
+    },
+    {
+     "key": "medicine_dept:mepe",
+     "label": "保健学科放射線技術科学専攻"
+    },
+    {
+     "key": "medicine_dept:lasc",
+     "label": "保健学科検査技術科学専攻"
+    }
+   ],
+   "tracks_label": "学科・専攻を選ぶ",
+   "tracks_source": "大阪大学医学部規程 別表2―2・別表4 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000183.html"
   },
   {
    "key": "dentistry",
@@ -1464,10 +1866,29 @@
      "values": [
       "6"
      ]
+    },
+    {
+     "divisions": [
+      "dentistry_hisshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学歯学部規程 別表第2―2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000203.html"
+    },
+    {
+     "divisions": [
+      "dentistry_senko"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学歯学部規程 別表第2―2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000203.html"
     }
    ],
    "notes": [
-    "＊「人文科学系科目」及び「社会科学系科目」からそれぞれ2単位以上を履修し、計10単位を修得すること。"
+    "＊「人文科学系科目」及び「社会科学系科目」からそれぞれ2単位以上を履修し、計10単位を修得すること。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
    ]
   },
   {
@@ -1578,9 +1999,30 @@
      "values": [
       "6"
      ]
+    },
+    {
+     "divisions": [
+      "pharmacy_hisshu"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学薬学部規程 別表第2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000213.html"
+    },
+    {
+     "divisions": [
+      "pharmacy_senko"
+     ],
+     "values": [
+      "○"
+     ],
+     "source": "大阪大学薬学部規程 別表第2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000213.html"
     }
    ],
-   "notes": []
+   "notes": [
+    "3つのコース（先進研究・Pharm.D・薬学研究）で指示が揃っている科目だけを必修にしています。コースによって扱いが変わる科目は専攻科目に入れています。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
+   ]
   },
   {
    "key": "engineering",
@@ -1937,11 +2379,68 @@
       "2",
       "2"
      ]
+    },
+    {
+     "divisions": [
+      "engr_sci_hisshu"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学基礎工学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000230.html"
+    },
+    {
+     "divisions": [
+      "engr_sci_senhitsu"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学基礎工学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000230.html"
+    },
+    {
+     "divisions": [
+      "engr_sci_senko"
+     ],
+     "values": [
+      "○",
+      "○",
+      "○",
+      "○"
+     ],
+     "source": "大阪大学基礎工学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000230.html"
     }
    ],
    "notes": [
-    "＊高度教養教育科目は、基礎工学部開講科目にて２単位修得してください。全学共通教育科目の高度教養教育科目を修得した場合は、高度教養教育科目の単位に算入されますが、卒業に必要な単位にはなりません。"
-   ]
+    "＊高度教養教育科目は、基礎工学部開講科目にて２単位修得してください。全学共通教育科目の高度教養教育科目を修得した場合は、高度教養教育科目の単位に算入されますが、卒業に必要な単位にはなりません。",
+    "必修かどうかの出所は学部規程の別表です。学科・コースによって扱いが変わる科目は必修にしていません。履修案内で確認してください。"
+   ],
+   "tracks": [
+    {
+     "key": "engrsci_dept:denshi",
+     "label": "電子物理科学科"
+    },
+    {
+     "key": "engrsci_dept:kagaku",
+     "label": "化学応用科学科"
+    },
+    {
+     "key": "engrsci_dept:system",
+     "label": "システム科学科"
+    },
+    {
+     "key": "engrsci_dept:joho",
+     "label": "情報科学科"
+    }
+   ],
+   "tracks_label": "学科を選ぶ",
+   "tracks_source": "大阪大学基礎工学部規程 別表2 https://www.osaka-u.ac.jp/kitei/reiki_honbun/u035RG00000230.html"
   }
  ]
 }

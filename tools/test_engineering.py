@@ -39,7 +39,10 @@ def test_division_is_only_senmon():
 def test_track_is_namespaced():
     """トラックは軸名付きで返す。外国語学部の "L"（英語）と衝突させないため。"""
     assert track({"numbering": "08ELIE2H001"}) == "eng_dept:denshi"
-    assert track({"numbering": "10FOST2BL00"}) == "fs_lang:L"
+    # 外国語学部は科目名も見る（マーカーで専攻限定かどうかが決まる）。
+    assert track({"numbering": "10FOST2BL00", "title": "英語1"}) == "fs_lang:L"
+    assert track({"numbering": "10FOST3BL02",
+                  "title": "（学共-地域系）アメリカ史概論a"}) is None
     assert track({"numbering": "13LASC1Z100"}) is None
 
 
@@ -68,13 +71,27 @@ def test_counts_match_the_curriculum_pdf():
     courses = [c for c in json.loads(built.read_text(encoding="utf-8"))["courses"]
                if str(c.get("numbering") or "").startswith("08")]
     got = Counter(track(c) for c in courses)
-    expect = {"eng_dept:shizen": 201, "eng_dept:riko": 156, "eng_dept:denshi": 129,
-              "eng_dept:chikyu": 138, "eng_dept:kanene": 76}
+    # None の44件は、ナンバリングがカンマ区切りで複数入っていて**学科をまたぐ**科目。
+    # 2026-08-26 までは先頭のコードだけを見ていたので、5学科に開いている科目が
+    # 応用自然科学科の科目に化けていた（shizen 201→165 の差はほぼこれ）。
+    # 学科をまたぐ科目は学科で絞れないので None にし、画面では学科を選んでも
+    # 落とさない（app.js は track を持たない科目を必ず通す）。
+    expect = {"eng_dept:shizen": 165, "eng_dept:riko": 156, "eng_dept:denshi": 124,
+              "eng_dept:chikyu": 135, "eng_dept:kanene": 76, None: 44}
     assert dict(got) == expect, f"件数がずれた: {dict(got)}"
     # 08 で始まるのは700件。工学部所属の残り11件（教職8＝63TECS、
     # ナンバリングが空3）はここに来ず、画面では「その他」に入る。
     assert sum(got.values()) == len(courses) == 700
     assert all(divide(c)[0] == "eng_senmon" for c in courses)
+
+
+def test_multi_numbering_spans_departments():
+    """カンマ区切りのナンバリングは、全部見て一致したときだけ学科にする。"""
+    assert engineering.track_of("08MEEN2J000,08MAMS2J000") == "riko"
+    assert engineering.track_of("08ELIE2H001,08MEEN2J000") is None
+    # 学科をまたいでいても工学部の専門科目であることは変わらない
+    assert divide({"title": "技術倫理", "numbering": "08ELIE2H001,08MEEN2J000"}) \
+        == ("eng_senmon", "numbering")
 
 
 def main():

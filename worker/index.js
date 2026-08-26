@@ -71,46 +71,153 @@ function presetFromText(text) {
 }
 
 // web/assets/app.js の koanUrl() と同じ形式（セッション不要で直接開ける）。
-function koanUrl(id) {
-  return `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=13&j_cd=${encodeURIComponent(id)}&langkbn=j`;
+// j_s_cd（所属コード）は科目ごとに違う。courses.built.json の shozoku_cd を
+// 使い、無ければ13にフォールバック（2026-08-26 wangさん報告：固定値13だと
+// 全学教育推進機構以外の科目でリンクが無効になっていた）。
+function koanUrl(c) {
+  const shozokuCd = c.shozoku_cd || "13";
+  return `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=${encodeURIComponent(shozokuCd)}&j_cd=${encodeURIComponent(c.id)}&langkbn=j`;
 }
 
-function formatCourse(c) {
+// 科目1件ぶんのFlex Messageバブル。
+// 🚨 これ以前は「KOAN: <生URL>」をテキストにそのまま貼っていたが、
+// LINEアプリ側でリンクプレビューが失敗し「認証エラー／リンクを開くには
+// こちらをタップ」という壊れた表示になった（2026-08-26 しゅんやさん報告）。
+// URIアクションのボタンにすると同じ問題は起きない。
+function courseBubble(c) {
   const r = c.rakutan || {};
   const overall = r.overall;
   const overallS = typeof overall === "number" ? `${Math.round(overall)}点` : "―";
   const band = r.band || "―";
-  const day = c.day_period || "―";
-  const instr = c.instructor || "―";
-  return (
-    `${c.title}（${day}／${instr}）\n` +
-    ` 授業コード: ${c.id}\n` +
-    ` ${band}・${overallS}\n` +
-    ` KOAN: ${koanUrl(c.id)}`
-  );
+  const nReviews = c.reviews && typeof c.reviews.n === "number" ? c.reviews.n : 0;
+  return {
+    type: "bubble",
+    size: "kilo",
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: [
+        { type: "text", text: c.title, weight: "bold", size: "md", wrap: true },
+        {
+          type: "text",
+          text: `${c.day_period || "―"}／${c.instructor || "―"}`,
+          size: "sm",
+          color: "#666666",
+          wrap: true,
+        },
+        {
+          type: "box",
+          layout: "baseline",
+          margin: "md",
+          contents: [
+            { type: "text", text: band, size: "sm", color: "#DB6209", flex: 0, weight: "bold" },
+            { type: "text", text: overallS, size: "sm", margin: "sm", color: "#666666" },
+          ],
+        },
+        {
+          type: "text",
+          text: `授業コード ${c.id}${nReviews ? ` ／ 口コミ${nReviews}件` : ""}`,
+          size: "xs",
+          color: "#999999",
+          margin: "sm",
+          wrap: true,
+        },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: [
+        {
+          type: "button",
+          style: "primary",
+          height: "sm",
+          color: "#DB6209",
+          action: { type: "uri", label: "KOAN公式シラバス", uri: koanUrl(c) },
+        },
+      ],
+    },
+  };
+}
+
+// 見出しテキスト＋Flexカルーセルの2通で返す（LINEは1回のreplyに複数メッセージを積める）。
+function coursesReply(heading, courses, siteOrigin) {
+  const flex = {
+    type: "flex",
+    altText: heading,
+    contents: { type: "carousel", contents: courses.map(courseBubble) },
+  };
+  if (siteOrigin) {
+    flex.quickReply = {
+      items: [
+        { type: "action", action: { type: "uri", label: "ラクハンで見る", uri: `${siteOrigin}/` } },
+      ],
+    };
+  }
+  return [
+    { type: "text", text: `${heading}\n\n※最終判断は必ずKOAN公式シラバスで確認してください。` },
+    flex,
+  ];
 }
 
 // grade は "1"〜"6"、preset は PRESET_NAMES のいずれか。
 // handleText（自由入力）と postback（ボタン選択）の両方から呼ぶ共通ロジック。
+// 戻り値は「見つからなかった」場合は文字列、見つかった場合はLINEメッセージの配列。
 export function buildRecommendation(grade, preset, data, siteOrigin) {
-  const siteLine = siteOrigin ? `\nラクハン: ${siteOrigin}/` : "";
   const courses = new Map(data.courses.map((c) => [c.id, c]));
   const presetTop = data.preset_top || {};
   const ids = ((presetTop[grade] || presetTop["1"] || {})[preset] || []).slice(0, 5);
   if (ids.length === 0) {
     return `${GRADE_KANJI[grade] || grade}向けの「${preset}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
   }
-  const lines = [`${GRADE_KANJI[grade] || grade}「${preset}」おすすめ TOP${ids.length}`];
-  ids.forEach((id, i) => {
-    const c = courses.get(id);
-    if (c) lines.push(`${i + 1}. ${formatCourse(c)}`);
-  });
-  lines.push(`\n※最終判断は必ずKOAN公式シラバスで確認してください。${siteLine}`);
-  return lines.join("\n");
+  const matched = ids.map((id) => courses.get(id)).filter(Boolean);
+  const heading = `${GRADE_KANJI[grade] || grade}「${preset}」おすすめ TOP${matched.length}`;
+  return coursesReply(heading, matched, siteOrigin);
 }
 
+function usageMessage() {
+  return (
+    "使い方だよ📖\n\n" +
+    "・科目名を送る → 検索\n" +
+    "・「1年 とにかく軽い」のように学年＋条件を送る → おすすめ\n" +
+    "・条件は「バイト優先」「GPA重視」「とにかく軽い」「テストが苦手」の4つ\n" +
+    "・下のメニューの「科目を検索」「おすすめ」からも同じことができるよ"
+  );
+}
+
+function contactMessage(siteOrigin) {
+  return {
+    type: "text",
+    text: "ご意見・連携のご相談はサイト下部の「サイトへのご意見・改善要望」フォームから送れるよ。",
+    quickReply: siteOrigin
+      ? {
+          items: [
+            { type: "action", action: { type: "uri", label: "サイトを開く", uri: `${siteOrigin}/` } },
+          ],
+        }
+      : undefined,
+  };
+}
+
+// リッチメニューのC〜Fの各ボタンは、この決まった文言をテキストとして送ってくる
+// （wangさん・しゅんやさん 2026-08-26 のリッチメニュー設計）。
+const MENU_KEYWORDS = {
+  科目を検索: () => "科目名を入力して送ってね。例:「統計学」",
+  おすすめ: () => gradeQuestionMessage(),
+  使い方: () => usageMessage(),
+  連携・要望: (siteOrigin) => contactMessage(siteOrigin),
+};
+
+// 戻り値: 文字列 / LINEメッセージオブジェクト / メッセージ配列、のいずれか。
 export function handleText(text, data, siteOrigin) {
-  const siteLine = siteOrigin ? `\nラクハン: ${siteOrigin}/` : "";
+  const trimmed = text.trim();
+
+  if (MENU_KEYWORDS[trimmed]) {
+    return MENU_KEYWORDS[trimmed](siteOrigin);
+  }
+
   const grade = gradeFromText(text);
   const preset = presetFromText(text);
 
@@ -118,7 +225,7 @@ export function handleText(text, data, siteOrigin) {
     return buildRecommendation(grade, preset, data, siteOrigin);
   }
 
-  const q = text.trim();
+  const q = trimmed;
   if (!q) {
     return (
       "科目名で検索するか、「バイト優先」「GPA重視」「とにかく軽い」「テストが苦手」の" +
@@ -131,11 +238,10 @@ export function handleText(text, data, siteOrigin) {
   }
   matched = matched
     .slice()
-    .sort((a, b) => ((b.rakutan || {}).overall ?? -1) - ((a.rakutan || {}).overall ?? -1));
-  const lines = [`「${q}」の検索結果（上位${Math.min(5, matched.length)}件）`];
-  matched.slice(0, 5).forEach((c, i) => lines.push(`${i + 1}. ${formatCourse(c)}`));
-  lines.push(`\n※最終判断は必ずKOAN公式シラバスで確認してください。${siteLine}`);
-  return lines.join("\n");
+    .sort((a, b) => ((b.rakutan || {}).overall ?? -1) - ((a.rakutan || {}).overall ?? -1))
+    .slice(0, 5);
+  const heading = `「${q}」の検索結果（上位${matched.length}件）`;
+  return coursesReply(heading, matched, siteOrigin);
 }
 
 // ── 友だち追加直後の質問フロー ──────────────────────────────
@@ -150,13 +256,16 @@ function qrPostback(label, data, displayText) {
   };
 }
 
-// 検索結果・おすすめの返信に、ラクハンサイトを直接開けるボタンを付ける。
-// 本文末尾の「ラクハン: URL」はテキストのままなので、タップしやすいボタンを別に添える。
-export function withSiteButton(text, siteOrigin) {
-  if (!siteOrigin) return text;
+// 単純な文字列の返信に、ラクハンサイトを直接開けるボタンを付ける。
+// handleText/handlePostbackがオブジェクトや配列（Flexメッセージなど）を
+// 返してきた場合は、それ自体が既に自前のquickReply/ボタンを持っているので
+// 何もしない。
+export function withSiteButton(result, siteOrigin) {
+  if (typeof result !== "string") return result;
+  if (!siteOrigin) return result;
   return {
     type: "text",
-    text,
+    text: result,
     quickReply: {
       items: [
         {
@@ -229,30 +338,31 @@ export function presetQuestionMessage(grade, fac) {
   };
 }
 
+// 戻り値は handleText と同じ形（文字列 / メッセージオブジェクト / 配列）。
 export function handlePostback(data, evData, siteOrigin) {
   const params = new URLSearchParams(evData);
   const action = params.get("action");
 
-  if (action === "start_personal") return { message: gradeQuestionMessage() };
+  if (action === "start_personal") return gradeQuestionMessage();
   if (action === "grade") {
     const grade = params.get("grade") || "1";
-    return { message: facultyQuestionMessage(grade) };
+    return facultyQuestionMessage(grade);
   }
   if (action === "faculty") {
     const grade = params.get("grade") || "1";
-    return { message: presetQuestionMessage(grade, params.get("fac") || "") };
+    return presetQuestionMessage(grade, params.get("fac") || "");
   }
   if (action === "preset") {
     const grade = params.get("grade") || "1";
     const preset = params.get("preset") || "とにかく軽い";
     // fac（学部）は推薦のロジックには一切入れない。preset_top は学年だけで
     // 引いており、学部を渡しても buildRecommendation は受け取らない。
-    return { text: buildRecommendation(grade, preset, data, siteOrigin) };
+    return withSiteButton(buildRecommendation(grade, preset, data, siteOrigin), siteOrigin);
   }
   if (action === "quick_default") {
-    return { text: buildRecommendation("1", "とにかく軽い", data, siteOrigin) };
+    return withSiteButton(buildRecommendation("1", "とにかく軽い", data, siteOrigin), siteOrigin);
   }
-  return { message: greetingMessage() };
+  return greetingMessage();
 }
 
 function timingSafeEqual(a, b) {
@@ -276,20 +386,23 @@ async function verifySignature(secret, bodyText, signatureB64) {
   return timingSafeEqual(expected, signatureB64 || "");
 }
 
-// message は文字列（プレーンテキスト）か、LINE の message オブジェクト
-// （quickReply 付きなど）のどちらでも渡せる。
+// message は 文字列 / LINEのmessageオブジェクト（quickReply付きなど）/
+// それらの配列（1回のreplyで複数メッセージを送る場合）のどれでも渡せる。
+// LINEのreply APIは1回に最大5メッセージまで。
 async function replyToLine(env, replyToken, message) {
-  const msg =
-    typeof message === "string"
-      ? { type: "text", text: message.slice(0, 5000) }
-      : { ...message, text: message.text ? message.text.slice(0, 5000) : message.text };
+  const items = Array.isArray(message) ? message : [message];
+  const messages = items.slice(0, 5).map((m) =>
+    typeof m === "string"
+      ? { type: "text", text: m.slice(0, 5000) }
+      : { ...m, text: m.text ? m.text.slice(0, 5000) : m.text }
+  );
   return fetch("https://api.line.me/v2/bot/message/reply", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`,
     },
-    body: JSON.stringify({ replyToken, messages: [msg] }),
+    body: JSON.stringify({ replyToken, messages }),
   });
 }
 
@@ -333,8 +446,7 @@ async function handleWebhook(request, env, ctx) {
         reply = DATA_UNAVAILABLE_MESSAGE;
       } else {
         try {
-          const result = handlePostback(data, event.postback?.data || "", siteOrigin);
-          reply = result.message || withSiteButton(result.text, siteOrigin);
+          reply = handlePostback(data, event.postback?.data || "", siteOrigin);
         } catch (e) {
           reply = "エラーが発生しました。少し時間をおいて試してください。";
           console.error("handlePostback error", e);
@@ -500,25 +612,96 @@ async function handleFavorites(request, env) {
   });
 }
 
+/* ── 計測リンク（/l/<slug>） ──────────────────────────────
+ * 宣伝マニュアル §3。人ごと・チャネルごとに違う URL を配り、
+ * 「どのチャネルが効いたか」を Cloudflare Web Analytics で数える。
+ *
+ * 転送（302）はしない。転送するとアドレス欄が「/」に変わり、
+ * Analytics のページ別集計から slug が消えて数えられなくなるため
+ * （マニュアルにも明記）。/l/kasai のまま、中身はトップと同じものを返す。
+ * クエリ文字列（/?s=kasai）でも同じ理由で数えられない。
+ */
+const TRACKING_SLUGS = new Set([
+  "kasai", "shunya", "kimura", "wang",
+  "oc1", "oc2", "oc3", "oc4", "oc5",
+  "ig", "story", "dm-a", "dm-b", "x",
+]);
+
+async function handleTrackingLink(request, env, slug) {
+  if (!TRACKING_SLUGS.has(slug)) return null;
+  // トップページの中身をそのまま返す。アドレス欄は /l/<slug> のまま残る。
+  // ASSETS は /index.html を / へ 307 で寄せるので、リダイレクトは
+  // ここで解決して「本文」を取りに行く（そのまま返すとブラウザが / へ飛び、
+  // アドレス欄から slug が消えて数えられなくなる）。
+  const res = await env.ASSETS.fetch(new Request(new URL("/", request.url), request));
+  const headers = new Headers(res.headers);
+  // 同じ本文でも「別のURL」として数えたいので、キャッシュはさせない。
+  headers.set("cache-control", "no-store");
+  // 検索には載せない。本文はトップと同じなので、14本ぶんの重複ページを
+  // 作ることになる。web/_headers のパス規則は効かない ―― ここは ASSETS から
+  // 「/」を引いているので、付くヘッダも「/」のものになるため。
+  headers.set("x-robots-tag", "noindex, nofollow");
+  return new Response(res.body, { status: res.status, headers });
+}
+
+/* ── 正本のホスト ───────────────────────────────────────
+ * 旧ドメイン（rakutan-db.*.workers.dev）はいまも生きていて、独自ドメインと
+ * 同じ本文を配っている。LINE Developers に登録した Webhook URL がこちらの
+ * 可能性があるので止められない ―― だから「動かすが、検索には載せない」。
+ *
+ * 🚨 ただし、ここで付ける noindex が届くのは **Worker が走る経路だけ**。
+ * Workers の静的アセットは Worker スクリプトより先に配られるので、
+ * `/` や `/about` のような「アセットが存在するパス」はこの関数を通らない
+ * （2026-08-26 に本番で実測。`/l/kasai` には付くのに `/` には付かなかった）。
+ * つまり旧ドメインのページを検索から外しているのは、実際には
+ * 各ページの <link rel="canonical"> のほう。ここが効くのは
+ * /l/<slug>・/api/*・/line/* といった Worker 側のURLに限られる。
+ *
+ * ページにも確実に付けたいなら wrangler.toml の [assets] に
+ * run_worker_first = ["/", "/about", "/ads", "/kuchikomi", "/partners"]
+ * を足す（＝ページ表示1回ごとに Worker が1回走る）。9/2 のピークを前に
+ * 配信経路を変えたくないので、今日は入れていない。
+ */
+const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
+
+function markNoindex(res) {
+  const headers = new Headers(res.headers);
+  headers.set("x-robots-tag", "noindex, nofollow");
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
+}
+
 export default {
   async fetch(request, env, ctx) {
-    const url = new URL(request.url);
-
-    if (url.pathname === "/line/webhook" && request.method === "POST") {
-      return handleWebhook(request, env, ctx);
-    }
-    if (url.pathname === "/line/health") {
-      return new Response("ok");
-    }
-    if (url.pathname === "/api/feedback") {
-      if (request.method !== "POST") {
-        return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
-      }
-      return handleFeedback(request, env);
-    }
-    if (url.pathname === "/api/favorites") {
-      return handleFavorites(request, env);
-    }
-    return env.ASSETS.fetch(request);
+    const res = await route(request, env, ctx);
+    // 独自ドメイン以外（旧 workers.dev・ローカル）は検索に載せない。
+    return new URL(request.url).hostname === CANONICAL_HOST ? res : markNoindex(res);
   },
 };
+
+async function route(request, env, ctx) {
+  const url = new URL(request.url);
+
+  if (url.pathname.startsWith("/l/")) {
+    const slug = url.pathname.slice(3);
+    const res = await handleTrackingLink(request, env, slug);
+    if (res) return res;
+    return new Response("not found", { status: 404 });
+  }
+
+  if (url.pathname === "/line/webhook" && request.method === "POST") {
+    return handleWebhook(request, env, ctx);
+  }
+  if (url.pathname === "/line/health") {
+    return new Response("ok");
+  }
+  if (url.pathname === "/api/feedback") {
+    if (request.method !== "POST") {
+      return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+    }
+    return handleFeedback(request, env);
+  }
+  if (url.pathname === "/api/favorites") {
+    return handleFavorites(request, env);
+  }
+  return env.ASSETS.fetch(request);
+}

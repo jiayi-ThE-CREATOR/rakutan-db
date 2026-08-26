@@ -28,8 +28,8 @@ await page.waitForSelector("#mpProfile");
 check(await page.locator("#mpTimetable").count() === 1, "時間割の入れ物が無い");
 check(await page.locator("#mpFavorites").count() === 1, "お気に入りの入れ物が無い");
 
-// ナビが4項目で、現在地が付いていること
-check(await page.locator(".nav a").count() === 4, "ナビが4項目でない");
+// ナビが5項目で、現在地が付いていること（main の /ads 追加で 4→5）
+check(await page.locator(".nav a").count() === 5, "ナビが5項目でない");
 check(await page.locator('.nav a[data-nav="mypage"][aria-current="page"]').count() === 1,
       "マイページに現在地が付いていない");
 
