@@ -571,3 +571,28 @@ html{scroll-behavior:smooth}
   padding:9px; font-size:16px; text-align:center;
 }
 .detail .favBtn:hover{ background:var(--rule); }
+
+/* 開屏の問診。splash の上には出ない（splash が消えてから出る）。 */
+.onboard{
+  position:fixed; inset:0; z-index:60;
+  display:grid; place-items:center;
+  background:rgba(0,0,0,.45);
+  padding:20px;
+}
+.onboardInner{
+  background:#fff; border-radius:16px; padding:24px 20px;
+  width:100%; max-width:420px; box-shadow:0 10px 40px rgba(0,0,0,.2);
+}
+.onboardCard{ display:none; }
+.onboard[data-step="gate"]    [data-card="gate"],
+.onboard[data-step="faculty"] [data-card="faculty"],
+.onboard[data-step="grade"]   [data-card="grade"]{ display:block; }
+.onboardInner h2{ font-size:18px; margin:0 0 8px; }
+.onboardInner p{ font-size:13px; color:#666; margin:0 0 16px; line-height:1.6; }
+.onboardBtns{ display:flex; flex-direction:column; gap:8px; }
+.onboardBtns button, .onboardOpts button{
+  padding:12px; border-radius:10px; border:1px solid #ddd;
+  background:#fff; font-size:15px; cursor:pointer;
+}
+.onboardBtns .primary{ background:var(--brand); color:#fff; border-color:var(--brand); }
+.onboardOpts{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }

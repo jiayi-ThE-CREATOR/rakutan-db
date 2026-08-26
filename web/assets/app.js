@@ -1279,6 +1279,7 @@ function applyPostMode() {
 /* ── 起動 ─────────────────────────────── */
 (async () => {
   await boot();
+  window.REQ = REQ;   // onboard.js が学部の一覧を借りる（べた書きを作らないため）
   applyPostMode();
   $("#note").textContent = META.disclaimer;
   buildSems(); buildYears(); buildPresets(); buildSliders();
@@ -1290,7 +1291,17 @@ function applyPostMode() {
   let t; $("#q").oninput = e => { clearTimeout(t);
     t = setTimeout(() => { state.q = e.target.value; load(); }, 200); };
   $("#sort").onchange = e => { state.sort = e.target.value; load(); };
+  /* 開屏の問診の答え。絞り込みに即あてて描き直す ――
+     答えたのに画面が変わらないと、聞かれ損になる。 */
+  window.addEventListener("rk:profile-set", e => {
+    const { faculty, grade } = e.detail || {};
+    if (faculty) state.faculty = faculty;
+    if (grade) state.year = grade;
+    buildYears();
+    load();
+  });
   await load();
+  window.dispatchEvent(new CustomEvent("rk:app-ready"));
   /* ?c=<科目id> で入ってきた人。push はしない（履歴を二重に積まない）。
      共有リンクは既定の絞り込みで開くので、その科目が一覧に無いことは
      普通に起きる ―― findCourse が1件だけ取りに行く。 */

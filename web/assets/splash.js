@@ -39,6 +39,11 @@
 
   if (reduced || seen){
     document.documentElement.classList.add("splash-skip");
+    // 演出を流さないので、この時点でもう「終わっている」。
+    // onboard.js はまだ読み込まれていないので、イベントだけでは届かない。
+    // あとから聞けるように rkSplash も置く（skip は何もしない関数）。
+    window.rkSplash = { skip(){}, done: () => true };
+    window.dispatchEvent(new CustomEvent("rk:splash-done"));
     return;
   }
   try { sessionStorage.setItem(KEY, "1"); } catch (e) { /* 無視 */ }
@@ -65,6 +70,7 @@
       el.hidden = true;
       document.documentElement.classList.remove("splash-on");
       document.documentElement.classList.add("splash-skip");
+      window.dispatchEvent(new CustomEvent("rk:splash-done"));
     };
     el.addEventListener("transitionend", end, { once: true });
     // タブが裏に回るとアニメーションもトランジションも走らないことがある。
@@ -76,5 +82,5 @@
   el.addEventListener("click", done);
   window.addEventListener("keydown", e => { if (e.key === "Escape") done(); });
 
-  window.rkSplash = { skip: done };
+  window.rkSplash = { skip: done, done: () => finished };
 })();
