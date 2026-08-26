@@ -9,6 +9,15 @@
  * 詳細を開くと一覧側の星の真上に重なるバグが出た。カード直下の星
  * （.card > .favBtn）と詳細内の星（.detail .favBtn）を別の場所に
  * 描き分けたので、その回帰を防ぐチェックをモバイル幅で足してある。
+ *
+ * 2026-08-26 追記2：main の「あなたに合う」枠（#list 内の section.picks）が
+ * 入り、口コミ確認ずみの科目は #list の直下カードと picks 内カードの
+ * 2枚に同時に描画されるようになった（renderPage が picks を #list の
+ * 子として appendChild している）。「一覧の星」を指すセレクタは
+ * bare な .card[data-id=…] ではなく #list > .card[data-id=…]（picks の
+ * 孫要素は除く直下だけ）に絞る必要がある。加えて、同じ科目が2箇所に
+ * 同時に星を持つようになったこと自体を回帰テストする（末尾の
+ * 「picks/一覧 相互同期」ブロック）。
  */
 import { chromium } from "playwright";
 
@@ -39,10 +48,13 @@ await bypassOnboarding(page);
 await page.goto(BASE + "/");
 await page.waitForSelector(".card .favBtn");
 
-const first = page.locator(".card").first();
+/* #list > .card ＝一覧直下のカードだけ（picks 内のカードは #list の孫）。
+   「あなたに合う」に載っている科目は #list 直下にも重複して出るので、
+   ただの .card[data-id=…] だと2枚ヒットして strict mode で落ちる。 */
+const first = page.locator("#list > .card").first();
 const star  = first.locator(".favBtn");
 const id    = await first.getAttribute("data-id");
-const cardSel = `.card[data-id="${id}"]`;
+const cardSel = `#list > .card[data-id="${id}"]`;
 
 check(await star.getAttribute("aria-pressed") === "false", "初期状態が押されている");
 
@@ -95,9 +107,9 @@ await bypassOnboarding(mpage);
 await mpage.goto(BASE + "/");
 await mpage.waitForSelector(".card .favBtn");
 
-const mfirst  = mpage.locator(".card").first();
+const mfirst  = mpage.locator("#list > .card").first();
 const mid     = await mfirst.getAttribute("data-id");
-const mCardSel = `.card[data-id="${mid}"]`;
+const mCardSel = `#list > .card[data-id="${mid}"]`;
 
 await mpage.locator(`${mCardSel} .head`).click();
 await mpage.waitForSelector(`${mCardSel} .detail .favBtn`);
@@ -137,9 +149,9 @@ for (const [label, viewport] of [
   await fp.goto(BASE + "/");
   await fp.waitForSelector(".card .favBtn");
 
-  const fcard = fp.locator(".card").first();
+  const fcard = fp.locator("#list > .card").first();
   const fcardId = await fcard.getAttribute("data-id");
-  const fcardSel = `.card[data-id="${fcardId}"]`;
+  const fcardSel = `#list > .card[data-id="${fcardId}"]`;
 
   /* 最初のカードはヘッダ類の下、ページのだいぶ下（2000px超）にある。
      boundingBox() は自動でスクロールしないので、elementFromPoint と
@@ -186,6 +198,59 @@ for (const [label, viewport] of [
 
   await fp.close();
 }
+
+/* ── picks/一覧 相互同期：同じ科目が「あなたに合う」枠と一覧本体の
+ * 両方に描画されているとき、片方の星を押すともう片方にも即反映されること。
+ *
+ * 2026-08-26 追記2：main の「あなたに合う」枠が入るまでは1科目=1枚の
+ * カードしか無く、この状況自体がテスト不能だった。今は topPicks() が
+ * courses から選ぶだけで一覧本体から除外しないので、口コミ確認ずみの
+ * 科目は構造的に両方へ重複して出る。app.js 側は
+ * document.querySelectorAll(`.favBtn[data-id="…"]`) で同一 data-id の
+ * 星を全部まとめて更新しているので同期して当然のはずだが、
+ * それを固定しておかないと「星が2箇所に出るようになった」ことに
+ * 気づかないまま、どちらかしか更新しない実装に退行しても検知できない。 */
+const syncPage = await browser.newPage();
+await bypassOnboarding(syncPage);
+await syncPage.goto(BASE + "/");
+await syncPage.waitForSelector("#list > .card");
+
+const picksIds = await syncPage.$$eval("#list .picks .card", els => els.map(e => e.getAttribute("data-id")));
+const mainListIds = await syncPage.$$eval("#list > .card", els => els.map(e => e.getAttribute("data-id")));
+const dupIds = picksIds.filter(pid => mainListIds.includes(pid));
+
+if (dupIds.length === 0) {
+  console.log("  NOTE: 「あなたに合う」枠と一覧本体の両方に載る科目が現在のデータに無いため、picks/一覧 相互同期は検証できなかった（アサーション追加せず）。");
+} else {
+  const dupId = dupIds[0];
+  const picksStar = syncPage.locator(`#list .picks .card[data-id="${dupId}"] > .favBtn`);
+  const listStar  = syncPage.locator(`#list > .card[data-id="${dupId}"] > .favBtn`);
+
+  check(await picksStar.count() === 1, `picks 側に科目${dupId}の星がちょうど1つ出ていない`);
+  check(await listStar.count() === 1, `一覧側に科目${dupId}の星がちょうど1つ出ていない`);
+
+  check(await picksStar.getAttribute("aria-pressed") === "false", "同期テストの初期状態（picks）が押されている");
+  check(await listStar.getAttribute("aria-pressed") === "false", "同期テストの初期状態（一覧）が押されている");
+
+  // picks 側を押す → 一覧側にも反映されること。
+  await picksStar.click();
+  check(await picksStar.getAttribute("aria-pressed") === "true", "picks の星の aria-pressed が変わらない");
+  check(await picksStar.textContent() === "★", "picks の星の表示が★に変わらない");
+  check(await listStar.getAttribute("aria-pressed") === "true",
+        "picks の星を押しても一覧側の星の aria-pressed に反映されない");
+  check(await listStar.textContent() === "★",
+        "picks の星を押しても一覧側の星の表示（☆→★）に反映されない");
+
+  // 一覧側を押して外す → picks 側にも反映されること（逆方向）。
+  await listStar.click();
+  check(await listStar.getAttribute("aria-pressed") === "false", "一覧の星の aria-pressed が変わらない");
+  check(await listStar.textContent() === "☆", "一覧の星の表示が☆に戻らない");
+  check(await picksStar.getAttribute("aria-pressed") === "false",
+        "一覧の星を外しても picks 側の星の aria-pressed に反映されない");
+  check(await picksStar.textContent() === "☆",
+        "一覧の星を外しても picks 側の星の表示（★→☆）に反映されない");
+}
+await syncPage.close();
 
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
