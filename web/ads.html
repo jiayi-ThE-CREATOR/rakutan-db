@@ -88,6 +88,11 @@
   </form>
 </dialog>
 <script src="/assets/feedback.js" defer></script>
+<!-- Cloudflare Web Analytics。宣伝マニュアル §3・§8 の数字はここから取る。
+     /l/<slug> はページ別の集計に slug のまま出るので、チャネルごとの
+     効き目が比較できる（だから /l/ は転送していない）。
+     Cookie を置かず、個人を特定する情報も送らない。 -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "b0324782e4e44ca58b45e4dd0c270112"}'></script>
 <!--/SHELL:FOOTER-->
 
 <script src="/assets/shell.js" defer></script>
