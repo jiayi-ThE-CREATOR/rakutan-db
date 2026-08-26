@@ -583,7 +583,7 @@ function detailHtml(c){
 let reviewsCache = null;
 async function fetchReviewsData(){
   if (reviewsCache) return reviewsCache;
-  reviewsCache = await (await fetch("data/reviews.built.json")).json();
+  reviewsCache = await (await fetch("/data/reviews.built.json")).json();
   return reviewsCache;
 }
 
@@ -809,10 +809,14 @@ async function boot(){
   } catch (e) { /* 静的配信では届かない。想定内。 */ }
 
   DATA.mode = "static";
-  const d = await (await fetch("data/courses.built.json")).json();
+  // データは必ず絶対パスで取る。計測リンク /l/<slug> は転送せずトップの本文を
+  // そのまま返すので、相対パスだと基準URLが「/l/」になり /l/data/… を叩いて
+  // 404 になる（Worker は /l/ 配下を slug としてしか見ない）。宣伝で配った
+  // 14本のリンクから開いた人だけ一覧が「読み込み中…」で止まった原因がこれ。
+  const d = await (await fetch("/data/courses.built.json")).json();
   DATA.courses = d.courses;
   // 要件表が無くても他は全部動く。学部のセクションが出ないだけ。
-  try { REQ = await (await fetch("data/requirements.json")).json(); }
+  try { REQ = await (await fetch("/data/requirements.json")).json(); }
   catch (e) { REQ = null; }
   const m = d._meta;
   META = {

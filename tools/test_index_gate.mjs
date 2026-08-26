@@ -77,5 +77,21 @@ for (const [name, url] of Object.entries(pages)) {
   check(html.includes(`<link rel="canonical" href="${url}">`), `${name}.html の canonical が ${url} になっていない`);
 }
 
+// ── 5. /l/<slug> で開いても中身が出ること ───────────────
+// 計測リンクは転送しない（アドレス欄を /l/<slug> のまま残す）ので、
+// ページの基準URLは「/l/」になる。ここで相対パスの fetch が1本でも残ると
+// /l/data/courses.built.json を叩き、Worker が 404 を返して一覧が
+// 「読み込み中…」で止まる ―― 2026-08-26 に利用者から報告があった事故。
+// ページ側は絶対パスで持つ。Worker で /l/ 配下を救おうとすると
+// 「slug かデータか」を毎回判定することになり、slug を増やすたびに壊れる。
+const topScripts = [...read("web/index.html").matchAll(/<script[^>]+src="(\/assets\/[^"]+)"/g)].map(m => m[1]);
+check(topScripts.includes("/assets/app.js"), "index.html が app.js を読んでいない（この検査が素通りしている）");
+for (const src of topScripts) {
+  for (const [, target] of read(`web${src}`).matchAll(/fetch\(\s*["\'`]([^"\'`]+)/g)) {
+    if (/^https?:/.test(target)) continue;
+    check(target.startsWith("/"), `${src} の fetch("${target}") が相対パス ―― /l/<slug> から開くと 404 になり、一覧が「読み込み中…」で止まる`);
+  }
+}
+
 console.log(fails.length ? `NG ${fails.length}/${n}\n- ${fails.join("\n- ")}` : `OK ${n}件`);
 process.exit(fails.length ? 1 : 0);
