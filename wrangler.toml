@@ -29,6 +29,17 @@ main = "worker/index.js"
 [assets]
 directory = "./web"
 binding = "ASSETS"
+
+# 🚨 これを書くまで、worker/index.js は「アセットが存在しないパス」でしか
+# 走っていなかった（/l/<slug> には効くのに / には効かない、という形で
+# 2026-08-26 に本番で露見した）。静的アセットは既定で Worker より先に配られる。
+#
+# ページだけ Worker を先に通す。旧ドメイン（*.workers.dev）へ来た人を
+# 独自ドメインへ 301 で寄せるのに、Worker が走らないと何もできないため。
+# assets/ と data/ を外してあるのは、CSS・JS と 12MB の JSON まで毎回
+# Worker を通す必要が無いから（＝リクエスト数も遅延も増やさない）。
+run_worker_first = ["/*", "!/assets/*", "!/data/*"]
+
 # not_found_handling は既定（none）のまま。画面遷移は全部クエリ文字列
 # （?year=1&cond=…）で、パスは / しか無いので、SPA フォールバックを入れると
 # 存在しないURLまで index.html を返してしまう。

@@ -9,10 +9,8 @@
  * 守りたいのは4つ:
  *  1. 独自ドメインの通常ページに noindex が付いていない（＝公開されている）
  *  2. /l/<slug> は本文を返すが noindex（消すと重複ページが14個できる）
- *  3. 旧ドメイン *.workers.dev のページは canonical で正本へ寄る
- *     （LINE の Webhook 用に生かしてあるので止められない。なお Worker 側の
- *      noindex は「Worker が走る経路」にしか届かない ―― 静的アセットは
- *      Worker より先に配られるため。詳しくは worker/index.js の CANONICAL_HOST）
+ *  3. 旧ドメイン *.workers.dev は、見える経路だけ独自ドメインへ 301。
+ *     ただし /line/* と /api/* は転送しない（Webhook の POST が失われるため）
  *  4. 静的側（robots.txt・_headers・canonical・sitemap）が上と矛盾していない
  */
 import { readFileSync } from "node:fs";
@@ -52,14 +50,27 @@ check(/noindex/.test(track.headers.get("x-robots-tag") || ""), "/l/kasai に noi
 check(track.headers.get("cache-control") === "no-store", "/l/kasai がキャッシュされる（別URLとして数えられなくなる）");
 check((await get(`https://${HOST}/l/dare-mo-shiranai`)).status === 404, "知らない slug が 404 でない");
 
-// 🚨 旧ドメインの「ページ」はここでは守れない。Workers の静的アセットは
-// Worker スクリプトより先に配られるので、index.html が存在する `/` は
-// この関数を通らない（2026-08-26 に本番で実測）。守っているのは canonical のほう。
-// ここで確かめられるのは「Worker が走る経路」だけ。
-const oldTrack = await get(`https://${OLD_HOST}/l/kasai`);
-check(/noindex/.test(oldTrack.headers.get("x-robots-tag") || ""), "旧ドメインの計測リンクに noindex が無い");
+// 旧ドメインは「見える経路だけ」独自ドメインへ 301。
+// これが成立するのは wrangler.toml の run_worker_first でページも Worker を
+// 通しているから（無いとアセットが先に配られてこの関数を通らない）。
+const moved = await get(`https://${OLD_HOST}/`);
+check(moved.status === 301, "旧ドメインのトップが 301 で独自ドメインへ寄っていない");
+check(moved.headers.get("location") === `https://${HOST}/`, "旧ドメインの転送先が独自ドメインのトップでない");
+const movedQuery = await get(`https://${OLD_HOST}/?year=2&sem=haru`);
+check(movedQuery.headers.get("location") === `https://${HOST}/?year=2&sem=haru`, "転送でクエリ（絞り込み）が落ちている");
+check((await get(`https://${OLD_HOST}/l/kasai`)).headers.get("location") === `https://${HOST}/l/kasai`, "旧ドメインの計測リンクが独自ドメインの同じ slug へ寄っていない");
+
+// 🚨 転送してはいけない経路。LINE Developers に登録した Webhook URL が
+// 旧ドメインの可能性があり、301 は POST を GET に変えてしまう。
+const hook = await worker.fetch(new Request(`https://${OLD_HOST}/line/webhook`, { method: "POST", body: "{}" }), env, { waitUntil() {} });
+check(hook.status !== 301, "旧ドメインの /line/webhook が転送されている（POST が失われ Bot が黙る）");
 const health = await get(`https://${OLD_HOST}/line/health`);
 check(health.status === 200 && (await health.text()) === "ok", "旧ドメインの /line/health が壊れた（LINE の Webhook もこのドメイン）");
+check(/noindex/.test(health.headers.get("x-robots-tag") || ""), "転送しない経路に noindex が無い");
+check((await get(`https://${OLD_HOST}/api/favorites`)).status !== 301, "旧ドメインの /api/* が転送されている");
+
+// ローカル開発は転送しない（本番へ飛ばされたら手も足も出なくなる）。
+check((await get("http://localhost:8787/")).status !== 301, "localhost が本番へ転送されている");
 
 // ── 4. 静的ファイル ────────────────────────────
 const robotsTxt = read("web/robots.txt");
