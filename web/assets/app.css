@@ -63,18 +63,65 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
 .nav a[aria-current="page"]{color:var(--on-dark);border-bottom-color:var(--brand)}
 .nav .ext{font-size:10px;margin-left:2px;opacity:.7}
 
-/* 狭い画面ではロックアップとナビを2段にする。 */
+/* ── 狭い画面のヘッダ ─────────────────
+ * 上段＝ロゴ＋添え書き＋GUILD、下段＝ナビの帯、の2段に組む。
+ * 以前は lockup が flex-wrap で折れ、GUILD だけが2行目に落ちて
+ * ロゴ／GUILD／ナビの3段になっていた（ヘッダだけで 183px）。
+ */
 @media (max-width:639px){
   /* ロゴ以外の文字（添え書き・GUILD・ナビ）は --fs-hdr-sub で一括。
      狭い画面ぶんは tokens.css 側で落としている。 */
-  .hd{flex-direction:column;align-items:flex-start;gap:var(--sp-2)}
-  .nav{gap:var(--sp-3);flex-wrap:wrap}
+  .hd{flex-direction:column;align-items:stretch;gap:0}
+  /* ロゴと GUILD は必ず同じ行に置く。折り返さない代わりに、
+     519px 以下ではロゴを画面幅に追従させて収める（下のブロック）。 */
+  .lockup{gap:var(--sp-3);flex-wrap:nowrap;align-items:center}
+  h1{min-width:0}
+  /* 添え書きは折らない。折れると1行に収めた意味が無くなる。 */
+  h1 small{margin-left:var(--sp-2);white-space:nowrap}
+  /* GUILD は行の右端へ。左のロゴと視覚的に競らせない。 */
+  .by{margin-left:auto;flex:0 0 auto}
   /* ロゴは 2 倍にしたが、狭い画面でそのまま出すとヘッダだけで
      1 画面の半分を食い、添え書きも途中で折れる。ここだけ縮める。 */
   h1 .mark{height:26px}
   h1 .wm{font-size:28px}
-  h1 small{margin-left:12px}
-  .lockup{gap:var(--sp-4)}
+
+  /* ナビは「ロゴの帯」と別の帯として見せる。同じ地色に文字を並べただけだと
+     添え書き（阪大 全学部の科目／Designed by GUILD）とナビが地続きに見え、
+     どこからが押せるものか分からない。負のマージンで header の左右 padding を
+     打ち消し、画面幅いっぱいの一段下の帯にする（下端も同様に打ち消す）。 */
+  .nav{gap:var(--sp-2) var(--sp-3);flex-wrap:wrap;
+    margin:11px calc(-1 * var(--pad)) -12px;
+    padding:8px var(--pad) 9px;
+    background:var(--on-dark-band);
+    border-top:1px solid var(--on-dark-band-line)}
+}
+
+/* ロゴ・添え書き・GUILD を1行に収めるための縮小。
+   等倍（28px）では 440px 幅から下は入らないので、そこからは画面幅に追従させる。
+   clamp の上限は等倍と同じ値なので、520px 側との境目で段差が出ない。 */
+@media (max-width:519px){
+  h1 .mark{height:clamp(16px,5.2vw,26px)}
+  h1 .wm{font-size:clamp(17px,5.7vw,28px)}
+  h1 small{font-size:clamp(9px,2.9vw,13px);margin-left:var(--sp-1)}
+  .lockup{gap:var(--sp-2)}
+  .by{padding-left:var(--sp-2)}
+  .byMain{font-size:11px}
+  .bySub{font-size:9.5px;letter-spacing:.08em}
+}
+
+/* 320px（実在する最小の端末幅）を切ると、ロゴ・添え書き・GUILD は
+   どう縮めても1行に入らない。nowrap のままだとロゴが左に切れ、
+   添え書きと GUILD が重なる。ここだけ以前どおり2段に戻す。 */
+@media (max-width:319px){
+  .lockup{flex-wrap:wrap}
+  .by{margin-left:0}
+}
+
+/* ナビ4項目が1行に収まらない幅（実測 389px 必要）では 2×2 に組む。
+   flex の折り返し任せだと 3＋1 になり、余った1つが迷子に見える。 */
+@media (max-width:399px){
+  .nav{display:grid;grid-template-columns:1fr 1fr}
+  .nav a{justify-self:start}
 }
 
 input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-md);
