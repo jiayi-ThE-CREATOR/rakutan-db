@@ -10,9 +10,15 @@
 **本番** ── https://rakuhan.nocode-sol.co.jp
 `main` にマージすると約80秒で自動反映されます。**2026-08-26 に公開しました**（`noindex` はこの日に外した）。
 
-> 旧URL https://rakutan-db.wjy20050815.workers.dev も同じ内容を配っていますが、
-> LINE Developers に登録した Webhook のために生かしてあるだけで、**検索には載せていません**
-> （`worker/index.js` の `CANONICAL_HOST`）。人に配るURLは上の独自ドメインのほうです。
+> 🚨 旧URL https://rakutan-db.wjy20050815.workers.dev は**予備ではなく上流**です。
+> 独自ドメインは Cloudflare を向いておらず、`162.43.39.4` の nginx が旧URLへ中継しています
+> （`dig +short rakuhan.nocode-sol.co.jp` で確認できます）。だから
+> **`workers_dev = false` にするとサイトごと落ちます**。また nginx が Host を書き換えないので、
+> **Worker のコードから2つのドメインを区別できません** ―― ホスト名で分岐する仕組みを入れると
+> 独自ドメインにも当たります（2026-08-26 に本番を2分止めた。HANDOFF 先頭を読むこと）。
+>
+> 人に配るURLは上の独自ドメインのほうです。旧URLを検索に載せない役目は
+> 各ページの `<link rel="canonical">` が持っています。
 
 > **その自動反映をやっているのは `.github/workflows/` ではありません。**
 > Cloudflare の **Workers Builds（GitHub App `cloudflare-workers-and-pages`）** が
