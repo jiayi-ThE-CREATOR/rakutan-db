@@ -175,6 +175,49 @@ check(tt2.haru.slots["木6"] === "137094", "お気に入りから時間割に入
 await page.click("#mpFavList .mpFav [data-fav='137094']");
 check(await page.locator("#mpFavList .mpFav").count() === 0, "お気に入りを外せない");
 
+// ── fix round 1: 曜限なし（extra 行き）の favorite も、コマと同じ学期
+//    判定（inTerm）を通ること。以前は曜限の有無を先に見ていたため、
+//    今見ている学期と無関係に addExtra(term, id) が現在の学期へ積んでいた。
+// 138537（'"見る"を神経科学するⅠ'・曜限なし・haru専用）と
+// 135345（'【総合】大阪の防災...'・曜限なし・full＝両学期）は
+// web/data/timetable.json の実在データ。
+const HARU_ONLY_ID = "138537";
+const FULL_ID = "135345";
+await page.evaluate(({ haru, full }) => {
+  localStorage.setItem("rk_favorites", JSON.stringify({
+    v: 1,
+    ids: { [haru]: Date.now(), [full]: Date.now() - 1 },
+  }));
+  localStorage.setItem("rk_timetable", JSON.stringify({
+    v: 1, aki: { slots: {}, extra: [] }, haru: { slots: {}, extra: [] },
+  }));
+}, { haru: HARU_ONLY_ID, full: FULL_ID });
+await page.reload();
+await page.waitForSelector("#mpFavList .mpFav");
+// reload直後の既定学期は秋（term = "aki" が mypage.js の初期値）。
+
+check(await page.locator(`#mpFavList .mpFav [data-addextra='${HARU_ONLY_ID}']`).count() === 0,
+      "秋なのに haru専用の曜限なし科目に「時間割に入れる」ボタンが出ている");
+check(await page.locator(`#mpFavList .mpFav:has([data-fav='${HARU_ONLY_ID}']) .mpNote`).count() === 1,
+      "秋なのに haru専用の曜限なし科目に学期違いの案内が出ない");
+
+let tt3 = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(!tt3.aki.extra.includes(HARU_ONLY_ID),
+      "秋の extra に haru専用の曜限なし科目が紛れ込んでいる");
+
+// full（通年）の曜限なし科目は、秋でも普通に追加できること。
+await page.click(`#mpFavList .mpFav [data-addextra='${FULL_ID}']`);
+tt3 = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(tt3.aki.extra.includes(FULL_ID), "full の曜限なし科目が秋の extra に追加できない");
+
+// 春に切り替えると、haru専用の曜限なし科目は追加でき、春の extra に入ること。
+await page.click("[data-term='haru']");
+await page.waitForSelector(`#mpFavList .mpFav [data-addextra='${HARU_ONLY_ID}']`);
+await page.click(`#mpFavList .mpFav [data-addextra='${HARU_ONLY_ID}']`);
+tt3 = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
+check(tt3.haru.extra.includes(HARU_ONLY_ID),
+      "春に切り替えても haru専用の曜限なし科目が春の extra に追加できない");
+
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);

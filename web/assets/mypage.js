@@ -187,16 +187,26 @@ function renderFavorites(){
 
     const slots = c.slots || [];
     let action;
-    if (!slots.length){
+    /* 学期が合っているかを、曜限の有無より先に見る。
+       fix round 1: 曜限なし（extra 行き）の分岐を先に見ると、今見ている
+       学期と関係なく addExtra(term, id) が現在の学期の extra に積んでしまい、
+       「秋を見ているのに春だけの集中講義が秋の一覧に載る」という、
+       このサイトが防ぐべき取り違えそのものを起こしていた
+       （コマの分岐は既に inTerm を先に見ていたので、そちらに合わせる）。
+       full（通年）は inTerm がどちらの学期でも true を返すので、
+       このチェックだけで両学期とも通る。 */
+    if (!inTerm(c)){
+      /* 星は学期を問わず付けられるが、コマへも extra へも置けるのは
+         今見ている学期の科目だけ。黙って無視すると「押しても反応しない」
+         に見えるので理由を出す。曜限の有無で文言を変えない
+         ―― 同じ状況に2通りの文があると、それ自体が混乱の種になる。 */
+      action = `<span class="mpNote">${term==="aki"?"春・夏":"秋・冬"}学期の科目です</span>`;
+    } else if (!slots.length){
       /* 曜限がマスに置けない1,069件（集中講義・土曜）。extra へ。 */
       const inExtra = tt.extra.includes(id);
       action = inExtra
         ? `<span class="mpIn">時間割に入っています</span>`
         : `<button data-addextra="${esc(id)}">時間割に入れる</button>`;
-    } else if (!inTerm(c)){
-      /* 星は学期を問わず付けられるが、コマへ置けるのは今見ている学期の科目だけ。
-         黙って無視すると「押しても反応しない」に見えるので理由を出す。 */
-      action = `<span class="mpNote">${term==="aki"?"春・夏":"秋・冬"}学期の科目です</span>`;
     } else {
       /* 上書き確認は putCourse（mpPutCourse）側でまとめて行う。
          ここでは「既に入っている」か「まだ」かの表示だけ分ける。 */
