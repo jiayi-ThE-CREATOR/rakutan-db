@@ -10,6 +10,7 @@
   const here = location.pathname.replace(/\/$/, "") || "/";
   const key = (here === "/" || here === "/index.html") ? "home"
             : here.startsWith("/about") ? "about"
+            : here.startsWith("/mypage") ? "mypage"
             : here.startsWith("/kuchikomi") ? "kuchikomi" : null;
   if (!key) return;
   const el = document.querySelector(`.nav a[data-nav="${key}"]`);

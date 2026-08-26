@@ -1,15 +1,14 @@
-<!-- ラクハン 共有の外殻
-     ここが唯一の正本。build.py が各ページの <!--SHELL:XXX--> へ注入する。
-     ページごとに手でコピーすると必ず片方が古くなるので、直接 HTML へ書かないこと。 -->
-
-<!--PART:HEAD-->
-<!-- 全ページ共通の <head> 資源。ページごとに手で書くと必ず片方が古くなるので、
-     ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
-     ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
-<link rel="stylesheet" href="/assets/feedback.css">
-<!--/PART:HEAD-->
-
-<!--PART:HEADER-->
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>マイページ — ラクハン</title>
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/mypage.css">
+</head>
+<body><!--SHELL:HEADER-->
 <header>
   <div class="hd">
     <!-- マークが「ラ」の字形なので、読み上げは h1 側でまとめて与える。
@@ -17,7 +16,39 @@
     <a class="lockup" href="/">
       <h1 aria-label="ラクハン ― 阪大 全学教育科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span><small>阪大 全学教育科目</small></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/about" data-nav="about">About ラクハン</a><a href="/mypage" data-nav="mypage">マイページ</a><a href="/kuchikomi" data-nav="kuchikomi">口コミを書く</a></nav></div>
 </header>
-<!--/PART:HEADER--><!--PART:FOOTER-->
+<!--/SHELL:HEADER-->
+
+<div class="wrap mypage">
+  <h2 class="mpTitle">マイページ</h2>
+  <p class="mpLead">ここに残るものは、この端末のブラウザの中だけにあります。
+    サーバーには送っていません。</p>
+
+  <section id="mpProfile">
+    <h3>プロフィール</h3>
+    <div class="mpRow">
+      <label for="mpFaculty">学部</label>
+      <select id="mpFaculty"></select>
+    </div>
+    <div class="mpRow">
+      <label for="mpGrade">学年</label>
+      <select id="mpGrade"></select>
+    </div>
+  </section>
+
+  <section id="mpTimetable">
+    <h3>私の時間割</h3>
+    <div class="mpTerms" id="mpTerms"></div>
+    <div class="mpGrid" id="mpGrid"></div>
+    <div id="mpExtra"></div>
+  </section>
+
+  <section id="mpFavorites">
+    <h3>お気に入りの授業</h3>
+    <div id="mpFavList"></div>
+  </section>
+</div>
+
+<!--SHELL:FOOTER-->
 <footer><p class="disclaimer">数値はシラバスの事実項目からの機械的な算出で、単位取得を保証するものではありません。<b>履修の最終判断は必ず KOAN の公式シラバスで確認してください。</b>科目を選ぶと出る「KOAN公式シラバスを見る」から開けます。</p>
   <!-- ブランド資料のレッドライン「学生団体であることを明記」への対応。
        ロゴには入れず、ここと About で出す、という整理。消さないこと。 -->
@@ -52,4 +83,10 @@
   </form>
 </dialog>
 <script src="/assets/feedback.js" defer></script>
-<!--/PART:FOOTER-->
+<!--/SHELL:FOOTER-->
+
+<script src="/assets/store.js"></script>
+<script src="/assets/shell.js" defer></script>
+<script src="/assets/mypage.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+.mypage{ padding:20px 16px 60px; max-width:760px; margin:0 auto; }
+.mpTitle{ font-size:22px; margin:0 0 4px; }
+.mpLead{ font-size:13px; color:#666; margin:0 0 24px; line-height:1.6; }
+.mypage section{ margin:0 0 32px; }
+.mypage h3{ font-size:16px; margin:0 0 12px; }
+.mpRow{ display:flex; align-items:center; gap:12px; margin:0 0 10px; }
+.mpRow label{ width:4em; font-size:14px; color:#555; }
+.mpRow select{ flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:15px; }

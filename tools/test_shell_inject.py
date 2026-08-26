@@ -40,7 +40,7 @@ if SHELL.is_file():
     check("Designed by GUILD" in s, "shell.html に Designed by GUILD が無い")
     check("AI Community" in s, "shell.html に AI Community が無い")
     check(REDLINE in s, f"shell.html に「{REDLINE}」が無い（レッドライン）")
-    for nav in ["科目をさがす", "About ラクハン", "口コミを書く"]:
+    for nav in ["科目をさがす", "About ラクハン", "マイページ", "口コミを書く"]:
         check(nav in s, f"shell.html のナビに「{nav}」が無い")
 
 pages = sorted(WEB.glob("*.html"))
