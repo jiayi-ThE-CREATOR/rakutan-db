@@ -1,4 +1,13 @@
-# ★ 8/26 の公開時にこのファイルごと削除すること ★
-# 理由は web/_headers に書いてある（公開前の暫定措置）。
+# 2026-08-26 公開。それまでの「全部 Disallow」はここで解除した。
+#
+# /l/<slug>（宣伝の計測リンク14本）は禁止しない。禁止すると
+# クローラが中身を取りに来ないので、こちらが返している
+# noindex ヘッダ（worker/index.js の handleTrackingLink）が読まれず、
+# URL だけが検索結果に残る。「取りに来させて、載せるなと言う」が正しい。
+#
+# /data/ も禁止しない。画面の中身は courses.built.json を読んで組み立てるので、
+# ここを塞ぐと Google からは空のページに見える。
 User-agent: *
-Disallow: /
+Allow: /
+
+Sitemap: https://rakuhan.nocode-sol.co.jp/sitemap.xml
