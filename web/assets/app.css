@@ -520,7 +520,11 @@ html.splash-on{overflow:hidden}
    気持ちの悪い切れ方をする。measure を切らず、balance に任せる。 */
 .heroT{margin:0 0 var(--sp-3);font-size:var(--fs-hero);line-height:1.3;
   letter-spacing:-.01em;font-weight:800;text-wrap:balance}
+/* 句点のところで折り返す。span ごとに inline-block にしておくと、
+   狭い画面でも「登録もログインもしなくていい。」が途中で割れない。
+   （割れると「登録」「もログインも…」の2行になって読みにくい） */
 .heroP{margin:0 0 var(--sp-5);max-width:54ch;color:var(--soft)}
+.heroP span{display:inline-block}
 .heroActions{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap}
 .heroCta{display:inline-block;padding:var(--sp-3) var(--sp-6);
   background:var(--brand);color:var(--brand-ink);border-radius:var(--r-pill);
