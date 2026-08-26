@@ -95,7 +95,7 @@
   --fs-xs:11.5px; --fs-sm:13px; --fs-base:15px; --fs-lg:17px;
   /* ヘッダのロゴ以外の文字（阪大 全学部の科目 / Designed by GUILD /
      AI COMMUNITY / ナビ）を1つの大きさに揃えるための1本。 */
-  --fs-hdr-sub:16px;
+  --fs-hdr-sub:14px;
   --fs-h2:17px; --fs-hero:clamp(28px,4.2vw,44px);
 
   /* ── 余白（4px グリッド）─────────────── */
@@ -114,7 +114,7 @@
 
 /* 狭い画面ではヘッダの添え書き類も一段落とす（ロゴ本体は app.css 側）。 */
 @media (max-width:639px){
-  :root{ --fs-hdr-sub:14px; }
+  :root{ --fs-hdr-sub:13px; }
 }
 
 @media (prefers-color-scheme: dark){
