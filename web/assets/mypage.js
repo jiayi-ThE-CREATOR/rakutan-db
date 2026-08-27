@@ -39,6 +39,13 @@ async function boot(){
   renderTimetable();
   renderFavorites();
   $("#mpPickerClose").onclick = () => $("#mpPicker").close();
+  /* <dialog> の背景（::backdrop）はクリックイベントの標的にならず、代わりに
+     dialog 要素自身がクリックを受け取る。中身（h3・input・div・button）を
+     クリックしたときは target がその子要素になるので、target===currentTarget
+     （＝ dialog 自身をクリックした＝背景）のときだけ閉じる。 */
+  $("#mpPicker").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) $("#mpPicker").close();
+  });
 }
 
 function buildProfile(){
@@ -149,18 +156,36 @@ function onCell(slot){
   openPicker(slot);
 }
 
+let pickerList = [];   // 開いている曜限の全候補。検索は絞り込むだけでこれ自体は変えない。
+
 function openPicker(slot){
-  const list = COURSES.filter(c => inTerm(c) && (c.slots || []).includes(slot));
+  pickerList = COURSES.filter(c => inTerm(c) && (c.slots || []).includes(slot));
   $("#mpPickerTitle").textContent = `${slot} の科目`;
+  $("#mpPickerSearch").value = "";
+  renderPickerList(pickerList, slot, "");
+  /* 1文字打つたびに絞り込む。候補が少ない曜限でも入力欄自体は出しておく
+     ―― 「検索できない曜限がある」より、常に同じ場所にある方が分かりやすい。 */
+  $("#mpPickerSearch").oninput = () => {
+    const q = $("#mpPickerSearch").value.trim();
+    renderPickerList(q ? pickerList.filter(c => c.title.includes(q)) : pickerList, slot, q);
+  };
+  $("#mpPicker").showModal();
+}
+
+function renderPickerList(list, slot, query){
+  /* 「候補が0件」の理由を2通り出し分ける。曜限自体に科目が無いのか、
+     検索語に一致しないだけなのかで、次に何をすればいいかが変わるため。 */
+  const empty = query
+    ? `<p>「${esc(query)}」に一致する科目がありません。</p>`
+    : `<p>この学期の ${slot} に科目がありません。</p>`;
   $("#mpPickerList").innerHTML = list.length
     ? list.map(c => `<button class="mpPick" data-id="${esc(c.id)}">
         <b>${esc(c.title)}</b><small>${esc(c.instructor || "―")}</small></button>`).join("")
-    : `<p>この学期の ${slot} に科目がありません。</p>`;
+    : empty;
   $("#mpPickerList").querySelectorAll(".mpPick").forEach(b => b.onclick = () => {
     putCourse(b.dataset.id, slot);
     $("#mpPicker").close();
   });
-  $("#mpPicker").showModal();
 }
 
 /* 1科目が複数コマを持つとき（金4・金5・金6 の実験など）は全部のマスを埋める。

@@ -22,6 +22,13 @@
 .mpCell.filled{ background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }
 #mpPicker{ border:0; border-radius:14px; padding:20px; max-width:420px; width:90vw; }
 #mpPicker::backdrop{ background:var(--scrim); }
+#mpPickerSearch{ display:block; width:100%; box-sizing:border-box; padding:10px;
+  border:1px solid var(--rule); border-radius:8px; font-size:15px; margin:0 0 10px; }
+/* サイト内のもう1つのモーダル（口コミフォームの .fbCancel）と同じ見た目に揃える。
+   ここには「送る」に当たるボタンが無く1つだけなので、幅いっぱいにする。 */
+#mpPickerClose{ display:block; width:100%; box-sizing:border-box; background:none;
+  border:1px solid var(--rule); border-radius:8px; color:var(--soft); font:inherit;
+  padding:12px; cursor:pointer; }
 .mpPick{ display:block; width:100%; text-align:left; padding:10px;
   border:1px solid var(--rule); border-radius:8px; background:var(--card); margin:0 0 6px; cursor:pointer; }
 .mpPick small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
