@@ -17,6 +17,70 @@
 
 ---
 
+## 2026-08-27 ｜ マイページ：時間割ピッカーに検索・背景クリックで閉じるを追加 ｜ 松下(Claude) → 次の人
+
+PR #78 で `main` にマージ・push 済み（マージコミット `e1be70b`）。
+
+### 1. 何が動く状態か
+
+```bash
+python -m http.server 8123 --directory web   # または .claude/launch.json の "web-static"
+# http://localhost:8123/mypage.html を開き、時間割の空きコマ（候補が多い月1がおすすめ・97件）を押す
+```
+
+- `web/mypage.html`：ピッカーの `<dialog id="mpPicker">` に `<input id="mpPickerSearch">` を追加
+- `web/assets/mypage.js`：
+  - `openPicker`/`renderPickerList` に分割し、検索欄に1文字打つたびに科目名（`c.title`）で
+    即座に絞り込む。空文字なら全件、該当0件なら「検索語に一致しない」旨のメッセージに出し分け
+  - `boot()` に、`<dialog>` 自身をクリック（＝背景／中身の無い余白をクリック）したときだけ
+    `close()` する処理を追加（`e.target === e.currentTarget` で判定。`::backdrop` はDOMノードでは
+    ないため、背景クリックは dialog 要素自身がターゲットになる、という仕様を利用）
+- `web/assets/mypage.css`：`#mpPickerSearch` と `#mpPickerClose` を追加。閉じるボタンは
+  今までブラウザ標準の見た目のままだったので、口コミフォームの `.fbCancel`（`feedback.css`）と
+  同じ枠線・角丸8px・`--soft` 文字色に揃えた
+
+動作確認は Browser pane から `javascript_tool`／`get_page_text` で、検索の絞り込み・0件表示・
+検索欄クリアで全件に戻る・科目選択で時間割に反映されモーダルが閉じる・別コマを開き直すと検索欄が
+リセットされる・背景クリックで閉じる／中身クリックでは閉じない、を確認済み。
+
+### 2. 何をしていないか
+
+- **`python build.py` は実行していない。** 手元の `data/courses.json`（1,112件）が現在の
+  `web/data/courses.built.json`（7,877件）より大幅に少なく、build.py 自身が
+  「上書きすると6,765件減る」と警告して停止した。今回の変更は courses.built.json に触れて
+  いないので実害は無いが、**手元の courses.json は古い／一部データの可能性が高い。**
+  次に build.py を回す人は、まず最新の courses.json を揃えてから
+- **`node tools/shots.mjs` は未実行。** playwright 未インストール（`node_modules/playwright` 無し）
+  に加え、このスクリプトの撮影対象（`VIEWS`）に `/mypage` が入っていないため、走らせても
+  今回の変更は写らない
+- **実機（スマホ）での見た目・タップ操作は未確認**
+- `tools/test_reviews.py` は失敗中（`受講年が全件埋まっている` ／ id `137199`）だが、
+  **`git stash` して main の状態でも同じ失敗を確認済み。今回の変更とは無関係の既存不具合**
+  （口コミ集計データ側。担当は しゅんや／wang）
+
+### 3. 次の人が最初にやること
+
+特に無し。上記「何をしていないか」の build.py・shots.mjs・実機確認・test_reviews は
+残作業として認識だけしておく。
+
+### 4. 踏んだ罠
+
+- **`build.py` は入力件数が今の built.json より大きく減ると安全装置で止まる**
+  （`--allow-fewer-courses` で強行できるが、今回は「手元データが古いだけ」と判断して見送るのが正解）
+- **Windows のターミナルは既定 `cp932`。** `✗` 等の記号を `print` する Python が
+  `UnicodeEncodeError` で落ちる（`test_reviews.py` がこれで初見は失敗内容が読めなかった）。
+  `PYTHONIOENCODING=utf-8` を前に付けて再実行すると中身が読める
+- **Claude Browser の `javascript_tool` はページ内で `const` 宣言した変数が次回実行にも残る**
+  （別スクリプトとして分離されない）。2回目以降で `Identifier ... has already been declared`
+  になったら `(function(){...})()` で包む
+- **`tabId` を省略すると、複数タブがある状態で存在しないタブに実行されることがあった。**
+  毎回 `tabId` を明示する
+- **この項目自体、区切り時に指示なしで書く決まりだったのに、最初は口頭（チャット）で
+  出すだけで終えて HANDOFF.md への追記を忘れた。** ユーザーの指摘で気づいて追記。
+  「区切りがついたら」の判定を自分でしたつもりでも、実際に書き終えるまでは区切りにしない
+
+---
+
 ## 2026-08-27 ｜ フィルタUI改善：学部セレクトを拡大／卒業要件チップを折りたたみ ｜ 松下 → 次の人
 
 しゅんやさんの Discord 指摘（フィルタの並び順・学部ボタンが小さい）に対応。
