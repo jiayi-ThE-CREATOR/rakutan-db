@@ -103,13 +103,18 @@
       </section>
 
       <section>
-        <h2>学期</h2>
-        <div class="chips" id="sems"></div>
-      </section>
-
-      <section>
         <h2>学年 <span class="sub">選ぶと履修できない科目を外します</span></h2>
         <div class="chips" id="years"></div>
+      </section>
+
+      <!-- ここに「卒業要件の区分でしぼる」「学部からさがす」(#facSec) が
+           app.js の buildFaculty() から挿入される（学年の直後に差し込む仕組み）。
+           このコメントの直後に学期を置くと、見た目の順序は
+           学年 → 卒業要件/学部 → 学期 になる。 -->
+
+      <section>
+        <h2>学期</h2>
+        <div class="chips" id="sems"></div>
       </section>
 
 

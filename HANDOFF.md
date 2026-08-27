@@ -17,6 +17,101 @@
 
 ---
 
+## 2026-08-27 ｜ フィルタUI改善：学部セレクトを拡大／卒業要件チップを折りたたみ ｜ 松下 → 次の人
+
+しゅんやさんの Discord 指摘（フィルタの並び順・学部ボタンが小さい）に対応。
+並び順は「しゅんやさんに先に確認してから」の方針だったが、本人（松下）の判断で
+**確認前に実装まで進めた**（下記「何をしていないか」参照）。
+
+### 1. 何が動く状態か
+
+```bash
+python -m http.server 8123 --directory web   # または .claude/launch.json の "web-static"
+# http://localhost:8123 を開き、レールの並びが 学年→卒業要件/学部→学期 になっていること、
+# 「学部を選ぶ」セレクトが押しやすい大きさになっていること、
+# 「卒業要件の区分でしぼる」が既定で閉じていることを確認
+```
+
+- `web/index.html`：「学期」セクションを「学年」セクションの下に移動。
+  `buildFaculty()`（app.js）が `years.parentNode.insertBefore(sec, years.nextSibling)`
+  で「学年」の直後に卒業要件/学部セクションを差し込む仕組みを利用し、
+  index.html側の並び替えだけで見た目の順序を **学年→卒業要件/学部→学期** にした
+  （app.js側の変更は不要だった）
+- `web/assets/app.css`：`#facSec select`（`#facSel` 学部・`#trackSel` トラック）を
+  幅いっぱい・パディング11px14px・枠線ありに拡大（旧: margin-bottomのみでブラウザ既定の細いまま）
+- `web/assets/app.js`（`buildFaculty()`）：「卒業要件の区分でしぼる」のチップ本体
+  (`#divs`) を既定で閉じ、`#divsTog` ボタンを押すと開く形に変更。
+  既存の `#divTog`/`#divsOff`（卒業要件外の区分の開閉）と同じ `hidden` 属性パターンを流用。
+  すでに区分を選んだ状態で作られた場合は開いた状態で始まる（`state.division.size > 0` 判定）
+  ―― ただし今の実装には区分をURL等から復元する経路が無いので、この分岐は現状常に「閉じる」側を通る
+
+動作確認は Browser pane から `javascript_tool` で `#divsTog.click()` → `#divs.hidden` の
+true/false 切り替え、学年チップ押下後も選択中の区分チップと開閉状態が保持されること、
+`aside`内の `h2` の並びが `学年→卒業要件の区分でしぼる→学部からさがす→学期` になっていることを確認済み
+（`load()` の再描画で状態が壊れない）。
+
+### 2. 何をしていないか
+
+- **並び順「学年→学部→学期」は、しゅんやさんの原文を松下＋Claudeで解釈した結果であり、
+  しゅんやさんご本人の確認はまだ取れていない。** 原文「学年→学部→学年」は学年が
+  2回出て矛盾していたため、学年→学部→**学期**（使用頻度が低い学期を最後に送る）と
+  解釈して実装した。**しゅんやさんから別の意図だと返答があれば、並び順は再調整が必要。**
+  index.html の「学期」セクションを動かすだけで直せる仕組みなので、修正自体は軽い
+- **`web/CLAUDE.md` の app.js を今回直接編集した。** 同ファイルの担当表では
+  「カードと詳細のHTML以外のapp.jsはwang担当・松下は編集しない」となっているが、
+  今回は本人が「その担当ファイルの話はどっか行ったので全部実装してOK」と明言したため実施。
+  ドキュメント側（web/CLAUDE.md 1章・オーナー表・7章）も同じ会話内で実態に合わせて更新ずみ
+- **PR前チェック（`build.py` → `tools/test_*.py` → `node tools/shots.mjs`）は未実行。**
+  今回はローカル静的サーバ＋ブラウザのJS実行で見た目と挙動だけ確認した
+- git commit / push はしていない。作業ツリーに変更が残っている状態
+- **最初、この作業を origin/main を fetch/pull せずに始めてしまった。** 気づいた時点で
+  26コミット遅れており（マイページ・お気に入り・LINEログインの Phase 1 マージ含む）、
+  下の「踏んだ罠」に手順を残した
+
+### 3. 次の人が最初にやること
+
+```bash
+git status   # app.css / app.js / index.html / HANDOFF.md の変更を確認
+python3 build.py
+for t in web_split tokens layout shell_inject scoring_gate reviews; do python3 tools/test_$t.py; done
+node tools/shots.mjs /tmp/rk
+```
+
+しゅんやさんに並び順（学年→学部→学期で実装した旨）を確認してもらう。
+違う意図だった場合は `web/index.html` の「学期」セクションの位置を
+動かすだけで直せる（`buildFaculty()` が「学年」の直後に差し込む仕組みなので、
+「学期」をどこに置くかだけで並びが決まる）。
+
+### 4. 踏んだ罠
+
+- **作業に入る前に `git fetch origin && git log --oneline origin/main -3` をやらず、
+  26コミット遅れた状態のまま編集してしまった。** web/CLAUDE.md 3章に書いてある
+  手順そのものだったのに、最初は踏まなかった。気づいたのはユーザーからの
+  「最新のリポジトリ状態にしてから編集した？」という確認がきっかけ。
+  復旧手順：`git stash push -- <編集した追跡ファイルだけ>`
+  （web/CLAUDE.md など今回のセッション中に追加した未追跡ファイルは対象に含めない）→
+  `git merge --ff-only origin/main` → `git stash pop`。
+  app.css・app.js・index.html は編集した行が upstream の変更と重ならず自動マージできたが、
+  **HANDOFF.md は「ルールの直下に追記する」という同じ場所に両者が挿入していたため
+  コンフリクトした。** `git checkout --ours -- HANDOFF.md` でupstream版に戻し、
+  自分のエントリを手で先頭に挿し直した
+- **Browser pane が非表示だと `computer`（クリック・スクリーンショット）が
+  タイムアウトする。** `javascript_tool` で `element.click()` を直接呼ぶ・
+  `getComputedStyle` で確認する形に切り替えたら通った。見た目のピクセル単位の
+  最終確認はまだ本物の画面で見ていないので、次の人は一度目視してほしい
+- `.chips[hidden]{display:none}` が既にCSS側にあったので、`#divs` にも新しいCSSを
+  足さずに `hidden` 属性だけで開閉できた。もし今後 `.chips` を使わない要素を
+  同じ手で開閉したいなら、このルールが無いので別途CSSが要る
+- **（今回とは無関係・未確認のまま残す）** pull 後の初回読み込みで1度だけ
+  `Uncaught ReferenceError: rkStore is not defined at app.js:1415` をコンソールで見た。
+  store.js は defer無しで app.js より先に読み込まれる並びなので通常は起きないはず。
+  同じタブで何度リロードしても再現せず、画面（一覧・チップ・facSecの中身）は
+  正常に描画されていたので、今回のBrowser pane環境固有の一過性の現象の可能性が高い。
+  wangさんの Phase 1 マージとは無関係な今回の変更では触っていない箇所なので直していない。
+  **実機・別ブラウザで再現するようなら報告してほしい**
+
+---
+
 ## 2026-08-27 ｜ マイページ・お気に入り・開屏の問診（Phase 1）を main にマージ ｜ wang
 
 ### 1. 何が動く状態か
