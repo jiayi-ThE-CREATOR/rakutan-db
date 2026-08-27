@@ -7,17 +7,22 @@
  * だから全部を read()/write() でくるみ、**失敗しても既定値で動き続ける**。
  * 保存できないだけで、その回の操作は画面上では成立させる。
  *
- * 鍵は4つ:
+ * 鍵は5つ:
  *   osaka_u_settings … kuchikomi と共用。こちらは faculty / grade だけ触る
  *   rk_onboarded     … 開屏の問診が一度出た印。localStorage（一生に一度）
  *   rk_favorites     … { v:1, ids:{ "<id>": <追加時刻> } }
  *   rk_timetable     … { v:1, aki:{slots,extra}, haru:{slots,extra} }
+ *   rk_cal_added     … { v:1, ids:{ "<id>": true } }。外部カレンダーに
+ *                      「追加した」とサイト側で覚えているだけの印で、
+ *                      実際にGoogle/Outlook/iCal側に追加されたかは確認していない
+ *                      （2026-08-27 マイページのカレンダー連携で追加）
  */
 (() => {
   const K_SET = "osaka_u_settings";
   const K_ON  = "rk_onboarded";
   const K_FAV = "rk_favorites";
   const K_TT  = "rk_timetable";
+  const K_CAL = "rk_cal_added";
   const TERMS = ["haru", "aki"];
   /* localStorage への書き込みが失敗したキーだけを持つメモリ内フォールバック
      （プライベートモードの全滅・quota 枯渇のどちらでも使う）。
@@ -126,6 +131,23 @@
       const tt = readTT(); const k = term(t);
       tt[k].extra = tt[k].extra.filter((x) => x !== id);
       writeTT(tt);
+    },
+
+    isCalAdded(id) {
+      const ids = readObj(K_CAL).ids;
+      return !!(ids && typeof ids === "object" && !Array.isArray(ids) && ids[id]);
+    },
+    markCalAdded(id) {
+      const o = readObj(K_CAL);
+      const ids = (o.ids && typeof o.ids === "object" && !Array.isArray(o.ids)) ? o.ids : {};
+      ids[id] = true;
+      write(K_CAL, JSON.stringify({ v: 1, ids }));
+    },
+    unmarkCalAdded(id) {
+      const o = readObj(K_CAL);
+      const ids = (o.ids && typeof o.ids === "object" && !Array.isArray(o.ids)) ? o.ids : {};
+      delete ids[id];
+      write(K_CAL, JSON.stringify({ v: 1, ids }));
     },
   };
 })();

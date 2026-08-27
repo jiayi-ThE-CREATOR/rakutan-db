@@ -46,6 +46,33 @@ async function boot(){
   $("#mpPicker").addEventListener("click", (e) => {
     if (e.target === e.currentTarget) $("#mpPicker").close();
   });
+
+  $("#mpAllCal").onclick = () => {
+    const tt = rkStore.getTimetable(term);
+    const ids = [...new Set(Object.values(tt.slots))];
+    const courses = ids.map(id => BY_ID.get(id)).filter(Boolean);
+    if (!courses.length){ alert("時間割にまだ科目が入っていません。"); return; }
+    openCalAdd(courses);
+  };
+  $("#mpCalAddDlg").querySelectorAll(".mpCalOpt").forEach(btn => {
+    btn.onclick = () => onCalAddMethod(btn.dataset.method);
+  });
+  $("#mpCalAddClose").onclick = () => $("#mpCalAddDlg").close();
+  $("#mpCalAddDlg").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) $("#mpCalAddDlg").close();
+  });
+
+  $("#mpCalDelDlg").querySelectorAll("[data-open]").forEach(btn => {
+    btn.onclick = () => window.open(calViewUrl(btn.dataset.open, calDlgCourses[0]), "_blank", "noopener");
+  });
+  $("#mpCalDelForget").onclick = () => {
+    rkStore.unmarkCalAdded(calDlgCourses[0].id);
+    $("#mpCalDelDlg").close();
+    renderTimetable();
+  };
+  $("#mpCalDelDlg").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) $("#mpCalDelDlg").close();
+  });
 }
 
 function buildProfile(){
@@ -94,6 +121,203 @@ function buildTerms(){
 
 function inTerm(c){ return TERM_GROUPS[term].includes(c.term_group); }
 
+/* ── カレンダー連携 ──────────────────────────────────────
+ * 1〜6限の時刻は阪大の一般的な想定値（2026-08-27時点、公式教務時間割との
+ * 突き合わせは未確認。違っていたら PERIOD_TIMES の数字だけ直せばよい）。
+ * 学期の開始日・終了日はこのアプリのデータに無いため、「次にその曜日が
+ * 来る日」を起点に、終わりを指定しない毎週くり返しにしてある
+ * （やめたいときは各カレンダーアプリ側で削除。案内は openCalDel 参照）。
+ */
+const PERIOD_TIMES = {
+  "1": [8, 50, 10, 20], "2": [10, 30, 12, 0], "3": [13, 0, 14, 30],
+  "4": [14, 40, 16, 10], "5": [16, 20, 17, 50], "6": [18, 0, 19, 30],
+};
+const DAY_INDEX = { "月": 1, "火": 2, "水": 3, "木": 4, "金": 5 };
+const ICS_BYDAY = { "月": "MO", "火": "TU", "水": "WE", "木": "TH", "金": "FR" };
+const pad2 = (n) => String(n).padStart(2, "0");
+
+/* 今日以降でその曜日がいちばん早く来る日時。今日がその曜日でも、
+   もう開始時刻を過ぎていれば1週間先にする。 */
+function nextDateFor(dayChar, hh, mm){
+  const now = new Date();
+  const want = DAY_INDEX[dayChar];
+  let diff = (want - now.getDay() + 7) % 7;
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+  if (diff === 0 && d.getTime() <= now.getTime()) diff = 7;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+/* タイムゾーン付き（Z・TZID）にせず、そのまま「その時刻」として書き出す。
+   ほぼ全員が日本時間で見る前提なら、これが一番事故りにくい。 */
+function fmtICS(d){
+  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`
+       + `T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
+}
+function icsEscape(s){
+  return String(s).replace(/([,;])/g, "\\$1").replace(/\n/g, "\\n");
+}
+
+/* 同じ科目・同じ曜日で連続するコマ（金4・金5・金6 の実験など）を1つの
+   予定にまとめる。バラバラにすると、実際は3時間ぶっ通しの授業が
+   3つの短い予定に見えてしまう。 */
+function courseEventBlocks(c){
+  const byDay = {};
+  for (const s of (c.slots || [])){
+    const day = s[0], period = s.slice(1);
+    if (!PERIOD_TIMES[period]) continue;
+    (byDay[day] || (byDay[day] = [])).push(Number(period));
+  }
+  const blocks = [];
+  for (const day of Object.keys(byDay)){
+    const periods = byDay[day].sort((a, b) => a - b);
+    let start = periods[0], prev = periods[0];
+    for (let i = 1; i <= periods.length; i++){
+      const p = periods[i];
+      if (p === prev + 1){ prev = p; continue; }
+      blocks.push({ day, startPeriod: String(start), endPeriod: String(prev) });
+      start = prev = p;
+    }
+  }
+  return blocks;
+}
+function blockRange(block){
+  const [sh, sm] = PERIOD_TIMES[block.startPeriod];
+  const endT = PERIOD_TIMES[block.endPeriod];
+  const start = nextDateFor(block.day, sh, sm);
+  const end = new Date(start);
+  end.setHours(endT[2], endT[3], 0, 0);
+  return { start, end };
+}
+
+function calIconSVG(added){
+  return added
+    ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l5 5L20 6"/></svg>`
+    : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13.5v5M9.5 16h5"/></svg>`;
+}
+
+function icsEvent(c, block){
+  const { start, end } = blockRange(block);
+  const desc = c.instructor ? `担当: ${c.instructor}` : "";
+  return [
+    "BEGIN:VEVENT",
+    `UID:${c.id}-${block.day}${block.startPeriod}@rakuhan.nocode-sol.co.jp`,
+    `DTSTAMP:${fmtICS(new Date())}`,
+    `DTSTART:${fmtICS(start)}`,
+    `DTEND:${fmtICS(end)}`,
+    `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]}`,
+    `SUMMARY:${icsEscape(c.title)}`,
+    desc ? `DESCRIPTION:${icsEscape(desc)}` : null,
+    "END:VEVENT",
+  ].filter(Boolean).join("\r\n");
+}
+function buildICS(courses){
+  const events = [];
+  for (const c of courses) for (const b of courseEventBlocks(c)) events.push(icsEvent(c, b));
+  return [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//rakuhan//mypage//JA", "CALSCALE:GREGORIAN",
+    ...events, "END:VCALENDAR",
+  ].join("\r\n");
+}
+function downloadICS(courses, filename){
+  const blob = new Blob([buildICS(courses)], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* Googleの「予定を追加」URLは recur パラメータで毎週くり返しに対応できる。
+   Outlookの簡易リンクは繰り返しに対応していないため次の1回だけになる
+   ―― その差はモーダルの説明文（openCalAdd）側で断っている。 */
+function googleUrl(c, block){
+  const { start, end } = blockRange(block);
+  const p = new URLSearchParams({
+    action: "TEMPLATE", text: c.title,
+    dates: `${fmtICS(start)}/${fmtICS(end)}`,
+    ctz: "Asia/Tokyo",
+    details: c.instructor ? `担当: ${c.instructor}` : "",
+    recur: `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]}`,
+  });
+  return `https://calendar.google.com/calendar/render?${p.toString()}`;
+}
+function outlookUrl(host, c, block){
+  const { start, end } = blockRange(block);
+  const p = new URLSearchParams({
+    path: "/calendar/action/compose", rru: "addevent",
+    startdt: start.toISOString(), enddt: end.toISOString(),
+    subject: c.title, body: c.instructor ? `担当: ${c.instructor}` : "",
+  });
+  return `https://${host}/calendar/0/deeplink/compose?${p.toString()}`;
+}
+/* 複数タブを同時に開くとポップアップブロックに引っかかりやすいので、
+   少しずつ間隔をあけて開く。 */
+function openTabs(urls){
+  urls.forEach((u, i) => setTimeout(() => window.open(u, "_blank", "noopener"), i * 350));
+}
+
+/* Googleは「その日」を直接開けるURLがあるのでそこへ。Outlookの簡易リンクに
+   同等の「特定の日を開く」ものが見当たらなかったため、週表示止まりにしている
+   （不確かなURLを作って外れるより、この方が誠実）。iCalは「開く」操作自体が
+   無い（ダウンロードしたファイルを取り込んだアプリ側の話になるため）。 */
+function calViewUrl(kind, course){
+  const b = courseEventBlocks(course)[0];
+  const d = b ? blockRange(b).start : new Date();
+  if (kind === "google")
+    return `https://calendar.google.com/calendar/r/day/${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`;
+  if (kind === "outlook-personal") return "https://outlook.live.com/calendar/0/view/week";
+  if (kind === "outlook-o365") return "https://outlook.office.com/calendar/0/view/week";
+}
+
+let calDlgCourses = []; // 開いているカレンダーのダイアログが対象にしている科目（1件 or 複数）
+
+function openCalAdd(courses){
+  calDlgCourses = courses;
+  const single = courses.length === 1;
+  $("#mpCalAddTitle").textContent = single
+    ? `${courses[0].title}をカレンダーに追加`
+    : `時間割をすべてカレンダーに追加（${courses.length}件）`;
+  const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).length, 0);
+  $("#mpCalAddSub").textContent = single
+    ? "追加するカレンダーを選んでください。Outlook/Googleはログイン済みであることを確認してください。組織アカウントの場合はOffice365を選んでください。"
+    : `iCalは全コマを1つのファイルにまとめてダウンロードします。Outlook/Googleは科目ごとに追加画面が開きます（この時間割の場合 ${tabCount} 回）。`;
+  const toast = $("#mpCalAddToast");
+  toast.textContent = "";
+  toast.className = "mpCalToast";
+  $("#mpCalAddDlg").showModal();
+}
+
+function onCalAddMethod(method){
+  if (method === "ics"){
+    downloadICS(calDlgCourses, calDlgCourses.length === 1 ? `${calDlgCourses[0].title}.ics` : "私の時間割.ics");
+  } else {
+    const urls = [];
+    for (const c of calDlgCourses){
+      for (const b of courseEventBlocks(c)){
+        if (method === "google") urls.push(googleUrl(c, b));
+        else if (method === "outlook-personal") urls.push(outlookUrl("outlook.live.com", c, b));
+        else if (method === "outlook-o365") urls.push(outlookUrl("outlook.office.com", c, b));
+      }
+    }
+    openTabs(urls);
+  }
+  const label = { ics: "iCal", google: "Google", "outlook-personal": "Outlook（個人）", "outlook-o365": "Outlook（Office365）" }[method];
+  const toast = $("#mpCalAddToast");
+  toast.textContent = `${label} を開始しました。`;
+  toast.classList.add("show");
+  for (const c of calDlgCourses) rkStore.markCalAdded(c.id);
+  renderTimetable();
+}
+
+function openCalDel(course){
+  calDlgCourses = [course];
+  $("#mpCalDelTitle").textContent = `${course.title}をカレンダーから削除`;
+  $("#mpCalDelBody").textContent =
+    "サイト側からは、実際のカレンダーに入っている予定を直接は消せない（どの方法で追加したかまでは記録していないため）。"
+    + `追加したカレンダーアプリを開いて、そちら側で「${course.title}」の予定を削除してほしい。`;
+  $("#mpCalDelDlg").showModal();
+}
+
 function renderTimetable(){
   const tt = rkStore.getTimetable(term);
   let html = '<div class="mpH"></div>' + DAYS.map(d=>`<div class="mpH">${d}</div>`).join("");
@@ -106,13 +330,30 @@ function renderTimetable(){
       /* 読み上げ利用者には「ボタン」としか聞こえない（aria-label が無いと
          accessible name が空になる）。何曜何限で、何が入っているかを
          1つの文字列にして持たせる。app.js の buildGrid() と同じ考え方。 */
-      html += `<button class="mpCell${c?" filled":""}" data-slot="${slot}"`
-            + ` aria-label="${slot} ${c ? esc(c.title) : "空き"}">`
-            + (c ? esc(c.title) : "") + `</button>`;
+      if (!c){
+        html += `<button class="mpCell" data-slot="${slot}" aria-label="${slot} 空き"></button>`;
+        continue;
+      }
+      /* カレンダー追加ボタンは .mpCell（外すボタン）の中には入れない。
+         button の中に button を置くと読み上げが崩れるので、.mpCellWrap を
+         挟んで兄弟要素にする（mypage.css 参照）。 */
+      const added = rkStore.isCalAdded(id);
+      html += `<div class="mpCellWrap">`
+            + `<button class="mpCell filled" data-slot="${slot}" aria-label="${slot} ${esc(c.title)}">${esc(c.title)}</button>`
+            + `<button type="button" class="mpCalBtn${added ? " added" : ""}" data-cal-id="${esc(id)}"`
+            + ` aria-label="${esc(c.title)}をカレンダーに${added ? "連携（削除）" : "追加"}">${calIconSVG(added)}</button>`
+            + `</div>`;
     }
   }
   $("#mpGrid").innerHTML = html;
   $("#mpGrid").querySelectorAll(".mpCell").forEach(b => b.onclick = () => onCell(b.dataset.slot));
+  $("#mpGrid").querySelectorAll(".mpCalBtn").forEach(btn => {
+    btn.onclick = () => {
+      const c = BY_ID.get(btn.dataset.calId);
+      if (!c) return;
+      btn.classList.contains("added") ? openCalDel(c) : openCalAdd([c]);
+    };
+  });
   renderExtra();
   /* コマが埋まると「時間割に入れる」ボタンの出方（もう入っている／
      上書きになる、など）が変わるので、お気に入り側も引き直す。
@@ -145,10 +386,13 @@ function onCell(slot){
        全コマ外す。クリックしたマスだけ外すと、複数コマの科目
        （金4・金5・金6 の実験など。timetable.json に528件ある）が
        半分残ったまま「埋まっている」ように見えてしまう。
-       確認は出さない ―― 1タップで科目ごと戻せるので。 */
+       2026-08-27：以前は「1タップで戻せるから」と確認を出していなかったが、
+       誤タップで消えたことが分かりにくいという指摘を受けて確認を挟む方針に変えた。 */
     const c = BY_ID.get(id);
     /* BY_ID に無い＝古いデータのまま残った id。せめてクリックしたマスは外す。 */
     const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
+    const label = c ? c.title : id;
+    if (!confirm(`「${label}」を時間割から外しますか？`)) return;
     for (const s of slots) rkStore.clearSlot(term, s);
     renderTimetable();
     return;
