@@ -122,27 +122,52 @@ function buildTerms(){
 function inTerm(c){ return TERM_GROUPS[term].includes(c.term_group); }
 
 /* ── カレンダー連携 ──────────────────────────────────────
- * 1〜6限の時刻は阪大の一般的な想定値（2026-08-27時点、公式教務時間割との
- * 突き合わせは未確認。違っていたら PERIOD_TIMES の数字だけ直せばよい）。
- * 学期の開始日・終了日はこのアプリのデータに無いため、「次にその曜日が
- * 来る日」を起点に、終わりを指定しない毎週くり返しにしてある
- * （やめたいときは各カレンダーアプリ側で削除。案内は openCalDel 参照）。
+ * 1〜6限の時刻・学期の開始日終了日は、本人（松下）が2026-08-27に共有した
+ * 全学共通教育の公式資料（授業開始・終了時間の表／令和8年度学年暦）どおり。
+ * TERM_RANGE は「令和8年度」の日付なので、年度が変わったら要更新
+ * （2027年度の学年暦が出たらここだけ差し替える）。
+ *
+ * 祝日・大学祭による休講日や「金曜だけど月曜の時間割で授業」のような
+ * 振替授業日は、この学年暦の画像1枚だけでは正確に拾いきれず、しかも
+ * 年度ごとに作り直しが要るため、今回は反映していない（本人と確認のうえ
+ * 保留に決定・2026-08-27）。学期の外の日付にはならないところまでは
+ * 直したが、学期の中の祝日はすり抜ける。openCalAdd の説明文でも断っている。
  */
 const PERIOD_TIMES = {
-  "1": [8, 50, 10, 20], "2": [10, 30, 12, 0], "3": [13, 0, 14, 30],
-  "4": [14, 40, 16, 10], "5": [16, 20, 17, 50], "6": [18, 0, 19, 30],
+  "1": [8, 50, 10, 20], "2": [10, 30, 12, 0], "3": [13, 30, 15, 0],
+  "4": [15, 10, 16, 40], "5": [16, 50, 18, 20], "6": [18, 30, 20, 0],
 };
 const DAY_INDEX = { "月": 1, "火": 2, "水": 3, "木": 4, "金": 5 };
 const ICS_BYDAY = { "月": "MO", "火": "TU", "水": "WE", "木": "TH", "金": "FR" };
+/* 「秋・冬学期」は秋学期(10/1〜12/2)と冬学期(12/3〜3/31)を合わせた期間、
+   「春・夏学期」は春学期(4/1〜6/14)と夏学期(6/15〜9/30)を合わせた期間
+   ―― マイページの学期タブ（aki/haru）と同じ2分割に合わせてある。 */
+const TERM_RANGE = {
+  haru: { start: [2026, 4, 1],  end: [2026, 9, 30] },
+  aki:  { start: [2026, 10, 1], end: [2027, 3, 31] },
+};
 const pad2 = (n) => String(n).padStart(2, "0");
 
-/* 今日以降でその曜日がいちばん早く来る日時。今日がその曜日でも、
-   もう開始時刻を過ぎていれば1週間先にする。 */
+function termBounds(termKey){
+  const r = TERM_RANGE[termKey] || TERM_RANGE.aki;
+  return {
+    start: new Date(r.start[0], r.start[1] - 1, r.start[2], 0, 0, 0),
+    end:   new Date(r.end[0],   r.end[1] - 1,   r.end[2],   23, 59, 0),
+  };
+}
+
+/* その曜日がいちばん早く来る日時。学期がまだ始まっていなければ学期の
+   開始日を起点にする（そうしないと、学期が始まる前にこの機能を使うと
+   「今週の月曜」のような学期外の日が最初の予定になってしまう）。
+   学期が始まっていれば今日が起点。今日がその曜日でも、もう開始時刻を
+   過ぎていれば1週間先にする。 */
 function nextDateFor(dayChar, hh, mm){
-  const now = new Date();
   const want = DAY_INDEX[dayChar];
-  let diff = (want - now.getDay() + 7) % 7;
-  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm, 0);
+  const now = new Date();
+  const { start } = termBounds(term);
+  const floor = now > start ? now : start;
+  let diff = (want - floor.getDay() + 7) % 7;
+  const d = new Date(floor.getFullYear(), floor.getMonth(), floor.getDate(), hh, mm, 0);
   if (diff === 0 && d.getTime() <= now.getTime()) diff = 7;
   d.setDate(d.getDate() + diff);
   return d;
@@ -197,6 +222,7 @@ function calIconSVG(added){
 
 function icsEvent(c, block){
   const { start, end } = blockRange(block);
+  const until = fmtICS(termBounds(term).end);
   const desc = c.instructor ? `担当: ${c.instructor}` : "";
   return [
     "BEGIN:VEVENT",
@@ -204,7 +230,7 @@ function icsEvent(c, block){
     `DTSTAMP:${fmtICS(new Date())}`,
     `DTSTART:${fmtICS(start)}`,
     `DTEND:${fmtICS(end)}`,
-    `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]}`,
+    `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${until}`,
     `SUMMARY:${icsEscape(c.title)}`,
     desc ? `DESCRIPTION:${icsEscape(desc)}` : null,
     "END:VEVENT",
@@ -237,7 +263,7 @@ function googleUrl(c, block){
     dates: `${fmtICS(start)}/${fmtICS(end)}`,
     ctz: "Asia/Tokyo",
     details: c.instructor ? `担当: ${c.instructor}` : "",
-    recur: `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]}`,
+    recur: `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(termBounds(term).end)}`,
   });
   return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
@@ -278,9 +304,11 @@ function openCalAdd(courses){
     ? `${courses[0].title}をカレンダーに追加`
     : `時間割をすべてカレンダーに追加（${courses.length}件）`;
   const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).length, 0);
-  $("#mpCalAddSub").textContent = single
+  const holidayNote = "祝日や大学祭による休講・振替授業日には対応していません。";
+  $("#mpCalAddSub").textContent = (single
     ? "追加するカレンダーを選んでください。Outlook/Googleはログイン済みであることを確認してください。組織アカウントの場合はOffice365を選んでください。"
-    : `iCalは全コマを1つのファイルにまとめてダウンロードします。Outlook/Googleは科目ごとに追加画面が開きます（この時間割の場合 ${tabCount} 回）。`;
+    : `iCalは全コマを1つのファイルにまとめてダウンロードします。Outlook/Googleは科目ごとに追加画面が開きます（この時間割の場合 ${tabCount} 回）。`)
+    + " " + holidayNote;
   const toast = $("#mpCalAddToast");
   toast.textContent = "";
   toast.className = "mpCalToast";
