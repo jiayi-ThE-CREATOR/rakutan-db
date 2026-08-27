@@ -162,6 +162,11 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 #facSec select{display:block;width:100%;padding:11px 14px;font:inherit;font-size:var(--fs-base);
   border:1px solid var(--rule);border-radius:var(--r-md);background:var(--card);color:var(--ink);
   margin-bottom:var(--sp-2)}
+/* display:block は [hidden] の既定（display:none）より詳細度が高く、
+   これが無いと学科・専攻を持たない学部（文学部など）でも #trackSel が
+   出たままになる ―― しかも中身は前に選んでいた学部のもの。
+   「文学部なのに専攻語を選ぶ」が出るのはこれが原因だった。 */
+#facSec select[hidden]{display:none}
 .chip{border:1px solid var(--rule);background:var(--card);border-radius:var(--r-pill);
   padding:7px 13px;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
 .chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
