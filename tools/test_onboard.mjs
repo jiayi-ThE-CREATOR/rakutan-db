@@ -143,6 +143,56 @@ async function fresh() {
   await ctx.close();
 }
 
+// ⑧ LINE 公式アカウントの問診経由（from=line 付き）は、問診を出さずに
+//    その回答をそのまま「本人の回答」として確定する。
+{
+  const { ctx, page } = await fresh();
+  await page.goto(BASE + "/?faculty=law&year=2&from=line");
+  await page.waitForSelector(".card", { timeout: 15000 });
+  // splash演出＋app-ready が揃うまで待つ（④⑤と同じ待ち方）。
+  await page.waitForTimeout(2500);
+  check(await page.locator("#onboard").count() === 0,
+        "from=line で届いたのに問診が出た（二重に聞いている）");
+  const set = JSON.parse(await page.evaluate(() => localStorage.getItem("osaka_u_settings")) || "{}");
+  check(set.faculty === "law", "from=line の学部が osaka_u_settings に書かれていない");
+  check(set.grade === "2", "from=line の学年が osaka_u_settings に書かれていない");
+  check(await page.evaluate(() => localStorage.getItem("rk_onboarded")) === "1",
+        "from=line で届いたのに rk_onboarded が立っていない");
+  await page.waitForSelector("#years .chip.on");
+  const on = await page.locator("#years .chip.on").textContent();
+  check(on.includes("2年"), `from=line の絞り込みが反映されていない（いま ${on}）`);
+
+  // ⑨ 同じブラウザで、クエリ無しの2回目の訪問でも問診は出ず、絞り込みも残る
+  //    （from=line で書いた osaka_u_settings / rk_onboarded がそのまま効く）。
+  await page.goto(BASE + "/");
+  await page.waitForSelector(".card", { timeout: 15000 });
+  await page.waitForTimeout(2500);
+  check(await page.locator("#onboard").count() === 0,
+        "2回目の訪問（クエリ無し）で問診が出た");
+  await page.waitForSelector("#years .chip.on");
+  const on2 = await page.locator("#years .chip.on").textContent();
+  check(on2.includes("2年"), `2回目の訪問で絞り込みが消えている（いま ${on2}）`);
+  await ctx.close();
+}
+
+// ⑩ from=line マーカーが無い共有リンク（?faculty=&year= だけ）は、絞り込みには
+//    使うが、受け取った側のプロフィールを黙って書き換えてはいけない
+//    （A が B に自分用の絞り込みリンクを送っても、B の学部・学年は保護される）。
+//    初回訪問者には、このときも問診がちゃんと出ること。
+{
+  const { ctx, page } = await fresh();
+  await page.goto(BASE + "/?faculty=law&year=2");
+  await page.waitForSelector("#onboard[data-step='gate']", { timeout: 15000 });
+  check(true, "マーカー無しの共有リンクでも初回は問診が出る");
+  const set = await page.evaluate(() => localStorage.getItem("osaka_u_settings"));
+  check(!set || !JSON.parse(set).faculty,
+        "マーカー無しの共有リンクなのに学部が osaka_u_settings に書かれている");
+  await page.waitForSelector("#years .chip.on");
+  const on = await page.locator("#years .chip.on").textContent();
+  check(on.includes("2年"), `マーカー無しでも絞り込みは効くべき（いま ${on}）`);
+  await ctx.close();
+}
+
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);

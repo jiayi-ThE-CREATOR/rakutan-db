@@ -26,6 +26,14 @@
 
   function maybeShow(){
     if (shown || !splashDone || !appReady) return;
+    /* 上の isOnboarded() は、このスクリプトが読み込まれた瞬間（defer順で
+       app.js の直後・boot() 完了より前）に一度だけ見ている。LINE から
+       ?from=line 付きで届いた1回目の訪問はこの時点ではまだ rk_onboarded
+       が立っていない ―― app.js が boot() 後・rk:app-ready を発火する前に
+       マーカーを検証して markOnboarded() を呼ぶのはそのあとなので、
+       ここで appReady（rk:app-ready を受けた後）まで待ってから改めて
+       見ないと、間に合わずに問診を出してしまう。 */
+    if (rkStore.isOnboarded()) return;
     /* requirements.json が読めていない／空だと、学部ステップに
        ボタンが1つも無い行き止まりになる。しかも「そのまま使う」は
        gate にしか無い設計なので、この状態に入ると前にも後ろにも

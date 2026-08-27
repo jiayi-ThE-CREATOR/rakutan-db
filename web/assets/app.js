@@ -1363,10 +1363,45 @@ function applyPostMode() {
      「絞り込んでいるように見えないまま0件」という一番タチの悪い形になる
      （final-review.md 再レビュー指摘）。だから値が空でないことまで見る。 */
   {
-    const urlParams = new URL(location.href).searchParams;
-    const profile = rkStore.getProfile();
+    const urlObj = new URL(location.href);
+    const urlParams = urlObj.searchParams;
     const urlFaculty = urlParams.get("faculty");
     const urlYear = urlParams.get("year");
+
+    /* LINE 公式アカウントの問診から届いた場合だけ、その回答を「本人の回答」
+       として確定する。共有リンクの ?faculty=&year= と URL の形はまったく
+       同じなので、bot 側（worker/index.js の siteUri）が付ける from=line の
+       有無だけで見分ける。マーカーが無い訪問は「誰かが送ってきた絞り込み
+       リンク」として今までどおりフィルタにしか使わず、本人の学部・学年
+       （osaka_u_settings）は上書きしない ―― A が B に自分用の絞り込み
+       リンクを送っても、B 自身のプロフィールが黙って書き換わらないための線。
+       検証もここで行う：requirements.json（boot() 済みの REQ）に実在する
+       学部キーでなく、または学年が1〜6でなければ何も書かない
+       （壊れたクエリを osaka_u_settings に混入させない）。 */
+    if (urlParams.get("from") === "line") {
+      const facValid = !!(REQ && Array.isArray(REQ.faculties) &&
+        REQ.faculties.some(f => f.key === urlFaculty));
+      const yrValid = /^[1-6]$/.test(urlYear || "");
+      if (facValid && yrValid) {
+        rkStore.setProfile({ faculty: urlFaculty, grade: urlYear });
+        rkStore.markOnboarded();
+      }
+      /* from=line は「本人の回答」を示す印であって、共有していい情報では
+         ない。アドレスバーに残したままだと、この画面のURLをそのままコピー
+         して友だちに送ったとき、送られた側もこの印を引き継いでしまい、
+         その人自身のプロフィールを黙って上書きしてしまう ――
+         design doc §4.3 が署名トークンを使い切りにして302で剥がす理由と
+         同じ線（あちらは署名トークンの漏洩対策、こちらはこの印の
+         "うっかり転送" 対策で、守りたい形が同じ）。消費したらすぐ剥がす。
+         faculty/year はそのまま残してよい ―― 印が無ければ今日どおり
+         「フィルタだけ」に落ちるので、残っても安全側になる。 */
+      urlParams.delete("from");
+      const stripped = urlObj.pathname +
+        (urlParams.toString() ? "?" + urlParams.toString() : "") + urlObj.hash;
+      history.replaceState(null, "", stripped);
+    }
+
+    const profile = rkStore.getProfile();
     if (urlFaculty) state.faculty = urlFaculty;
     else if (profile.faculty) state.faculty = profile.faculty;
     if (urlYear) state.year = urlYear;

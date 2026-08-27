@@ -142,8 +142,32 @@ function courseBubble(c) {
   };
 }
 
+// LINE の問診で答えた学部・学年を「ラクハンで見る」ボタンのURLに載せる。
+// answers が無い／不正なときは今までどおりパラメータなしの ${siteOrigin}/
+// のまま（quick_default・自由検索の呼び出し側はそもそも answers を渡してこない）。
+// fac は FACULTIES に実在するキーであること、grade は1〜6であることをここで
+// 検証する。どちらか片方でも壊れていたら黙って base URL に落とす ――
+// 半端なURLでサイト側の osaka_u_settings を汚したくない
+// （web/assets/app.js 側の検証はさらに別途 requirements.json で行う。
+// ここは「載せる側」の門番）。from=line は「本人がLINEで答えた」印。
+// これがあるURLだけをサイト側は本人のプロフィールとして書き込む
+// （共有リンクとの区別。web/assets/app.js 参照）。
+function siteUri(siteOrigin, answers) {
+  const base = `${siteOrigin}/`;
+  if (!answers) return base;
+  const { grade, fac } = answers;
+  const facValid = FACULTIES.some(([key]) => key === fac);
+  const gradeNum = Number(grade);
+  const gradeValid = Number.isInteger(gradeNum) && gradeNum >= 1 && gradeNum <= 6;
+  if (!facValid || !gradeValid) return base;
+  const qs = new URLSearchParams({ faculty: fac, year: String(gradeNum), from: "line" });
+  return `${base}?${qs.toString()}`;
+}
+
 // 見出しテキスト＋Flexカルーセルの2通で返す（LINEは1回のreplyに複数メッセージを積める）。
-function coursesReply(heading, courses, siteOrigin) {
+// answers は省略可（第4引数）。渡すのは「ラクハンで見る」ボタンのURLだけで、
+// courses の絞り込み・並び順には一切使わない。
+function coursesReply(heading, courses, siteOrigin, answers) {
   const flex = {
     type: "flex",
     altText: heading,
@@ -152,7 +176,7 @@ function coursesReply(heading, courses, siteOrigin) {
   if (siteOrigin) {
     flex.quickReply = {
       items: [
-        { type: "action", action: { type: "uri", label: "ラクハンで見る", uri: `${siteOrigin}/` } },
+        { type: "action", action: { type: "uri", label: "ラクハンで見る", uri: siteUri(siteOrigin, answers) } },
       ],
     };
   }
@@ -165,7 +189,11 @@ function coursesReply(heading, courses, siteOrigin) {
 // grade は "1"〜"6"、preset は PRESET_NAMES のいずれか。
 // handleText（自由入力）と postback（ボタン選択）の両方から呼ぶ共通ロジック。
 // 戻り値は「見つからなかった」場合は文字列、見つかった場合はLINEメッセージの配列。
-export function buildRecommendation(grade, preset, data, siteOrigin) {
+// answers は省略可 ―― 問診で答えた学部・学年を「ラクハンで見る」ボタンの
+// URLに載せたいときだけ handlePostback から渡ってくる。ここでも
+// presetTop[grade] の grade 以外には使わない（学部はスコアリングに一切
+// 入れない）。
+export function buildRecommendation(grade, preset, data, siteOrigin, answers) {
   const courses = new Map(data.courses.map((c) => [c.id, c]));
   const presetTop = data.preset_top || {};
   const ids = ((presetTop[grade] || presetTop["1"] || {})[preset] || []).slice(0, 5);
@@ -174,7 +202,7 @@ export function buildRecommendation(grade, preset, data, siteOrigin) {
   }
   const matched = ids.map((id) => courses.get(id)).filter(Boolean);
   const heading = `${GRADE_KANJI[grade] || grade}「${preset}」おすすめ TOP${matched.length}`;
-  return coursesReply(heading, matched, siteOrigin);
+  return coursesReply(heading, matched, siteOrigin, answers);
 }
 
 function usageMessage() {
@@ -260,7 +288,10 @@ function qrPostback(label, data, displayText) {
 // handleText/handlePostbackがオブジェクトや配列（Flexメッセージなど）を
 // 返してきた場合は、それ自体が既に自前のquickReply/ボタンを持っているので
 // 何もしない。
-export function withSiteButton(result, siteOrigin) {
+// answers は省略可（第3引数）。渡してきた呼び出し元（問診完了＝
+// handlePostback の action==="preset"）だけ、ボタンのURLに学部・学年を
+// 載せる。quick_default・handleText は渡してこないので今までどおり。
+export function withSiteButton(result, siteOrigin, answers) {
   if (typeof result !== "string") return result;
   if (!siteOrigin) return result;
   return {
@@ -270,7 +301,7 @@ export function withSiteButton(result, siteOrigin) {
       items: [
         {
           type: "action",
-          action: { type: "uri", label: "ラクハンで見る", uri: `${siteOrigin}/` },
+          action: { type: "uri", label: "ラクハンで見る", uri: siteUri(siteOrigin, answers) },
         },
       ],
     },
@@ -355,11 +386,24 @@ export function handlePostback(data, evData, siteOrigin) {
   if (action === "preset") {
     const grade = params.get("grade") || "1";
     const preset = params.get("preset") || "とにかく軽い";
+    const fac = params.get("fac") || "";
     // fac（学部）は推薦のロジックには一切入れない。preset_top は学年だけで
-    // 引いており、学部を渡しても buildRecommendation は受け取らない。
-    return withSiteButton(buildRecommendation(grade, preset, data, siteOrigin), siteOrigin);
+    // 引いており、buildRecommendation にはスコアリング用途では渡さない。
+    // ここで answers として渡すのは「ラクハンで見る」ボタンのURLに
+    // 学部・学年を載せるためだけ ―― 問診（学年→学部→優先度）を最後まで
+    // 答え終えた、この経路だけが対象（quick_default・自由検索には渡さない）。
+    const answers = { grade, fac };
+    return withSiteButton(
+      buildRecommendation(grade, preset, data, siteOrigin, answers),
+      siteOrigin,
+      answers
+    );
   }
   if (action === "quick_default") {
+    // grade "1" は「答えたかった学年」ではなく既定値の決め打ち
+    // （とにかく楽単を知りたい＝何も聞いていない）。answers を渡すと
+    // 「本人が1年と答えた」という嘘の記録をサイト側に残すことになるので、
+    // ここは今までどおり answers なし。
     return withSiteButton(buildRecommendation("1", "とにかく軽い", data, siteOrigin), siteOrigin);
   }
   return greetingMessage();
