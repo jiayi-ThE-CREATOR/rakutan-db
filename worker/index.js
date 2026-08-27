@@ -370,11 +370,19 @@ export function presetQuestionMessage(grade, fac) {
 }
 
 // 戻り値は handleText と同じ形（文字列 / メッセージオブジェクト / 配列）。
-export function handlePostback(data, evData, siteOrigin) {
+//
+// save は省略可。渡すと「問診を最後まで答え終えた」時点で
+// { grade, fac } を受け取る（呼び出し元が D1 へ保存する）。
+// reset は省略可。渡すと「学年・学部を変える」を選んだ時点で呼ばれる。
+export function handlePostback(data, evData, siteOrigin, save, reset) {
   const params = new URLSearchParams(evData);
   const action = params.get("action");
 
   if (action === "start_personal") return gradeQuestionMessage();
+  if (action === "reset_profile") {
+    if (reset) reset();
+    return gradeQuestionMessage();
+  }
   if (action === "grade") {
     const grade = params.get("grade") || "1";
     return facultyQuestionMessage(grade);
@@ -393,6 +401,8 @@ export function handlePostback(data, evData, siteOrigin) {
     // 学部・学年を載せるためだけ ―― 問診（学年→学部→優先度）を最後まで
     // 答え終えた、この経路だけが対象（quick_default・自由検索には渡さない）。
     const answers = { grade, fac };
+    // ここが問診の終点。次に話しかけられたときに聞き直さずに済むよう覚えておく。
+    if (save) save(answers);
     return withSiteButton(
       buildRecommendation(grade, preset, data, siteOrigin, answers),
       siteOrigin,
@@ -407,6 +417,85 @@ export function handlePostback(data, evData, siteOrigin) {
     return withSiteButton(buildRecommendation("1", "とにかく軽い", data, siteOrigin), siteOrigin);
   }
   return greetingMessage();
+}
+
+/* ── 問診の回答を覚えておく（D1: line_profiles） ─────────────────
+ * 2026-08-27 wangさんの依頼「初回でもらった情報をずっと記憶できるように」。
+ *
+ * これまで学年・学部の回答は postback data と「ラクハンで見る」の URL に
+ * 載せて往復させるだけで、どこにも保存していなかった。だから会話が終わると
+ * 忘れ、次に話しかけると毎回また学年から聞くことになっていた。
+ *
+ * 入れるのは学年（1〜6）と学部キー（FACULTIES の11種）だけ。名前・メール等は
+ * 取らないし、LINE のプロフィール API も叩かない。
+ *
+ * D1 が無い／落ちているときは null を返して、これまで通り毎回聞く形に落とす。
+ * 覚えられないことでボット自体が止まるのは割に合わない。
+ */
+async function loadProfile(env, lineUserId) {
+  if (!env.DB || !lineUserId) return null;
+  try {
+    const row = await env.DB.prepare(
+      "SELECT grade, faculty FROM line_profiles WHERE line_user_id = ?"
+    )
+      .bind(lineUserId)
+      .first();
+    if (!row) return null;
+    return { grade: row.grade || "", fac: row.faculty || "" };
+  } catch (e) {
+    console.error("loadProfile error", e);
+    return null;
+  }
+}
+
+async function saveProfile(env, lineUserId, { grade, fac }) {
+  if (!env.DB || !lineUserId) return;
+  try {
+    await env.DB.prepare(
+      "INSERT INTO line_profiles (line_user_id, grade, faculty, updated_at) VALUES (?, ?, ?, ?) " +
+        "ON CONFLICT (line_user_id) DO UPDATE SET " +
+        "grade = excluded.grade, faculty = excluded.faculty, updated_at = excluded.updated_at"
+    )
+      .bind(lineUserId, grade || null, fac || null, Date.now())
+      .run();
+  } catch (e) {
+    console.error("saveProfile error", e);
+  }
+}
+
+async function clearProfile(env, lineUserId) {
+  if (!env.DB || !lineUserId) return;
+  try {
+    await env.DB.prepare("DELETE FROM line_profiles WHERE line_user_id = ?")
+      .bind(lineUserId)
+      .run();
+  } catch (e) {
+    console.error("clearProfile error", e);
+  }
+}
+
+// 覚えている人にだけ出す「前回の続き」の入口。
+// 学年・学部を聞き直さず、優先度だけ選べば結果が出る。
+export function knownProfileMessage(profile) {
+  const gradeLabel = GRADE_KANJI[profile.grade] || `${profile.grade}年`;
+  const facLabel = FACULTIES.find(([key]) => key === profile.fac)?.[1];
+  const who = facLabel ? `${facLabel}・${gradeLabel}` : gradeLabel;
+  return {
+    type: "text",
+    text: `おかえり！前に聞いた${who}で探すね。何を優先する？`,
+    quickReply: {
+      items: [
+        ...PRESET_NAMES.map((name) =>
+          qrPostback(
+            name,
+            `action=preset&grade=${profile.grade}&fac=${encodeURIComponent(profile.fac || "")}&preset=${encodeURIComponent(name)}`,
+            name
+          )
+        ),
+        qrPostback("学年・学部を変える", "action=reset_profile", "学年・学部を変える"),
+      ],
+    },
+  };
 }
 
 function timingSafeEqual(a, b) {
@@ -480,9 +569,19 @@ async function handleWebhook(request, env, ctx) {
   const tasks = [];
   for (const event of payload.events || []) {
     if (event.type === "follow") {
-      tasks.push(replyToLine(env, event.replyToken, greetingMessage()));
+      // ブロック → 解除で再追加した人には、また学年から聞かない。
+      const profile = await loadProfile(env, event.source?.userId || "");
+      tasks.push(
+        replyToLine(
+          env,
+          event.replyToken,
+          profile?.grade ? knownProfileMessage(profile) : greetingMessage()
+        )
+      );
       continue;
     }
+
+    const lineUserId = event.source?.userId || "";
 
     if (event.type === "postback") {
       let reply;
@@ -490,7 +589,14 @@ async function handleWebhook(request, env, ctx) {
         reply = DATA_UNAVAILABLE_MESSAGE;
       } else {
         try {
-          reply = handlePostback(data, event.postback?.data || "", siteOrigin);
+          // 保存・削除は返信を待たせない（ctx.waitUntil で後ろに流す）。
+          reply = handlePostback(
+            data,
+            event.postback?.data || "",
+            siteOrigin,
+            (answers) => ctx.waitUntil(saveProfile(env, lineUserId, answers)),
+            () => ctx.waitUntil(clearProfile(env, lineUserId))
+          );
         } catch (e) {
           reply = "エラーが発生しました。少し時間をおいて試してください。";
           console.error("handlePostback error", e);
@@ -507,7 +613,17 @@ async function handleWebhook(request, env, ctx) {
       answer = DATA_UNAVAILABLE_MESSAGE;
     } else {
       try {
-        answer = withSiteButton(handleText(event.message.text || "", data, siteOrigin), siteOrigin);
+        const text = (event.message.text || "").trim();
+        // 「おすすめ」だけは、覚えている人には学年から聞き直さない。
+        // それ以外（科目名の検索など）は今までどおり。
+        if (text === "おすすめ") {
+          const profile = await loadProfile(env, lineUserId);
+          answer = profile?.grade
+            ? knownProfileMessage(profile)
+            : withSiteButton(handleText(text, data, siteOrigin), siteOrigin);
+        } else {
+          answer = withSiteButton(handleText(text, data, siteOrigin), siteOrigin);
+        }
       } catch (e) {
         answer = "エラーが発生しました。少し時間をおいて試してください。";
         console.error("handleText error", e);
