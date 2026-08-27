@@ -229,6 +229,7 @@ function buildFaculty(facets){
     // 下は選んだ学部にしか無い区分なので、選ぶまで丸ごと隠す。
     sec.innerHTML =
       `<h2>卒業要件の区分でしぼる <span class="sub">全学部に共通の区分です</span></h2>
+       <button class="toggle" id="divsTog"></button>
        <div class="chips" id="divs"></div>
 
        <h2 class="facH">学部からさがす <span class="sub">選ぶと、その学部だけの区分が下に出ます</span></h2>
@@ -257,6 +258,16 @@ function buildFaculty(facets){
       load();
     };
     $("#trackSel").onchange = e => { state.track = e.target.value; load(); };
+    // 既定は閉じる。すでに区分を選んでいる状態（URL復元など）なら、
+    // 選択が見えなくならないよう開いたままにする。
+    const startOpen = state.division.size > 0;
+    $("#divs").hidden = !startOpen;
+    $("#divsTog").textContent = startOpen ? "卒業要件を閉じる" : "卒業要件で絞り込む";
+    $("#divsTog").onclick = () => {
+      const box = $("#divs");
+      box.hidden = !box.hidden;
+      $("#divsTog").textContent = box.hidden ? "卒業要件で絞り込む" : "卒業要件を閉じる";
+    };
     $("#divTog").onclick = () => {
       const box = $("#divsOff");
       box.hidden = !box.hidden;
