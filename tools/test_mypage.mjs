@@ -92,6 +92,9 @@ for (const s of MULTI_SLOTS){
 }
 
 // クリックしたのは1コマだけ。外すときは科目ごと ―― 全コマ対称に外れるべき。
+// 2026-08-27 に「外すときは確認ダイアログを挟む」仕様が入ったので、承諾しないと
+// この後の click は何も外さない（Playwright は既定で確認ダイアログを自動キャンセルする）。
+page.once("dialog", d => d.accept());
 await page.click(".mpCell[data-slot='金5']");
 for (const s of MULTI_SLOTS){
   check((await page.locator(`.mpCell[data-slot='${s}']`).textContent()).trim() === "",
@@ -106,6 +109,7 @@ check(!Object.values(tt.aki.slots).includes(MULTI_ID),
 // 月2 は上のテストで pickedId（単一コマの科目）が入ったまま。
 check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() !== "",
       "単一コマ科目の回帰確認の前提が崩れている（月2 が既に空）");
+page.once("dialog", d => d.accept());
 await page.click(".mpCell[data-slot='月2']");
 check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() === "",
       "単一コマ科目が1タップで外れない（回帰）");
