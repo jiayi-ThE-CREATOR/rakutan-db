@@ -228,11 +228,11 @@ function buildFaculty(facets){
     // 3段に分ける。上は全学部に共通の区分で、学部を選んでいなくても意味がある。
     // 下は選んだ学部にしか無い区分なので、選ぶまで丸ごと隠す。
     sec.innerHTML =
-      `<h2>卒業要件の区分でしぼる <span class="sub">全学部に共通の区分です</span></h2>
+      `<h2>全学部共通の区分でしぼる</h2>
        <button class="toggle" id="divsTog"></button>
        <div class="chips" id="divs"></div>
 
-       <h2 class="facH">学部からさがす <span class="sub">選ぶと、その学部だけの区分が下に出ます</span></h2>
+       <h2 class="facH">学部からさがす</h2>
        <select id="facSel"></select>
        <select id="trackSel" hidden></select>
 

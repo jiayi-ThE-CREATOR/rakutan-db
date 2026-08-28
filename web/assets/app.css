@@ -409,9 +409,15 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .results{min-width:0}
 }
 
+/* 3カラムは 260 + 420 + 380 + 隙間48 = 1108px 無いと入らない。
+   1024px で切り替えていたので、1024〜1123px では横にはみ出し、
+   右カラムの文字が画面外で切れていた。スクロールバーぶんも見て 1160px から。 */
 @media (min-width:1024px){
   .wrap{max-width:1400px}
   .hd{max-width:1400px}
+}
+
+@media (min-width:1160px){
   .workbench{grid-template-columns:260px minmax(420px,1fr) 380px}
   .inspector{display:block;position:sticky;top:var(--sp-3);
     max-height:calc(100vh - var(--sp-6));overflow-y:auto;
