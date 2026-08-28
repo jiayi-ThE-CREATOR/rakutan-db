@@ -128,11 +128,13 @@ function inTerm(c){ return TERM_GROUPS[term].includes(c.term_group); }
  * TERM_RANGE は「令和8年度」の日付なので、年度が変わったら要更新
  * （2027年度の学年暦が出たらここだけ差し替える）。
  *
- * 祝日・大学祭による休講日や「金曜だけど月曜の時間割で授業」のような
- * 振替授業日は、この学年暦の画像1枚だけでは正確に拾いきれず、しかも
- * 年度ごとに作り直しが要るため、今回は反映していない（本人と確認のうえ
- * 保留に決定・2026-08-27）。学期の外の日付にはならないところまでは
- * 直したが、学期の中の祝日はすり抜ける。openCalAdd の説明文でも断っている。
+ * 祝日・大学祭による休講日は、2026-08-27時点では「学年暦の画像1枚だけでは
+ * 正確に拾いきれない」という理由で保留にしていたが、2026-08-28にCELAS発行の
+ * 全学共通教育学年暦（丸数字＝授業週番号の有無というPDF自身のルール）で
+ * 本人が確定させたため、秋・冬学期（aki）分のみ対応した（下記 HOLIDAYS）。
+ * 春・夏学期（haru）は未収集で今回のスコープ外。振替授業日（金曜だが
+ * 月曜の時間割で授業、等）は別タスク（wangからの依頼②）として対応予定で、
+ * このタスクでは扱っていない。openCalAdd の説明文でも断っている。
  */
 const PERIOD_TIMES = {
   "1": [8, 50, 10, 20], "2": [10, 30, 12, 0], "3": [13, 30, 15, 0],
@@ -147,6 +149,18 @@ const TERM_RANGE = {
   haru: { start: [2026, 4, 1],  end: [2026, 9, 30] },
   aki:  { start: [2026, 10, 1], end: [2027, 3, 31] },
 };
+// 秋・冬学期の休講日（丸数字なし＝授業日として扱われていない日）。CELAS発行の
+// 全学共通教育学年暦（R8_gakunenreki.pdf）を本人が2026-08-28に確認して確定。
+// haruは未収集（今回のスコープ外。集めたらここに追加する）。
+const HOLIDAYS = {
+  aki: ["20261012", "20261102", "20261103", "20261104", "20261123",
+        "20261228", "20261229", "20261230", "20261231",
+        "20270101", "20270111", "20270115", "20270204"],
+  haru: [],
+};
+// 冬学期は2/9以降が春休みのため、繰り返し予定はここで打ち切る（本人確認・2026-08-28）。
+// TERM_RANGE.aki.end（3/31）は学期の枠自体なので変えない。こちらは「実際に授業がある最後の日」。
+const CAL_SYNC_UNTIL = { aki: [2027, 2, 8], haru: null };
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function termBounds(termKey){
@@ -156,12 +170,34 @@ function termBounds(termKey){
     end:   new Date(r.end[0],   r.end[1] - 1,   r.end[2],   23, 59, 0),
   };
 }
+// 繰り返し予定を止める日。CAL_SYNC_UNTIL が無い学期（haru等）はこれまで通り学期末を使う。
+function calUntil(termKey){
+  const until = CAL_SYNC_UNTIL[termKey];
+  return until
+    ? new Date(until[0], until[1] - 1, until[2], 23, 59, 0)
+    : termBounds(termKey).end;
+}
+
+const REV_DAY_INDEX = Object.fromEntries(Object.entries(DAY_INDEX).map(([k, v]) => [v, k]));
+function isHoliday(d, termKey){
+  const key = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+  return (HOLIDAYS[termKey] || []).includes(key);
+}
+/* その曜日の休講日を、blockの開始時刻を持つDateにして返す。EXDATEの値は
+   DTSTARTと同じ「日付+時刻」の形でないと、そのタイミングの回が一致除外にならない。 */
+function holidayDatesForDay(dayChar, termKey, hh, mm){
+  return (HOLIDAYS[termKey] || [])
+    .map(k => new Date(Number(k.slice(0, 4)), Number(k.slice(4, 6)) - 1, Number(k.slice(6, 8)), hh, mm, 0))
+    .filter(d => REV_DAY_INDEX[d.getDay()] === dayChar);
+}
 
 /* その曜日がいちばん早く来る日時。学期がまだ始まっていなければ学期の
    開始日を起点にする（そうしないと、学期が始まる前にこの機能を使うと
    「今週の月曜」のような学期外の日が最初の予定になってしまう）。
    学期が始まっていれば今日が起点。今日がその曜日でも、もう開始時刻を
-   過ぎていれば1週間先にする。 */
+   過ぎていれば1週間先にする。休講日に当たった場合は1週間ずつ先送りする
+   （Outlookは繰り返し非対応で、この最初の1回しか予定を作らないため、
+   ここで避けておかないと単発予定がそのまま休講日に乗ってしまう）。 */
 function nextDateFor(dayChar, hh, mm){
   const want = DAY_INDEX[dayChar];
   const now = new Date();
@@ -171,6 +207,7 @@ function nextDateFor(dayChar, hh, mm){
   const d = new Date(floor.getFullYear(), floor.getMonth(), floor.getDate(), hh, mm, 0);
   if (diff === 0 && d.getTime() <= now.getTime()) diff = 7;
   d.setDate(d.getDate() + diff);
+  while (isHoliday(d, term)) d.setDate(d.getDate() + 7);
   return d;
 }
 /* タイムゾーン付き（Z・TZID）にせず、そのまま「その時刻」として書き出す。
@@ -223,7 +260,10 @@ function calIconSVG(added){
 
 function icsEvent(c, block){
   const { start, end } = blockRange(block);
-  const until = fmtICS(termBounds(term).end);
+  const untilDate = calUntil(term);
+  const exdates = holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes())
+    .filter(d => d > start && d <= untilDate)
+    .map(fmtICS);
   const desc = c.instructor ? `担当: ${c.instructor}` : "";
   return [
     "BEGIN:VEVENT",
@@ -231,7 +271,8 @@ function icsEvent(c, block){
     `DTSTAMP:${fmtICS(new Date())}`,
     `DTSTART:${fmtICS(start)}`,
     `DTEND:${fmtICS(end)}`,
-    `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${until}`,
+    `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(untilDate)}`,
+    exdates.length ? `EXDATE:${exdates.join(",")}` : null,
     `SUMMARY:${icsEscape(c.title)}`,
     desc ? `DESCRIPTION:${icsEscape(desc)}` : null,
     "END:VEVENT",
@@ -256,15 +297,24 @@ function downloadICS(courses, filename){
 
 /* Googleの「予定を追加」URLは recur パラメータで毎週くり返しに対応できる。
    Outlookの簡易リンクは繰り返しに対応していないため次の1回だけになる
-   ―― その差はモーダルの説明文（openCalAdd）側で断っている。 */
+   ―― その差はモーダルの説明文（openCalAdd）側で断っている。
+   休講日はEXDATEとしてrecurに試験的に足しているが、このURL方式でGoogleが
+   EXDATEを解釈するかは未検証（公式ドキュメントに記載が無い）。効かなくても
+   外れて事故るわけではなく、休講日にも予定が残るだけなので試験的に入れている。 */
 function googleUrl(c, block){
   const { start, end } = blockRange(block);
+  const untilDate = calUntil(term);
+  const exdates = holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes())
+    .filter(d => d > start && d <= untilDate)
+    .map(fmtICS);
+  const recurLines = [`RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(untilDate)}`];
+  if (exdates.length) recurLines.push(`EXDATE:${exdates.join(",")}`);
   const p = new URLSearchParams({
     action: "TEMPLATE", text: c.title,
     dates: `${fmtICS(start)}/${fmtICS(end)}`,
     ctz: "Asia/Tokyo",
     details: c.instructor ? `担当: ${c.instructor}` : "",
-    recur: `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(termBounds(term).end)}`,
+    recur: recurLines.join("\n"),
   });
   return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
@@ -305,7 +355,10 @@ function openCalAdd(courses){
     ? `${courses[0].title}をカレンダーに追加`
     : `時間割をすべてカレンダーに追加（${courses.length}件）`;
   const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).length, 0);
-  const holidayNote = "祝日や大学祭による休講・振替授業日には対応していません。";
+  const holidayNote = term === "aki"
+    ? "秋・冬学期の祝日・大学行事による休講日は、iCal・Outlookでは予定に反映されません。"
+      + "Googleは反映を試みていますが、動作を確認できていません。振替授業日（金曜に月曜の授業など）には対応していません。"
+    : "祝日や大学祭による休講・振替授業日には対応していません。";
   $("#mpCalAddSub").textContent = (single
     ? "追加するカレンダーを選んでください。Outlook/Googleはログイン済みであることを確認してください。組織アカウントの場合はOffice365を選んでください。"
     : `iCalは全コマを1つのファイルにまとめてダウンロードします。Outlook/Googleは科目ごとに追加画面が開きます（この時間割の場合 ${tabCount} 回）。`)
