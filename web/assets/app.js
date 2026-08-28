@@ -588,6 +588,8 @@ function detailHtml(c){
       ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
       <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
+      <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.inTimetable(c)}">
+        ${rkStore.inTimetable(c) ? "時間割に入っています" : "時間割に追加"}</button>
       <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.isFavorite(c.id)}"
               aria-label="お気に入り：${esc(c.title)}">${rkStore.isFavorite(c.id) ? "★" : "☆"}</button>`;
 }
@@ -1462,6 +1464,35 @@ for (const sel of ["#list", "#inspector"]) {
     document.querySelectorAll(`.favBtn[data-id="${CSS.escape(btn.dataset.id)}"]`)
       .forEach(b => { b.setAttribute("aria-pressed", String(now));
                       b.textContent = now ? "★" : "☆"; });
+  });
+}
+
+/* 詳細パネルの「時間割に追加」。配置ロジック（コンフリクト確認＋一括配置）は
+   rkStore.putCourse に1本化されている（mypage.jsのputCourseと共有。理由は
+   web/assets/mypage.js の putCourse 直前コメントを参照）。曜限が無い科目は
+   putCourse が何もしない（false を返す）ので、ここで addExtra に振り分ける。 */
+for (const sel of ["#list", "#inspector"]) {
+  $(sel).addEventListener("click", e => {
+    const btn = e.target.closest(".ttAddBtn");
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const c = courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id);
+    if (!c) return;
+    const terms = rkStore.termsFor(c);
+    let placed;
+    if (rkStore.slotsOf(c).length){
+      placed = rkStore.putCourse(terms, c, null, tid =>
+        (courses.find(x => x.id === tid) || DATA.courses.find(x => x.id === tid) || {}).title);
+    } else {
+      for (const t of terms) rkStore.addExtra(t, c.id);
+      placed = true;
+    }
+    if (placed){
+      document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`).forEach(b => {
+        b.setAttribute("aria-pressed", "true");
+        b.textContent = "時間割に入っています";
+      });
+    }
   });
 }
 

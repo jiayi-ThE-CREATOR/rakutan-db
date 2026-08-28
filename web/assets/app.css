@@ -340,10 +340,14 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    スマホ（<1024px）… 下から全画面のシート。投稿フォームと同じ .sheet を使い回す。
      位置ぎめ・幕・最大高さ・スクロールは .sheet 側にもうあるので、
      ここで書き直さない（2つ持つと片方だけ直る）。 */
-.panelBtn{display:block;width:100%;margin-top:var(--sp-3);background:var(--dim);color:var(--soft);
+/* .ttAddBtn（詳細パネルの「時間割に追加」）も同じ見た目にする。クラス名を
+   panelBtn と共有しない理由は app.js の panelBtnFor 参照。あちらは
+   「.panelBtn[data-id=...]」で口コミ件数ボタンを一意に探しており、同じ
+   クラス名を足すと口コミ0件の科目でこのボタンが誤って引っかかる（2026-08-29）。 */
+.panelBtn,.ttAddBtn{display:block;width:100%;margin-top:var(--sp-3);background:var(--dim);color:var(--soft);
   border:none;border-radius:var(--r-md);padding:9px;font:inherit;font-size:var(--fs-sm);
   font-weight:700;cursor:pointer}
-.panelBtn:hover,.panelBtn:active{background:var(--rule)}
+.panelBtn:hover,.panelBtn:active,.ttAddBtn:hover,.ttAddBtn:active{background:var(--rule)}
 /* 展開したときの区切り。スマホのシートの中では .panelHead が区切りになるので、
    詳細の中に出たとき（＝PC の右カラム）だけ罫を引く。 */
 .detail .pList{margin-top:var(--sp-3);padding-top:var(--sp-2);border-top:1px dashed var(--rule)}

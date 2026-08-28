@@ -104,9 +104,10 @@ function buildProfile(){
    unknown（282件）も両学期に通す。データが「学期が分からない」と
    言っているだけで「他方の学期だ」とは言っていない。unknown を
    どちらの学期からも弾くと、inTerm が両方 false を返し、
-   renderFavorites は「秋・冬学期の科目です／春・夏学期の科目です」と
+   renderFavorites はどちらの学期でも「もう一方に切り替えると入れられます」と
    出す ―― これは実際には確認していない、事実でない断定になる
-   （final-review.md §3-①）。時間割に入れる手立てが1つも無くなる方が
+   （final-review.md §3-①。切り替えても入れられないので、案内としても外れる）。
+   時間割に入れる手立てが1つも無くなる方が
    実害も大きいので、full と同じ扱いで両学期へ通す。 */
 const TERMS = [["aki","秋・冬学期"],["haru","春・夏学期"]];
 const TERM_GROUPS = { haru:["haru","full","unknown"], aki:["aki","full","unknown"] };
@@ -127,11 +128,16 @@ function inTerm(c){ return TERM_GROUPS[term].includes(c.term_group); }
  * TERM_RANGE は「令和8年度」の日付なので、年度が変わったら要更新
  * （2027年度の学年暦が出たらここだけ差し替える）。
  *
- * 祝日・大学祭による休講日や「金曜だけど月曜の時間割で授業」のような
- * 振替授業日は、この学年暦の画像1枚だけでは正確に拾いきれず、しかも
- * 年度ごとに作り直しが要るため、今回は反映していない（本人と確認のうえ
- * 保留に決定・2026-08-27）。学期の外の日付にはならないところまでは
- * 直したが、学期の中の祝日はすり抜ける。openCalAdd の説明文でも断っている。
+ * 祝日・大学祭による休講日は、2026-08-27時点では「学年暦の画像1枚だけでは
+ * 正確に拾いきれない」という理由で保留にしていたが、2026-08-28にCELAS発行の
+ * 全学共通教育学年暦（丸数字＝授業週番号の有無というPDF自身のルール）で
+ * 本人が確定させたため、秋・冬学期（aki）分のみ対応した（下記 HOLIDAYS）。
+ *
+ * 振替授業日（金曜だが月曜の時間割で授業、等）も同じ学年暦から確定させ、
+ * 2026-08-29に対応した（下記 TRANSFERS）。休講日と違い、元の曜日の通常回を
+ * 止める（EXDATE）のと、振替先の曜日の授業を単発で追加する、の両方が要る。
+ *
+ * 春・夏学期（haru）は休講日・振替日とも未収集で今回のスコープ外。
  */
 const PERIOD_TIMES = {
   "1": [8, 50, 10, 20], "2": [10, 30, 12, 0], "3": [13, 30, 15, 0],
@@ -146,6 +152,28 @@ const TERM_RANGE = {
   haru: { start: [2026, 4, 1],  end: [2026, 9, 30] },
   aki:  { start: [2026, 10, 1], end: [2027, 3, 31] },
 };
+// 秋・冬学期の休講日（丸数字なし＝授業日として扱われていない日）。CELAS発行の
+// 全学共通教育学年暦（R8_gakunenreki.pdf）を本人が2026-08-28に確認して確定。
+// haruは未収集（今回のスコープ外。集めたらここに追加する）。
+const HOLIDAYS = {
+  aki: ["20261012", "20261102", "20261103", "20261104", "20261123",
+        "20261228", "20261229", "20261230", "20261231",
+        "20270101", "20270111", "20270115", "20270204"],
+  haru: [],
+};
+// 振替授業日。date=実際の暦日、asDay=その日に実施される時間割の曜日
+// （date自体の曜日の授業はその日休みになり、asDayの授業が単発で入る）。
+// CELAS学年暦（R8_gakunenreki.pdf）に明記の2件。haruは未収集。
+const TRANSFERS = {
+  aki: [
+    { date: "20261016", asDay: "月" },
+    { date: "20261105", asDay: "月" },
+  ],
+  haru: [],
+};
+// 冬学期は2/9以降が春休みのため、繰り返し予定はここで打ち切る（本人確認・2026-08-28）。
+// TERM_RANGE.aki.end（3/31）は学期の枠自体なので変えない。こちらは「実際に授業がある最後の日」。
+const CAL_SYNC_UNTIL = { aki: [2027, 2, 8], haru: null };
 const pad2 = (n) => String(n).padStart(2, "0");
 
 function termBounds(termKey){
@@ -155,12 +183,51 @@ function termBounds(termKey){
     end:   new Date(r.end[0],   r.end[1] - 1,   r.end[2],   23, 59, 0),
   };
 }
+// 繰り返し予定を止める日。CAL_SYNC_UNTIL が無い学期（haru等）はこれまで通り学期末を使う。
+function calUntil(termKey){
+  const until = CAL_SYNC_UNTIL[termKey];
+  return until
+    ? new Date(until[0], until[1] - 1, until[2], 23, 59, 0)
+    : termBounds(termKey).end;
+}
+
+const REV_DAY_INDEX = Object.fromEntries(Object.entries(DAY_INDEX).map(([k, v]) => [v, k]));
+function isHoliday(d, termKey){
+  const key = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
+  return (HOLIDAYS[termKey] || []).includes(key);
+}
+/* その曜日の休講日を、blockの開始時刻を持つDateにして返す。EXDATEの値は
+   DTSTARTと同じ「日付+時刻」の形でないと、そのタイミングの回が一致除外にならない。 */
+function holidayDatesForDay(dayChar, termKey, hh, mm){
+  return (HOLIDAYS[termKey] || [])
+    .map(k => new Date(Number(k.slice(0, 4)), Number(k.slice(4, 6)) - 1, Number(k.slice(6, 8)), hh, mm, 0))
+    .filter(d => REV_DAY_INDEX[d.getDay()] === dayChar);
+}
+function dateFromKey(key, hh, mm){
+  return new Date(Number(key.slice(0, 4)), Number(key.slice(4, 6)) - 1, Number(key.slice(6, 8)), hh, mm, 0);
+}
+// 振替日で「元の曜日の通常回」を止めるための日付（block.dayが実施日自身の
+// 曜日で、asDayと違う場合＝その日の通常授業は休みになる）。
+function transferSuspendDatesForDay(dayChar, termKey, hh, mm){
+  return (TRANSFERS[termKey] || [])
+    .filter(t => t.asDay !== dayChar)
+    .map(t => dateFromKey(t.date, hh, mm))
+    .filter(d => REV_DAY_INDEX[d.getDay()] === dayChar);
+}
+// 「asDayの授業がこの実施日に単発で追加される」対象日（block.day === asDay の科目向け）。
+function transferExtraDatesForDay(dayChar, termKey){
+  return (TRANSFERS[termKey] || [])
+    .filter(t => t.asDay === dayChar)
+    .map(t => t.date);
+}
 
 /* その曜日がいちばん早く来る日時。学期がまだ始まっていなければ学期の
    開始日を起点にする（そうしないと、学期が始まる前にこの機能を使うと
    「今週の月曜」のような学期外の日が最初の予定になってしまう）。
    学期が始まっていれば今日が起点。今日がその曜日でも、もう開始時刻を
-   過ぎていれば1週間先にする。 */
+   過ぎていれば1週間先にする。休講日に当たった場合は1週間ずつ先送りする
+   （Outlookは繰り返し非対応で、この最初の1回しか予定を作らないため、
+   ここで避けておかないと単発予定がそのまま休講日に乗ってしまう）。 */
 function nextDateFor(dayChar, hh, mm){
   const want = DAY_INDEX[dayChar];
   const now = new Date();
@@ -170,6 +237,7 @@ function nextDateFor(dayChar, hh, mm){
   const d = new Date(floor.getFullYear(), floor.getMonth(), floor.getDate(), hh, mm, 0);
   if (diff === 0 && d.getTime() <= now.getTime()) diff = 7;
   d.setDate(d.getDate() + diff);
+  while (isHoliday(d, term)) d.setDate(d.getDate() + 7);
   return d;
 }
 /* タイムゾーン付き（Z・TZID）にせず、そのまま「その時刻」として書き出す。
@@ -213,6 +281,16 @@ function blockRange(block){
   end.setHours(endT[2], endT[3], 0, 0);
   return { start, end };
 }
+// 振替日にblockの時刻で単発予定を作るときの開始・終了（blockRangeの「次回」計算を迂回し、
+// 振替日の暦日をそのまま使う）。
+function transferRange(block, dateKey){
+  const [sh, sm] = PERIOD_TIMES[block.startPeriod];
+  const endT = PERIOD_TIMES[block.endPeriod];
+  const start = dateFromKey(dateKey, sh, sm);
+  const end = new Date(start);
+  end.setHours(endT[2], endT[3], 0, 0);
+  return { start, end };
+}
 
 function calIconSVG(added){
   return added
@@ -222,7 +300,13 @@ function calIconSVG(added){
 
 function icsEvent(c, block){
   const { start, end } = blockRange(block);
-  const until = fmtICS(termBounds(term).end);
+  const untilDate = calUntil(term);
+  const exdates = [
+    ...holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+    ...transferSuspendDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+  ]
+    .filter(d => d > start && d <= untilDate)
+    .map(fmtICS);
   const desc = c.instructor ? `担当: ${c.instructor}` : "";
   return [
     "BEGIN:VEVENT",
@@ -230,15 +314,36 @@ function icsEvent(c, block){
     `DTSTAMP:${fmtICS(new Date())}`,
     `DTSTART:${fmtICS(start)}`,
     `DTEND:${fmtICS(end)}`,
-    `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${until}`,
+    `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(untilDate)}`,
+    exdates.length ? `EXDATE:${exdates.join(",")}` : null,
     `SUMMARY:${icsEscape(c.title)}`,
+    desc ? `DESCRIPTION:${icsEscape(desc)}` : null,
+    "END:VEVENT",
+  ].filter(Boolean).join("\r\n");
+}
+/* 振替日にasDay側の授業として単発で入る回。RRULEを持たない1回だけの予定。 */
+function icsTransferEvent(c, block, dateKey){
+  const { start, end } = transferRange(block, dateKey);
+  const desc = c.instructor ? `担当: ${c.instructor}` : "";
+  return [
+    "BEGIN:VEVENT",
+    `UID:${c.id}-${block.day}${block.startPeriod}-transfer-${dateKey}@rakuhan.nocode-sol.co.jp`,
+    `DTSTAMP:${fmtICS(new Date())}`,
+    `DTSTART:${fmtICS(start)}`,
+    `DTEND:${fmtICS(end)}`,
+    `SUMMARY:${icsEscape("（振替）" + c.title)}`,
     desc ? `DESCRIPTION:${icsEscape(desc)}` : null,
     "END:VEVENT",
   ].filter(Boolean).join("\r\n");
 }
 function buildICS(courses){
   const events = [];
-  for (const c of courses) for (const b of courseEventBlocks(c)) events.push(icsEvent(c, b));
+  for (const c of courses){
+    for (const b of courseEventBlocks(c)){
+      events.push(icsEvent(c, b));
+      for (const dateKey of transferExtraDatesForDay(b.day, term)) events.push(icsTransferEvent(c, b, dateKey));
+    }
+  }
   return [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//rakuhan//mypage//JA", "CALSCALE:GREGORIAN",
     ...events, "END:VCALENDAR",
@@ -255,24 +360,42 @@ function downloadICS(courses, filename){
 
 /* Googleの「予定を追加」URLは recur パラメータで毎週くり返しに対応できる。
    Outlookの簡易リンクは繰り返しに対応していないため次の1回だけになる
-   ―― その差はモーダルの説明文（openCalAdd）側で断っている。 */
-function googleUrl(c, block){
-  const { start, end } = blockRange(block);
+   ―― その差はモーダルの説明文（openCalAdd）側で断っている。
+   休講日はEXDATEとしてrecurに試験的に足しているが、このURL方式でGoogleが
+   EXDATEを解釈するかは未検証（公式ドキュメントに記載が無い）。効かなくても
+   外れて事故るわけではなく、休講日にも予定が残るだけなので試験的に入れている。 */
+/* range/transfer を渡すと、振替日の単発予定（くり返し無し・タイトルに「（振替）」）を作る。
+   省略時はこれまで通り、次回からの毎週くり返し（休講日・振替停止日をEXDATE除外）。 */
+function googleUrl(c, block, range, transfer){
+  const { start, end } = range || blockRange(block);
+  const title = transfer ? `（振替）${c.title}` : c.title;
   const p = new URLSearchParams({
-    action: "TEMPLATE", text: c.title,
+    action: "TEMPLATE", text: title,
     dates: `${fmtICS(start)}/${fmtICS(end)}`,
     ctz: "Asia/Tokyo",
     details: c.instructor ? `担当: ${c.instructor}` : "",
-    recur: `RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(termBounds(term).end)}`,
   });
+  if (!transfer){
+    const untilDate = calUntil(term);
+    const exdates = [
+      ...holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+      ...transferSuspendDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+    ]
+      .filter(d => d > start && d <= untilDate)
+      .map(fmtICS);
+    const recurLines = [`RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(untilDate)}`];
+    if (exdates.length) recurLines.push(`EXDATE:${exdates.join(",")}`);
+    p.set("recur", recurLines.join("\n"));
+  }
   return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
-function outlookUrl(host, c, block){
-  const { start, end } = blockRange(block);
+function outlookUrl(host, c, block, range, transfer){
+  const { start, end } = range || blockRange(block);
+  const subject = transfer ? `（振替）${c.title}` : c.title;
   const p = new URLSearchParams({
     path: "/calendar/action/compose", rru: "addevent",
     startdt: start.toISOString(), enddt: end.toISOString(),
-    subject: c.title, body: c.instructor ? `担当: ${c.instructor}` : "",
+    subject, body: c.instructor ? `担当: ${c.instructor}` : "",
   });
   return `https://${host}/calendar/0/deeplink/compose?${p.toString()}`;
 }
@@ -303,8 +426,13 @@ function openCalAdd(courses){
   $("#mpCalAddTitle").textContent = single
     ? `${courses[0].title}をカレンダーに追加`
     : `時間割をすべてカレンダーに追加（${courses.length}件）`;
-  const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).length, 0);
-  const holidayNote = "祝日や大学祭による休講・振替授業日には対応していません。";
+  const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).reduce((m, b) =>
+    m + 1 + transferExtraDatesForDay(b.day, term).length, 0), 0);
+  const holidayNote = term === "aki"
+    ? "秋・冬学期の祝日・大学行事による休講日は、iCal・Outlookでは予定が入らないようにしています。"
+      + "Googleも同様に除外を試みていますが、動作は確認できていません。"
+      + "振替授業日（金曜に月曜の授業など）は、元の曜日の予定を止めたうえで振替先の曜日の予定を単発で追加します。"
+    : "祝日や大学祭による休講・振替授業日には対応していません。";
   $("#mpCalAddSub").textContent = (single
     ? "追加するカレンダーを選んでください。Outlook/Googleはログイン済みであることを確認してください。組織アカウントの場合はOffice365を選んでください。"
     : `iCalは全コマを1つのファイルにまとめてダウンロードします。Outlook/Googleは科目ごとに追加画面が開きます（この時間割の場合 ${tabCount} 回）。`)
@@ -325,6 +453,12 @@ function onCalAddMethod(method){
         if (method === "google") urls.push(googleUrl(c, b));
         else if (method === "outlook-personal") urls.push(outlookUrl("outlook.live.com", c, b));
         else if (method === "outlook-o365") urls.push(outlookUrl("outlook.office.com", c, b));
+        for (const dateKey of transferExtraDatesForDay(b.day, term)){
+          const range = transferRange(b, dateKey);
+          if (method === "google") urls.push(googleUrl(c, b, range, true));
+          else if (method === "outlook-personal") urls.push(outlookUrl("outlook.live.com", c, b, range, true));
+          else if (method === "outlook-o365") urls.push(outlookUrl("outlook.office.com", c, b, range, true));
+        }
       }
     }
     openTabs(urls);
@@ -463,23 +597,17 @@ function renderPickerList(list, slot, query){
 /* 1科目が複数コマを持つとき（金4・金5・金6 の実験など）は全部のマスを埋める。
    1つだけ埋めると、残りのコマが空いているように見えてしまう。
    置き先のどれかに既に別の科目が入っているときは確認する。
-   ピッカー（openPicker → onCell が呼ぶ空きマスへの新規配置）と
-   お気に入り（renderFavorites の「時間割に入れる」）の、入り口が2つとも
-   最終的にここを通る。確認をここ1箇所にまとめたのは、
-   「お気に入り側は聞くのにピッカー側は黙って上書きする」という
-   不整合（前タスクのレビュー指摘）を、2箇所に同じ確認コードを
-   コピーするのではなく、通り道を1本にすることで無くすため。 */
+   ピッカー（openPicker → onCell が呼ぶ空きマスへの新規配置）・お気に入り
+   （renderFavorites の「時間割に入れる」）・科目一覧の詳細パネル（app.js）の、
+   入り口が3つとも最終的に rkStore.putCourse を通る。確認ロジックをそこ1箇所に
+   まとめたのは、「お気に入り側は聞くのにピッカー側は黙って上書きする」という
+   不整合（前タスクのレビュー指摘）を、複数箇所に同じ確認コードをコピーする
+   のではなく、通り道を1本にすることで無くすため（2026-08-29: mypage.jsからは
+   呼べなかった科目一覧側とも共有できるよう、中身をstore.jsへ移した）。 */
 function putCourse(id, slot){
   const c = BY_ID.get(id);
-  const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
-  const tt = rkStore.getTimetable(term);
-  const busy = slots.filter(s => tt.slots[s] && tt.slots[s] !== id);
-  if (busy.length){
-    const names = busy.map(s => `${s}：${(BY_ID.get(tt.slots[s]) || {}).title || tt.slots[s]}`);
-    if (!confirm(`次のコマを上書きします。\n\n${names.join("\n")}\n\nよろしいですか？`)) return;
-  }
-  for (const s of slots) rkStore.setSlot(term, s, id);
-  renderTimetable();
+  const placed = rkStore.putCourse([term], c || { id, slots: [] }, slot, tid => (BY_ID.get(tid) || {}).title);
+  if (placed) renderTimetable();
 }
 window.mpPutCourse = putCourse;
 
@@ -510,8 +638,14 @@ function renderFavorites(){
       /* 星は学期を問わず付けられるが、コマへも extra へも置けるのは
          今見ている学期の科目だけ。黙って無視すると「押しても反応しない」
          に見えるので理由を出す。曜限の有無で文言を変えない
-         ―― 同じ状況に2通りの文があると、それ自体が混乱の種になる。 */
-      action = `<span class="mpNote">${term==="aki"?"春・夏":"秋・冬"}学期の科目です</span>`;
+         ―― 同じ状況に2通りの文があると、それ自体が混乱の種になる。
+
+         2026-08-28: 「◯◯学期の科目です」だけだと、次に何をすればいいかが
+         書いていない。学期タブは必ず「秋・冬」から始まる（let term = "aki"）ので、
+         春・夏の科目しか星を付けていない人は、開いた瞬間ボタンが1つも無い画面を
+         見ることになり、本人（松下）が本番で実際に「追加ボタンが無い」と読んだ。
+         状態の説明ではなく、上のタブへ誘導する文にする。 */
+      action = `<span class="mpNote">${term==="aki"?"春・夏":"秋・冬"}学期に切り替えると入れられます</span>`;
     } else if (!slots.length){
       /* 曜限がマスに置けない1,069件（集中講義・土曜）。extra へ。 */
       const inExtra = tt.extra.includes(id);
