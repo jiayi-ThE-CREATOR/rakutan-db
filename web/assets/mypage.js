@@ -132,9 +132,12 @@ function inTerm(c){ return TERM_GROUPS[term].includes(c.term_group); }
  * 正確に拾いきれない」という理由で保留にしていたが、2026-08-28にCELAS発行の
  * 全学共通教育学年暦（丸数字＝授業週番号の有無というPDF自身のルール）で
  * 本人が確定させたため、秋・冬学期（aki）分のみ対応した（下記 HOLIDAYS）。
- * 春・夏学期（haru）は未収集で今回のスコープ外。振替授業日（金曜だが
- * 月曜の時間割で授業、等）は別タスク（wangからの依頼②）として対応予定で、
- * このタスクでは扱っていない。openCalAdd の説明文でも断っている。
+ *
+ * 振替授業日（金曜だが月曜の時間割で授業、等）も同じ学年暦から確定させ、
+ * 2026-08-29に対応した（下記 TRANSFERS）。休講日と違い、元の曜日の通常回を
+ * 止める（EXDATE）のと、振替先の曜日の授業を単発で追加する、の両方が要る。
+ *
+ * 春・夏学期（haru）は休講日・振替日とも未収集で今回のスコープ外。
  */
 const PERIOD_TIMES = {
   "1": [8, 50, 10, 20], "2": [10, 30, 12, 0], "3": [13, 30, 15, 0],
@@ -156,6 +159,16 @@ const HOLIDAYS = {
   aki: ["20261012", "20261102", "20261103", "20261104", "20261123",
         "20261228", "20261229", "20261230", "20261231",
         "20270101", "20270111", "20270115", "20270204"],
+  haru: [],
+};
+// 振替授業日。date=実際の暦日、asDay=その日に実施される時間割の曜日
+// （date自体の曜日の授業はその日休みになり、asDayの授業が単発で入る）。
+// CELAS学年暦（R8_gakunenreki.pdf）に明記の2件。haruは未収集。
+const TRANSFERS = {
+  aki: [
+    { date: "20261016", asDay: "月" },
+    { date: "20261105", asDay: "月" },
+  ],
   haru: [],
 };
 // 冬学期は2/9以降が春休みのため、繰り返し予定はここで打ち切る（本人確認・2026-08-28）。
@@ -189,6 +202,23 @@ function holidayDatesForDay(dayChar, termKey, hh, mm){
   return (HOLIDAYS[termKey] || [])
     .map(k => new Date(Number(k.slice(0, 4)), Number(k.slice(4, 6)) - 1, Number(k.slice(6, 8)), hh, mm, 0))
     .filter(d => REV_DAY_INDEX[d.getDay()] === dayChar);
+}
+function dateFromKey(key, hh, mm){
+  return new Date(Number(key.slice(0, 4)), Number(key.slice(4, 6)) - 1, Number(key.slice(6, 8)), hh, mm, 0);
+}
+// 振替日で「元の曜日の通常回」を止めるための日付（block.dayが実施日自身の
+// 曜日で、asDayと違う場合＝その日の通常授業は休みになる）。
+function transferSuspendDatesForDay(dayChar, termKey, hh, mm){
+  return (TRANSFERS[termKey] || [])
+    .filter(t => t.asDay !== dayChar)
+    .map(t => dateFromKey(t.date, hh, mm))
+    .filter(d => REV_DAY_INDEX[d.getDay()] === dayChar);
+}
+// 「asDayの授業がこの実施日に単発で追加される」対象日（block.day === asDay の科目向け）。
+function transferExtraDatesForDay(dayChar, termKey){
+  return (TRANSFERS[termKey] || [])
+    .filter(t => t.asDay === dayChar)
+    .map(t => t.date);
 }
 
 /* その曜日がいちばん早く来る日時。学期がまだ始まっていなければ学期の
@@ -251,6 +281,16 @@ function blockRange(block){
   end.setHours(endT[2], endT[3], 0, 0);
   return { start, end };
 }
+// 振替日にblockの時刻で単発予定を作るときの開始・終了（blockRangeの「次回」計算を迂回し、
+// 振替日の暦日をそのまま使う）。
+function transferRange(block, dateKey){
+  const [sh, sm] = PERIOD_TIMES[block.startPeriod];
+  const endT = PERIOD_TIMES[block.endPeriod];
+  const start = dateFromKey(dateKey, sh, sm);
+  const end = new Date(start);
+  end.setHours(endT[2], endT[3], 0, 0);
+  return { start, end };
+}
 
 function calIconSVG(added){
   return added
@@ -261,7 +301,10 @@ function calIconSVG(added){
 function icsEvent(c, block){
   const { start, end } = blockRange(block);
   const untilDate = calUntil(term);
-  const exdates = holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes())
+  const exdates = [
+    ...holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+    ...transferSuspendDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+  ]
     .filter(d => d > start && d <= untilDate)
     .map(fmtICS);
   const desc = c.instructor ? `担当: ${c.instructor}` : "";
@@ -278,9 +321,29 @@ function icsEvent(c, block){
     "END:VEVENT",
   ].filter(Boolean).join("\r\n");
 }
+/* 振替日にasDay側の授業として単発で入る回。RRULEを持たない1回だけの予定。 */
+function icsTransferEvent(c, block, dateKey){
+  const { start, end } = transferRange(block, dateKey);
+  const desc = c.instructor ? `担当: ${c.instructor}` : "";
+  return [
+    "BEGIN:VEVENT",
+    `UID:${c.id}-${block.day}${block.startPeriod}-transfer-${dateKey}@rakuhan.nocode-sol.co.jp`,
+    `DTSTAMP:${fmtICS(new Date())}`,
+    `DTSTART:${fmtICS(start)}`,
+    `DTEND:${fmtICS(end)}`,
+    `SUMMARY:${icsEscape("（振替）" + c.title)}`,
+    desc ? `DESCRIPTION:${icsEscape(desc)}` : null,
+    "END:VEVENT",
+  ].filter(Boolean).join("\r\n");
+}
 function buildICS(courses){
   const events = [];
-  for (const c of courses) for (const b of courseEventBlocks(c)) events.push(icsEvent(c, b));
+  for (const c of courses){
+    for (const b of courseEventBlocks(c)){
+      events.push(icsEvent(c, b));
+      for (const dateKey of transferExtraDatesForDay(b.day, term)) events.push(icsTransferEvent(c, b, dateKey));
+    }
+  }
   return [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//rakuhan//mypage//JA", "CALSCALE:GREGORIAN",
     ...events, "END:VCALENDAR",
@@ -301,29 +364,38 @@ function downloadICS(courses, filename){
    休講日はEXDATEとしてrecurに試験的に足しているが、このURL方式でGoogleが
    EXDATEを解釈するかは未検証（公式ドキュメントに記載が無い）。効かなくても
    外れて事故るわけではなく、休講日にも予定が残るだけなので試験的に入れている。 */
-function googleUrl(c, block){
-  const { start, end } = blockRange(block);
-  const untilDate = calUntil(term);
-  const exdates = holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes())
-    .filter(d => d > start && d <= untilDate)
-    .map(fmtICS);
-  const recurLines = [`RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(untilDate)}`];
-  if (exdates.length) recurLines.push(`EXDATE:${exdates.join(",")}`);
+/* range/transfer を渡すと、振替日の単発予定（くり返し無し・タイトルに「（振替）」）を作る。
+   省略時はこれまで通り、次回からの毎週くり返し（休講日・振替停止日をEXDATE除外）。 */
+function googleUrl(c, block, range, transfer){
+  const { start, end } = range || blockRange(block);
+  const title = transfer ? `（振替）${c.title}` : c.title;
   const p = new URLSearchParams({
-    action: "TEMPLATE", text: c.title,
+    action: "TEMPLATE", text: title,
     dates: `${fmtICS(start)}/${fmtICS(end)}`,
     ctz: "Asia/Tokyo",
     details: c.instructor ? `担当: ${c.instructor}` : "",
-    recur: recurLines.join("\n"),
   });
+  if (!transfer){
+    const untilDate = calUntil(term);
+    const exdates = [
+      ...holidayDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+      ...transferSuspendDatesForDay(block.day, term, start.getHours(), start.getMinutes()),
+    ]
+      .filter(d => d > start && d <= untilDate)
+      .map(fmtICS);
+    const recurLines = [`RRULE:FREQ=WEEKLY;BYDAY=${ICS_BYDAY[block.day]};UNTIL=${fmtICS(untilDate)}`];
+    if (exdates.length) recurLines.push(`EXDATE:${exdates.join(",")}`);
+    p.set("recur", recurLines.join("\n"));
+  }
   return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
-function outlookUrl(host, c, block){
-  const { start, end } = blockRange(block);
+function outlookUrl(host, c, block, range, transfer){
+  const { start, end } = range || blockRange(block);
+  const subject = transfer ? `（振替）${c.title}` : c.title;
   const p = new URLSearchParams({
     path: "/calendar/action/compose", rru: "addevent",
     startdt: start.toISOString(), enddt: end.toISOString(),
-    subject: c.title, body: c.instructor ? `担当: ${c.instructor}` : "",
+    subject, body: c.instructor ? `担当: ${c.instructor}` : "",
   });
   return `https://${host}/calendar/0/deeplink/compose?${p.toString()}`;
 }
@@ -354,10 +426,12 @@ function openCalAdd(courses){
   $("#mpCalAddTitle").textContent = single
     ? `${courses[0].title}をカレンダーに追加`
     : `時間割をすべてカレンダーに追加（${courses.length}件）`;
-  const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).length, 0);
+  const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).reduce((m, b) =>
+    m + 1 + transferExtraDatesForDay(b.day, term).length, 0), 0);
   const holidayNote = term === "aki"
-    ? "秋・冬学期の祝日・大学行事による休講日は、iCal・Outlookでは予定に反映されません。"
-      + "Googleは反映を試みていますが、動作を確認できていません。振替授業日（金曜に月曜の授業など）には対応していません。"
+    ? "秋・冬学期の祝日・大学行事による休講日は、iCal・Outlookでは予定が入らないようにしています。"
+      + "Googleも同様に除外を試みていますが、動作は確認できていません。"
+      + "振替授業日（金曜に月曜の授業など）は、元の曜日の予定を止めたうえで振替先の曜日の予定を単発で追加します。"
     : "祝日や大学祭による休講・振替授業日には対応していません。";
   $("#mpCalAddSub").textContent = (single
     ? "追加するカレンダーを選んでください。Outlook/Googleはログイン済みであることを確認してください。組織アカウントの場合はOffice365を選んでください。"
@@ -379,6 +453,12 @@ function onCalAddMethod(method){
         if (method === "google") urls.push(googleUrl(c, b));
         else if (method === "outlook-personal") urls.push(outlookUrl("outlook.live.com", c, b));
         else if (method === "outlook-o365") urls.push(outlookUrl("outlook.office.com", c, b));
+        for (const dateKey of transferExtraDatesForDay(b.day, term)){
+          const range = transferRange(b, dateKey);
+          if (method === "google") urls.push(googleUrl(c, b, range, true));
+          else if (method === "outlook-personal") urls.push(outlookUrl("outlook.live.com", c, b, range, true));
+          else if (method === "outlook-o365") urls.push(outlookUrl("outlook.office.com", c, b, range, true));
+        }
       }
     }
     openTabs(urls);
