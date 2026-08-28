@@ -296,8 +296,12 @@ function buildFaculty(facets){
     tsel.innerHTML = `<option value="">${esc(fac.tracks_label || "すべて")}</option>`
       + tracks.map(t => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join("");
     tsel.value = state.track;
-  } else if (state.track){
-    state.track = "";
+  } else {
+    // 中身も捨てる。hidden にするだけだと、学科・専攻を持たない学部に
+    // 切り替えたときに前の学部の選択肢が残る（CSS 側の取りこぼしで
+    // 実際に「文学部なのに専攻語を選ぶ」が見えていた）。
+    tsel.innerHTML = "";
+    if (state.track) state.track = "";
   }
 
   // 下段＝その学部だけの区分。
