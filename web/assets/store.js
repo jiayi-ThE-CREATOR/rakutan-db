@@ -133,6 +133,62 @@
       writeTT(tt);
     },
 
+    // term_group から、この科目を置ける学期を返す。aki/haruが確定していればその1つ、
+    // full（通年）・unknown（学期不明）は両方（mypage.jsのTERM_GROUPSと同じ方針）。
+    termsFor(course) {
+      const g = course && course.term_group;
+      if (g === "aki") return ["aki"];
+      if (g === "haru") return ["haru"];
+      return ["aki", "haru"];
+    },
+
+    /* mypage.js（timetable.json）は既に .slots 配列を持つが、app.js（courses.built.json）
+       には無く day_period の文字列（例:「水2」）だけを持つ。build.py の _SLOT 正規表現
+       （[月火水木金][1-6]の並び）と同じ抽出をして揃える。ここを2つ持つと、どちらかだけ
+       直したときに「一覧からは正しいコマに置けるがマイページ側とズレる」事故になる。 */
+    slotsOf(course) {
+      if (course && Array.isArray(course.slots)) return course.slots;
+      const dp = (course && course.day_period) || "";
+      return dp.match(/[月火水木金][1-6]/g) || [];
+    },
+
+    /* 指定した学期(複数可)にcourseを配置する。曜限を複数持つ科目は一括配置。
+       上書きになるコマがあれば、対象学期をまたいで1回だけ確認する。
+       findTitle(id) は上書き対象の科目名を引くための呼び出し側の関数（省略時はidをそのまま出す）。
+       曜限が無い科目はここでは配置しない（false を返す。呼び出し側が addExtra 等を判断する）。
+       app.js（詳細パネル）と mypage.js（putCourse）の両方から呼ぶ、配置ロジックの唯一の実装。 */
+    putCourse(terms, course, slotFallback, findTitle) {
+      const lookup = findTitle || (() => null);
+      const base = this.slotsOf(course);
+      const slots = base.length ? base : (slotFallback ? [slotFallback] : []);
+      if (!slots.length) return false;
+      const termLabel = { aki: "秋・冬", haru: "春・夏" };
+      const lines = [];
+      for (const t of terms) {
+        const tt = this.getTimetable(t);
+        for (const s of slots) {
+          const busyId = tt.slots[s];
+          if (busyId && busyId !== course.id) {
+            const label = terms.length > 1 ? `[${termLabel[t]}] ` : "";
+            lines.push(`${label}${s}：${lookup(busyId) || busyId}`);
+          }
+        }
+      }
+      if (lines.length && !confirm(`次のコマを上書きします。\n\n${lines.join("\n")}\n\nよろしいですか？`)) return false;
+      for (const t of terms) for (const s of slots) this.setSlot(t, s, course.id);
+      return true;
+    },
+
+    // course が、置けるべき学期すべてで既に時間割（コマ or 曜限なし枠）に入っているか。
+    inTimetable(course) {
+      const terms = this.termsFor(course);
+      const slots = this.slotsOf(course);
+      if (slots.length) {
+        return terms.every(t => slots.every(s => this.getTimetable(t).slots[s] === course.id));
+      }
+      return terms.every(t => this.getTimetable(t).extra.includes(course.id));
+    },
+
     isCalAdded(id) {
       const ids = readObj(K_CAL).ids;
       return !!(ids && typeof ids === "object" && !Array.isArray(ids) && ids[id]);

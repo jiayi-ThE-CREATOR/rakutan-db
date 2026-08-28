@@ -597,23 +597,17 @@ function renderPickerList(list, slot, query){
 /* 1科目が複数コマを持つとき（金4・金5・金6 の実験など）は全部のマスを埋める。
    1つだけ埋めると、残りのコマが空いているように見えてしまう。
    置き先のどれかに既に別の科目が入っているときは確認する。
-   ピッカー（openPicker → onCell が呼ぶ空きマスへの新規配置）と
-   お気に入り（renderFavorites の「時間割に入れる」）の、入り口が2つとも
-   最終的にここを通る。確認をここ1箇所にまとめたのは、
-   「お気に入り側は聞くのにピッカー側は黙って上書きする」という
-   不整合（前タスクのレビュー指摘）を、2箇所に同じ確認コードを
-   コピーするのではなく、通り道を1本にすることで無くすため。 */
+   ピッカー（openPicker → onCell が呼ぶ空きマスへの新規配置）・お気に入り
+   （renderFavorites の「時間割に入れる」）・科目一覧の詳細パネル（app.js）の、
+   入り口が3つとも最終的に rkStore.putCourse を通る。確認ロジックをそこ1箇所に
+   まとめたのは、「お気に入り側は聞くのにピッカー側は黙って上書きする」という
+   不整合（前タスクのレビュー指摘）を、複数箇所に同じ確認コードをコピーする
+   のではなく、通り道を1本にすることで無くすため（2026-08-29: mypage.jsからは
+   呼べなかった科目一覧側とも共有できるよう、中身をstore.jsへ移した）。 */
 function putCourse(id, slot){
   const c = BY_ID.get(id);
-  const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
-  const tt = rkStore.getTimetable(term);
-  const busy = slots.filter(s => tt.slots[s] && tt.slots[s] !== id);
-  if (busy.length){
-    const names = busy.map(s => `${s}：${(BY_ID.get(tt.slots[s]) || {}).title || tt.slots[s]}`);
-    if (!confirm(`次のコマを上書きします。\n\n${names.join("\n")}\n\nよろしいですか？`)) return;
-  }
-  for (const s of slots) rkStore.setSlot(term, s, id);
-  renderTimetable();
+  const placed = rkStore.putCourse([term], c || { id, slots: [] }, slot, tid => (BY_ID.get(tid) || {}).title);
+  if (placed) renderTimetable();
 }
 window.mpPutCourse = putCourse;
 
