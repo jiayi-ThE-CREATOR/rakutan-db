@@ -17,6 +17,55 @@
 
 ---
 
+## 2026-08-29 ｜ PR #83 前チェック：build.pyスキップ判断とshots.mjsにserver.pyが要る件 ｜ 松下(Claude) → 次の人
+
+上の①②（カレンダー連携・詳細パネルからの時間割追加）をまとめてPR化する前に、
+`web/CLAUDE.md` 3章のPR前チェックを実行した記録。コード変更は `.claude/launch.json` への
+1エントリ追加のみ（下記）。
+
+### 1. 何が動く状態か
+
+    for t in web_split tokens layout shell_inject scoring_gate reviews; do
+      python tools/test_$t.py
+    done
+
+→ 5本OK。`test_reviews.py` のみ後述の理由でNG。
+
+    node tools/shots.mjs <出力先> http://localhost:8000
+
+→ 14枚すべて成功（`server.py` を `--port 8000` で起動している前提）。
+`.claude/launch.json` に `server-py`（`python server.py --port 8000`）を追加したので、
+次回からは `preview_start({name:"server-py"})` で起動できる。
+
+`python build.py` は**実行していない**（理由は次項）。
+
+### 2. 何をしていないか
+
+- **`build.py` はあえて実行していない。** この機械の `data/courses.json` は共通教育
+  1,112件しか無く、公開中の `web/data/courses.built.json`（全所属7,877件）を上書きすると
+  6,765件減る。今回の変更（web/assets/配下のJS/CSSのみ）はスコアリング・データ生成に
+  一切触れていないので、build.pyを回す必要自体が無いと判断した
+- **`test_reviews.py` の1件（実データの受講年が全件埋まっている）はNGのまま。**
+  科目id `137199` の口コミデータで受講年が1件欠落している。`git diff origin/main` で
+  このブランチが `data/`・`web/data/`・`reviews.py`・`build.py`・`test_reviews.py` の
+  どれも変更していないことを確認済みで、**このPRとは無関係な既存のデータ品質の問題。**
+  直していない（口コミデータの担当はしゅんやさん／wangさん）
+
+### 3. 次の人が最初にやること
+
+`test_reviews.py` のNG（科目id 137199）を、口コミデータ担当に伝えるか自分で直すかを判断する。
+急ぐものではない（このPRをブロックしていない）。
+
+### 4. 今回踏んだ罠
+
+**`node tools/shots.mjs` は `python -m http.server`（プレーンな静的サーバ）の上では
+一部の画面が撮れない。** `/kuchikomi` のような拡張子なしURLをこのサーバは解決できず
+404になり、12枚目（kuchikomi）で失敗する。`server.py` は「拡張子が無いパスは.htmlとして
+探す」処理を持っているので、**shots.mjsを使うときは必ずserver.py（`python server.py`）を
+使うこと。** `.claude/launch.json` に `server-py` 設定を足したので次回はそちらを使えばよい。
+
+---
+
 ## 2026-08-29 ｜ 科目一覧の詳細パネルから「私の時間割」に追加 ｜ 松下(Claude) → 次の人
 
 wangからの依頼②。これで①②とも完了。ブランチは `fix/mypage-fav-term-note`。

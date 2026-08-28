@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-static",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "web"],
+      "port": 8123
+    },
+    {
+      "name": "repo-root",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8124"],
+      "port": 8124
+    },
+    {
+      "name": "server-py",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["server.py", "--port", "8000"],
+      "port": 8000
+    }
+  ]
+}
