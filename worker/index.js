@@ -215,18 +215,35 @@ function usageMessage() {
   );
 }
 
+// 「連携・要望」は QR を直接送る（2026-08-29 wangさんの依頼）。
+// それまでは「サイト下部のフォームから送ってね」と案内していたが、
+// サイトを開いて一番下まで行かせるのは遠すぎた。運営の窓口は GUILD の
+// Instagram なので、その QR をこちらから出して1タップで済ませる。
+const GUILD_INSTAGRAM_URL = "https://www.instagram.com/osaka_ai_commumity/";
 function contactMessage(siteOrigin) {
-  return {
-    type: "text",
-    text: "ご意見・連携のご相談はサイト下部の「サイトへのご意見・改善要望」フォームから送れるよ。",
-    quickReply: siteOrigin
-      ? {
-          items: [
-            { type: "action", action: { type: "uri", label: "サイトを開く", uri: `${siteOrigin}/` } },
-          ],
-        }
-      : undefined,
-  };
+  const qrUrl = `${siteOrigin || SITE_URL}/assets/guild-instagram-qr.png`;
+  return [
+    {
+      type: "text",
+      text:
+        "ご意見・連携のご相談は、以下のQRコードからご連絡ください。\n" +
+        "ラクハンを運営している学生団体 GUILD の公式Instagramです。",
+    },
+    {
+      type: "image",
+      originalContentUrl: qrUrl,
+      previewImageUrl: qrUrl,
+      // QRを読めない端末・画像を出せない環境のための逃げ道。
+      quickReply: {
+        items: [
+          {
+            type: "action",
+            action: { type: "uri", label: "Instagramを開く", uri: GUILD_INSTAGRAM_URL },
+          },
+        ],
+      },
+    },
+  ];
 }
 
 // リッチメニューのC〜Fの各ボタンは、この決まった文言をテキストとして送ってくる
