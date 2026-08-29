@@ -20,8 +20,12 @@
   cursor:pointer; overflow:hidden; word-break:break-all;
 }
 /* ブランド面に載る文字は白ではなく --brand-ink（tokens.css 参照：
-   #fff は 3.64:1 で通常文字の 4.5:1 に届かない）。 */
-.mpCell.filled{ background:var(--brand); color:var(--brand-ink); border-color:var(--brand); }
+   #fff は 3.64:1 で通常文字の 4.5:1 に届かない）。
+   右上に重なる .mpCalBtn（18px・right:2px）とタイトルが被らないよう、
+   右側だけ広めにパディングを取る。高さ方向で確保すると、同じ行の
+   他のマス（空き含む）まで一律に背が伸びてしまうため、幅で逃がす。 */
+.mpCell.filled{ background:var(--brand); color:var(--brand-ink); border-color:var(--brand);
+  padding-right:22px; }
 
 /* カレンダーに追加ずみのマスは、右上に小さいボタンを重ねて置く。
    .mpCell の中に入れると button の中に button が入ってしまう（読み上げが

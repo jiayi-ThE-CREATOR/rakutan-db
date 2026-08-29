@@ -428,15 +428,20 @@ function openCalAdd(courses){
     : `時間割をすべてカレンダーに追加（${courses.length}件）`;
   const tabCount = courses.reduce((n, c) => n + courseEventBlocks(c).reduce((m, b) =>
     m + 1 + transferExtraDatesForDay(b.day, term).length, 0), 0);
+  /* 祝日・振替対応の詳しい仕組み（EXDATE除外／単発追加のやり方）は、モーダルでは
+     説明しない。長すぎて読まれない上に、押すボタン（iCal/Outlook/Google）を
+     選ぶ判断には関係しない情報だったため（2026-08-29 本人指摘）。 */
   const holidayNote = term === "aki"
-    ? "秋・冬学期の祝日・大学行事による休講日は、iCal・Outlookでは予定が入らないようにしています。"
-      + "Googleも同様に除外を試みていますが、動作は確認できていません。"
-      + "振替授業日（金曜に月曜の授業など）は、元の曜日の予定を止めたうえで振替先の曜日の予定を単発で追加します。"
+    ? "秋・冬学期の祝日・振替授業日に対応しています（Googleでの動作は未確認）。"
     : "祝日や大学祭による休講・振替授業日には対応していません。";
-  $("#mpCalAddSub").textContent = (single
-    ? "追加するカレンダーを選んでください。Outlook/Googleはログイン済みであることを確認してください。組織アカウントの場合はOffice365を選んでください。"
-    : `iCalは全コマを1つのファイルにまとめてダウンロードします。Outlook/Googleは科目ごとに追加画面が開きます（この時間割の場合 ${tabCount} 回）。`)
-    + " " + holidayNote;
+  /* 「追加するカレンダーを選んでください〜」は、複数科目のときも押す前に
+     必ず読ませたい注意（ログインしていないと追加できない）なので、
+     single/複数どちらでも先頭に固定で出す。 */
+  const multiNote = single ? "" :
+    ` iCalは全コマを1つのファイルにまとめてダウンロードします。Outlook/Googleは科目ごとに追加画面が開きます（この時間割の場合 ${tabCount} 回）。`;
+  $("#mpCalAddSub").textContent =
+    "追加するカレンダーを選んでください。Outlook/Googleはログイン済みであることを確認してください。"
+    + multiNote + " " + holidayNote;
   const toast = $("#mpCalAddToast");
   toast.textContent = "";
   toast.className = "mpCalToast";
