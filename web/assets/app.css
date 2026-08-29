@@ -128,6 +128,19 @@ input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);bor
   background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-base)}
 input:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
 
+/* select を開いたときの一覧（ブラウザ既定だとOSのハイライト色＝Windowsだと青）
+   をサイトの色に合わせる。appearance:base-select 未対応のブラウザ（2026-08-29時点の
+   Firefoxなど）ではこの3行が無視され、今まで通りのネイティブ表示に戻るだけなので、
+   HTML側の変更は不要かつ壊れる心配もない（Chrome/Edge 135+・Safari 27+で確認）。 */
+select, ::picker(select){ appearance:base-select; }
+::picker(select){ border:1px solid var(--rule); border-radius:var(--r-sm); background:var(--card); }
+/* option は select から color を継承しない（UA既定で常に黒固定）。今回のダークモード
+   修正で繰り返し出てきたのと同じ「継承に任せると効かない」パターンなので明示する。
+   base-select の option 既定は上下パディングがほぼ0で行が詰まる（実測24px）。
+   詰まりすぎない程度に余白を持たせる（実測30px前後）。 */
+option{ padding:3px var(--sp-3); color:var(--ink); }
+option:hover, option:focus{ background:var(--brand-soft); }
+
 section{margin-top:22px}
 h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-weight:700}
 h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
@@ -159,13 +172,17 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 /* 学部セクションは h2 が3つ並ぶ（共通の区分／学部を選ぶ／その学部の区分）。
    h2 は既定で上マージンを持たないので、2つ目以降だけ間を空ける。 */
 .facH{margin-top:var(--sp-5)}
-#facSec select{display:block;width:100%;padding:11px 14px;font:inherit;font-size:var(--fs-base);
+/* display:flex（block ではない）は appearance:base-select 下で必要。
+   select の中身（選んだ文字＋▼アイコン）を横並びにする既定のレイアウトが
+   display:block だと崩れ、▼だけ文字の下に落ちる（2026-08-29 本人指摘）。
+   [hidden] に勝つのに要るのは値ではなく #facSec select というセレクタの
+   詳細度なので、block → flex に変えても次のコメントの効果は変わらない。 */
+#facSec select{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;font:inherit;font-size:var(--fs-base);
   border:1px solid var(--rule);border-radius:var(--r-md);background:var(--card);color:var(--ink);
   margin-bottom:var(--sp-2)}
-/* display:block は [hidden] の既定（display:none）より詳細度が高く、
-   これが無いと学科・専攻を持たない学部（文学部など）でも #trackSel が
-   出たままになる ―― しかも中身は前に選んでいた学部のもの。
-   「文学部なのに専攻語を選ぶ」が出るのはこれが原因だった。 */
+/* [hidden] の既定（display:none）に勝つため。これが無いと学科・専攻を持たない
+   学部（文学部など）でも #trackSel が出たままになる ―― しかも中身は前に
+   選んでいた学部のもの。「文学部なのに専攻語を選ぶ」が出るのはこれが原因だった。 */
 #facSec select[hidden]{display:none}
 .chip{border:1px solid var(--rule);background:var(--card);border-radius:var(--r-pill);
   padding:7px 13px;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
@@ -499,7 +516,7 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 .pagerNums .pn:hover:not(:disabled):not(.on){border-color:var(--brand);background:var(--brand-soft)}
 .pagerNums .pn.on{background:var(--brand);color:var(--brand-ink);
   border-color:var(--brand);font-weight:700}
-.pagerNums .pn.nav{font-size:18px;line-height:1;color:var(--brand-text)}
+.pagerNums .pn.pnArrow{font-size:18px;line-height:1;color:var(--brand-text)}
 .pagerNums .pn:disabled{opacity:.35;cursor:default;color:var(--muted)}
 .pagerNums .gap{color:var(--muted);padding:0 var(--sp-1);align-self:center}
 
@@ -670,7 +687,7 @@ html{scroll-behavior:smooth}
 .onboardBtns{ display:flex; flex-direction:column; gap:8px; }
 .onboardBtns button, .onboardOpts button{
   padding:12px; border-radius:10px; border:1px solid var(--rule);
-  background:var(--card); font-size:15px; cursor:pointer;
+  background:var(--card); color:var(--ink); font-size:15px; cursor:pointer;
 }
 /* オレンジの面に載せる文字は白ではなく --brand-ink（tokens.css 参照：
    #fff だと 3.64:1 で通常文字の 4.5:1 に届かない）。 */

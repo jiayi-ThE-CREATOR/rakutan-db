@@ -17,6 +17,125 @@
 
 ---
 
+## 2026-08-29 ｜ ダークモードの文字コントラスト修正＋UI細部の見た目直し ｜ 松下(Claude) → 次の人
+
+wangからの依頼（8/28 23:37「右の文字が見にくい」＋添付画像）を起点に、同じ原因の箇所をまとめて直した。
+そのあと本人との対話の中で見つかった、select（学部・学年など）の見た目やカレンダー連携の
+細かい不具合も同じブランチでまとめて直している。ブランチは `fix/darkmode-contrast`
+（`fix/mypage-fav-term-note` はPR #83で既にマージ済みのため、`origin/main` から切り直した）。
+
+### 1. 何が動く状態か
+
+    python -m http.server 8123 --directory web
+    # → http://localhost:8123/mypage.html （ブラウザ/OSをダークモードにして確認）
+    # → http://localhost:8123/               （初回訪問の「学部と学年を教えてもらえますか」）
+
+**ダークモードの文字コントラスト（`web/assets/mypage.css`・`web/assets/app.css`）:**
+- `.mpFavActions button`（お気に入り一覧「時間割に入れる」「☆ 外す」）に `color:var(--soft)` を追加
+- `.mpPick`（空きコマ配置ポップアップの科目ボタン）に `color:var(--ink)` を追加
+- `#mpPicker` / `.mpCalDlg`（ダイアログ本体。空きコマ配置・カレンダー連携の両方）に
+  `background:var(--card); color:var(--ink);` を追加 ―― ダイアログ自体が背景色を持たず
+  常に白のままだったのが根本原因。これで中の「閉じる」ボタンや説明文もまとめて直った
+- `.mpRow select`（プロフィールの学部・学年）に `background:var(--card); color:var(--ink);` を追加
+- `#mpPickerSearch`（空きコマ配置の「科目名で検索」）に同上を追加
+- `.onboardBtns button, .onboardOpts button`（初回訪問の「そのまま使う」「学部はどれですか」）に
+  `color:var(--ink)` を追加
+
+いずれも「背景色（`background`）だけ指定があって文字色（`color`）が抜けている」という同じ形の
+バグで、ライトモードの見た目は変えていない（`--card`がライトでは元々白なので無変化）。
+全箇所、ダークモード表示で文字が読めること・ライトモードが変わっていないことをブラウザで確認済み。
+
+**ページャーの矢印ボタンのズレ（`web/assets/app.js`・`web/assets/app.css`）:**
+スマホ幅で「科目を探す」一覧の一番下、ページ送りの `‹ 1 2 … 47 ›` の `‹`/`›` だけ位置がズレる不具合。
+原因はクラス名衝突（後述）。矢印ボタンのクラス名を `nav` → `pnArrow` に変更して解消。
+スマホ幅(375px)で矢印と数字ボタンの縦位置が完全一致すること、PC幅のヘッダーナビの見た目が
+変わっていないことを確認済み。
+
+**select（`<select>`）を開いたときの見た目（`web/assets/app.css`）:**
+学部・学年などの選択肢一覧が「ブラウザ標準の白背景＋青いハイライト」のままで、サイトの色と
+浮いていた件。`appearance:base-select`（CSSだけで`<select>`の中身を丸ごとスタイルできる新しい
+プロパティ。HTML側の変更は不要）で、背景・ホバー色・行間・文字色をサイトの色に合わせた。
+
+```css
+select, ::picker(select){ appearance:base-select; }
+::picker(select){ border:1px solid var(--rule); border-radius:var(--r-sm); background:var(--card); }
+option{ padding:3px var(--sp-3); color:var(--ink); }
+option:hover, option:focus{ background:var(--brand-soft); }
+```
+
+**Chrome/Edge 135以降・Safari 27以降で確認ずみ。未対応ブラウザ（2026-08-29時点のFirefoxなど）では
+この宣言がまるごと無視され、直す前のネイティブ表示に戻るだけなので壊れない**（プログレッシブ
+エンハンスメント）。行の高さは直す前の見た目（実測44px）に近づけたあと、本人の指示で30pxまで
+詰めている。あわせて `#facSec select`（科目一覧の「学部を選ぶ」）の `display:block` が
+`appearance:base-select` の内部レイアウトと衝突し、▼アイコンが文字の下に落ちる不具合も
+`display:flex;align-items:center;justify-content:space-between;` に変えて直した
+（`[hidden]`を上書きする目的は値ではなくセレクタの詳細度で成立するので、blockをflexに変えても壊れない）。
+
+**カレンダー連携モーダルの説明文（`web/assets/mypage.js` `openCalAdd()`）:**
+長すぎて読まれなかった説明文を短縮。「追加するカレンダーを選んでください。Outlook/Googleは
+ログイン済みであることを確認してください。」を単一科目・複数科目どちらでも先頭に固定表示し、
+「組織アカウントの場合はOffice365を選んでください」（ボタンのラベルで分かるので冗長）を削除、
+祝日・振替対応の詳しい仕組みの説明は「秋・冬学期の祝日・振替授業日に対応しています（Googleでの
+動作は未確認）。」の1文に短縮した（Aboutページへの切り出しは本人判断で見送り）。
+
+**時間割マスとカレンダーアイコンの重なり（`web/assets/mypage.css`）:**
+時間割の科目マス（`.mpCell.filled`）でタイトルが長いと、右上に重ねて置いている
+カレンダー追加ボタン（`.mpCalBtn`）と文字が重なる不具合。`.mpCell.filled` に
+`padding-right:22px` を追加して回避（縦方向の余白で確保すると、CSS Gridで同じ行の
+他のマスまで一律に背が伸びるため、横方向で確保した）。
+
+### 2. 何をしていないか
+
+- ダークモード全体を1画面ずつ総ざらいしたわけではない。他の画面（口コミフォーム・詳細パネルなど）
+  はまだ見ていない
+- `appearance:base-select` はFirefox等の未対応ブラウザでは今まで通りの見た目（青いハイライト）の
+  ままになる。全ブラウザで統一されたわけではない
+- wangへの「直りました」報告はまだしていない
+
+### 3. 次の人が最初にやること
+
+    git status  # fix/darkmode-contrast ブランチ上、コミット済み
+
+push・PR作成をするかは本人に確認すること。他にダークモードで読みにくい箇所が
+見つかったら、同じ「`background`はあるのに`color`が無い」パターンを疑うとよい
+（`grep -n "background:var(--card)" web/assets/*.css` などで拾える）。
+
+### 4. 今回踏んだ罠
+
+**ページャーの矢印ボタン、`class="pn nav"` の "nav" がヘッダーの `.nav`（ナビ帯）と
+名前が衝突していた。** `app.css` の `@media (max-width:639px)` 内に
+`.nav{margin:11px calc(-1 * var(--pad)) -12px; ...}` というスマホ幅専用ルールがあり、
+本来はヘッダーのナビ帯用なのに、同じ`nav`というクラス名を持つページャーの矢印ボタンにも
+効いてしまい、`margin-top:11px; margin-bottom:-12px` が乗って位置がズレていた。
+PC幅（639px超）ではこのメディアクエリ自体が発動しないので、**スマホ幅でだけ**症状が出る。
+2026-08-29の`panelBtn`/`ttAddBtn`衝突と全く同じ種類の罠（クラス名を見た目の使い回しだけで
+決めると、無関係な既存セレクタに引っかかることがある）。**クラス名を足す前に、そのクラス名が
+既に別の場所で（別の意味で）使われていないか `grep` で確認すること。**
+
+**`<dialog>` 要素は `background`/`color` を自分で指定しない限り、OS/ブラウザがダークモードでも
+常にライトモード扱いになる。** このサイトはどこにも `color-scheme` プロパティを宣言していないため、
+`prefers-color-scheme: dark` を検知しても `<dialog>` のUA既定色（`Canvas`/`CanvasText`）は
+ライトのまま変わらない。中の要素だけ`--ink`等のダーク対応トークンで直しても、乗っている土台
+（ダイアログ自体）がライトのままだと「白背景に白文字」のような組み合わせが起こり得る
+（今回`.mpPick`は自前の`background`を持っていたので事なきを得たが、`#mpPickerClose`は
+`background:none`だったため、ダイアログの白地に明るいグレー文字が乗ってほぼ見えなくなっていた）。
+**ボタン単体の文字色だけでなく、乗っている土台がダークモードに対応しているかも確認すること。**
+
+**`<option>` は `<select>` から `color` を継承しない。** `appearance:base-select` で
+select自体に`color:var(--ink)`を指定しても、中の`<option>`はUA既定の黒固定のままで、
+ダークモードで「黒文字が暗い背景に乗ってほぼ見えない」状態になっていた（見た目は薄暗いグレーに
+見えて一見「効いているように」誤認しやすい）。`option`に直接`color`を指定して解決。
+これも上の`<dialog>`と同じ「継承に任せると効かないフォーム系要素がある」パターン。
+
+**`appearance:base-select` は select の `display` を上書きしていると内部レイアウトが崩れる。**
+`#facSec select{display:block}` のように意図的に`display`を変えていた箇所で、
+選んだ文字と▼アイコンを横並びにする仕組みが効かなくなり、▼が文字の下に落ちた
+（`.mpRow select`など`display`を触っていないselectでは問題が起きなかった）。
+新しいCSS機能を既存の`display`上書きと組み合わせるときは、その上書きの元々の目的
+（今回は`[hidden]`を上書きするため）を保ったまま値だけ調整できないか確認すること。
+
+---
+
 ## 2026-08-29 ｜ PR #83 前チェック：build.pyスキップ判断とshots.mjsにserver.pyが要る件 ｜ 松下(Claude) → 次の人
 
 上の①②（カレンダー連携・詳細パネルからの時間割追加）をまとめてPR化する前に、
