@@ -1146,8 +1146,12 @@ function renderPager(){
     else if (nums[nums.length - 1] !== "…") nums.push("…");
   }
 
+  /* クラス名は pnArrow（"nav" にしない）。ヘッダーの .nav と名前が衝突すると、
+     スマホ幅（639px以下）専用の帯用マージン（app.css の @media (max-width:639px)
+     内の .nav ルール）がこのボタンにも効いてしまい、矢印だけ位置がずれる
+     （2026-08-29 の panelBtn/ttAddBtn の衝突と同じ種類の罠）。 */
   const arrow = (to, label, sign, off) =>
-    `<button class="pn nav" data-p="${to}"${off ? " disabled" : ""} ` +
+    `<button class="pn pnArrow" data-p="${to}"${off ? " disabled" : ""} ` +
     `aria-label="${label}">${sign}</button>`;
 
   el.innerHTML =

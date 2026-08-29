@@ -5,7 +5,8 @@
 .mypage h3{ font-size:16px; margin:0 0 12px; }
 .mpRow{ display:flex; align-items:center; gap:12px; margin:0 0 10px; }
 .mpRow label{ width:4em; font-size:14px; color:var(--soft); }
-.mpRow select{ flex:1; padding:10px; border:1px solid var(--rule); border-radius:8px; font-size:15px; }
+.mpRow select{ flex:1; padding:10px; border:1px solid var(--rule); border-radius:8px;
+  background:var(--card); color:var(--ink); font-size:15px; }
 /* データ読み込み失敗時の案内。他に色は要らないので --soft のみ使う。 */
 .mpError{ font-size:13px; color:var(--soft); background:var(--dim); border-radius:8px; padding:12px; }
 
@@ -34,17 +35,19 @@
 }
 .mpCalBtn svg{ width:11px; height:11px; }
 .mpCalBtn.added{ border-color:var(--brand); color:var(--brand); }
-#mpPicker{ border:0; border-radius:14px; padding:20px; max-width:420px; width:90vw; }
+#mpPicker{ border:0; border-radius:14px; padding:20px; max-width:420px; width:90vw;
+  background:var(--card); color:var(--ink); }
 #mpPicker::backdrop{ background:var(--scrim); }
 #mpPickerSearch{ display:block; width:100%; box-sizing:border-box; padding:10px;
-  border:1px solid var(--rule); border-radius:8px; font-size:15px; margin:0 0 10px; }
+  border:1px solid var(--rule); border-radius:8px; background:var(--card); color:var(--ink);
+  font-size:15px; margin:0 0 10px; }
 /* サイト内のもう1つのモーダル（口コミフォームの .fbCancel）と同じ見た目に揃える。
    ここには「送る」に当たるボタンが無く1つだけなので、幅いっぱいにする。 */
 #mpPickerClose{ display:block; width:100%; box-sizing:border-box; background:none;
   border:1px solid var(--rule); border-radius:8px; color:var(--soft); font:inherit;
   padding:12px; cursor:pointer; }
 .mpPick{ display:block; width:100%; text-align:left; padding:10px;
-  border:1px solid var(--rule); border-radius:8px; background:var(--card); margin:0 0 6px; cursor:pointer; }
+  border:1px solid var(--rule); border-radius:8px; background:var(--card); color:var(--ink); margin:0 0 6px; cursor:pointer; }
 .mpPick small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
 #mpPickerList{ max-height:50vh; overflow-y:auto; margin:0 0 12px; }
 .mpExtraRow{ display:flex; justify-content:space-between; align-items:center;
@@ -57,7 +60,7 @@
 .mpFav small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
 .mpFavActions{ display:flex; gap:6px; flex-shrink:0; }
 .mpFavActions button{ padding:6px 10px; font-size:12px; border:1px solid var(--rule);
-  border-radius:6px; background:var(--card); cursor:pointer; white-space:nowrap; }
+  border-radius:6px; background:var(--card); color:var(--soft); cursor:pointer; white-space:nowrap; }
 .mpIn, .mpNote{ font-size:11px; color:var(--muted); align-self:center; white-space:nowrap; }
 .mpEmpty{ font-size:13px; color:var(--muted); }
 
@@ -72,7 +75,8 @@
 .mpAllCal svg{ width:14px; height:14px; flex-shrink:0; }
 
 /* #mpPicker と同じ骨格（枠なし・角丸14px・幅90vw上限420px）に揃える。 */
-.mpCalDlg{ border:0; border-radius:14px; padding:20px; max-width:420px; width:90vw; }
+.mpCalDlg{ border:0; border-radius:14px; padding:20px; max-width:420px; width:90vw;
+  background:var(--card); color:var(--ink); }
 .mpCalDlg::backdrop{ background:var(--scrim); }
 .mpCalDlg h3{ margin:0 0 4px; font-size:16px; }
 .mpCalSub{ margin:0 0 14px; font-size:11.5px; color:var(--muted); line-height:1.7; }

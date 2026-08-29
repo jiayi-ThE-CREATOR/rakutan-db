@@ -499,7 +499,7 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 .pagerNums .pn:hover:not(:disabled):not(.on){border-color:var(--brand);background:var(--brand-soft)}
 .pagerNums .pn.on{background:var(--brand);color:var(--brand-ink);
   border-color:var(--brand);font-weight:700}
-.pagerNums .pn.nav{font-size:18px;line-height:1;color:var(--brand-text)}
+.pagerNums .pn.pnArrow{font-size:18px;line-height:1;color:var(--brand-text)}
 .pagerNums .pn:disabled{opacity:.35;cursor:default;color:var(--muted)}
 .pagerNums .gap{color:var(--muted);padding:0 var(--sp-1);align-self:center}
 
@@ -670,7 +670,7 @@ html{scroll-behavior:smooth}
 .onboardBtns{ display:flex; flex-direction:column; gap:8px; }
 .onboardBtns button, .onboardOpts button{
   padding:12px; border-radius:10px; border:1px solid var(--rule);
-  background:var(--card); font-size:15px; cursor:pointer;
+  background:var(--card); color:var(--ink); font-size:15px; cursor:pointer;
 }
 /* オレンジの面に載せる文字は白ではなく --brand-ink（tokens.css 参照：
    #fff だと 3.64:1 で通常文字の 4.5:1 に届かない）。 */
