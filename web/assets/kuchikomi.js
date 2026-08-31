@@ -82,6 +82,7 @@ const els = {
   modal: document.getElementById('class-modal'),
   modalTitle: document.getElementById('modal-title'),
   modalSlotInfo: document.getElementById('modal-slot-info'),
+  modalSubjectSearch: document.getElementById('modal-subject-search'),
   modalSubjectSelect: document.getElementById('modal-subject-select'),
   modalYearSelect: document.getElementById('modal-year-select'),
   reviewQuestions: document.getElementById('review-questions'),
@@ -117,6 +118,9 @@ const els = {
 /* いま編集しているもの。時間割のマスと「時間割に無い科目」で形が違うので、
    どちらなのかを kind で持つ。key は selectedSubjects の鍵。 */
 let currentTarget = null;   // { kind:'slot'|'extra', key, day?, period?, id? }
+
+/* いまモーダルで選べる科目の全件（検索前）。openEditor が入れる。 */
+let modalSubjects = [];
 
 /* ══ 起動 ══════════════════════════════════════════ */
 
@@ -160,8 +164,13 @@ function init() {
   /* 一時期ここに年度（"2024年度"）を入れていた（2026-08-26 の往復）。
      選択肢に無い値をそのまま代入すると select は無言で未選択のままになり、
      「選んだのに送れない」になるので、在ることを確かめてから入れる。 */
-  if ([...els.gradeSelect.options].some(o => o.value === savedSettings.grade)) {
-    els.gradeSelect.value = savedSettings.grade;
+  /* osaka_u_settings の grade は「1」〜「6」の数字だけ（saveSettingsToLocal 参照。
+     トップページの学年フィルタと共有しているため）。この select の値
+     （「1年」〜「6年」「修士」「博士」）に戻すには「年」を足す。修士・博士は
+     数字が無いので復元できない（次に選び直すまで未選択に戻る。許容する）。 */
+  const savedGradeOption = savedSettings.grade ? `${savedSettings.grade}年` : '';
+  if ([...els.gradeSelect.options].some(o => o.value === savedGradeOption)) {
+    els.gradeSelect.value = savedGradeOption;
   }
   if (savedSettings.semester) {
     els.semesterSelect.value = savedSettings.semester;
@@ -225,6 +234,7 @@ function init() {
     });
   });
 
+  els.modalSubjectSearch.addEventListener('input', renderModalSubjectOptions);
   els.modalSubjectSelect.addEventListener('change', checkModalFormReady);
   els.modalYearSelect.addEventListener('change', checkModalFormReady);
 
@@ -337,9 +347,17 @@ function showPickers() {
   renderExtraList();
 }
 
+/* この select の値（「1年」など）から、共有キーに書く「1」だけを取り出す。
+   「修士」「博士」には対応する数字が無いので "" にする ―― トップページ側の
+   学年フィルタはここが数字でないと0件に落ちる（app.js の profile.grade 検証）。 */
+function sharedGradeOf(v) {
+  const m = /^([1-6])年$/.exec(v || '');
+  return m ? m[1] : '';
+}
+
 function saveSettingsToLocal() {
   const settings = {
-    grade: els.gradeSelect.value,
+    grade: sharedGradeOf(els.gradeSelect.value),
     semester: els.semesterSelect.value,
     faculty: state.faculty,
     department: state.department,
@@ -566,6 +584,7 @@ function openEditor(target) {
   resetModalForm();
 
   if (subjects.length === 0) {
+    els.modalSubjectSearch.classList.add('hidden');
     els.modalSubjectSelect.classList.add('hidden');
     els.reviewQuestions.classList.add('hidden');
     els.noSubjectsMsg.classList.remove('hidden');
@@ -575,15 +594,12 @@ function openEditor(target) {
     els.reviewQuestions.classList.remove('hidden');
     els.noSubjectsMsg.classList.add('hidden');
 
-    els.modalSubjectSelect.innerHTML = '<option value="" disabled selected>科目を選択してください</option>';
-    subjects.forEach(subj => {
-      const option = document.createElement('option');
-      option.value = subj.id;
-      /* 同じ科目名が曜限違いで何コマもある（基礎解析学Iは10コマ以上）。
-         担当教員はコマの特定に要るので必ず出す。 */
-      option.textContent = subj.instructor ? `${subj.title}（${subj.instructor}）` : subj.title;
-      els.modalSubjectSelect.appendChild(option);
-    });
+    /* 時間割外はすでに1件に決まっている（選び直させない）ので検索は不要。
+       同じ曜限に何件も出うる時間割のマスだけ検索を出す。 */
+    els.modalSubjectSearch.classList.toggle('hidden', !slot);
+    els.modalSubjectSearch.value = '';
+    modalSubjects = subjects;
+    renderModalSubjectOptions();
 
     /* 時間割外は「どの科目か」がもう決まっている。選び直させない。 */
     if (!slot) els.modalSubjectSelect.value = target.id;
@@ -599,6 +615,34 @@ function openEditor(target) {
 
   checkModalFormReady();
   els.modal.classList.remove('hidden');
+}
+
+/* modalSubjects（その枠の全候補）を検索欄の文字で絞り込んで select に描き直す。
+   選び直しの途中で描き直しても選択が消えないよう、いま選ばれている値を保つ。 */
+function renderModalSubjectOptions() {
+  const q = (els.modalSubjectSearch.value || '').trim();
+  const filtered = q ? modalSubjects.filter(s => s.title.includes(q)) : modalSubjects;
+  const keep = els.modalSubjectSelect.value;
+
+  if (!filtered.length) {
+    els.modalSubjectSelect.innerHTML = '<option value="" disabled selected>該当する科目が見つかりません</option>';
+    els.modalSubjectSelect.disabled = true;
+  } else {
+    els.modalSubjectSelect.disabled = false;
+    els.modalSubjectSelect.innerHTML = '<option value="" disabled selected>科目を選択してください</option>';
+    filtered.forEach(subj => {
+      const option = document.createElement('option');
+      option.value = subj.id;
+      /* 同じ科目名が曜限違いで何コマもある（基礎解析学Iは10コマ以上）。
+         担当教員はコマの特定に要るので必ず出す。 */
+      option.textContent = subj.instructor ? `${subj.title}（${subj.instructor}）` : subj.title;
+      els.modalSubjectSelect.appendChild(option);
+    });
+    if ([...els.modalSubjectSelect.options].some(o => o.value === keep)) {
+      els.modalSubjectSelect.value = keep;
+    }
+  }
+  checkModalFormReady();
 }
 
 function restoreReview(review) {
