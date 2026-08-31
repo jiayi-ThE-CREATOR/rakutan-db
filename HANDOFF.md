@@ -17,6 +17,158 @@
 
 ---
 
+## 2026-08-31 ｜ トップページの学年フィルタが0件に落ちる不具合を修正 ｜ 松下(Claude) → 次の人
+
+本人（松下）から「トップページを開いただけで学年チップがどれも選択されておらず、0件になる」という
+報告（スクリーンショット添付）を受けて調査・修正。最初は「デフォルトを『すべて』に変えてほしい」
+という依頼だったが、`web/assets/app.js` の既定はすでに2026-08-26に`year:"all"`へ直っており
+（本番でも複数パターンで再現せず）、実際の原因は別にあった。
+
+**原因**：`web/kuchikomi.html`（口コミを書く）の「① いまの学年」と、トップページ／マイページの
+学年フィルタが、同じ localStorage キー `osaka_u_settings` を共用している（`web/assets/store.js`
+のコメント参照）。ところが値の形式が食い違っていた：
+
+- トップページ側（`app.js`・`mypage.js`）が読む/書く学年は `"1"`〜`"6"`（数字だけ）
+- 口コミ側（`kuchikomi.js`）が書いていた学年は `"1年"`〜`"6年"`、加えて `"修士"` `"博士"`
+
+口コミページで一度でも学年を選ぶと、トップページ側は例えば `"3年"` を受け取り、
+`YEARS`（`"1"`〜`"6"`・`"all"`）のどれとも一致せず学年チップが全部非選択になり、
+`+state.year` も `NaN` になって学年フィルタが全科目を弾く＝0件になっていた。
+
+### 1. 何が動く状態か
+
+    python server.py --port 8000
+    # → http://localhost:8000/kuchikomi で「① いまの学年」を「3年」や「修士」にする
+    # → http://localhost:8000/ を開く（学年チップが正しく反応する。「修士」は数字が無いので「すべて」のまま）
+
+- `web/assets/app.js`:
+  - `boot()` 内、`profile.grade` を `state.year` にあてる箇所を `/^[1-6]$/` で検証してから代入
+  - `rk:profile-set` イベントの `grade` も同様に検証
+  - これにより、口コミ側から来た壊れた値だけでなく、**既にlocalStorageに入ってしまっている
+    過去の壊れたデータ**（`"3年"`や`"修士"`）も自動的に無視され「すべて」にフォールバックする
+    （ユーザーがlocalStorageを消す必要は無い。動作確認済み）
+- `web/assets/kuchikomi.js`:
+  - `sharedGradeOf()` を新設。select の値（`"3年"`等）から数字だけ（`"3"`）を取り出し、
+    `"修士"`/`"博士"`は空文字にする
+  - `saveSettingsToLocal()` で `grade` にこの数字だけを書くよう変更（GAS送信用の
+    `handleSubmit()` の payload は `els.gradeSelect.value` のまま変更していない ―― 
+    しゅんやさんのスプレッドシートの列は無関係）
+  - 復元側（`init()`）も、保存されている数字に `"年"` を足してから select と突き合わせるよう変更
+
+### 2. 何をしていないか
+
+- push・PR は未作成（区切りとしてここに記録。運用は`web/CLAUDE.md`3章の通り）
+- commit も未実施
+- `kuchikomi.js` は本来 wang さん担当（オーナー表に明記は無いが `feat/wang-kuchikomi-*` 系）。
+  今回も本人の直接依頼で松下(Claude)が編集した。念のため共有推奨
+- 既にブラウザに `"修士"`/`"博士"` を選んだ記録が残っている人は、今回の修正後にトップページ側は
+  正しく「すべて」に戻るが、**口コミページ自身の「前回の選択を覚えている」機能は、修士・博士だけは
+  今後効かなくなる**（数字が無く共有キーに書けないため）。実害は「毎回選び直すだけ」で、
+  投稿自体やGAS送信には影響しない
+- スマホ幅での見た目は未確認（今回はロジックのみの修正で見た目の変更は無い）
+- 同じ `osaka_u_settings` を読む他の画面（マイページの学部・学年欄など）への影響は
+  「壊れた値を無視して既定に戻る」方向にしか効かないため、悪化はしないはずだが、
+  マイページでの目視確認はしていない
+
+**追記（同日）**：この不具合の確認中、手元の `data/courses.json` に `eligible_years` が
+1件も入っていない状態になっていた（罠⑧／⑩として既に HANDOFF に記録済みのやつ）ため、
+`python3 scrape/years.py` を実行して埋め直した（本人の許可を得て実行。1112件中1110件に
+反映、2件は「どの学年の一覧にも出てこない」科目でこれは正常）。これは repo に入らない
+gitignore 対象のローカルデータなので、他の人が同じ罠を踏んだら各自で流し直すだけでよい
+（新しいコマンドではない。README/HANDOFF既存の手順どおり）。
+
+### 3. 次の人が最初にやること
+
+    git status   # このセッションでの変更2ファイル（app.js・kuchikomi.js）が残っているはず
+    git diff web/assets/app.js web/assets/kuchikomi.js
+    python3 build.py
+    for t in web_split tokens layout shell_inject scoring_gate reviews; do python3 tools/test_$t.py; done
+    node tools/shots.mjs /tmp/rk
+
+上記が通ってから commit → PR。
+
+### 4. 今回踏んだ罠
+
+- **「デフォルトを変えてほしい」という依頼の言葉どおりに直すと、何も直らないところだった。**
+  依頼された変更（`state.year`の既定値）はコード上すでに正しく、本番でも複数パターン
+  （PC/スマホ・フレッシュ状態・学部学年を答えた後）で0件を再現できなかった。
+  本人にスクリーンショットを見せてもらって初めて「学年チップがどれも選択されていない」
+  という、単なるデフォルト値の話ではない状態だと分かった。**症状の言葉を鵜呑みにせず、
+  実際の画面（スクリーンショット）で状態を確認しにいったのが決め手。**
+- **同じ localStorage キーを2つの画面（`app.js`系と`kuchikomi.js`）が別々の書き方で
+  共用していると、片方の画面を触っただけでもう片方が静かに壊れる。** `store.js` に
+  「唯一の窓口」の役割があるのに、`kuchikomi.js` だけがそれを経由せず直接
+  `localStorage.setItem('osaka_u_settings', ...)` している ―― 今回はそこがズレの温床だった。
+  同じキーを触る画面が増えるときは、書式が揃っているか（またはどちらかが窓口を経由しているか）を疑うとよい
+
+---
+
+## 2026-08-31 ｜ 口コミ投稿モーダルの科目選択に検索欄を追加 ｜ 松下(Claude) → 次の人
+
+本人（松下）から「口コミを書くで、③（時間割に無い科目）には科目名の検索があるのに、
+②（時間割から選ぶ）で開くモーダルの科目選択には無い」という指摘を受けて追加。
+`web/assets/kuchikomi.js`・`web/kuchikomi.html`・`web/assets/kuchikomi.css` を編集。
+このページの主担当は wang（`feat/wang-kuchikomi-*` 系ブランチ）だが、
+`web/CLAUDE.md` のオーナー表には kuchikomi.js が明記されておらず、本人の直接依頼のため実施。
+振る舞いの中核（採点・データ取得・GAS送信）には触れていない、既存パターンの横展開。
+
+### 1. 何が動く状態か
+
+    python server.py --port 8000
+    # → http://localhost:8000/kuchikomi
+    # 学期・学部・学科を選び、時間割グリッドの好きなマスをクリック
+    # → モーダルの「1 どの科目？」の直下に検索欄「科目名でしぼりこむ」が出る
+    # → 文字を打つと下のプルダウンがその場で絞り込まれる（例：「力学」で7件に絞れる）
+
+- `web/kuchikomi.html`: モーダルの「1 どの科目？」に `<input type="search" id="modal-subject-search">`
+  を追加（初期状態は `hidden`。開くときに JS が出し分ける）
+- `web/assets/kuchikomi.js`:
+  - `openEditor()` で、時間割のマス（`slot`）を開いたときだけ検索欄を表示。
+    ③時間割に無い科目（`kind:'extra'`）は元から1件しか候補が無いので検索欄は出さない
+  - `renderModalSubjectOptions()` を新設。検索文字列で `modalSubjects`（そのマスの全候補）を
+    `title.includes(q)` で絞り込み、プルダウンを描き直す。0件のときは「該当する科目が見つかりません」
+    と出す（③の `extraCandidates()`/`renderExtraSelect()` と同じ作り）
+  - 絞り込み中でも、いま選んでいる科目（`select.value`）は保持する（③と同じ `keep` の仕組み）
+- `web/assets/kuchikomi.css`: `.modal-subject-search` に検索欄と下のプルダウンの間の余白だけ追加
+  （色・枠線は `app.css` の共通 `input[type=search]` をそのまま使っていて、新しい値は足していない）
+
+### 2. 何をしていないか
+
+- **push・PR は未作成。** `web/CLAUDE.md` の運用（区切りがつくまでコミットだけ）に従い、
+  ここまでで一区切りとして HANDOFF に記録。PR前に流すチェック
+  （`build.py` → `tools/test_*.py` → `tools/shots.mjs`）はまだ実行していない
+- git commit も未実施（本人の指示があれば作成する）
+- wang 本人への「kuchikomi.js を触った」報告はしていない（本人からこの HANDOFF を渡す想定）
+- スマホ幅（390px）での見た目は未確認。ブラウザの自動化ツールでの screenshot が
+  このセッションでは撮れず（後述の罠）、JS 経由の値検証のみで動作確認した
+- 検索は科目名の部分一致のみ。担当教員名では絞り込めない（③の `extra-search` も同じ仕様なので合わせた）
+
+### 3. 次の人が最初にやること
+
+    git status   # このセッションでの変更3ファイルが残っているはず
+    python3 build.py
+    for t in web_split tokens layout shell_inject scoring_gate reviews; do python3 tools/test_$t.py; done
+    node tools/shots.mjs /tmp/rk
+
+上記が通ってから `git add` → commit → PR。commit前に `git diff` で
+`web/kuchikomi.html` `web/assets/kuchikomi.js` `web/assets/kuchikomi.css` の3ファイルだけが
+変わっていることを確認する。
+
+### 4. 今回踏んだ罠
+
+- **同じ placeholder テキストの input が2つあると、`find` ツールの結果が紛らわしい。**
+  ③の `#extra-search` と今回追加した ②の `#modal-subject-search` は両方
+  `placeholder="科目名でしぼりこむ"` で文言を揃えたため、ブラウザ自動化の `find` が
+  同じテキストで2件ヒットし、最初は `ref` を取り違えて③の欄に入力していた
+  （③が絞り込まれて0件になり、一瞬「検索が壊れた」ように見えた）。
+  `id` を直接指定する `getElementById` で見分けるのが確実
+- **このセッションの Browser pane は `computer{action:"screenshot"}` が空白/タイムアウトを
+  繰り返した。** `read_page`/`get_page_text`/`javascript_tool` は正常に動いたので、
+  見た目の最終確認はスクリーンショットではなく DOM 上の値（`options.length`・`value`など）で行った。
+  次の人がスクリーンショットで見た目を確認する場合は、念のためこの現象が再発しないか見ておくとよい
+
+---
+
 ## 2026-08-29 ｜ ダークモードの文字コントラスト修正＋UI細部の見た目直し ｜ 松下(Claude) → 次の人
 
 wangからの依頼（8/28 23:37「右の文字が見にくい」＋添付画像）を起点に、同じ原因の箇所をまとめて直した。

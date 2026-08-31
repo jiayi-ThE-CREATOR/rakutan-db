@@ -198,6 +198,9 @@
 
       <div class="form-section">
         <label>1 どの科目？ <span class="required">*</span></label>
+        <!-- 同じ曜限に科目が何件も出ることがあるため、③の時間割に無い科目
+             （extra-search / extra-select）と同じ「検索で絞り込む」仕組みをここにも置く。 -->
+        <input type="search" id="modal-subject-search" class="modal-subject-search hidden" placeholder="科目名でしぼりこむ" autocomplete="off">
         <select id="modal-subject-select" class="full-width-select" required>
           <!-- kuchikomi.js が生成 -->
         </select>

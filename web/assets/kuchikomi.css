@@ -165,6 +165,7 @@ select:focus-visible,input:focus-visible,button:focus-visible{
 .form-section{margin-top:var(--sp-4)}
 .form-section:first-child{margin-top:0}
 .form-section label{display:block;margin-bottom:7px;font-size:13.5px;color:var(--soft)}
+.modal-subject-search{margin-bottom:var(--sp-2)}
 .no-subjects{margin-top:var(--sp-2)}
 .no-subjects p{margin:0;font-size:var(--fs-sm);color:var(--muted)}
 

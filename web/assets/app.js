@@ -1425,8 +1425,14 @@ function applyPostMode() {
     const profile = rkStore.getProfile();
     if (urlFaculty) state.faculty = urlFaculty;
     else if (profile.faculty) state.faculty = profile.faculty;
+    /* osaka_u_settings は kuchikomi.js と共用（store.js のコメント参照）。
+       口コミページの「いまの学年」は "1年"〜"6年"・"修士"・"博士" も持つが、
+       ここが受け付けるのは YEARS と同じ "1"〜"6" だけ。検証せず代入すると、
+       口コミ側で選んだ値がそのまま学年チップに来て、どれとも一致せず
+       チップが全部非選択になり、+state.year も NaN になって学年フィルタが
+       全科目を弾く＝0件になる（2026-08-31 松下からの報告で発覚）。 */
     if (urlYear) state.year = urlYear;
-    else if (profile.grade) state.year = profile.grade;
+    else if (/^[1-6]$/.test(profile.grade)) state.year = profile.grade;
   }
 
   $("#note").textContent = META.disclaimer;
@@ -1444,7 +1450,7 @@ function applyPostMode() {
   window.addEventListener("rk:profile-set", e => {
     const { faculty, grade } = e.detail || {};
     if (faculty) state.faculty = faculty;
-    if (grade) state.year = grade;
+    if (/^[1-6]$/.test(grade)) state.year = grade;
     buildYears();
     load();
   });
