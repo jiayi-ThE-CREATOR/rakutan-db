@@ -1,0 +1,95 @@
+/* バージョン＆最新機能（右下の入口 → 更新履歴のダイアログ）
+   ─────────────────────────────────────────────
+   app.css は科目一覧の担当ファイルなので、ここは混ぜない。
+   色・間隔・角丸・モーションは tokens.css の変数だけを使う
+   （ダークモードは変数側が面倒を見る）。
+
+   置き場所の決めごと：
+   ・右下に固定。下中央の「口コミを書く」FAB（app.css .fab、1024px 未満で出る）
+     とは横にずらして、指の当たりを分ける
+   ・狭い画面は丸バッジ（版番号だけ）、700px からは横長のピル。
+     一覧の右下を大きく塞がないため
+   ・z-index は FAB と同じ 20。口コミのシート（z-30）が開いたら
+     その幕の下へ潜る ―― 上に浮いたままだと、閉じるボタンと競合する */
+
+.verFab{position:fixed;z-index:20;
+  right:calc(14px + env(safe-area-inset-right));
+  bottom:calc(18px + env(safe-area-inset-bottom));
+  display:flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  width:52px;height:52px;padding:0;border-radius:var(--r-pill);
+  background:var(--card);color:var(--brand-text);border:1px solid var(--rule);
+  font:inherit;font-size:var(--fs-xs);font-weight:700;line-height:1;
+  cursor:pointer;box-shadow:0 6px 20px var(--shadow-fab);
+  transition:border-color var(--dur) var(--ease-out),background var(--dur) var(--ease-out)}
+.verFab:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+.verFab:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.verFabNum{font-family:var(--data)}
+/* 狭い画面は丸バッジ。文言は aria-label 側に入っているので、
+   読み上げには「バージョン＆最新機能」が届く。 */
+.verFabTxt{display:none}
+
+/* 未読の点。数ではなく「何かある」だけを伝えるので、
+   読み上げからは外す（aria-hidden は HTML 側）。 */
+.verDot{position:absolute;top:-1px;right:-1px;width:11px;height:11px;
+  border-radius:var(--r-pill);background:var(--brand);
+  border:2px solid var(--card)}
+
+@media (min-width:700px){
+  .verFab{width:auto;height:auto;padding:10px 16px;font-size:var(--fs-sm)}
+  .verFabTxt{display:inline}
+}
+
+/* ── 更新履歴のダイアログ ─────────────────
+   意見箱（feedback.css）と同じ作法：モバイルは下から、PC は中央。
+   <dialog> なのは ESC で閉じる・背後にフォーカスを漏らさないを自前で書かないため。 */
+.verDlg{border:none;padding:0;background:none;max-width:none;max-height:none;
+  width:100%;height:100%;margin:0}
+.verDlg::backdrop{background:var(--scrim)}
+.verDlg[open]{display:flex;align-items:flex-end;justify-content:center}
+.verCard{background:var(--card);color:var(--ink);width:100%;max-width:560px;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px var(--pad) 24px;
+  max-height:86vh;overflow:auto;font-size:var(--fs-base)}
+
+.verHead{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3)}
+.verHead h2{margin:0;font-size:var(--fs-lg)}
+.verClose{background:none;border:none;color:var(--muted);font:inherit;
+  font-size:var(--fs-lg);line-height:1;padding:var(--sp-1);cursor:pointer;flex:none}
+.verNow{margin:var(--sp-1) 0 var(--sp-4);font-size:var(--fs-sm);color:var(--muted)}
+
+.verList{list-style:none;margin:0;padding:0}
+/* 版と版のあいだの区切り。1件しか無いうちは罫が出ない。 */
+.verRel + .verRel{margin-top:var(--sp-5);padding-top:var(--sp-4);
+  border-top:1px solid var(--rule)}
+.verRelHead{display:flex;align-items:center;gap:var(--sp-2)}
+.verDate{font-family:var(--data);font-size:var(--fs-sm);color:var(--soft);font-weight:700}
+.verVer{font-family:var(--data);font-size:var(--fs-xs);font-weight:700;
+  color:var(--brand-text);background:var(--brand-soft);
+  border-radius:var(--r-pill);padding:2px 8px}
+/* NEW は「押せるもの」ではないが、ここだけはブランドの面を使う。
+   未読の点と同じ意味を、開いた先で受け止めるため。 */
+.verNew{font-family:var(--data);font-size:var(--fs-xs);font-weight:700;
+  color:var(--brand-ink);background:var(--brand);
+  border-radius:var(--r-pill);padding:2px 8px;letter-spacing:.04em}
+.verRelTitle{margin:var(--sp-2) 0 var(--sp-3);font-size:var(--fs-base)}
+
+.verItems{list-style:none;margin:0;padding:0}
+.verItems li{display:flex;align-items:flex-start;gap:var(--sp-2);
+  margin-top:var(--sp-2);font-size:var(--fs-sm);line-height:1.65;color:var(--soft)}
+/* タグは3色。データ目盛り（--scale-*）の色を借りているのは「改善」だけで、
+   4軸バーと同じ場所には出ないので取り違えは起きない。
+   新しい色相は足さない ―― tokens.css の役割分担を崩さないため。 */
+.verTag{flex:none;min-width:3.6em;text-align:center;
+  font-size:var(--fs-xs);font-weight:700;line-height:1.6;
+  border-radius:var(--r-xs);padding:2px 6px}
+.verTag-new{color:var(--brand-text);background:var(--brand-soft)}
+.verTag-improve{color:var(--scale-light-text);background:var(--scale-light-soft)}
+.verTag-fix{color:var(--soft);background:var(--dim)}
+.verItemText{min-width:0}
+
+.verMore{margin:var(--sp-5) 0 0;font-size:var(--fs-sm)}
+.verMore a{color:var(--brand-text);font-weight:600}
+
+@media (min-width:700px){
+  .verDlg[open]{align-items:center}
+  .verCard{border-radius:var(--r-lg);max-height:80vh}
+}

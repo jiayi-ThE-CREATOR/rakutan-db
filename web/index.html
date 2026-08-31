@@ -23,6 +23,7 @@
      ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
+<link rel="stylesheet" href="/assets/version.css">
 <!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
      これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
      大きく出る」が成立せず、ただの文字列リンクになる。
@@ -199,6 +200,29 @@
   </form>
 </dialog>
 <script src="/assets/feedback.js" defer></script>
+
+<!-- バージョン＆最新機能。右下に固定の入口 → 更新履歴のダイアログ。
+     版の正本は web/assets/version.js の RELEASES ひとつで、
+     ここには器だけ置く（中身は JS が入れる）。
+     入口は JS が動いたときだけ出す（hidden を外す）ので、
+     中身を作れないボタンだけが残ることはない。 -->
+<button type="button" class="verFab" id="verFab" hidden aria-haspopup="dialog"
+        aria-label="バージョン＆最新機能"><span class="verFabNum" id="verFabNum"></span><span class="verFabTxt">バージョン＆最新機能</span><span class="verDot" id="verDot" aria-hidden="true" hidden></span></button>
+
+<dialog class="verDlg" id="verDlg" aria-labelledby="verTitle">
+  <div class="verCard">
+    <div class="verHead">
+      <h2 id="verTitle">バージョン＆最新機能</h2>
+      <button type="button" class="verClose" id="verClose" aria-label="閉じる">✕</button>
+    </div>
+    <p class="verNow" id="verNow"></p>
+    <ol class="verList" id="verList"></ol>
+    <!-- これから何をするか（予定）は /ads の担当。ここは「出したもの」だけを書く。
+         2か所に予定を書くと、必ず片方が古くなる。 -->
+    <p class="verMore">これから取り組むことは <a href="/ads">今後のステップ →</a></p>
+  </div>
+</dialog>
+<script src="/assets/version.js" defer></script>
 <!-- Cloudflare Web Analytics。宣伝マニュアル §3・§8 の数字はここから取る。
      /l/<slug> はページ別の集計に slug のまま出るので、チャネルごとの
      効き目が比較できる（だから /l/ は転送していない）。
