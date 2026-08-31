@@ -708,3 +708,13 @@ html{scroll-behavior:smooth}
 .snsIcon.ig{background:linear-gradient(45deg,var(--sns-ig-a) 4%,var(--sns-ig-b) 48%,var(--sns-ig-c) 96%)}
 .snsIcon.x{background:var(--sns-x)}
 .snsIcon.line{background:var(--sns-line)}
+
+/* フッタのラクハン公式アカウント。about の .snsIcon を流用し、寸法だけ落とす。
+   全ページのフッタに出るので、行の高さが伸びすぎないよう 46px → 36px。 */
+.footSns{list-style:none;display:flex;flex-wrap:wrap;gap:var(--sp-4);
+  margin:var(--sp-4) 0 0;padding:0}
+.footSns li{margin:0}
+.footSns a{display:flex;flex-direction:column;align-items:center;gap:5px;
+  text-decoration:none;color:var(--muted);font-size:var(--fs-xs);font-weight:700}
+.footSns a:hover{color:var(--ink)}
+.footSns .snsIcon{width:36px;height:36px;border-radius:10px}
