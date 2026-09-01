@@ -255,16 +255,25 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .ax .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right;
   font-variant-numeric:tabular-nums}
 .why{grid-column:2/4;font-size:var(--fs-xs);color:var(--muted);margin-top:-3px;line-height:1.5}
-.miss{grid-column:2/4;font-size:var(--fs-xs);color:var(--scale-heavy)}
+/* 値の取れていない軸をまとめた1行（2026-09-01・案A）。
+   地は --dim（中立）。--scale-heavy-soft を敷くと「この科目は重い」に見えて、
+   データ目盛り色の意味が壊れる。「情報が無い」は重さではない。 */
+.axMiss{font-size:var(--fs-xs);color:var(--soft);background:var(--dim);
+  border-radius:var(--r-sm);padding:5px 8px;margin-bottom:var(--sp-2)}
 .conf{font-size:var(--fs-xs);color:var(--muted);margin-top:4px;padding-top:9px;
-  border-top:1px dashed var(--rule)}
+  border-top:1px dashed var(--rule);line-height:1.6}
 .conf b{color:var(--scale-heavy)}
-/* KOAN 公式シラバスへの外向きリンク（松下さん PR #23）。
-   画面に「最終判断は公式シラバスで」と書いているのにリンクが無く、
-   学生が自分で検索し直していた（政岡さんの指摘・2026-08-20）。 */
-.koanLink{display:block;margin-top:var(--sp-2);font-size:var(--fs-sm);
-  color:var(--muted);text-decoration:underline;text-underline-offset:2px}
-.koanLink:hover,.koanLink:active{color:var(--ink)}
+
+/* ── 詳細の区切り（2026-09-01・案A）─────────────
+   作り直し前は点線1本しか無く、担当教員・4軸・信頼度・口コミ・操作が
+   ぜんぶ同じ灰色の小さい文字で続いていて、一かたまりの範囲が読めなかった。
+   見出しは 11.5px・--muted・字間広めで、中身より弱くする
+   ―― ここで強くすると band や相性の数字と見出しが競合する。 */
+.insLine{margin-bottom:var(--sp-3)}
+.dSec+.dSec{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule)}
+.secH{display:flex;align-items:baseline;gap:6px;margin:0 0 var(--sp-2);
+  font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:.09em}
+.secH b{font-family:var(--data);font-size:12px;color:var(--scale-light-text);letter-spacing:0}
 
 /* ── 口コミの表示 ───────────────────────
    絞り込めるのに中身が見えない状態だったので足した（2026-08-20）。
@@ -299,10 +308,9 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    ―― 100%に出る警告は壁紙になり、10%しかない帯の方を埋もれさせる。 */
 .bandNote{display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:var(--sp-1)}
 .bandNote::before{content:"※ "}
-.rv{margin-top:12px;padding-top:10px;border-top:1px dashed var(--rule)}
-.rvh{font-size:12.5px;color:var(--soft);margin-bottom:7px}
-.rvh b{color:var(--scale-light-text);font-family:var(--data);margin-left:3px}
-.rvh span{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-top:2px}
+/* 見出し（口コミ N件）は .secH へ移した。区切りも .dSec が引くので、
+   ここでは罫も上余白も持たない（2026-09-01）。 */
+.rv{margin-top:0}
 .rvf{display:flex;flex-wrap:wrap;gap:5px}
 .rvf span{font-size:var(--fs-xs);background:var(--dim);border-radius:var(--r-sm);padding:3px 8px;color:var(--soft)}
 .rvf i{font-style:normal;color:var(--muted);margin-right:5px}
@@ -327,8 +335,32 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   border-right:1px solid var(--brand-line);
   border-bottom:1px solid var(--brand-line);
   transform:rotate(45deg)}
-.reviewBtn{display:block;width:100%;margin-top:12px;background:var(--brand-soft);color:var(--brand-text);
-  border:none;border-radius:var(--r-md);padding:10px;font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer}
+/* ── 詳細の操作（2026-09-01・案A）───────────────
+ * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
+ * 5つ縦積みで、どれが主か分からず、最後の ☆ はラベルも無かった。5つ→3つにし、
+ * 主（--brand の面）1つ・副（--brand-soft の面）2つ、の2段だけにする。
+ *
+ * 枠線ではなく面で差をつける理由：白地に --brand-line(#f0c9a8) の1px枠は
+ * --card(#fff) に対して 1.54:1 しかなく、操作の境界に必要な 3.0:1 に届かない
+ * （2026-09-01 実測）。既存の .reviewBtn と同じ「淡い面」なら
+ * tools/test_tokens.py に登録ずみのペアだけで済む。
+ *
+ * 高さは 44px を下回らせない（padding 12px + 13px×1.6 ≒ 45px）。
+ */
+.dActs{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule);
+  display:grid;gap:var(--sp-2)}
+.dActs>*{display:block;width:100%;border:none;border-radius:var(--r-md);padding:12px;
+  font:inherit;font-size:var(--fs-sm);font-weight:700;text-align:center;
+  text-decoration:none;cursor:pointer}
+/* 主。時間割に入れるのがこの画面のいちばん先の行き先。 */
+.ttAddBtn{background:var(--brand);color:var(--brand-ink)}
+/* 入っている科目で主ボタンのままだと「まだ押していない」に見える。
+   押した結果を表す状態なので、面を落として副より弱くする。 */
+.ttAddBtn[aria-pressed="true"]{background:var(--dim);color:var(--soft)}
+/* 副。ホバーの色替えは付けない ―― --brand-line の面に --brand-text を載せると
+   3.75:1 で通常文字の 4.5:1 に届かない（2026-09-01 実測）。
+   もともと .reviewBtn にホバーは無く、入口はスマホなので足す理由もない。 */
+.reviewBtn,.koanLink{background:var(--brand-soft);color:var(--brand-text)}
 
 /* ── 口コミを1件ずつ読む ─────────────────
    カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」
@@ -361,13 +393,21 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    panelBtn と共有しない理由は app.js の panelBtnFor 参照。あちらは
    「.panelBtn[data-id=...]」で口コミ件数ボタンを一意に探しており、同じ
    クラス名を足すと口コミ0件の科目でこのボタンが誤って引っかかる（2026-08-29）。 */
-.panelBtn,.ttAddBtn{display:block;width:100%;margin-top:var(--sp-3);background:var(--dim);color:var(--soft);
-  border:none;border-radius:var(--r-md);padding:9px;font:inherit;font-size:var(--fs-sm);
-  font-weight:700;cursor:pointer}
-.panelBtn:hover,.panelBtn:active,.ttAddBtn:hover,.ttAddBtn:active{background:var(--rule)}
-/* 展開したときの区切り。スマホのシートの中では .panelHead が区切りになるので、
-   詳細の中に出たとき（＝PC の右カラム）だけ罫を引く。 */
-.detail .pList{margin-top:var(--sp-3);padding-top:var(--sp-2);border-top:1px dashed var(--rule)}
+/* 「N件すべてを1件ずつ読む →」。2026-09-01 に全幅の灰色ボタンからテキスト
+   リンクの見た目へ落とした。ボタンのままだと下の操作3つと同じ重さに見え、
+   「押すべきものが一目で分かる」が成り立たない。
+   要素は <button class="panelBtn"> のまま ―― <a> に変えると panelBtnFor()・
+   openPanel()・panelSetOpen() の3箇所が影響を受ける。
+   開いている間は文言が「閉じる」に差し替わる（openPanel）。 */
+.panelBtn{display:inline-block;margin-top:var(--sp-2);background:none;border:none;padding:var(--sp-1) 0;
+  font:inherit;font-size:var(--fs-sm);font-weight:400;color:var(--brand-text);
+  text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:left}
+.panelBtn:hover,.panelBtn:active{color:var(--ink)}
+/* PC の右カラムでは、集計（.rv）と同じ場所に入れ替わる（openPanel）。
+   見出し「口コミ N件」の直下に来るので、上に罫は要らない。
+   下の「集計に戻る」との間だけ空ける。
+   スマホのシートの中では .panelHead が区切りになるので、ここは効かせない。 */
+.detail .pList{margin-bottom:var(--sp-1)}
 .panelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
   padding-bottom:10px;margin-bottom:var(--sp-1);border-bottom:1px solid var(--rule)}
 .panelHead h3{margin:0;font-size:var(--fs-lg);line-height:1.4}
@@ -658,14 +698,11 @@ html{scroll-behavior:smooth}
   width:44px; height:44px;
 }
 
-/* 詳細パネル内の星は浮かせず、「口コミを見る」「口コミを書く」と同じ
-   並びに置く。.panelBtn と同じブロック幅・余白・背景で揃える。 */
-.detail .favBtn{
-  display:block; width:100%; margin-top:var(--sp-3);
-  background:var(--dim); border-radius:var(--r-md);
-  padding:9px; font-size:16px; text-align:center;
-}
-.detail .favBtn:hover{ background:var(--rule); }
+/* 2026-09-01：詳細パネルの中の星は削除した（detailHtml から外した）。
+   ラベルの無い全幅ボタンで、カード右上の星と機能が重複していたため。
+   星のクリックは data-id で全部まとめて同期しているので、1つでも動く。
+   ここに .detail .favBtn を書き戻さないこと ―― 詳細に星を足すなら、
+   まずカード右上の星と役割が重ならないかを見直す。 */
 
 /* 開屏の問診。splash の上には出ない（splash が消えてから出る）。 */
 .onboard{
