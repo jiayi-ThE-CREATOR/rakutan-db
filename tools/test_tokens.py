@@ -82,6 +82,20 @@ CONTRAST = [
     ("ヘッダの罫",                  "--on-dark-line",     "--brand-ground",     3.0),
 ]
 
+# ── 基準を外す組み合わせ（ブランド資産）────────
+# WCAG はロゴとブランド名を対象外にしている。LINE の「友だち追加」ボタンは
+# 緑 #06C755 ＋ 白文字が LINE 側のガイドラインで決まっていて、こちらの都合で
+# 色を変えられない。だからこの1組だけ基準を外す（本人判断・2026-09-02）。
+#
+# ただし「登録しない」＝「誰にも検査されない」なので、外すのではなく
+# ここに載せる。実測値は毎回画面に出るので、黙って通ることはない。
+#
+# ★ ここに足すのは、外部が色を指定していて動かせない資産だけ。
+#   「通らないから外す」で足したくなったら、それは CONTRAST の仕事。
+EXEMPT = [
+    ("LINE 友だち追加ボタン", "--sns-line-ink", "--sns-line"),
+]
+
 REQUIRED = [
     "--brand", "--brand-ink", "--brand-text", "--brand-soft", "--focus", "--brand-ground",
     "--scale-light", "--scale-light-text", "--scale-mid", "--scale-heavy",
@@ -221,6 +235,21 @@ for label, fg_name, bg_name, need in CONTRAST:
                 f"[{theme}] {label}: {r:.2f}:1 しかない（{need}:1 必要）"
                 f"  {fg_name}={fg_raw.strip()} on {bg_name}={bg_raw.strip()}")
 
+# ── 基準を外した組み合わせ（測るが落とさない）──
+exempt_report = []
+for label, fg_name, bg_name in EXEMPT:
+    for theme, table in (("ライト", light), ("ダーク", dark)):
+        n += 1
+        fg_raw, bg_raw = table.get(fg_name), table.get(bg_name)
+        if fg_raw is None or bg_raw is None:
+            fails.append(f"[{theme}] {label}（例外）: {fg_name} か {bg_name} が未定義")
+            continue
+        fg, bg = parse_color(fg_raw), parse_color(bg_raw)
+        if fg is None or bg is None:
+            fails.append(f"[{theme}] {label}（例外）: 色として読めない（{fg_raw} / {bg_raw}）")
+            continue
+        exempt_report.append(f"  例外 [{theme}] {label}: {ratio(fg, bg):.2f}:1 ―― 基準を外している")
+
 if fails:
     print("NG")
     for f in fails:
@@ -231,4 +260,6 @@ if fails:
     sys.exit(1)
 
 print(f"  通過 {n} 件（うちコントラスト {len(CONTRAST) * 2} 組・ライト/ダーク両方）")
+for line in exempt_report:
+    print(line)
 print("OK")

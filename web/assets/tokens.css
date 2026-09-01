@@ -46,6 +46,9 @@
      app.css に直書きすると test_tokens が落ちる（裸の hex を禁じている）。 */
   --sns-ig-a:#F9CE34; --sns-ig-b:#EE2A7B; --sns-ig-c:#6228D7;
   --sns-x:#0b0b0b; --sns-line:#06C755;
+  /* LINE の面の上の文字。LINE 側のガイドラインで緑＋白と決まっている資産
+     なので、明地でも暗地でも白のまま（tools/test_tokens.py の EXEMPT 参照）。 */
+  --sns-line-ink:#fff;
 
   /* オレンジの面に載せる文字は「白ではなく黒」。
      2026-08-22 実測：

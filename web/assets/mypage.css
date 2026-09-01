@@ -105,3 +105,33 @@
 }
 .mpCalToast.show{ display:block; }
 .mpCalDelNote{ font-size:12.5px; color:var(--soft); line-height:1.8; margin:0 0 14px; }
+
+/* LINE 連携。ボタンは LINE 公式の「友だち追加」と同じ緑＋白。
+   この組み合わせは 2.26:1 しかなく、ふつうなら tools/test_tokens.py の
+   4.5:1 に落ちる。LINE 側のガイドラインで色を変えられないブランド資産
+   なので、**そこだけ**を EXEMPT として登録して外している（本人判断・
+   2026-09-02）。数字はテストが毎回出すので、黙って通ることはない。
+   ここ以外で緑を文字の下地に使わないこと。 */
+.mpLineWhy{ margin:0 0 14px; padding-left:1.25em; font-size:13px; color:var(--soft);
+  line-height:1.9; }
+.mpLineNote{ margin:0 0 12px; font-size:13px; color:var(--soft); line-height:1.7; }
+.mpLineBtn{
+  display:inline-flex; align-items:center; gap:8px; padding:11px 18px;
+  border:0; border-radius:999px; background:var(--sns-line);
+  color:var(--sns-line-ink); font-size:14px; font-weight:700; text-decoration:none;
+}
+/* ボタンの面が既に緑なので、チップの緑の下地は消して白いグリフだけ残す
+   （app.css の .snsIcon.line が背景を持っている）。 */
+.mpLineBtn .snsIcon{ background:none; }
+/* app.css の .snsIcon は 46px（about のカード用）。ボタンの中では大きすぎるので
+   .footSns と同じやり方で寸法だけ落とす。 */
+.mpLineBtn .snsIcon, .mpLineOk .snsIcon{ width:22px; height:22px; border-radius:6px;
+  flex-shrink:0; }
+.mpLineBtn .snsIcon svg, .mpLineOk .snsIcon svg{ width:15px; height:15px; }
+/* 緑はボタンだけに持たせる。この行まで色を付けると、すぐ下の緑のボタンと
+   競って「どっちを押すのか」が読めなくなる。 */
+.mpLineOk{ display:flex; align-items:center; gap:8px; margin:0 0 6px;
+  font-size:15px; font-weight:700; color:var(--ink); }
+.mpLineUndo{ margin:12px 0 0; }
+.mpLineUndo button{ background:none; border:0; padding:0; font:inherit; font-size:11.5px;
+  color:var(--soft); text-decoration:underline; cursor:pointer; }

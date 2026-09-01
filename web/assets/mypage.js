@@ -18,6 +18,9 @@ let REQ = null;            // requirements.json（学部の一覧の正本）
 let term = "aki";
 
 async function boot(){
+  /* データを読まない節なので fetch より先に描く。下の catch は return するので、
+     後ろに置くと「読み込めなかった」のときに LINE の節ごと消える。 */
+  renderLine();
   let tt, req;
   try {
     [tt, req] = await Promise.all([
@@ -95,6 +98,49 @@ function buildProfile(){
 
   $("#mpFaculty").onchange = e => rkStore.setProfile({ faculty: e.target.value });
   $("#mpGrade").onchange   = e => rkStore.setProfile({ grade: e.target.value });
+}
+
+/* ── LINE 連携 ────────────────────────────────────────────
+   「ログイン」ではない。公式アカウントを友だちに追加してもらうだけで、
+   サイトは LINE から何も受け取らない（OAuth も LIFF も使っていない）。
+   だから「繋がっている」はサイト側の思い込みでしかなく、取り消し導線が要る
+   ―― store.js の rk_line_linked の注記と同じ話。 */
+const LINE_ADD_URL = "https://line.me/R/ti/p/@733udbnt";
+/* フッタと同じロゴ（templates/shell.html の .snsIcon.line）。緑の面と白の
+   グリフは app.css の .snsIcon が持つので、ここは中身の svg だけ。
+   公式アカウントを変えるときは shell.html と両方直す。 */
+const LINE_MARK = `<span class="snsIcon line"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12 2.4c5.72 0 10.37 3.78 10.37 8.42 0 1.86-.72 3.53-2.22 5.18-2.18 2.5-7.05 5.55-8.16 6.02-1.1.47-.96-.29-.9-.55l.15-.89c.03-.27.07-.68-.03-.94-.12-.29-.58-.44-.91-.51C5.31 18.47 1.63 15 1.63 10.82 1.63 6.18 6.28 2.4 12 2.4Zm-2.9 5.7h-.73a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h.73a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2Zm5.02 0h-.73a.2.2 0 0 0-.2.2v2.69L11.11 8.2a.2.2 0 0 0-.17-.1h-.76a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h.73a.2.2 0 0 0 .2-.2v-2.69l2.09 2.8c.04.05.1.09.16.09h.76a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2Zm-6.6 3.59H5.59V8.3a.2.2 0 0 0-.2-.2h-.73a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h2.86a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2Zm11.35-2.46a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2H16a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h2.87a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2h-1.93v-.75h1.93a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2h-1.93v-.75h1.93Z"/></svg></span>`;
+
+function renderLine(){
+  const body = $("#mpLineBody");
+  if (!body) return;
+
+  if (rkStore.isLineLinked()){
+    body.innerHTML = `
+      <p class="mpLineOk">${LINE_MARK}<span>LINE 連携済み</span></p>
+      <p class="mpLineNote">LINE から科目の検索とおすすめ、今後の更新情報が届きます。</p>
+      <a class="mpLineBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE を開く</a>
+      <p class="mpLineUndo"><button type="button" id="mpLineUndo">まだ友だち追加していない場合はこちら</button></p>`;
+    $("#mpLineUndo").onclick = () => { rkStore.clearLineLinked(); renderLine(); };
+    return;
+  }
+
+  body.innerHTML = `
+    <ul class="mpLineWhy">
+      <li>LINE から科目の検索とおすすめが届きます</li>
+      <li>今後のラクハンの更新情報が受け取れます</li>
+    </ul>
+    <a class="mpLineBtn" id="mpLineAdd" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>`;
+  $("#mpLineAdd").onclick = () => {
+    /* 押した先（LINE アプリ）で本当に追加したかは戻ってこないので、押した
+       時点で印を立てる。代わりに連携済みの表示に取り消し導線を必ず置く。
+       ここで即 renderLine() すると、押された <a> 自身が click の処理中に
+       DOM から外れる。外れた <a> の既定動作（新しいタブを開く）を実行
+       しないブラウザがあり、「押したのに LINE が開かない」になる。
+       だから描き直しは次のタスクまで待つ。 */
+    rkStore.markLineLinked();
+    setTimeout(renderLine, 0);
+  };
 }
 
 /* 学期は haru / aki の2つだけ。timetable.json の term_group と同じ語彙で、
