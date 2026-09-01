@@ -6,6 +6,7 @@
  *   - POST /line/webhook  … LINE Messaging API の Webhook
  *   - GET  /line/health   … 死活監視
  *   - POST /api/feedback  … 意見箱（フッタのモーダル → Discord へ中継）
+ *   - POST /api/kuchikomi … 口コミ投稿の中継（→ GAS。成功したら Discord へ通知）
  *   - それ以外            … env.ASSETS.fetch() でこれまで通り静的配信
  *
  * データ取得は env.ASSETS 経由で /data/courses.built.json を同一オリジンから
@@ -16,6 +17,8 @@
  *   LINE_CHANNEL_SECRET
  *   LINE_CHANNEL_ACCESS_TOKEN
  *   FEEDBACK_DISCORD_WEBHOOK  … 意見箱の落とし先。未設定なら 503
+ *   REVIEW_DISCORD_WEBHOOK    … 口コミ通知の落とし先。未設定なら通知しない
+ *                               （投稿そのものは今まで通り成立する）
  */
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
@@ -718,6 +721,144 @@ async function handleFeedback(request, env) {
   return fbJson(200, { ok: true });
 }
 
+/* ── 口コミの中継（POST /api/kuchikomi） ───────────────────────
+ * ブラウザ → Worker → GAS（しゅんやさんのスプレッドシート）。
+ * 2026-09-02 まではブラウザから GAS を直接叩いていたので、Worker は
+ * 投稿を一件も見られず「口コミが来た」を知る方法が無かった。
+ *
+ * ここでやることは2つだけ。**シートの列も payload の形も変えない。**
+ *   1. 受け取った body をそのまま GAS へ渡し、GAS の応答をそのまま返す
+ *   2. GAS が success と答えたときだけ、Discord へ1通鳴らす
+ *
+ * 優先順位は「投稿 ＞ 通知」。webhook が未設定でも、Discord が落ちていても、
+ * body が壊れていても、投稿の中継だけは今まで通り成立させる
+ * （通知のために投稿を落とすのは本末転倒）。
+ *
+ * webhook URL は secret で入れる:
+ *   npx wrangler secret put REVIEW_DISCORD_WEBHOOK
+ */
+const KUCHIKOMI_GAS_URL =
+  "https://script.google.com/macros/s/AKfycbwopsnpuXTF6AS7hSxizw4euceYsD1Z_-FVuK4vxCaZHmosmcn2yBqkolUN3UWjENtZ/exec";
+
+const KK_MAX_NAME = 100;   // 科目名
+const KK_MAX_LABEL = 40;   // 学部・学科・学年・学期・教員名
+const KK_MAX_LINES = 10;   // 1通に並べる科目の数。超えた分は「ほか N 科目」
+const KK_MAX_CONTENT = 1900; // Discord の上限は 2000。余白を取る
+
+const KK_SEMESTER = { spring: "春・夏学期", autumn: "秋・冬学期" };
+
+function kkClamp(v, max) {
+  return typeof v === "string" ? v.trim().slice(0, max) : "";
+}
+
+/* 通知の本文を組む。自由記述（comment）は載せない ―― 学生が書いた原文を
+   チャンネルに転載する必要は無く、読みたければシートを開けばよい。 */
+function kkMessage(payload) {
+  const sels = Array.isArray(payload && payload.selections) ? payload.selections : [];
+  if (!sels.length) return null;
+
+  // 学科は「全学科」（＝学科を分けていない学部の既定値）のときだけ落とす。
+  // 見出しに情報を足さないうえ、毎回同じ文字列が並んで読みにくくなる。
+  const department = kkClamp(payload.department, KK_MAX_LABEL);
+  const head = [
+    kkClamp(payload.faculty, KK_MAX_LABEL),
+    department === "全学科" ? "" : department,
+    kkClamp(payload.grade, KK_MAX_LABEL),
+    KK_SEMESTER[payload.semester] || kkClamp(payload.semester, KK_MAX_LABEL),
+  ]
+    .filter(Boolean)
+    .join("・");
+
+  const lines = [`📝 口コミが1件（${sels.length}科目）${head ? "  " + head : ""}`];
+  for (const s of sels.slice(0, KK_MAX_LINES)) {
+    const sub = (s && s.subject) || {};
+    const name = kkClamp(sub.name, KK_MAX_NAME) || "（科目名なし）";
+    const teacher = kkClamp(sub.teacher, KK_MAX_LABEL);
+    lines.push(`・${name}${teacher ? `（${teacher}）` : ""}`);
+  }
+  if (sels.length > KK_MAX_LINES) {
+    lines.push(`… ほか ${sels.length - KK_MAX_LINES} 科目`);
+  }
+  return lines.join("\n").slice(0, KK_MAX_CONTENT);
+}
+
+/* 通知は投稿の応答を待たせない（ctx.waitUntil）。失敗はログだけ。
+   ここで投げると投稿まで巻き添えになるので、外へは絶対に投げない。 */
+async function kkNotify(webhook, content) {
+  try {
+    const res = await fetch(webhook, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        content,
+        // 本文には科目名（＝KOAN の原文）が入る。@everyone と読める並びが
+        // 来ても飛ばさない。
+        allowed_mentions: { parse: [] },
+      }),
+    });
+    if (!res.ok) console.error("review webhook failed", res.status);
+  } catch (e) {
+    console.error("review webhook error", e);
+  }
+}
+
+function kkError(message) {
+  return new Response(JSON.stringify({ status: "error", message }), {
+    status: 502,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
+async function handleKuchikomi(request, env, ctx) {
+  // body は書き換えない。GAS 側のパースも列も 2026-09-02 以前のまま。
+  const raw = await request.text();
+
+  let gasRes;
+  try {
+    gasRes = await fetch(env.KUCHIKOMI_GAS_URL || KUCHIKOMI_GAS_URL, {
+      method: "POST",
+      // ブラウザが直接叩いていたときと同じ content-type を保つ
+      // （GAS は e.postData.contents を読む）。
+      headers: { "content-type": "text/plain;charset=utf-8" },
+      body: raw,
+    });
+  } catch (e) {
+    console.error("gas relay error", e);
+    return kkError("relay_failed");
+  }
+  if (!gasRes.ok) {
+    console.error("gas relay status", gasRes.status);
+    return kkError("relay_failed");
+  }
+
+  const body = await gasRes.text();
+
+  // ここから先は付随。何が起きても投稿の応答（下の return）には影響させない。
+  const webhook = env.REVIEW_DISCORD_WEBHOOK;
+  if (webhook) {
+    let ok = false;
+    try {
+      ok = JSON.parse(body)?.status === "success";
+    } catch {
+      ok = false; // GAS が JSON を返さなかった＝入ったか分からない。鳴らさない
+    }
+    if (ok) {
+      let content = null;
+      try {
+        content = kkMessage(JSON.parse(raw));
+      } catch {
+        content = null; // 中身が読めないなら通知は諦める。投稿は通す
+      }
+      if (content) ctx.waitUntil(kkNotify(webhook, content));
+    }
+  }
+
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "application/json; charset=utf-8" },
+  });
+}
+
 /* ── お気に入り（GET/POST/DELETE /api/favorites） ──────────────────
  * D1（binding: DB）に保存する。2026-08-25 wangさんの登録制の方針の第一弾。
  * まずお気に入りだけ。検索履歴は同じテーブル構成の要領で後から足す。
@@ -876,6 +1017,12 @@ async function route(request, env, ctx) {
       return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
     }
     return handleFeedback(request, env);
+  }
+  if (url.pathname === "/api/kuchikomi") {
+    if (request.method !== "POST") {
+      return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+    }
+    return handleKuchikomi(request, env, ctx);
   }
   if (url.pathname === "/api/favorites") {
     return handleFavorites(request, env);

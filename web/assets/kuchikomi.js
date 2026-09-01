@@ -26,7 +26,10 @@ const days = ['月', '火', '水', '木', '金'];
 const periods = [1, 2, 3, 4, 5, 6];
 
 /* 口コミの保存先。ここが変わるとスプレッドシートに何も入らなくなる。 */
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwopsnpuXTF6AS7hSxizw4euceYsD1Z_-FVuK4vxCaZHmosmcn2yBqkolUN3UWjENtZ/exec';
+/* 投稿先は Worker（同一オリジン）。中で GAS へ中継し、成功したら Discord へ
+   通知する（2026-09-02）。GAS の URL と送る形は worker/index.js の
+   handleKuchikomi にそのまま引き継いでいる ―― シートの列は変えていない。 */
+const POST_URL = '/api/kuchikomi';
 
 /* 学期 → その学期に履修できる term_group。
    full（通年）はどちらでも履修できるので必ず通す（app.js と同じ扱い）。 */
@@ -867,7 +870,7 @@ async function handleSubmit() {
   };
 
   try {
-    const response = await fetch(GAS_URL, {
+    const response = await fetch(POST_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload),
