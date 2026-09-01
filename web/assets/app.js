@@ -412,10 +412,11 @@ const CONF = {high:"情報は揃っている", mid:"情報は一部のみ", low:
 const FIELD_JA = {eval_ratio:"成績評価の内訳", report_count:"レポート本数",
   out_of_class_hours:"時間外学習", capacity:"定員", class_format:"授業形態", day_period:"曜限"};
 
+/* 値の取れていない軸はここでは出さない。detailHtml がラベルだけ集めて1行にする。
+   1軸1行のままだと、4軸中2軸が欠測の科目（実データでは多数）で
+   「データなし」だけが詳細の上半分を占める（2026-09-01）。 */
 function axRow(key, a, label){
-  if (a.value === null)
-    return `<div class="ax"><div class="l">${esc(label)}</div>
-      <div class="miss" style="grid-column:2/4">データなし ― 相性の計算から除外</div></div>`;
+  if (a.value === null) return "";
   const cls = a.value >= 66 ? "" : a.value >= 45 ? "m" : "w";
   return `<div class="ax"><div class="l">${esc(label)}</div>
       <div class="track"><div class="fill ${cls}" style="width:${a.value}%"></div></div>
@@ -553,10 +554,11 @@ function reviewHtml(c){
     f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
   }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  const notes = r.notes || [];
+  /* 一言は先頭3件まで（2026-09-01）。全件出すと口コミが増えた科目ほど詳細が伸び続ける。
+     残りは下の「N件すべてを1件ずつ読む →」から読める。
+     見出し（口コミ N件）は detailHtml の .secH へ移した。 */
+  const notes = (r.notes || []).slice(0, 3);
   return `<div class="rv">
-      <div class="rvh">口コミ<b>${r.n}件</b>
-        <span>定員・レポートの分量・テストの難しさは KOAN に書いていない。ここだけが情報源。</span></div>
       ${notes.length ? `<ul class="rvn">${notes.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
       <div class="rvf">${f.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join("")}</div>
       <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
@@ -579,19 +581,41 @@ function detailHtml(c){
      区切りを自分で書ける <bdi> にしたうえで、「・」の後ろに <wbr> を置く
      （nowrap の外に改行機会を作らないと、Chromium は要素の境目でも折り返さない）。 */
   const insHtml = names.map(n => `<bdi style="white-space:nowrap">${esc(n)}</bdi>`).join("・<wbr>");
-  return `${names.length ? `<div class="meta">担当教員：${insHtml}</div>` : ""}
-      ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
-      <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
-        ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
+  /* 値の取れていない軸はラベルだけ集めて1行にまとめる（axRow のコメント参照）。 */
+  const miss = Object.entries(META.axis_labels)
+    .filter(([k]) => r.axes[k].value === null).map(([, l]) => l);
+  const rn = c.reviews?.n || 0;
+  /* ── 詳細の並び（2026-09-01・案A）───────────────
+   * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
+   * 5つ縦積みで、最後の ☆ はラベルが無くカード右上の ☆ と重複していた。
+   *
+   *   担当教員        （識別のための添え書き。見出しは付けない）
+   *   ── 重さの根拠   4軸バー ＋ 欠測1行 ＋ 信頼度
+   *   ── 口コミ N件   一言3件 ＋ 集計 ＋ 1件ずつへのリンク
+   *   ── 操作         時間割に追加（主）／口コミを書く・KOAN（副）
+   *
+   * ☆ は詳細から外した。カード右上の ☆ が残り、クリックの同期は data-id で
+   * まとめて行っている（下の .favBtn のハンドラ）ので機能は落ちない。 */
+  return `${names.length ? `<div class="meta insLine">担当教員：${insHtml}</div>` : ""}
+      <div class="dSec">
+        <div class="secH">重さの根拠</div>
+        ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
+        ${miss.length ? `<div class="axMiss">${miss.map(esc).join("・")} ― データなし（相性の計算から除外）</div>` : ""}
+        <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
+          ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
+        </div>
       </div>
-      ${reviewHtml(c)}
-      ${c.reviews?.n ? `<button class="panelBtn" data-id="${esc(c.id)}">口コミを見る（${c.reviews.n}件）</button>` : ""}
-      <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
-      <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
-      <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.inTimetable(c)}">
-        ${rkStore.inTimetable(c) ? "時間割に入っています" : "時間割に追加"}</button>
-      <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.isFavorite(c.id)}"
-              aria-label="お気に入り：${esc(c.title)}">${rkStore.isFavorite(c.id) ? "★" : "☆"}</button>`;
+      ${rn ? `<div class="dSec">
+        <div class="secH">口コミ <b>${rn}件</b></div>
+        ${reviewHtml(c)}
+        <button class="panelBtn" data-id="${esc(c.id)}">${rn}件すべてを1件ずつ読む →</button>
+      </div>` : ""}
+      <div class="dActs">
+        <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.inTimetable(c)}">
+          ${rkStore.inTimetable(c) ? "時間割に入っています" : "時間割に追加"}</button>
+        <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
+        <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
+      </div>`;
 }
 
 /* ── 口コミを1件ずつ ───────────────────
@@ -978,9 +1002,12 @@ function panelSetOpen(open){
   $("#panel").classList.remove("open");
   $("#panelBody").innerHTML = "";
   document.querySelectorAll(".pList").forEach(el => el.remove());
+  // PC で差し替えていた集計を戻す（openPanel の hidden とセット）。
+  document.querySelectorAll(".rv[hidden]").forEach(el => el.removeAttribute("hidden"));
   document.querySelectorAll(".panelBtn").forEach(b => {
     const c = courses.find(x => x.id === b.dataset.id);
-    if (c?.reviews?.n) b.textContent = `口コミを見る（${c.reviews.n}件）`;
+    // detailHtml の同じ文言と揃えること（片方だけ直すと閉じた瞬間に文字が変わる）。
+    if (c?.reviews?.n) b.textContent = `${c.reviews.n}件すべてを1件ずつ読む →`;
     b.setAttribute("aria-expanded", "false");
   });
 }
@@ -1007,8 +1034,15 @@ async function openPanel(id, push = true){
     }
     const btn = panelBtnFor(id);
     if (!btn) return;
-    btn.insertAdjacentHTML("afterend", html);
-    btn.textContent = "閉じる";
+    /* 集計を「差し替える」。下に足し続けない（2026-09-01）。
+       足す形だと、生ログ4件（約450px）が集計と操作のあいだに割り込み、
+       右カラムの中身が 926px → 1,376px になって「時間割に追加」が
+       枠（1280×1000 で 968px）の外へ出る（実測）。
+       集計と1件ずつは同じデータの粒度違いなので、同じ場所で入れ替える。
+       4軸バーと操作は動かないので、見ながら読める形も残る。 */
+    btn.closest(".dSec")?.querySelector(".rv")?.setAttribute("hidden", "");
+    btn.insertAdjacentHTML("beforebegin", html);
+    btn.textContent = "集計に戻る";
     btn.setAttribute("aria-expanded", "true");
     return;
   }
