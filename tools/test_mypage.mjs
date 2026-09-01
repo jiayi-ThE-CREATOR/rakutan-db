@@ -222,6 +222,47 @@ tt3 = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable"))
 check(tt3.haru.extra.includes(HARU_ONLY_ID),
       "春に切り替えても haru専用の曜限なし科目が春の extra に追加できない");
 
+// ── LINE 連携 ──────────────────────────────
+// 「ログイン」ではなく友だち追加。押した先で本当に追加したかは戻って
+// こないので、押した時点で印を立てる代わりに取り消せること。
+{
+  const c2 = await browser.newContext();
+  const p2 = await c2.newPage();
+  await p2.addInitScript(() => { try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {} });
+  await p2.goto(BASE + "/mypage.html");
+  await p2.waitForSelector("#mpLineAdd");
+  check(await p2.locator("#mpLineBody .mpLineWhy li").count() === 2,
+        "未連携のとき、友だち追加で何が届くのかが2行出ていない");
+  check((await p2.locator("#mpLineAdd").getAttribute("href") || "").startsWith("https://line.me/"),
+        "友だち追加ボタンが LINE の公式アカウントを指していない");
+
+  // target="_blank" で本物の line.me を開かせたくないので、既定動作だけ止めて押す。
+  await p2.evaluate(() => {
+    const a = document.getElementById("mpLineAdd");
+    a.addEventListener("click", (e) => e.preventDefault());
+    a.click();
+  });
+  // 描き直しは次のタスク（mypage.js の setTimeout）。待って確かめる。
+  await p2.waitForSelector("#mpLineUndo");
+  check(await p2.evaluate(() => localStorage.getItem("rk_line_linked")) === "1",
+        "友だち追加ボタンを押しても rk_line_linked が立たない");
+  check(await p2.locator("#mpLineAdd").count() === 0,
+        "連携済みなのに友だち追加ボタンが残っている");
+
+  await p2.click("#mpLineUndo");
+  await p2.waitForSelector("#mpLineAdd");
+  check(await p2.evaluate(() => localStorage.getItem("rk_line_linked")) !== "1",
+        "取り消しても rk_line_linked が立ったまま");
+
+  // 再訪しても連携済みが続くこと（印は localStorage に残る）。
+  await p2.evaluate(() => localStorage.setItem("rk_line_linked", "1"));
+  await p2.reload();
+  await p2.waitForSelector("#mpLineUndo");
+  check(await p2.locator("#mpLineOk, .mpLineOk").count() === 1,
+        "再訪したのに「LINE 連携済み」が出ていない");
+  await c2.close();
+}
+
 await browser.close();
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f of fails) console.log("  -", f);

@@ -7,7 +7,7 @@
  * だから全部を read()/write() でくるみ、**失敗しても既定値で動き続ける**。
  * 保存できないだけで、その回の操作は画面上では成立させる。
  *
- * 鍵は5つ:
+ * 鍵は6つ:
  *   osaka_u_settings … kuchikomi と共用。こちらは faculty / grade だけ触る
  *   rk_onboarded     … 開屏の問診が一度出た印。localStorage（一生に一度）
  *   rk_favorites     … { v:1, ids:{ "<id>": <追加時刻> } }
@@ -16,6 +16,14 @@
  *                      「追加した」とサイト側で覚えているだけの印で、
  *                      実際にGoogle/Outlook/iCal側に追加されたかは確認していない
  *                      （2026-08-27 マイページのカレンダー連携で追加）
+ *   rk_line_linked   … "1" のときだけ「LINE 公式アカウントと繋がっている」。
+ *                      rk_cal_added と同じ性質で、**本当に友だち追加された
+ *                      かは確認していない**。印が立つのは2つの場合だけ:
+ *                      ① bot の「ラクハンで見る」から ?from=line で来た
+ *                      ② マイページの友だち追加ボタンを押した
+ *                      ②は押した先で本人がやめても分からないので、
+ *                      画面側の取り消し導線を消さないこと
+ *                      （2026-09-02 マイページの LINE 連携で追加）
  */
 (() => {
   const K_SET = "osaka_u_settings";
@@ -23,6 +31,7 @@
   const K_FAV = "rk_favorites";
   const K_TT  = "rk_timetable";
   const K_CAL = "rk_cal_added";
+  const K_LINE = "rk_line_linked";
   const TERMS = ["haru", "aki"];
   /* localStorage への書き込みが失敗したキーだけを持つメモリ内フォールバック
      （プライベートモードの全滅・quota 枯渇のどちらでも使う）。
@@ -205,5 +214,12 @@
       delete ids[id];
       write(K_CAL, JSON.stringify({ v: 1, ids }));
     },
+
+    isLineLinked()   { return read(K_LINE) === "1"; },
+    markLineLinked() { write(K_LINE, "1"); },
+    /* removeItem を足さないのは、memFallback の後始末が read/write の
+       2本だけで閉じている形を崩さないため（上の write のコメント参照）。
+       "0" を書けば isLineLinked は false に落ちる。 */
+    clearLineLinked(){ write(K_LINE, "0"); },
   };
 })();

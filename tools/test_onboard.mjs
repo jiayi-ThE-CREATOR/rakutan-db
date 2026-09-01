@@ -158,6 +158,10 @@ async function fresh() {
   check(set.grade === "2", "from=line の学年が osaka_u_settings に書かれていない");
   check(await page.evaluate(() => localStorage.getItem("rk_onboarded")) === "1",
         "from=line で届いたのに rk_onboarded が立っていない");
+  // bot のボタンから来た＝公式アカウントと繋がっている。マイページの
+  // 「LINE 連携済み」はこの印だけを見る（web/assets/store.js の rk_line_linked）。
+  check(await page.evaluate(() => localStorage.getItem("rk_line_linked")) === "1",
+        "from=line で届いたのに rk_line_linked が立っていない");
   await page.waitForSelector("#years .chip.on");
   const on = await page.locator("#years .chip.on").textContent();
   check(on.includes("2年"), `from=line の絞り込みが反映されていない（いま ${on}）`);
@@ -187,6 +191,10 @@ async function fresh() {
   const set = await page.evaluate(() => localStorage.getItem("osaka_u_settings"));
   check(!set || !JSON.parse(set).faculty,
         "マーカー無しの共有リンクなのに学部が osaka_u_settings に書かれている");
+  // 学部・学年と同じ理由で、連携の印も共有リンクでは立ててはいけない
+  // （友だち追加していない人のマイページに「連携済み」と出てしまう）。
+  check(await page.evaluate(() => localStorage.getItem("rk_line_linked")) !== "1",
+        "マーカー無しの共有リンクなのに rk_line_linked が立っている");
   await page.waitForSelector("#years .chip.on");
   const on = await page.locator("#years .chip.on").textContent();
   check(on.includes("2年"), `マーカー無しでも絞り込みは効くべき（いま ${on}）`);

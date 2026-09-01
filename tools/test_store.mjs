@@ -66,6 +66,23 @@ function load(initial, throws) {
   check(s.isOnboarded() === true, "markOnboarded が効いていない");
 }
 
+// ── LINE 連携 ─────────────────────────────
+// 「サイト側がそう覚えているだけ」の印。立てられること・取り消せること・
+// 壊れた値で真にならないことだけ見る。
+{
+  const { s } = load({});
+  check(s.isLineLinked() === false, "初期は未連携であるべき");
+  s.markLineLinked();
+  check(s.isLineLinked() === true, "markLineLinked が効いていない");
+  s.clearLineLinked();
+  check(s.isLineLinked() === false, "clearLineLinked で未連携に戻らない（取り消せない）");
+}
+{
+  // "1" 以外はすべて未連携。true / "yes" のような値を真に採らないこと。
+  const { s } = load({ rk_line_linked: "true" });
+  check(s.isLineLinked() === false, '"1" 以外の値を連携済みとして採ってしまっている');
+}
+
 // ── お気に入り ─────────────────────────────
 {
   const { s } = load({});

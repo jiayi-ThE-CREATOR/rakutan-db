@@ -1434,6 +1434,10 @@ function applyPostMode() {
        学部キーでなく、または学年が1〜6でなければ何も書かない
        （壊れたクエリを osaka_u_settings に混入させない）。 */
     if (urlParams.get("from") === "line") {
+      /* 学部・学年が壊れていても、この人が bot のボタンから来たことは確か。
+         だから下の検証より先に、連携の印だけは立てる
+         （マイページの「LINE 連携済み」がこれを見る）。 */
+      rkStore.markLineLinked();
       const facValid = !!(REQ && Array.isArray(REQ.faculties) &&
         REQ.faculties.some(f => f.key === urlFaculty));
       const yrValid = /^[1-6]$/.test(urlYear || "");

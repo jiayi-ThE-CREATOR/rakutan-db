@@ -105,3 +105,27 @@
 }
 .mpCalToast.show{ display:block; }
 .mpCalDelNote{ font-size:12.5px; color:var(--soft); line-height:1.8; margin:0 0 14px; }
+
+/* LINE 連携。緑の面（--sns-line）に白文字は 2.23:1 しかなく、
+   tools/test_tokens.py の 4.5:1 に通らない。だから面はこのページの他の
+   ボタン（.mpAllCal）と同じ淡いオレンジにして、LINE らしさは公式ロゴの
+   チップ（app.css の .snsIcon.line）だけで出す。ロゴは WCAG の対象外
+   なので緑と白のままでよい。 */
+.mpLineWhy{ margin:0 0 14px; padding-left:1.25em; font-size:13px; color:var(--soft);
+  line-height:1.9; }
+.mpLineNote{ margin:0 0 12px; font-size:13px; color:var(--soft); line-height:1.7; }
+.mpLineBtn{
+  display:inline-flex; align-items:center; gap:8px; padding:10px 16px;
+  border:1px solid var(--brand); border-radius:999px; background:var(--brand-soft);
+  color:var(--brand-text); font-size:14px; font-weight:700; text-decoration:none;
+}
+/* app.css の .snsIcon は 46px（about のカード用）。ボタンの中では大きすぎるので
+   .footSns と同じやり方で寸法だけ落とす。 */
+.mpLineBtn .snsIcon, .mpLineOk .snsIcon{ width:22px; height:22px; border-radius:6px;
+  flex-shrink:0; }
+.mpLineBtn .snsIcon svg, .mpLineOk .snsIcon svg{ width:15px; height:15px; }
+.mpLineOk{ display:flex; align-items:center; gap:8px; margin:0 0 6px;
+  font-size:15px; font-weight:700; color:var(--brand-text); }
+.mpLineUndo{ margin:12px 0 0; }
+.mpLineUndo button{ background:none; border:0; padding:0; font:inherit; font-size:11.5px;
+  color:var(--soft); text-decoration:underline; cursor:pointer; }

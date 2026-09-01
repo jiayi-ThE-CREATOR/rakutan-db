@@ -17,6 +17,89 @@
 
 ---
 
+## 2026-09-02 ｜ マイページの「LINE 連携」｜ Claude → 次の人
+
+本人から「マイページに LINE のログイン窓口を」という依頼。ただし本人の指定で
+**「ログインというより公式アカウントのフォロー」**。だから **LINE Login (OAuth) も
+LIFF も入れていない**。チャネルの追加設定も、サーバ側の実装も、通信も無い。
+やっているのは「友だち追加のリンクを置き、繋がっている**とサイト側が思っている**
+状態を localStorage に覚える」だけ。
+
+### 1. 何が動く状態か
+
+    python3 -m http.server 8141 --directory web
+    node tools/test_mypage.mjs   http://localhost:8141   # OK 49
+    node tools/test_onboard.mjs  http://localhost:8141   # OK 30
+    node tools/test_store.mjs                            # OK 42
+    python3 tools/test_tokens.py                         # OK 101
+
+マイページの先頭（プロフィールの上）に「LINE 連携」の節が出る。2状態:
+
+- **未連携** … 何が届くかの2行 ＋「LINE で友だち追加」ボタン
+  （`https://line.me/R/ti/p/@733udbnt`・フッタと同じ公式アカウント）
+- **連携済み** …「LINE 連携済み」＋「LINE を開く」＋
+  取り消し導線「まだ友だち追加していない場合はこちら」
+
+**印（`rk_line_linked`）が立つのは2つの場合だけ**:
+① bot の「ラクハンで見る」から `?from=line` で来たとき（`web/assets/app.js`。
+既存の学部・学年の引き継ぎと同じ分岐に1行足しただけ）
+② マイページの友だち追加ボタンを押したとき
+
+変更点:
+
+- `web/assets/store.js` … 6つ目の鍵 `rk_line_linked` と
+  `isLineLinked / markLineLinked / clearLineLinked`。`removeItem` は足していない
+  （memFallback の後始末が read/write の2本で閉じている形を崩さないため。`"0"` を書く）
+- `web/assets/app.js` … `from=line` の分岐の先頭で `markLineLinked()`。
+  学部・学年の検証**より前**に置いた ―― クエリが壊れていても、bot のボタンから
+  来たことは確かなので
+- `web/mypage.html` / `mypage.js` / `mypage.css` … 節の骨格と `renderLine()`。
+  `renderLine()` は `boot()` の **fetch より前**に呼ぶ（下の catch は return するので、
+  後ろに置くと timetable.json が落ちたとき LINE の節ごと消える）
+
+### 2. 何をしていないか
+
+- **緑（LINE ブランド色）のボタンにしていない。** `--sns-line` (#06C755) に白文字は
+  **2.23:1** しかなく、`tools/test_tokens.py` の 4.5:1 に通らない。面はこのページの
+  `.mpAllCal` と同じ淡いオレンジにし、LINE らしさは公式ロゴのチップ
+  （`app.css` の `.snsIcon.line`）だけで出している。ロゴは WCAG の対象外なので
+  緑と白のまま。**緑ボタンにしたくなったら、まず CONTRAST に1行足して測ること**
+- **`version.js` に版を足していない。** #90・#91 も足しておらず、版は PR ごとではなく
+  リリースごとに切っているように見えたため。次の版を出す人が
+  「マイページから LINE 公式アカウントを友だち追加できるようにしました」を拾ってほしい
+- **`?from=line` をマイページでは消費していない。** bot の `siteUri()` は `/` しか
+  指さないので、`/mypage?from=line` は現状ありえない。bot がマイページを指すように
+  なったら、URL 消費を共通関数に出すこと（今は app.js に1つだけ）
+- **`python build.py` は流していない**（表示だけの変更。手元の `data/courses.json` は
+  1,112件しかなく、そもそも通らない ―― 9/1 のエントリと同じ）
+- **`tools/test_favorite.mjs` は落ちるが、この変更とは無関係。** `origin/main` の
+  ソースを `git archive` で取り出して同じテストを流し、同じ Timeout を確認ずみ。
+  待っているのが `#inspector .detail .favBtn` で、これは **#90（9/1 の詳細パネル整理）で
+  意図的に消した要素**。テスト側の追随漏れ
+
+### 3. 次の人が最初に打つコマンド
+
+    git switch feat/mypage-line-link
+    python3 -m http.server 8141 --directory web
+    # 390px でマイページを開く。localStorage の rk_line_linked を消すと未連携に戻る
+
+### 4. 踏んだ罠
+
+- **押した `<a>` を click の処理中に DOM から外すと、ブラウザによっては
+  `target="_blank"` の遷移が実行されない**（「押したのに LINE が開かない」）。
+  `markLineLinked()` の直後に `renderLine()` を呼びたくなるが、`setTimeout(…, 0)` で
+  次のタスクまで待たせている。テストも `waitForSelector("#mpLineUndo")` で
+  この間を待っている
+- **押した先で本当に友だち追加したかは、サイトには絶対に戻ってこない。**
+  だから「連携済み」は嘘をつきうる。取り消し導線（`#mpLineUndo`）は飾りではなく、
+  この嘘の唯一の出口。消さないこと
+- **共有リンク（`?faculty=&year=` だけ）で印を立ててはいけない。** 学部・学年の
+  引き継ぎが `from=line` の有無で線を引いているのと同じ理由で、友だち追加して
+  いない人のマイページに「連携済み」と出てしまう。`test_onboard.mjs` の⑩に
+  この確認を足した
+
+---
+
 ## 2026-09-01 ｜ 科目詳細パネルの整理（案A）｜ 松下(Claude) → 次の人
 
 本人（松下）から「『科目を探す』の科目詳細欄のUIがごちゃごちゃ」という相談。
