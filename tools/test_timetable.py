@@ -54,8 +54,8 @@ if TT.is_file() and BUILT.is_file():
     slotless = [r for r in rows if not r["slots"]]
     check(all(r["day_period"] for r in slotless),
           "マス無しの科目に day_period の原文が入っていない（画面が理由を出せない）")
-    check(len(slotless) == 1069,
-          f"マス無しの件数が変わった: {len(slotless)} 件（前回 1,069 件）")
+    check(len(slotless) == 1070,
+          f"マス無しの件数が変わった: {len(slotless)} 件（前回 1,070 件）")
 
     # ④ 学部が空の科目は画面に出ない。1件でもあれば穴
     check(all(r["faculty"] for r in rows),

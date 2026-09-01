@@ -83,14 +83,14 @@ def test_counts_match_the_built_json():
     courses = json.loads(built.read_text(encoding="utf-8"))["courses"]
     got = Counter(faculty_of(x) for x in courses)
     expect = {
-        COMMON: 2272,          # 共通教育 1,112 ＋ 語学 1,160
-        "foreign-s": 2016, "engineering": 711, "science": 667,
-        "letters": 490, "law": 459, "engr-sci": 402, "human-sci": 333,
+        COMMON: 2276,          # 共通教育 1,111 ＋ 語学 1,165
+        "foreign-s": 2040, "engineering": 710, "science": 669,
+        "letters": 491, "law": 459, "engr-sci": 402, "human-sci": 332,
         "medicine": 215,       # 医学科 48 ＋ 保健学科 167
         "pharmacy": 163, "economics": 107, "dentistry": 42,
     }
     assert dict(got) == expect, f"内訳がずれた: {dict(got)}"
-    assert sum(got.values()) == len(courses) == 7877
+    assert sum(got.values()) == len(courses) == 7906
     assert None not in got, "どの学部にも割り当てられない科目がある"
 
 

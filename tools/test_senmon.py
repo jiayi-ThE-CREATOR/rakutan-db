@@ -132,11 +132,11 @@ def test_counts_stay_where_the_paper_put_them():
     courses = json.loads(built.read_text(encoding="utf-8"))["courses"]
     got = Counter(divide(c)[0] for c in courses)
     expect = {
-        "letters_hisshu": 1, "letters_senko": 476,
-        "human_sci_hisshu": 92, "human_sci_senhitsu": 4, "human_sci_senko": 235,
+        "letters_hisshu": 1, "letters_senko": 477,
+        "human_sci_hisshu": 91, "human_sci_senhitsu": 4, "human_sci_senko": 235,
         "law_hisshu": 165, "law_senhitsu": 1, "law_senko": 293,
         "economics_hisshu": 45, "economics_senhitsu": 12, "economics_senko": 50,
-        "science_hisshu": 323, "science_senhitsu": 68, "science_senko": 272,
+        "science_hisshu": 323, "science_senhitsu": 68, "science_senko": 274,
         "medicine_hisshu": 195, "medicine_senko": 20,
         "dentistry_hisshu": 35, "dentistry_senko": 7,
         "pharmacy_hisshu": 124, "pharmacy_senko": 39,

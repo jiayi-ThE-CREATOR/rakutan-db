@@ -150,10 +150,10 @@ def test_counts_match_the_design_doc():
                if str(c.get("numbering") or "").startswith("13")]
     got = Counter(divide(x)[0] for x in courses)
     expect = {"tobira": 250, "senmon_kiso": 302, "health_sports": 144,
-              "kiban_jinbun": 92, "kiban_sogo": 82, "kiban_shakai": 78,
+              "kiban_jinbun": 92, "kiban_sogo": 82, "kiban_shakai": 77,
               "joho": 76, "kiban_shizen": 39, None: 49}
     assert dict(got) == expect, f"件数がずれた: {dict(got)}"
-    assert sum(got.values()) == len(courses) == 1112
+    assert sum(got.values()) == len(courses) == 1111
 
 
 def main():

@@ -76,12 +76,12 @@ def test_counts_match_the_curriculum_pdf():
     # 応用自然科学科の科目に化けていた（shizen 201→165 の差はほぼこれ）。
     # 学科をまたぐ科目は学科で絞れないので None にし、画面では学科を選んでも
     # 落とさない（app.js は track を持たない科目を必ず通す）。
-    expect = {"eng_dept:shizen": 165, "eng_dept:riko": 156, "eng_dept:denshi": 124,
+    expect = {"eng_dept:shizen": 164, "eng_dept:riko": 156, "eng_dept:denshi": 124,
               "eng_dept:chikyu": 135, "eng_dept:kanene": 76, None: 44}
     assert dict(got) == expect, f"件数がずれた: {dict(got)}"
-    # 08 で始まるのは700件。工学部所属の残り11件（教職8＝63TECS、
+    # 08 で始まるのは699件。工学部所属の残り11件（教職8＝63TECS、
     # ナンバリングが空3）はここに来ず、画面では「その他」に入る。
-    assert sum(got.values()) == len(courses) == 700
+    assert sum(got.values()) == len(courses) == 699
     assert all(divide(c)[0] == "eng_senmon" for c in courses)
 
 

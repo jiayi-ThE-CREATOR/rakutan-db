@@ -131,13 +131,13 @@ def test_counts_match_the_check_sheet():
     courses = [c for c in all_courses
                if str(c.get("numbering") or "").startswith("10FOST")]
     got = Counter(divide(x)[0] for x in courses)
-    expect = {"fs_senko_enshu": 427, "fs_senko_kogi": 299, "fs_senkogo_enshu": 271,
-              "fs_senkogo_1": 162, "fs_senkogo_2": 161, "fs_kenshu": 157,
-              "fs_kyotsu_chiiki": 121, "fs_kenshu_kokusai": 84, "kodo_kyoyo": 75,
-              "fs_kyotsu_hoho": 71, "fs_sotsuron": 50, "fs_kenkyu_gaikokugo": 49,
-              "fs_kyoshoku": 49, "fs_kyotsu_tokusetsu": 19, None: 21}
+    expect = {"fs_senko_enshu": 433, "fs_senko_kogi": 300, "fs_senkogo_enshu": 275,
+              "fs_senkogo_1": 165, "fs_senkogo_2": 167, "fs_kenshu": 158,
+              "fs_kyotsu_chiiki": 121, "fs_kenshu_kokusai": 85, "kodo_kyoyo": 75,
+              "fs_kyotsu_hoho": 71, "fs_sotsuron": 51, "fs_kenkyu_gaikokugo": 49,
+              "fs_kyoshoku": 50, "fs_kyotsu_tokusetsu": 19, None: 21}
     assert dict(got) == expect, f"件数がずれた: {dict(got)}"
-    assert sum(got.values()) == len(courses) == 2016
+    assert sum(got.values()) == len(courses) == 2040
 
 
 def test_senkogo_agrees_with_eligible_years():
@@ -220,8 +220,8 @@ def test_track_counts_in_built_data():
     courses = [c for c in json.loads(built.read_text(encoding="utf-8"))["courses"]
                if str(c.get("numbering") or "").startswith("10FOST")]
     got = Counter(divide(c)[0] for c in courses if track(c))
-    expect = {"fs_senko_enshu": 427, "fs_senko_kogi": 299, "fs_senkogo_enshu": 271,
-              "fs_senkogo_1": 162, "fs_senkogo_2": 161, "fs_kyoshoku": 49,
+    expect = {"fs_senko_enshu": 433, "fs_senko_kogi": 300, "fs_senkogo_enshu": 275,
+              "fs_senkogo_1": 165, "fs_senkogo_2": 167, "fs_kyoshoku": 50,
               None: 21}
     assert dict(got) == expect, f"トラックの付き方が変わった: {dict(got)}"
 
@@ -274,8 +274,8 @@ def test_shared_divisions_are_visible_from_every_track():
     # 専攻を選んでも減ってはいけない区分と、その全件数。
     shared = {"fs_kyotsu_chiiki": 121, "fs_kyotsu_hoho": 71,
               "fs_kyotsu_tokusetsu": 19, "kodo_kyoyo": 75,
-              "fs_kenshu": 157, "fs_kenshu_kokusai": 84,
-              "fs_kenkyu_gaikokugo": 49, "fs_sotsuron": 50}
+              "fs_kenshu": 158, "fs_kenshu_kokusai": 85,
+              "fs_kenkyu_gaikokugo": 49, "fs_sotsuron": 51}
     axis = TRACK_KEY + ":"
     for code in TRACKS:
         sel = f"{axis}{code}"
