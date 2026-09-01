@@ -44,9 +44,15 @@ database_id = "9176d42b-a737-4a9e-971b-c5bed3449e41"
 #   npx wrangler secret put LINE_CHANNEL_SECRET
 #   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
 #   npx wrangler secret put FEEDBACK_DISCORD_WEBHOOK
+#   npx wrangler secret put REVIEW_DISCORD_WEBHOOK
 #
 # FEEDBACK_DISCORD_WEBHOOK は意見箱（POST /api/feedback）の落とし先。
 # Discord の「サイトへのご意見」チャンネル → 設定 → 連携サービス →
 # ウェブフック → 新規ウェブフック で URL を作って貼る。
 # 未設定のあいだ /api/feedback は 503 を返し、画面には
 # 「いまは受け取れませんでした」と出る（受け取ったふりをして捨てない）。
+
+# REVIEW_DISCORD_WEBHOOK は口コミ投稿の通知（POST /api/kuchikomi）の落とし先。
+# 意見箱とは別チャンネルに落とせるよう、secret を分けている。
+# こちらは未設定でも投稿は今まで通り成功する（鳴らないだけ）。通知のために
+# 投稿を止めないのが設計。
