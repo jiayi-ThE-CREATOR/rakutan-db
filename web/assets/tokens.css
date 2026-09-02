@@ -132,8 +132,9 @@
   --ease-brand:cubic-bezier(.65,0,.35,1);
 }
 
-/* 狭い画面ではヘッダの添え書き類も一段落とす（ロゴ本体は app.css 側）。 */
-@media (max-width:639px){
+/* 狭い画面ではヘッダの添え書き類も一段落とす（ロゴ本体は app.css 側）。
+   境目はヘッダが2段になる幅と同じ 1023px（app.css の .hd と揃える）。 */
+@media (max-width:1023px){
   :root{ --fs-hdr-sub:13px; }
 }
 

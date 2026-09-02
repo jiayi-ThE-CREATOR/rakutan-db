@@ -14,6 +14,8 @@
             : here.startsWith("/mypage") ? "mypage"
             : here.startsWith("/kuchikomi") ? "kuchikomi" : null;
   if (!key) return;
-  const el = document.querySelector(`.nav a[data-nav="${key}"]`);
+  /* マイページはナビの外（ヘッダ右端の .hdMy）に出したので、
+     .nav 配下だけを見ると /mypage で現在地が付かなくなる。header 全体から探す。 */
+  const el = document.querySelector(`header [data-nav="${key}"]`);
   if (el) el.setAttribute("aria-current", "page");
 })();

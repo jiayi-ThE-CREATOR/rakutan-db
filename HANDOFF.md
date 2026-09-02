@@ -17,6 +17,97 @@
 
 ---
 
+## 2026-09-02 ｜ ヘッダの組み替え（GUILD をロゴの隣へ／マイページを隅へ／口コミを塗る）｜ Claude → 次の人
+
+本人からの依頼、3点。
+① 「Designed by GUILD」をロゴ「ラクハン」の側へ寄せる ②空いた右側にマイページを移す
+③ マイページが居た場所（ナビの4つ目）に口コミを書くを持ってきて、オレンジで目立たせる。
+
+### 1. 何が動く状態か
+
+    python3 -m http.server 8140 --directory web
+    node tools/test_mypage.mjs http://localhost:8140   # OK 51
+    node tools/test_onboard.mjs http://localhost:8140  # OK 30
+    node tools/test_index_gate.mjs http://localhost:8140  # OK 37
+    node tools/test_feedback.mjs http://localhost:8140 # 通過 40
+    node tools/test_version.mjs http://localhost:8140  # 98件
+    python3 tools/test_shell_inject.py                 # OK 47
+    python3 tools/test_tokens.py                       # OK 103
+
+ヘッダの構造（全6ページ共通。正本は `templates/shell.html`）:
+
+    〜1023px  1行目： [ラ]クハン │ Designed by GUILD        (マイページ)
+              2行目： 科目をさがす  今後のステップ  About ラクハン  【口コミを書く】
+    1024px〜  1行  ： [ラ]クハン │ Designed by GUILD  …  ナビ4項目 【口コミを書く】 (マイページ)
+
+- **GUILD はロゴの隣**。`.by{margin-left:auto}`（右端へ飛ばす指定）を外しただけ
+- **マイページはナビの外**（`.hdMy`）。細い枠の丸ボタン。塗らないのは「塗るのは1画面に1つ」を守るため
+- **口コミを書く（`.navCta`）はオレンジの塗り**。文字は白ではなく `--brand-ink`（黒）。
+  白は `#DB6209` の上で 3.67:1 しか出ず、小さい文字の 4.5:1 に届かない（黒なら 4.75:1）
+- 現在地の印：ナビは下線、口コミは白いリング（オレンジ地に橙の下線は見えないため）、
+  マイページは枠がオレンジになる
+
+ヘッダの高さ（実測、mypage）：320〜430px = 139px ／ 520〜1023px = 105px ／ 1024px〜 = 65px。
+**ナビが5項目から4項目に減ったので、狭い画面では前より低い**（400px 未満の 2×2 が 3行→2行）。
+
+### 2. していないこと・変えたこと
+
+- **ヘッダが1行になる境目を 640px → 1024px に上げた。** マイページを1行に足すと
+  ロゴ・ナビ・マイページの合計が 943px 必要で、640〜942px では GUILD が折れ、
+  口コミの塗りが2行に割れていた（実測 768px でヘッダ 124px）。入らない幅は2段のままの方が低い。
+  `tokens.css` の `--fs-hdr-sub` の境目（640→1024）も揃えた。**この値はヘッダ専用**で、
+  他に使っている箇所は無いことを grep で確認ずみ
+- **`web/index.html` を手で編集していない。** 変えたのは `templates/shell.html` で、
+  `build.py` の `read_shell()/inject_shell()` を呼んで6ページへ注入した（松下さんの担当ファイルを直接触らない）
+- **`python build.py` は丸ごとは流していない**（手元の `data/courses.json` が 1,112件しかなく通らない ―― 9/1・9/2 のエントリと同じ）。
+  外殻の注入だけを呼んだ
+- **`.fab`（一覧の下に浮く「口コミを書く」）はそのまま。** あちらは
+  「いま開いている科目への口コミ」で、ナビの `.navCta` は `/kuchikomi` への移動。別物なので両方残した。
+  画面に橙の丸が2つ並ぶのが気になるなら、消すのは `.fab` ではなく先に相談を（投稿数に直結する）
+- **PC でのタブ順が見た目と1つズレる。** DOM は ロゴ→マイページ→ナビ の順（狭い画面の見た目に合わせた）で、
+  1024px 以上では `order` でナビを先に見せている。読み上げの順としては壊れていないが、
+  気になるなら DOM を並べ替えて狭い画面側を grid で拾い直すこと
+- **口コミが増えないままなら、この塗りは効いていない。** 効果の確認は Cloudflare Web Analytics の
+  `/kuchikomi` のページビューで見る（今回は数字を取っていない）
+
+### 3. 次の人が最初に打つコマンド
+
+    python3 -m http.server 8140 --directory web
+    # 390px（スマホ）と 1280px（PC）と 1023/1024px の境目を見る
+    node tools/test_mypage.mjs http://localhost:8140
+    python3 tools/test_shell_inject.py && python3 tools/test_tokens.py
+
+ヘッダを直すときは **`web/*.html` ではなく `templates/shell.html`** を編集し、
+
+    python3 -c "import build; p=build.read_shell(); print([x.name for x in build.PAGES if build.inject_shell(x,p)])"
+
+で6ページへ流す（`python build.py` はデータが揃っていないと通らない）。
+
+### 4. 踏んだ罠
+
+- **`.hd` を grid にしたのに `.nav` へ `grid-column:1/-1` を書き忘れ、ナビの帯が右端で切れた。**
+  背景色が付いている要素を grid のセルに入れると、はみ出しではなく「短い帯」として静かに出る。
+  負のマージンで幅いっぱいに見せている要素は、**親を grid に変えた瞬間にセル幅に閉じ込められる**
+- **オレンジの塗りにホバーで `opacity:.88` を当ててはいけない。** `kuchikomi.css` の
+  `.primary-btn` と同じ書き方だが、ヘッダは濃色帯なので橙が地に沈み、黒文字が 3.94:1 まで落ちる。
+  明地のボタンでは起きない。輪郭（box-shadow）で応えるようにした
+- **`shell.js` が `.nav a[data-nav=...]` で現在地を探していた。** マイページをナビの外へ出した瞬間、
+  `/mypage` だけ現在地が付かなくなる。`header [data-nav=...]` に広げた。
+  ナビから何かを出すときは、この1行を必ず一緒に見ること
+- **`tools/test_mypage.mjs` が「ナビが5項目」を数えていた。** 4項目＋ナビ外の1つに直し、
+  「口コミが `.navCta`（塗り）であること」を足した。塗りが外れたら気づける
+- **`tools/test_favorite.mjs` と `tools/check_division_ui.mjs` は落ちるが、この変更とは無関係。**
+  前者は 9/1 の HANDOFF に既出（待っている `#inspector .detail .favBtn` は #90 で意図的に消した要素）。
+  後者は `#divs` の `.chips` が既定で `hidden`（アコーディオン化）なのにテストが開かずに click しており、
+  390px でも 1280px でも同じ場所で止まる。どちらもヘッダには触れていない
+- **`tools/test_eligibility.py` は Python 3.9 では実行できない**（`str | None` の注釈）。
+  この端末の `python3` は 3.9 系。落ちても慌てないこと
+- **この端末には `node` も `node_modules` も無い。** `~/.nvm/versions/node/v22.23.2/bin/node` を直に叩き、
+  playwright は scratchpad に入れて動かした（リポジトリには何も残していない）。
+  `~/Library/Caches/ms-playwright` のブラウザは 1223 で、playwright 1.62.1 が要求する 1234 と番号が違う
+
+---
+
 ## 2026-09-02 ｜ マイページの「LINE 連携」｜ Claude → 次の人
 
 本人から「マイページに LINE のログイン窓口を」という依頼。ただし本人の指定で

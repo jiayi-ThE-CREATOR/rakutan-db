@@ -63,23 +63,79 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
 .nav a[aria-current="page"]{color:var(--on-dark);border-bottom-color:var(--brand)}
 .nav .ext{font-size:10px;margin-left:2px;opacity:.7}
 
+/* 口コミを書く。ナビの中でここだけ塗る。
+   このサイトは KOAN から取れない5項目（定員／レポート本数／字数／時間外／小テスト）を
+   口コミでしか埋められないので、入口が他の項目と同じ重みだと埋まらない。
+   文字色が --brand-ink（黒）なのは、白だとオレンジ地の上で 3.67:1 しか出ず
+   小さい文字の基準（4.5:1）に届かないため。黒なら 4.75:1。 */
+.nav .navCta{background:var(--brand);color:var(--brand-ink);font-weight:700;
+  border-radius:var(--r-pill);padding:var(--sp-1) var(--sp-3);
+  border-bottom-color:transparent;
+  transition:box-shadow var(--dur) var(--ease-out)}
+/* ホバーで塗りを薄くしない（.primary-btn の opacity:.88 と同じことをすると
+   オレンジ地が濃色帯に沈み、黒文字が 4.5:1 を割る）。輪郭で応える。 */
+.nav .navCta:hover{color:var(--brand-ink);box-shadow:0 0 0 2px var(--on-dark-line)}
+/* 現在地の下線はオレンジ地の上では見えないので、リングに替える。 */
+.nav .navCta[aria-current="page"]{color:var(--brand-ink);border-bottom-color:transparent;
+  box-shadow:0 0 0 2px var(--on-dark-strong)}
+
+/* マイページ。ナビの一項目ではなく、ヘッダの隅に常駐する「自分のもの」への入口。
+   塗らないのは、塗ってよいのは1画面に1つ（＝口コミ）という取り決めのため。 */
+.hdMy{display:inline-flex;align-items:center;flex:0 0 auto;
+  color:var(--on-dark-mid);text-decoration:none;font-size:var(--fs-hdr-sub);
+  padding:var(--sp-1) var(--sp-3);border:1px solid var(--on-dark-line);
+  border-radius:var(--r-pill);white-space:nowrap;
+  transition:color var(--dur) var(--ease-out),
+             border-color var(--dur) var(--ease-out)}
+.hdMy:hover{color:var(--on-dark);border-color:var(--on-dark)}
+.hdMy[aria-current="page"]{color:var(--on-dark);border-color:var(--brand)}
+
+/* PC ではロゴを左端に置いたまま、ナビとマイページを右へ寄せる。
+   DOM の順（ロゴ→マイページ→ナビ）は狭い画面の見た目に合わせてあるので、
+   ここだけ order で入れ替える。
+
+   ヘッダが1行になる幅について。
+   1行に必要なのは ロゴ360 + ナビ426 + マイページ93 + 隙間32 ＝ 911px、
+   左右の余白を足して 943px（実測）。以前ここは 640px で、
+   640〜942px ではロゴの GUILD が折れ、口コミの塗りが2行に割れていた
+   （実測 768px でヘッダ 124px）。入らない幅では2段のままの方が低く収まるので、
+   境目を 1024px（＝いちばん近い既存のブレークポイント）へ上げる。 */
+@media (min-width:1024px){
+  .hd{gap:var(--sp-4)}
+  /* 折り返しても項目の途中では切らない。塗った口コミが2行に割れると
+     ボタンに見えなくなる。 */
+  .nav{order:1;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+  .nav a{white-space:nowrap}
+  .hdMy{order:2}
+}
+
 /* ── 狭い画面のヘッダ ─────────────────
- * 上段＝ロゴ＋添え書き＋GUILD、下段＝ナビの帯、の2段に組む。
+ * 上段＝ロゴ＋GUILD（左）とマイページ（右）、下段＝ナビの帯、の2段に組む。
  * 以前は lockup が flex-wrap で折れ、GUILD だけが2行目に落ちて
  * ロゴ／GUILD／ナビの3段になっていた（ヘッダだけで 183px）。
+ * 段数は増やさないこと。増えたぶんだけ一覧が下がる。
  */
-@media (max-width:639px){
+@media (max-width:1023px){
   /* ロゴ以外の文字（添え書き・GUILD・ナビ）は --fs-hdr-sub で一括。
      狭い画面ぶんは tokens.css 側で落としている。 */
-  .hd{flex-direction:column;align-items:stretch;gap:0}
+  /* 上段は「ロゴ＋GUILD」と「マイページ」の2枠。flex の column だと
+     この2つが縦に積まれてしまうので、上段＝1行目・ナビ＝2行目の grid で組む。 */
+  /* 行の隙間は 0（ナビ側が負のマージンで帯を作っているので、ここで空けると帯が浮く）。
+     列の隙間だけは空ける。0 のままだと 320px 幅で GUILD の文字とマイページが接する。 */
+  .hd{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+    row-gap:0;column-gap:var(--sp-3)}
   /* ロゴと GUILD は必ず同じ行に置く。折り返さない代わりに、
      519px 以下ではロゴを画面幅に追従させて収める（下のブロック）。 */
-  .lockup{gap:var(--sp-3);flex-wrap:nowrap;align-items:center}
+  .lockup{grid-column:1;grid-row:1;min-width:0;
+    gap:var(--sp-3);flex-wrap:nowrap;align-items:center}
+  .hdMy{grid-column:2;grid-row:1;justify-self:end}
   h1{min-width:0}
   /* 添え書きは折らない。折れると1行に収めた意味が無くなる。 */
   h1 small{margin-left:var(--sp-2);white-space:nowrap}
-  /* GUILD は行の右端へ。左のロゴと視覚的に競らせない。 */
-  .by{margin-left:auto;flex:0 0 auto}
+  /* GUILD はロゴのすぐ隣（2026-09-02）。以前は margin-left:auto で右端へ
+     飛ばしていたが、そこはマイページの場所になった。添え物は本体の隣に置く方が
+     「ラクハンを作った人たち」と読めるので、右端へ離すより素直でもある。 */
+  .by{flex:0 0 auto}
   /* ロゴは 2 倍にしたが、狭い画面でそのまま出すとヘッダだけで
      1 画面の半分を食い、添え書きも途中で折れる。ここだけ縮める。 */
   h1 .mark{height:26px}
@@ -89,7 +145,8 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
      添え書き（阪大 全学部の科目／Designed by GUILD）とナビが地続きに見え、
      どこからが押せるものか分からない。負のマージンで header の左右 padding を
      打ち消し、画面幅いっぱいの一段下の帯にする（下端も同様に打ち消す）。 */
-  .nav{gap:var(--sp-2) var(--sp-3);flex-wrap:wrap;
+  .nav{grid-column:1 / -1;grid-row:2;
+    gap:var(--sp-2) var(--sp-3);flex-wrap:wrap;
     margin:11px calc(-1 * var(--pad)) -12px;
     padding:8px var(--pad) 9px;
     background:var(--on-dark-band);
@@ -107,6 +164,9 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   .by{padding-left:var(--sp-2)}
   .byMain{font-size:11px}
   .bySub{font-size:9.5px;letter-spacing:.08em}
+  /* ロゴ＋GUILD と同じ行に居るので、ここも一緒に落とす。
+     実測：320px 幅で 上段 = ロゴ 77 + GUILD 102 + これ 78 ＝ 端まで約 30px 残る。 */
+  .hdMy{font-size:12px;padding:3px var(--sp-2)}
 }
 
 /* 320px（実在する最小の端末幅）を切ると、ロゴ・添え書き・GUILD は
@@ -114,7 +174,6 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
    添え書きと GUILD が重なる。ここだけ以前どおり2段に戻す。 */
 @media (max-width:319px){
   .lockup{flex-wrap:wrap}
-  .by{margin-left:0}
 }
 
 /* ナビ4項目が1行に収まらない幅（実測 389px 必要）では 2×2 に組む。

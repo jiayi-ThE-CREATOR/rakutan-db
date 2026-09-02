@@ -28,10 +28,16 @@ await page.waitForSelector("#mpProfile");
 check(await page.locator("#mpTimetable").count() === 1, "時間割の入れ物が無い");
 check(await page.locator("#mpFavorites").count() === 1, "お気に入りの入れ物が無い");
 
-// ナビが5項目で、現在地が付いていること（main の /ads 追加で 4→5）
-check(await page.locator(".nav a").count() === 5, "ナビが5項目でない");
-check(await page.locator('.nav a[data-nav="mypage"][aria-current="page"]').count() === 1,
+// ヘッダの行き先が5つで、現在地が付いていること。
+// 内訳は ナビ4項目（main の /ads 追加で 3→4）＋ ナビの外に出したマイページ 1
+// （2026-09-02。マイページはロゴ行の右端へ、口コミがナビの4つ目に繰り上がった）。
+check(await page.locator("header a[data-nav]").count() === 5, "ヘッダの行き先が5つでない");
+check(await page.locator(".nav a").count() === 4, "ナビが4項目でない");
+check(await page.locator('.hdMy[data-nav="mypage"][aria-current="page"]').count() === 1,
       "マイページに現在地が付いていない");
+// 口コミは1つだけ塗って目立たせる、が決め事。塗りが外れたら気づけるようにする。
+check(await page.locator('.nav .navCta[data-nav="kuchikomi"]').count() === 1,
+      "口コミを書くが .navCta（オレンジの塗り）でない");
 
 // プロフィールが読めていること
 check(await page.locator("#mpFaculty").inputValue() === "law", "学部が読めていない");
