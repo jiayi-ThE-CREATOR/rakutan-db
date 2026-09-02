@@ -151,6 +151,11 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
     padding:8px var(--pad) 9px;
     background:var(--on-dark-band);
     border-top:1px solid var(--on-dark-band-line)}
+  /* 口コミはこの帯の右端＝マイページの真下に付ける（2026-09-02）。
+     以前は並びの4番目に置いていただけなので、400〜499px では 3＋1 に折り返して
+     口コミだけが単独で最下段の左に取り残されていた（1行まるごとを1つのボタンが食う）。
+     右端に寄せると、折り返しても左の3項目と同じ行に残る。 */
+  .nav .navCta{margin-left:auto}
 }
 
 /* ロゴ・添え書き・GUILD を1行に収めるための縮小。
@@ -176,11 +181,19 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   .lockup{flex-wrap:wrap}
 }
 
-/* ナビ4項目が1行に収まらない幅（実測 389px 必要）では 2×2 に組む。
-   flex の折り返し任せだと 3＋1 になり、余った1つが迷子に見える。 */
-@media (max-width:399px){
-  .nav{display:grid;grid-template-columns:1fr 1fr}
-  .nav a{justify-self:start}
+/* スマホ幅は、ナビ4項目を1行に収めるために隙間と文字を一段詰める。
+   実測（375px・13px・隙間12px）: 使える幅 343px に対して必要 346.5px ―― 3.5px 足りず、
+   そのためだけに口コミが次の行へ落ちていた。隙間 12→8px（-12px）と
+   文字 13→12px（-21px）で 360px までは1行に収まる。
+   320px はどう詰めても入らないが、そのときも口コミは右端（マイページの真下）に残るので、
+   以前のように単独で左下へ取り残されることはない。
+
+   ※ 以前ここには「ナビ4項目を 2×2 に組む」ルールがあった（max-width:399px）。
+     grid にすると .navCta の margin-left:auto が効かなくなるので、戻すときは
+     右端固定も一緒に組み直すこと。 */
+@media (max-width:429px){
+  .nav{column-gap:var(--sp-2)}
+  .nav a{font-size:12px}
 }
 
 input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-md);
