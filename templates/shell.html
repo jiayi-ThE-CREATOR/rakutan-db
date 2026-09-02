@@ -30,9 +30,7 @@
     <a class="lockup" href="/">
       <h1 aria-label="ラクハン ― 阪大 全学部の科目"><svg class="mark" viewBox="11 10 41 45" fill="none" aria-hidden="true"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg><span class="wm">クハン</span></h1><!-- ロゴ本体（ロックアップ）には GUILD を入れない、というのがブランド資料の決定。だからこの2行は視覚的に分離した添え物として置く。細い縦線で2行を1つの塊にまとめているのは「GUILD＝AI コミュニティ」と読ませるため。並列の宣言に見えると「ラクハンが AI 製品」と誤読される。 --><span class="by"><span class="byMain">Designed by GUILD</span><span class="bySub">AI Community</span></span></a><!-- マイページはナビから出して、ロゴ行の右端（GUILD を左に寄せて空いた場所）へ。
          「自分のもの」への入口はメニューの一項目ではなく、常に同じ隅にある、という置き方。
-         DOM 上はロゴの直後＝狭い画面の見た目どおりの順。PC では order で右端へ回す。 --><a class="hdMy" href="/mypage" data-nav="mypage">マイページ</a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/ads" data-nav="ads">今後のステップ</a><!-- ラベルが「About」だけなのは幅のため。「About ラクハン」だと 390px 幅で
-           ナビ4項目が 30px 入らず、口コミだけが単独で次の行に落ちる（2026-09-02 に実際に出た）。
-           読み上げには aria-label で正式名を渡すので、耳で聞く分には変わらない。 --><a href="/about" data-nav="about" aria-label="About ラクハン">About</a><!-- 口コミはこのサイトが唯一「もらう」側に回る場所。ナビの中で1つだけ塗る。
+         DOM 上はロゴの直後＝狭い画面の見た目どおりの順。PC では order で右端へ回す。 --><a class="hdMy" href="/mypage" data-nav="mypage">マイページ</a><nav class="nav" aria-label="メインメニュー"><a href="/" data-nav="home">科目をさがす</a><a href="/ads" data-nav="ads">今後のステップ</a><a href="/about" data-nav="about">About ラクハン</a><!-- 口コミはこのサイトが唯一「もらう」側に回る場所。ナビの中で1つだけ塗る。
            狭い画面では margin-left:auto でこの行の右端＝マイページの真下に付ける。 --><a class="navCta" href="/kuchikomi" data-nav="kuchikomi">口コミを書く</a></nav></div>
 </header>
 <!--/PART:HEADER--><!--PART:FOOTER-->
