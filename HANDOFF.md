@@ -25,6 +25,13 @@
 
 ### 1. 何が動く状態か
 
+**本番に出ています**（`main` `73d0cd3`・2026-09-02 16:54 反映確認）。
+全6ページで `hdMy` / `navCta` の存在と、`tokens.css` の境目が 1023px であることを確認ずみ。
+
+    curl -s https://rakuhan.nocode-sol.co.jp/ | grep -c 'class="navCta"'   # 1 なら反映済み
+
+戻すときは `git revert 73d0cd3` を `main` へ。ヘッダ以外に触れていないので単独で戻せます。
+
     python3 -m http.server 8140 --directory web
     node tools/test_mypage.mjs http://localhost:8140   # OK 51
     node tools/test_onboard.mjs http://localhost:8140  # OK 30
@@ -105,6 +112,13 @@
 - **この端末には `node` も `node_modules` も無い。** `~/.nvm/versions/node/v22.23.2/bin/node` を直に叩き、
   playwright は scratchpad に入れて動かした（リポジトリには何も残していない）。
   `~/Library/Caches/ms-playwright` のブラウザは 1223 で、playwright 1.62.1 が要求する 1234 と番号が違う
+- **しゅんやさんの端末の `~/Desktop/rakutan-db-main` は git リポジトリではない。** ZIP を展開したもので、
+  `.git` が無い＝そのままでは push できない。今回は `main` を scratchpad へ clone し、
+  12ファイルを上書きしてコミットして押した。**押す前に `diff -rq` で main と突き合わせ、
+  差分が今回の12ファイルだけであることを確認すること**（他人の作業が混ざったまま押さないため）
+- **Homebrew も `gh` も入っていなかった。** Homebrew は sudo が要るので入れず、
+  `gh` の公式バイナリ（darwin arm64）を `~/.local/bin/gh` に置いた。認証は済んでいる
+  （`olive10ma10`・keyring・`repo` スコープ）。**PATH に `~/.local/bin` が無いのでフルパスで叩くこと**
 
 ---
 
