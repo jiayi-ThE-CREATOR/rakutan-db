@@ -202,11 +202,15 @@
   </div>
 </dialog>
 <script src="/assets/version.js" defer></script>
-<!-- Cloudflare Web Analytics。宣伝マニュアル §3・§8 の数字はここから取る。
+<!-- 計測。正本は web/assets/analytics.js ひとつで、Cloudflare Web Analytics の
+     beacon はそこから読み込む。ページ側に beacon のタグを直接書かないこと
+     ―― 6ページに複製されていたのを 2026-09-03 に1本へ寄せた。
+     宣伝マニュアル §3・§8 の数字はここから取る。
      /l/<slug> はページ別の集計に slug のまま出るので、チャネルごとの
      効き目が比較できる（だから /l/ は転送していない）。
-     Cookie を置かず、個人を特定する情報も送らない。 -->
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "b0324782e4e44ca58b45e4dd0c270112"}'></script>
+     Cookie を置かず、個人を特定する情報も送らない。
+     自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
+<script src="/assets/analytics.js" defer></script>
 <!--/SHELL:FOOTER-->
 
 <script src="/assets/store.js"></script>
