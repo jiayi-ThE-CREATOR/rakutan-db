@@ -137,14 +137,18 @@ export function buildTrafficReport(rows, now) {
      宣伝を止めた日と数え損ねた日の区別が付かなくなる。 */
   lines.push("**流入元（訪問）**");
   const perDay = channels.get(yesterday) ?? new Map();
-  for (const name of [...STATS_CHANNELS.map(([n]) => n), STATS_DIRECT]) {
+  for (const [name, slugs] of [...STATS_CHANNELS, [STATS_DIRECT, []]]) {
     const c = perDay.get(name) ?? { total: 0, parts: [] };
     const parts = c.parts
       .filter(([, v]) => statsRound(v) > 0)
       .sort((a, b) => b[1] - a[1])
       .map(([label, v]) => `${label} ${statsRound(v)}`)
       .join(" / ");
-    lines.push(`・${name} ${statsRound(c.total)}` + (c.parts.length > 1 && parts ? `（${parts}）` : ""));
+    /* 内訳を出すかどうかは「その日いくつ来たか」ではなく
+       「そのチャネルが何本の slug で配ってあるか」で決める。1本しか来なかった日でも
+       個人配布は誰の、オプチャはどの部屋の数字なのかが要る（そこが知りたい欄なので）。
+       逆に X のように配布が1本だけの欄は「X 4（ポスト 4）」になるだけなので出さない。 */
+    lines.push(`・${name} ${statsRound(c.total)}` + (slugs.length > 1 && parts ? `（${parts}）` : ""));
   }
 
   const weekly = week.map((d) => [d, statsRound(totals.get(d)?.visits ?? 0)]);
