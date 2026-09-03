@@ -169,6 +169,16 @@ def read_rows(path: str) -> list[dict]:
                   "テストの重さの主な入力が丸ごと欠けます。")
             print("    → スプレッドシート側に列を足すと、ここは自動で拾います"
                   "（このスクリプトの修正は不要）。")
+        else:
+            # 列を足しただけでは埋まらない ―― GAS が書かなければ空のまま。
+            # 「列があるから安心」で警告が消えるのが一番たちが悪いので、
+            # 中身が1件も入っていないときも同じ強さで知らせる。
+            withexam = [r for r in rows if (r.get("exam") or "") != "なし"]
+            if withexam and not any(r.get("exam_hard10") for r in withexam):
+                print(f"  ⚠ 「難易度」の列はありますが、テストありの {len(withexam)} 件に"
+                      "1つも値が入っていません。")
+                print("    → 列を足しただけで、GAS 側が書き込んでいない可能性があります"
+                      "（review.examDifficulty）。")
         return rows
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
 

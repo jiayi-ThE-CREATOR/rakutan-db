@@ -84,6 +84,11 @@ eq(nxt[0]["exam"], True, "テスト有無の列があればそちらを優先す
 eq(nxt[1]["exam"], False, "テスト有無「なし」→ False")
 eq(nxt[1]["exam_hard10"], None, "テストなしなら難易度は空のまま")
 
+# 列はあるのに中身が空（GAS が書いていない）ときも見逃さない
+V4_EMPTY = V4_NEXT.replace(",7,", ",,")
+empty = read(V4_EMPTY, ".csv")
+eq(empty[0]["exam_hard10"], None, "列があっても空なら None のまま")
+
 # ── 旧フォーム（Netlify・TSV・英語ヘッダ）も読めたまま ──
 LEGACY = (
     "code\tattendance\tin_class\tout_class\texam\texam_bring\texam_hard10"
