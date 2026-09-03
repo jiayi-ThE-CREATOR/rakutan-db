@@ -7,6 +7,7 @@
  *   - GET  /line/health   … 死活監視
  *   - POST /api/feedback  … 意見箱（フッタのモーダル → Discord へ中継）
  *   - POST /api/kuchikomi … 口コミ投稿の中継（→ GAS。成功したら Discord へ通知）
+ *   - POST /api/hit       … 実際に使われた回数（→ Analytics Engine）
  *   - それ以外            … env.ASSETS.fetch() でこれまで通り静的配信
  *
  * データ取得は env.ASSETS 経由で /data/courses.built.json を同一オリジンから
@@ -982,6 +983,74 @@ async function handleTrackingLink(request, env, slug) {
  */
 const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
 
+/* ── 実際に使われた回数（POST /api/hit） ──────────────────
+ *
+ * Cloudflare Web Analytics の数字は下限にしかならない。beacon が
+ * cloudflareinsights.com にあるので、広告ブロッカー（Brave / uBlock /
+ * DuckDuckGo）が塞ぐ。ここは同じドメインなので塞がれない。
+ *
+ * クローラは JS を動かさないので、そもそもここには来ない。
+ * 来たとしても UA と Origin で落とす。
+ *
+ * 置かないもの: Cookie・端末ID・IP・検索語・科目ID。
+ * 残すのは「いつ・どの種類の操作が・どのパスで」の3つだけ。
+ */
+const HIT_EVENTS = new Set(["pv", "search", "detail"]);
+
+// JS を動かすクローラ（Googlebot のレンダリング・監視サービス・Lighthouse）を落とす。
+const HIT_BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|monitor|uptime|preview/i;
+
+/* 「合わない Origin だけを弾く」。付いていないものまで弾かないのは、
+   独自ドメインが nginx（VPS）を通って Worker へ来るため
+   ―― 中継のヘッダ設定ひとつで集計が静かにゼロになるのが一番まずい。
+   Origin が無いときは Referer を見て、どちらも無ければ通す。
+   ここを通り抜けられるのは「JSON を POST できる誰か」だけで、
+   その量は UA の判定と MAX（クライアント側60件/ページ）で頭打ちになる。 */
+function hitFromOurSite(request) {
+  const raw = request.headers.get("Origin") || request.headers.get("Referer");
+  if (!raw) return true;
+  let host;
+  try { host = new URL(raw).hostname; } catch (e) { return false; }
+  return host === CANONICAL_HOST || host.endsWith(".workers.dev")
+      || host === "localhost" || host === "127.0.0.1";
+}
+
+async function handleHit(request, env) {
+  /* 返すのは常に 204。数えられなかったことを画面に出す意味は無い
+     ―― 計測の失敗で利用者の操作を止めない。 */
+  const done = () => new Response(null, { status: 204 });
+
+  if (request.method !== "POST") return done();
+  if (HIT_BOT_UA.test(request.headers.get("User-Agent") || "")) return done();
+  if (!hitFromOurSite(request)) return done();
+
+  let body;
+  try { body = await request.json(); } catch (e) { return done(); }
+  const event = String(body?.e ?? "");
+  if (!HIT_EVENTS.has(event)) return done();
+
+  /* パスだけを残し、クエリは落とす。?c=<科目id> まで残すと
+     「誰が何を見たか」に近づく。/l/<slug> は残るので、チャネルごとの
+     効き目は自前の数字でも比較できる。 */
+  let path = "/";
+  try { path = new URL(String(body?.p ?? "/"), "https://x").pathname.slice(0, 64); } catch (e) {}
+
+  const fresh = body?.n === 1 ? 1 : 0;   // その訪問の1回目（クライアントの sessionStorage 判定）
+
+  /* 束ねていないので1リクエスト1件。writeDataPoint は投げっぱなしで
+     例外も返り値も無いが、束縛が無い env（ローカル・テスト）では
+     undefined になるので ?. で守る。計測のために本番を落とさない。 */
+  try {
+    env.STATS?.writeDataPoint({
+      blobs: [event, path],
+      doubles: [1, fresh],
+      indexes: [event],
+    });
+  } catch (e) {}
+
+  return done();
+}
+
 function markNoindex(res) {
   const headers = new Headers(res.headers);
   headers.set("x-robots-tag", "noindex, nofollow");
@@ -1026,6 +1095,9 @@ async function route(request, env, ctx) {
   }
   if (url.pathname === "/api/favorites") {
     return handleFavorites(request, env);
+  }
+  if (url.pathname === "/api/hit") {
+    return handleHit(request, env);
   }
   return env.ASSETS.fetch(request);
 }

@@ -40,6 +40,16 @@ binding = "DB"
 database_name = "rakutan-favorites"
 database_id = "9176d42b-a737-4a9e-971b-c5bed3449e41"
 
+# 「実際に使われた回数」の落とし先（2026-09-03）。
+# ページ表示だけでなく、検索・詳細を開くという操作を数える。
+# Cloudflare Web Analytics の beacon は広告ブロッカーに塞がれるので
+# あの数字は下限にしかならない。こちらは同じドメインなので塞がれない。
+# Workers Free で 1日10万件の書き込みまで無料（読みは1日1万クエリ）。
+# 読み出しは tools/stats.mjs（SQL API）。ダッシュボードには出ない。
+[[analytics_engine_datasets]]
+binding = "STATS"
+dataset = "rakutan_use"
+
 # シークレットはここに書かない。デプロイ後に以下で登録する:
 #   npx wrangler secret put LINE_CHANNEL_SECRET
 #   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
