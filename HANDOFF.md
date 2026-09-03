@@ -233,6 +233,14 @@ CF_ACCOUNT_ID=<32桁> CF_API_TOKEN=<作ったトークン> node tools/stats.mjs 
   しかも GitHub は再オープンさせてくれない（作り直すしかない）。
   下の段は `--delete-branch` を付けずにマージし、上の段の base を main に
   付け替えてからブランチを消すこと
+- **`[[analytics_engine_datasets]]` は、先にダッシュボードで dataset を作らないと
+  デプロイが落ちる**（`[code: 10089] You need to enable Analytics Engine`）。
+  2026-09-03 に20分溶かした。厄介なのは **`wrangler deploy --dry-run` では気づけない**
+  こと ―― dry-run は束縛を一覧に出すだけでサーバへ問い合わせないので、
+  ローカルでは何の問題も無いように見える。作る場所は
+  `dash.cloudflare.com/<account_id>/workers/analytics-engine` で、
+  「Enable」ボタンは無く **Create Dataset が実質の有効化**。
+  入力する2つは wrangler.toml と完全一致させること（`rakutan_use` / `STATS`）
 - **`sendBeacon` は DevTools の Network で `ping` 型として出る。**
   「Fetch/XHR」で絞ると **1件も見えない**ので、動いていないと誤診する。
   「全部」にしてから `hit` で絞ること
