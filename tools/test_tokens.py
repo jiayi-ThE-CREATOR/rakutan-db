@@ -73,6 +73,10 @@ CONTRAST = [
     ("band ふつう",                 "--band-mid-ink",     "--band-mid-bg",      4.5),
     ("band 重い",                   "--band-heavy-ink",   "--band-heavy-bg",    4.5),
 
+    ("注意帯の上の文字",            "--alert-ink",        "--alert-face",       4.5),
+    # 注意帯の面とカード地の見分け。図形なので 3.0 でよい。
+    ("注意帯の面 vs カード地",      "--alert-face",       "--card",             3.0),
+
     ("ヘッダのロゴタイプ",          "--on-dark",          "--brand-ground",     4.5),
     ("Designed by GUILD",           "--on-dark-strong",   "--brand-ground",     4.5),
     ("ナビ",                        "--on-dark-mid",      "--brand-ground",     4.5),
@@ -100,6 +104,7 @@ REQUIRED = [
     "--brand", "--brand-ink", "--brand-text", "--brand-soft", "--focus", "--brand-ground",
     "--scale-light", "--scale-light-text", "--scale-mid", "--scale-heavy",
     "--band-none-bg", "--band-light-bg", "--band-mid-bg", "--band-heavy-bg",
+    "--alert-face", "--alert-ink",
     "--on-dark", "--on-dark-line",
     "--sp-1", "--sp-8", "--fs-xs", "--fs-hero",
     "--r-sm", "--r-lg", "--r-pill",
