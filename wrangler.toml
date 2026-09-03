@@ -50,11 +50,23 @@ database_id = "9176d42b-a737-4a9e-971b-c5bed3449e41"
 binding = "STATS"
 dataset = "rakutan_use"
 
+# 毎朝のアクセス速報（2026-09-03）。
+# 23:00 UTC ＝ JST 08:00。きのう一日ぶんが JST で閉じてから走る。
+# 中身は worker/index.js の runDailyTraffic（scheduled ハンドラ）。
+# 手元で試すときは:
+#   npx wrangler dev --test-scheduled
+#   curl "http://localhost:8787/__scheduled?cron=0+23+*+*+*"
+[triggers]
+crons = ["0 23 * * *"]
+
 # シークレットはここに書かない。デプロイ後に以下で登録する:
 #   npx wrangler secret put LINE_CHANNEL_SECRET
 #   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
 #   npx wrangler secret put FEEDBACK_DISCORD_WEBHOOK
 #   npx wrangler secret put REVIEW_DISCORD_WEBHOOK
+#   npx wrangler secret put STATS_DISCORD_WEBHOOK
+#   npx wrangler secret put CF_ACCOUNT_ID
+#   npx wrangler secret put CF_API_TOKEN
 #
 # FEEDBACK_DISCORD_WEBHOOK は意見箱（POST /api/feedback）の落とし先。
 # Discord の「サイトへのご意見」チャンネル → 設定 → 連携サービス →
@@ -66,3 +78,12 @@ dataset = "rakutan_use"
 # 意見箱とは別チャンネルに落とせるよう、secret を分けている。
 # こちらは未設定でも投稿は今まで通り成功する（鳴らないだけ）。通知のために
 # 投稿を止めないのが設計。
+
+# STATS_DISCORD_WEBHOOK は毎朝のアクセス速報の落とし先（Discord の
+# 「サイトトラフィック」チャンネル）。未設定のあいだ cron は外へ一切出ない
+# ―― 誰も見ていないチャンネルへ毎朝投げ続けるより、鳴らない方がまし。
+#
+# CF_ACCOUNT_ID / CF_API_TOKEN は、速報が Analytics Engine を SQL で読むための鍵。
+# トークンの権限は **アカウント / Account Analytics / 読み取り** ひとつだけで足りる
+# （作り方は tools/stats.mjs の先頭。読み手が同じなので同じトークンを使い回せる）。
+# 🚨 アカウントIDも secret で入れる。このリポジトリは public。
