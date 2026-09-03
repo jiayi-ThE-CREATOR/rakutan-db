@@ -17,6 +17,91 @@
 
 ---
 
+## 2026-09-03 ｜ 毎朝のアクセス速報を流入元ごとに Discord へ（cron）｜ Claude → 次の人
+
+本人からの依頼。「毎日のアクセス数を、Instagram / LINE / X と**流入元を分けて** Discord に自動で流したい」。
+
+### 1. 何が動く状態か
+
+**まだ本番には出ていません。** ブランチ `feat/daily-traffic-report`（PR 待ち）。
+
+新しく数を取る仕組みは足していません。**すでにある `POST /api/hit` の blob2（パス）を読むだけ**です。
+`/api/hit` はパスを残しているので、配布ずみの `/l/<slug>` がそのまま流入元になります
+（＝**過去ぶんの数字も最初から埋まる**。クライアントは1行も変えていない）。
+
+    node tools/test_traffic_report.mjs        # 通過 65 件
+    npx wrangler dev --test-scheduled --local # 別の窓で
+    curl "http://localhost:8788/__scheduled?cron=0+23+*+*+*"
+
+ローカルで cron → Discord まで一通り通してあります（webhook を 127.0.0.1 に向けて実測）。
+
+- `worker/traffic.js`（新規）… slug の表・SQL・本文の組み立て・cron の中身
+- `worker/index.js` … `scheduled` を生やして `runDailyTraffic` を呼ぶだけ
+- `wrangler.toml` … `[triggers] crons = ["0 23 * * *"]`（**UTC。JST 08:00**）
+- `tools/traffic_preview.mjs`（新規）… けさ届くはずの本文を手元で見る（Discord へは送らない）
+
+**slug を2枚に割らないこと。** 配信（`TRACKING_SLUGS`）も集計も
+`worker/traffic.js` の `STATS_CHANNELS` 1枚から作っています。ここから漏れた slug は
+404 になるか「直接・その他」へ静かに化けます。テストが両方を見張ります。
+
+**LINE 公式アカウント用に `/l/line`（メッセージ）と `/l/line-rich`（リッチメニュー）を足しました**
+（従来の14本 → 16本）。オープンチャットの oc1〜5 とは別枠で数えます。
+
+### 2. 何をしていないか
+
+- ~~本物の SQL を通していない~~ → **2026-09-03 に本番データで確認ずみ**。
+  `node tools/traffic_preview.mjs` の結果が `node tools/stats.mjs` と一致（訪問12／表示12／検索42／詳細13）、
+  流入元も `/l/shunya`→個人配布5・`/l/ig`→Instagram1・`/` と `/mypage`→直接6 と正しく割れました。
+  `CF_ACCOUNT_ID` と `CF_API_TOKEN` は `~/.zshrc` に export ずみなので、そのまま打てば動きます。
+- **計測そのものが 2026-09-03 に始まったばかりで、まだ丸一日ぶんのデータがありません。**
+  だから 9/4 の朝に届く1通目が「初めてのまともな1日」になります。9/3 の朝に流すと 0件 の通知が出ます
+  （出ても壊れてはいない ―― 計測開始前だから）。
+- secret が3本未登録です（下記）。`STATS_DISCORD_WEBHOOK` が無いあいだ cron は外へ一切出ません。
+- **`/l/line`・`/l/line-rich` はまだどこにも貼っていません。** LINE 公式のリッチメニューと
+  自動応答のURLを差し替えるのは人の作業です。貼るまで LINE 公式ぶんは「直接・その他」に混ざります。
+- 流入元が分かるのは **slug 付きのリンクを踏んだ人だけ**です。裸のURL・ブックマーク・
+  口コミで聞いて手打ちした人は全部「直接・その他」。ここは仕様として諦めています
+  （referrer を送らせる案は、Instagram と LINE のアプリ内ブラウザが referrer を落とすので割に合わない）。
+- 入口が `/l/ig` でも、サイト内でロゴや About を押すとパスが `/` に変わります。だから
+  **流入元の正本は「訪問」**（タブを開いて最初の1回＝必ず入口で立つ）。ページ表示・検索・詳細は参考値です。
+
+### 3. 次の人が最初に打つコマンド
+
+    # ① 本文を手元で見る（鍵は ~/.zshrc に export ずみ。確認ずみなので任意）
+    node tools/traffic_preview.mjs
+
+    # ② PR を main へ入れる（約80秒で自動デプロイ）
+
+    # ③ secret を3本入れる（**wrangler.toml にもコードにも書かない。このリポジトリは public**）
+    npx wrangler secret put STATS_DISCORD_WEBHOOK   # Discord「サイトトラフィック」の webhook URL
+    npx wrangler secret put CF_ACCOUNT_ID
+    npx wrangler secret put CF_API_TOKEN            # 権限は アカウント / Account Analytics / 読み取り だけ
+
+    # ④ 翌朝 08:00 を待たずに確かめたいなら、Cloudflare のダッシュボード
+    #    （Workers → rakutan-db → 設定 → トリガー）から cron を手で1回実行する
+
+### 4. 踏んだ罠
+
+- 🚨 **Workers の入口モジュールは「関数以外の named export」を受け付けない。**
+  `export const STATS_SQL = "…"` を `worker/index.js` に置いたら、`wrangler dev` が
+  `Incorrect type for map entry 'STATS_SQL': the provided value is not of type
+  'function or ExportedHandler'` で**起動ごと**落ちました（＝本番なら全機能が死ぬ）。
+  単体テスト（node から import）では素通りするので、**入口を触ったら必ず一度 `wrangler dev` を起こす**。
+  表や SQL 文をテストから読みたいときは、入口ではない別ファイルに置く（それが `worker/traffic.js`）。
+  戻り防止として `test_traffic_report.mjs` が `worker/index.js` の `export const|let|var|class` を弾きます。
+- **cron の時刻は UTC。** `0 8 * * *` と書くと JST 17:00 に鳴ります。JST 08:00 は `0 23 * * *`（前日）。
+- Analytics Engine を読むときは `_sample_interval` を掛ける。件数が増えると Cloudflare 側が
+  間引いて保存するので、掛け忘れるとその日だけ静かに少なく出ます（`tools/stats.mjs` と同じ罠）。
+- 流入元の**内訳を出す条件は「その日いくつ来たか」ではなく「そのチャネルを何本の slug で配ってあるか」**。
+  本番データで見て直しました ―― 1本しか来なかった日に「個人配布 5」とだけ出ても、
+  誰の紹介で来た5人なのかが読めない（そこが知りたい欄なので）。X のように配布が1本だけの欄には付けません。
+- **0件のときに黙らない設計にしてあります。** Discord 上では「誰も来なかった」と
+  「計測が壊れた」が同じ沈黙に見えるためで、0でも失敗でも1通は鳴ります。
+- `tools/test_favorite.mjs` は**この作業より前から落ちています**（`#inspector .detail .favBtn` が
+  30秒出てこない）。`main` でも同じところで落ちるので、今回の変更とは無関係です。誰かの担当分。
+
+---
+
 ## 2026-09-02 ｜ ヘッダの組み替え（GUILD をロゴの隣へ／マイページを隅へ／口コミを塗る）｜ Claude → 次の人
 
 本人からの依頼、3点。

@@ -20,7 +20,19 @@
  *   FEEDBACK_DISCORD_WEBHOOK  … 意見箱の落とし先。未設定なら 503
  *   REVIEW_DISCORD_WEBHOOK    … 口コミ通知の落とし先。未設定なら通知しない
  *                               （投稿そのものは今まで通り成立する）
+ *   STATS_DISCORD_WEBHOOK     … 毎朝のアクセス速報の落とし先。未設定なら鳴らさない
+ *   CF_ACCOUNT_ID / CF_API_TOKEN … 速報が Analytics Engine を読むための鍵
+ *                               （権限は アカウント / Account Analytics / 読み取り だけ）
+ *
+ * cron（wrangler.toml の [triggers]）:
+ *   0 23 * * *  … JST 08:00。きのう一日ぶんのアクセスを Discord へ流す
  */
+
+/* 計測リンクの slug と、毎朝のアクセス速報。
+ * 🚨 別ファイルにしてあるのは、Workers の入口モジュールが
+ * **関数以外の named export を受け付けない**ため（`export const STATS_SQL = "…"`
+ * を index.js に置くと Worker が起動時に落ちる。2026-09-03 に実測）。 */
+import { TRACKING_SLUGS, runDailyTraffic } from "./traffic.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -939,13 +951,10 @@ async function handleFavorites(request, env) {
  * Analytics のページ別集計から slug が消えて数えられなくなるため
  * （マニュアルにも明記）。/l/kasai のまま、中身はトップと同じものを返す。
  * クエリ文字列（/?s=kasai）でも同じ理由で数えられない。
+ *
+ * slug の一覧（と、どのチャネルに数えるか）は worker/traffic.js の
+ * STATS_CHANNELS が正本。配信と集計で表を2枚に割らないため。
  */
-const TRACKING_SLUGS = new Set([
-  "kasai", "shunya", "kimura", "wang",
-  "oc1", "oc2", "oc3", "oc4", "oc5",
-  "ig", "story", "dm-a", "dm-b", "x",
-]);
-
 async function handleTrackingLink(request, env, slug) {
   if (!TRACKING_SLUGS.has(slug)) return null;
   // トップページの中身をそのまま返す。アドレス欄は /l/<slug> のまま残る。
@@ -1062,6 +1071,11 @@ export default {
     const res = await route(request, env, ctx);
     // 独自ドメイン以外（旧 workers.dev・ローカル）は検索に載せない。
     return new URL(request.url).hostname === CANONICAL_HOST ? res : markNoindex(res);
+  },
+
+  // wrangler.toml の [triggers]（JST 08:00）から呼ばれる。
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runDailyTraffic(env, new Date(event.scheduledTime)));
   },
 };
 
