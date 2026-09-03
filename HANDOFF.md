@@ -465,16 +465,22 @@ Worker は投稿を一件も見ておらず、「来た」を知る手段が無�
       ・基礎工学のための数学A（田中）
 
 - 科目は10件まで並べ、超えた分は「… ほか N 科目」。`allowed_mentions` は閉じてある
+- **本番でも実測ずみ（2026-09-02、デプロイ版 `e6b75df7`）**:
+  `GET /api/kuchikomi` は独自ドメイン・workers.dev とも 405、
+  `POST` は `{"status":"success"}` が 3.41秒で返る（＝Cloudflare の本番エッジ → GAS は通る）
 
 ### 2. 何をしていないか
 
-- ★**`REVIEW_DISCORD_WEBHOOK` が未登録**（人がやること）。登録するまで**投稿は今まで通り
-  成功するが通知は鳴らない**。意見箱と secret を分けてあるので別チャンネルに落とせる
-- ★**しゅんやさんのシートにテスト行が1行入っている**
-  （`【テスト】通知配線の疎通確認（この行は削除してください）` / 学部も `【テスト】…`）。**削除が要る**
-- **Cloudflare の本番エッジからの POST は未確認。** ローカルの workerd → 本番 GAS は
-  実測ずみだが、デプロイ後にもう1件だけ試すのが確実（同じ手順でテスト行が増えるので、
-  試したらまた消す）
+- ★**Discord に通知がまだ届いていない（調査中）。** マージ・デプロイ・secret 登録は
+  すべて済み、**GAS への中継は本番エッジで実測ずみ**（下記）。それでもチャンネルに
+  出ないので、残る疑いは「登録した URL が、作り直す前の消したウェブフックのもの」。
+  切り分けは ①その URL に直接 `curl` して新チャンネルに出るか見る
+  ②`npx wrangler secret put REVIEW_DISCORD_WEBHOOK` で入れ直す
+  ③`npx wrangler tail` を出しながら1件投稿して `review webhook failed <status>` を見る、の順
+- ★**しゅんやさんのシートにテスト行が2行入っている**
+  （`【テスト】通知配線の疎通確認…` と `【テスト】本番エッジの疎通確認…`。学部名も `【テスト】…`）。
+  **削除が要る**。調査でもう1件増えることがあるので、`【テスト】` で始まる行は全部消してよい
+- `REVIEW_DISCORD_WEBHOOK` は登録ずみ（`npx wrangler secret list` に出る）
 - `server.py`（ローカル開発サーバ）は `/api/kuchikomi` を持たない。**ローカルで投稿を
   試すには `npx wrangler dev`**。`server.py` に中継を足すかは未決（足せばローカルからも
   本番シートに書けてしまうので、足さない方がいいかもしれない）
@@ -485,10 +491,21 @@ Worker は投稿を一件も見ておらず、「来た」を知る手段が無�
 
 ### 3. 次の人が最初にやること
 
-    npx wrangler secret put REVIEW_DISCORD_WEBHOOK
+通知が届かない件の切り分け（上の ★1つめ）。ウェブフック URL を手元に用意して:
+
+    # ① URL 自体が生きているか（シートには何も書かない）
+    curl -X POST -H 'content-type: application/json' \
+      -d '{"content":"接線テスト"}' '<ウェブフックURL>'
+
+    # ② 入れ直す
+    cd ~/Developer/rakutan-db && npx wrangler secret put REVIEW_DISCORD_WEBHOOK
 
 URL は Discord の該当チャンネル → 編集 → 連携サービス → ウェブフックを作成 → コピー。
 （意見箱 `FEEDBACK_DISCORD_WEBHOOK` と同じ作り方。別チャンネルでよい）
+
+**ウェブフックを消したり作り直したりしたら、secret も入れ直すこと。** URL が変わるので、
+消した方の URL が secret に残っていると、投稿は成功するのに永久に鳴らない
+（Worker 側は Discord の失敗を握りつぶす設計なので、画面には何も出ない）。
 
 ### 4. 踏んだ罠
 
@@ -497,6 +514,13 @@ URL は Discord の該当チャンネル → 編集 → 連携サービス → �
 - **通知のために投稿を落とす設計にしてはいけない。** webhook 未設定・Discord 落ち・
   body 破損のどれが起きても中継だけは通る、をテストで固定してある。ここを緩めると
   一番混む日に投稿ごと死ぬ
+- **PR を出すと Workers Builds がブランチをビルドして「デプロイされていないバージョン」を
+  作る。** その状態だと `wrangler secret put` が
+  「the latest version of your Worker isn't currently deployed」で必ず失敗する。
+  慌てて未デプロイのバージョンを deploy すると、レビュー前のブランチが本番に出る。
+  **正しい順番は「PR をマージ → 自動デプロイ（約80秒）→ secret を入れる」**。
+  どうしてもマージ前に入れるなら `npx wrangler versions secret put`（新バージョンを
+  作るだけでデプロイはしない）
 - **`wrangler dev` は `.dev.vars` の変更を拾わないことがある。** 受け皿のポートを変えたら
   dev ごと再起動する（古い値のまま動いていて、通知が届かないように見えた）
 
