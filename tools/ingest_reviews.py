@@ -128,14 +128,28 @@ def _v4_date(raw: str | None) -> str | None:
     return f"{int(m.group(1)):02d}-{int(m.group(2)):02d}" if m else None
 
 
+def _v4_find(r: dict, *needles: str) -> str | None:
+    """列名にゆらぎがあっても拾う。シート側に列が増えたとき、こちらを
+    直さなくても効くようにしておく（列名は人が手で付けるため）。"""
+    for k in r:
+        if k and any(n in k for n in needles):
+            return (r.get(k) or "").strip() or None
+    return None
+
+
 def _v4_row(r: dict) -> dict:
     row = {k: r.get(v) for k, v in V4_COLS.items()}
     bring = (r.get("テスト") or "").strip()
     # 「テスト」1列に持ち込み可否が入る。空欄＝テストなし（フォームは「なし」を
-    # 選ぶと持ち込みを聞かない）。判断の材料は原文として exam_bring に渡す。
-    row["exam"] = "あり" if bring else "なし"
+    # 選ぶと持ち込みを聞かない）。ただし「テスト有無」列がシートに増えたら、
+    # 推測より本人の回答を優先する。
+    presence = _v4_find(r, "テスト有無", "テストの有無")
+    row["exam"] = presence if presence else ("あり" if bring else "なし")
     row["exam_bring"] = bring
-    row["exam_hard10"] = None  # v4 のシートには難易度の列が無い
+    # 難易度（1〜10）。**サイトのフォームは聞いて送っているのに、v4 の
+    # スプレッドシートには列が無い**（外部サイトから統合したときの取りこぼし。
+    # 2026-09-03 に判明）。列が増えたらここが勝手に拾う。
+    row["exam_hard10"] = _v4_find(r, "難易度")
     row["date"] = _v4_date(r.get(V4_MARK))
     return row
 
@@ -146,7 +160,16 @@ def read_rows(path: str) -> list[dict]:
     head = text.splitlines()[0] if text else ""
     if V4_MARK in head:
         delim = "," if head.count(",") >= head.count("\t") else "\t"
-        return [_v4_row(r) for r in csv.DictReader(io.StringIO(text), delimiter=delim)]
+        rows = [_v4_row(r) for r in csv.DictReader(io.StringIO(text), delimiter=delim)]
+        # 黙って欠けさせない。ここが無警告だったせいで、難易度が1週間ぶん
+        # 失われていることに誰も気づかなかった（2026-09-03）。
+        if "難易度" not in head:
+            print("  ⚠ シートに「難易度」の列がありません。"
+                  "サイトのフォームは聞いて送っているので、"
+                  "テストの重さの主な入力が丸ごと欠けます。")
+            print("    → スプレッドシート側に列を足すと、ここは自動で拾います"
+                  "（このスクリプトの修正は不要）。")
+        return rows
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
 
 
