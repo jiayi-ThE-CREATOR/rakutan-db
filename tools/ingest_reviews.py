@@ -1,6 +1,19 @@
-"""口コミフォームの書き出し（TSV）を data/reviews.json に取り込む。
+"""口コミフォームの書き出しを data/reviews.json に取り込む。
 
-フォーム: https://magnificent-scone-0d2071.netlify.app/
+**2つの書き出し形に対応している**（ヘッダを見て自動で切り替える）:
+
+  v4  サイト内フォーム `/kuchikomi` → しゅんやさんのスプレッドシート（CSV・日本語ヘッダ）
+      1列目が「タイムスタンプ」ならこちら。2026-08 以降の投稿はすべてこの形。
+      旧フォームとの違いは2つあり、どちらも黙って埋めない:
+        ・「テスト」1列に **持ち込み可否** が入る（旧は 有無 と 持ち込みの2列）。
+          空欄は「テストなし」として読む ―― フォームは「なし」を選ぶと
+          持ち込みを聞かないため。原文は exam_bring_raw に残るのでやり直せる
+        ・**テスト難易度（1〜10）の列が無い** → exam_hard10 は埋まらない。
+          サイトのフォームは聞いているので、シート側に列が増えたらここも直す
+
+  旧  Netlify のフォーム（TSV・英語ヘッダ）。2026-08 より前の144件がこの形。
+
+旧フォーム: https://magnificent-scone-0d2071.netlify.app/
 設問と列の対応（フォーム側を変えたらここも直す）:
 
     attendance    2 出席は取られた？          毎回 / たまに / なし / その他
@@ -21,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import re
 import sys
@@ -90,6 +104,50 @@ def _int(s: str | None) -> int | None:
 
 def _yes(s: str | None) -> bool:
     return (s or "").strip() == "あり"
+
+
+# ── 入力の形 ──────────────────────────────────────
+# v4（サイト内フォーム）の列名 → このスクリプトの内部キー。
+# 内部キーは旧フォームの英語ヘッダに合わせてある（normalize を1つに保つため）。
+V4_MARK = "タイムスタンプ"
+V4_COLS = {
+    "code": "科目コード",
+    "attendance": "出欠",
+    "in_class": "授業中の課題",
+    "out_class": "授業外の課題",
+    "report": "レポート有無",
+    "report_words": "レポート字数",
+    "note": "一言コメント",
+    "taken_year": "受講年度",
+}
+
+
+def _v4_date(raw: str | None) -> str | None:
+    """「2026/08/29 18:03:12」→「08-29」。旧フォームの date 列と形を揃える。"""
+    m = re.search(r"\d{4}/(\d{1,2})/(\d{1,2})", raw or "")
+    return f"{int(m.group(1)):02d}-{int(m.group(2)):02d}" if m else None
+
+
+def _v4_row(r: dict) -> dict:
+    row = {k: r.get(v) for k, v in V4_COLS.items()}
+    bring = (r.get("テスト") or "").strip()
+    # 「テスト」1列に持ち込み可否が入る。空欄＝テストなし（フォームは「なし」を
+    # 選ぶと持ち込みを聞かない）。判断の材料は原文として exam_bring に渡す。
+    row["exam"] = "あり" if bring else "なし"
+    row["exam_bring"] = bring
+    row["exam_hard10"] = None  # v4 のシートには難易度の列が無い
+    row["date"] = _v4_date(r.get(V4_MARK))
+    return row
+
+
+def read_rows(path: str) -> list[dict]:
+    """書き出しを読んで、内部キーの dict にして返す。形はヘッダで見分ける。"""
+    text = Path(path).read_text(encoding="utf-8-sig")
+    head = text.splitlines()[0] if text else ""
+    if V4_MARK in head:
+        delim = "," if head.count(",") >= head.count("\t") else "\t"
+        return [_v4_row(r) for r in csv.DictReader(io.StringIO(text), delimiter=delim)]
+    return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
 
 
 def normalize(row: dict) -> dict:
@@ -188,8 +246,7 @@ def main() -> None:
         return
 
     known = {c["id"] for c in json.loads(COURSES.read_text())["courses"]}
-    with open(args.tsv, encoding="utf-8") as f:
-        rows = [normalize(r) for r in csv.DictReader(f, delimiter="\t")]
+    rows = [normalize(r) for r in read_rows(args.tsv)]
 
     hit = [r for r in rows if r["course_id"] in known]
     miss = [r for r in rows if r["course_id"] not in known]
