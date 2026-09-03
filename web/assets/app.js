@@ -933,7 +933,15 @@ function showDetail(c, article){
    読み込みが進むほど1回あたりの作業量が増えていた（雪だるま式）。 */
 function bindCardHandler(article, c){
   const h = article.querySelector(".head");
-  const t = () => showDetail(c, article);
+  /* 「詳細を開いた回数」を数えるのはここ。showDetail の中ではない
+     ―― showDetail は画面幅が変わったときにも呼ばれるので、そこで数えると
+     PC で窓を縮めただけで1件になる。スマホの .head は開閉の両方なので、
+     開くときだけ数える（rkTrack は analytics.js、除外された端末では何もしない）。 */
+  const t = () => {
+    const opening = isDesktop() || !article.classList.contains("open");
+    showDetail(c, article);
+    if (opening) window.rkTrack?.("detail");
+  };
   h.onclick = t;
   h.onkeydown = e => { if (e.key==="Enter"||e.key===" "){ e.preventDefault(); t(); } };
 }
@@ -1481,7 +1489,11 @@ function applyPostMode() {
     $("#tog").textContent = o ? "スライダーを閉じる" : "スライダーで細かく調整する";
   };
   let t; $("#q").oninput = e => { clearTimeout(t);
-    t = setTimeout(() => { state.q = e.target.value; load(); }, 200); };
+    t = setTimeout(() => { state.q = e.target.value; load();
+      /* 打鍵が止まるたびに確定するので、第2引数で同じ語の重複を落とす。
+         語そのものは送らない（analytics.js の中で比較して捨てるだけ）。 */
+      if (state.q.trim()) window.rkTrack?.("search", state.q.trim());
+    }, 200); };
   $("#sort").onchange = e => { state.sort = e.target.value; load(); };
   /* 開屏の問診の答え。絞り込みに即あてて描き直す ――
      答えたのに画面が変わらないと、聞かれ損になる。 */

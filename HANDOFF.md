@@ -137,6 +137,111 @@
 
 ---
 
+## 2026-09-03 ｜ 「本当の訪問数」を数えられるようにした ｜ Claude → 次の人
+
+本人から「AI のクローラや自分たちの閲覧が混ざっていない数字が欲しい」。
+調べた結果、**混ざっていたのは思っていた場所ではなかった**ので、まずそこから。
+
+- Cloudflare の数字は2種類ある。**Workers のリクエスト数**（サーバ側）は
+  GPTBot・ClaudeBot・スキャナまで全部入りで、これは訪問数として使えない。
+  一方 **Web Analytics の beacon** はブラウザで JS が動いたときだけ上がるので、
+  JS を動かさないクローラは最初から入っていない
+- 残っていた穴は2つ ―― ① ダッシュボードで **`Exclude Bots = Yes`** を
+  掛けていなかった（JS をレンダリングする Googlebot はここで落ちる）。
+  これは本人が 9/2 に設定ずみ。② 自分たちの閲覧。これが今回のコード
+
+### 1. 何が動く状態か
+
+```bash
+node tools/test_analytics.mjs        # OK 65（偽ブラウザ＋Worker の両方）
+python3 -m http.server 8140 --directory web &
+node tools/test_sort.mjs             # OK
+node tools/test_mypage.mjs           # OK 51 checks
+python3 tools/test_shell_inject.py   # OK
+```
+
+**PR #95（2026-09-03 マージずみ）と PR #97 の2本立て。**
+#97 は当初 #96 として #95 の上に積んでいたが、#95 を `--delete-branch` 付きで
+マージした時点で base ごと消えて自動クローズされた（GitHub は再オープンさせない）。
+作り直したのが #97 で、中身は同じ・main の上に rebase ずみ。
+
+**#95 ― 計測の入口を1本に。** `web/assets/analytics.js` が唯一の正本になり、
+6ページに複製されていた beacon のタグが消えた。チームに配る URL:
+
+    https://rakuhan.nocode-sol.co.jp/?nostats=1   … 以後この端末を数えない
+    https://rakuhan.nocode-sol.co.jp/?nostats=0   … 数に戻す
+
+踏むと帯が4秒出る。印は localStorage の `rk_nostats` ひとつ。
+**ブラウザごと・端末ごとに1回ずつ**必要（シークレットには残らない）。
+
+**#97 ― 自前の計測 `POST /api/hit`。** Analytics Engine（`STATS` 束縛・
+データセット `rakutan_use`）へ3種類だけ書く: `pv` / `search` / `detail`。
+読み出しは `CF_ACCOUNT_ID=… CF_API_TOKEN=… node tools/stats.mjs [日数]`。
+Cookie・端末ID・IP・**検索語**・科目IDは送っていない（送るのはパスだけで、
+クエリは Worker 側で落としている）。
+
+実ブラウザで確認ずみ ―― 読み込みで `{e:"pv",n:1}`、カードを開いて
+`{e:"detail"}`、同じ語で2回検索して `search` は1件、`?nostats=1` のあとは0件。
+
+### 2. 何をしていないか
+
+- **まだデプロイしていない。** `[[analytics_engine_datasets]]` を足したので、
+  マージ後の自動デプロイで初めて `STATS` が生える。それまで `/api/hit` は
+  204 を返すだけで何も記録しない（束縛が無い環境で落ちないことはテストずみ）
+- **API トークンを作っていない。** `tools/stats.mjs` は
+  「アカウント / Account Analytics / 読み取り」だけのトークンが要る。
+  作れるのは本番アカウントの持ち主（政岡さん）。作り方は stats.mjs の先頭
+- **広告ブロッカーにどれくらい塞がれているかは、まだ数字が無い。**
+  デプロイ後、Web Analytics の数と `stats.mjs` の `pv` を並べて初めて分かる
+- **無料枠（Analytics Engine 1日10万件）の見張りが無い。** 履修登録の山で
+  近づいたら、まず `pv` を落として `search` / `detail` だけにする
+- **`/about` に説明を足していない。** 元から利用者向けの計測の記載が無く、
+  今回も個人を特定する情報を増やしていないため、文面を触っていない
+- `tools/test_favorite.mjs` は落ちるが **main でも同じように落ちる**
+  （`#inspector .detail .favBtn` が出ない）。今回の変更とは無関係
+
+### 3. 次の人が最初にやること
+
+```bash
+gh pr merge 97 --squash --delete-branch   # #95 はマージずみ。約80秒で自動デプロイ
+# デプロイ後、自分の端末を除外してから数分待って:
+CF_ACCOUNT_ID=<32桁> CF_API_TOKEN=<作ったトークン> node tools/stats.mjs 7
+```
+
+`stats.mjs` が「まだ1件も届いていません」と言ったら、疑う順番は
+① まだデプロイされていない ② **nginx が Origin と Referer を両方落としている**
+③ 自分の端末が `?nostats=1` で除外されている。
+
+### 4. 踏んだ罠
+
+- **Web Analytics の Rules（パスで計測を止める機能）は使えない。**
+  あれは Cloudflare に DNS を向けたサイト専用で、独自ドメインは
+  nginx（VPS）から Worker へ中継している＝向けていない。除外は自前で持つしかない
+- **`data-cf-beacon` 属性は、動的に足したタグで読まれる保証が無い。**
+  トークンは `?token=…` のクエリで渡す（Cloudflare 公式のタグマネージャ向けの書き方）
+- **`showDetail()` の中で数えてはいけない。** あの関数は画面幅が変わったときにも
+  呼ばれるので、PC で窓を縮めただけで「詳細を開いた」が1件増える。
+  数えるのは `bindCardHandler` のクリック側
+- **`/api/hit` で Origin を必須にしてはいけない。** nginx がヘッダを落とす設定に
+  変わった日に、集計が誰にも気づかれずゼロになる。だから
+  「**合わない Origin だけを弾く**（無いものは通す）」にしてある
+- **Analytics Engine の集計では `_sample_interval` を必ず掛ける。**
+  件数が増えると Cloudflare が間引いて保存するので、掛け忘れるとその日だけ
+  静かに少なく出る（`tools/stats.mjs` の SQL に入れてある）
+- **積んだ PR（stacked PR）の下の段を `--delete-branch` でマージしてはいけない。**
+  base ブランチが消えた瞬間、上の段の PR は **retarget ではなく自動クローズ**され、
+  しかも GitHub は再オープンさせてくれない（作り直すしかない）。
+  下の段は `--delete-branch` を付けずにマージし、上の段の base を main に
+  付け替えてからブランチを消すこと
+- **`sendBeacon` は DevTools の Network で `ping` 型として出る。**
+  「Fetch/XHR」で絞ると **1件も見えない**ので、動いていないと誤診する。
+  「全部」にしてから `hit` で絞ること
+- **PM 本人のブラウザで beacon が `ERR_BLOCKED_BY_CLIENT` になっていた**（2026-09-03 実測）。
+  広告ブロッカーが効いているのは仮説ではなく事実で、
+  Cloudflare Web Analytics の数字が下限であることの裏付けになる
+
+---
+
 ## 2026-09-02 ｜ マイページの「LINE 連携」｜ Claude → 次の人
 
 本人から「マイページに LINE のログイン窓口を」という依頼。ただし本人の指定で
