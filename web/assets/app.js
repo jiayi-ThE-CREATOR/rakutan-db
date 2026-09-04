@@ -526,7 +526,7 @@ function card(c){
   return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
-        <h3 class="title">${esc(c.title)}</h3>
+        <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
         ${rv.badge}
       </div>
@@ -1339,6 +1339,7 @@ async function load(retry){
   courses = d.results;
   buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
   $("#count").textContent = d.count;
+  syncRailTog();   // 条件が変われば畳んでいるときのバッジも変わる
   if (d.count){
     renderPage(1);
   } else {
@@ -1346,6 +1347,81 @@ async function load(retry){
       `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
     renderPager();
   }
+}
+
+/* ── 左の絞り込みの開閉 ─────────────────
+ * 畳むと中カラムが 284〜304px 広がり、#list が自動で2列になる
+ * （列数を決めているのは app.css の auto-fill。ここでは幅を変えるだけ）。
+ * 768px 未満ではボタンを出していない（.rail が横に並んでいないので意味が無い）。
+ */
+const mqWide = window.matchMedia("(min-width:768px)");
+
+/* 畳んでいるあいだ、効いている条件が画面から消える。数だけでもバッジに
+   出さないと「なぜ12件しか出ないのか」がどこにも書かれていない状態になる。
+   数え方は「左カラムで押せるもの」に揃える ―― 検索語と並び順は .bar 側に
+   見えたままなので数えない。学部（state.faculty / track）も、絞り込みには
+   効かず区分の並べ替えにしか使っていないので数えない（state の宣言参照）。
+   配点は軸ごとに1つと数える。チップ「出席なし」等は state.cond ではなく
+   state.caps を 0 にするので（chipOn 参照）、二重には数えていない。 */
+function activeFilterCount(){
+  let n = 0;
+  if (state.day) n++;                                   // 空きコマ（曜日と限は対）
+  n += state.cond.size;                                 // 条件チップ＋口コミあり
+  n += CAP_AXES.filter(k => state.caps[k] < NO_CAP).length;
+  if (state.year !== "all") n++;
+  if (state.sem  !== "all") n++;
+  n += state.division.size;                             // 卒業要件の区分
+  return n;
+}
+
+function syncRailTog(){
+  const btn = $("#railTog");
+  if (!btn) return;
+  const off = $("#workbench").classList.contains("railOff");
+  const n = activeFilterCount();
+  btn.setAttribute("aria-expanded", String(!off));
+  $("#railTogLabel").textContent = off ? "絞り込み" : "絞り込みを隠す";
+  const b = $("#railTogCount");
+  b.textContent = n;
+  b.hidden = !(off && n > 0);
+}
+
+function setRail(open){
+  $("#workbench").classList.toggle("railOff", !open);
+  rkStore.setRailOpen(open);
+  syncRailTog();
+}
+
+/* ── 長い科目名をホバーで流し読みさせる ─────────
+ * 科目名は2行で切ってある（app.css）。実データで2行に収まらないのは
+ * 1% 未満だが、そこは「学問への扉（…）」のように前半が共通で、
+ * 括弧の中だけが違う。切ったままだと見分けが付かないので、乗せたときだけ
+ * はみ出したぶんを上へ流す。
+ *
+ * 距離は測るしかない（幅もフォントも実行時にしか決まらない）。
+ * mqOn でクランプを外して全高を測り、次のフレームで mqRun を足して動かす。
+ */
+const MQ_SPEED = 45;      // px/秒。100px はみ出して約2.2秒
+function mqStart(t){
+  if (!t || !mqWide.matches || t.classList.contains("mqOn")) return;
+  clearTimeout(t._mqT);
+  t.classList.add("mqOn");
+  const inner = t.firstElementChild;
+  const shift = inner ? inner.offsetHeight - t.clientHeight : 0;
+  if (shift <= 1){ t.classList.remove("mqOn"); return; }   // 2行に収まっている
+  t.style.setProperty("--mqShift", shift + "px");
+  t.style.setProperty("--mqDur", Math.max(0.6, shift / MQ_SPEED).toFixed(2) + "s");
+  /* 動きを止めている人には流れないので、標準のツールチップで全文を読ませる。 */
+  if (window.matchMedia("(prefers-reduced-motion:reduce)").matches && !t.title){
+    t.title = inner.textContent;
+  }
+  requestAnimationFrame(() => { if (t.classList.contains("mqOn")) t.classList.add("mqRun"); });
+}
+function mqStop(t){
+  if (!t || !t.classList.contains("mqOn")) return;
+  t.classList.remove("mqRun");        // 戻りは .titleT の .2s で速く戻る
+  clearTimeout(t._mqT);
+  t._mqT = setTimeout(() => t.classList.remove("mqOn"), 250);
 }
 
 /* 口コミ選択肢は「口コミを書く」を押した時だけ作る。
@@ -1607,6 +1683,30 @@ function applyPostMode() {
     const o = $("#sliders").classList.toggle("open");
     $("#tog").textContent = o ? "配点スライダーを閉じる" : "配点で細かくしぼる";
   };
+
+  /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると
+     復元のための classList 操作が「押した」ことになってしまう。 */
+  setRail(rkStore.getRailOpen());
+  $("#railTog").onclick = () => {
+    const open = $("#workbench").classList.contains("railOff");
+    setRail(open);
+    window.rkTrack?.("rail_toggle", open ? "open" : "close");
+  };
+
+  /* 長い科目名の流し読み。#list は描き直すたびに中身が入れ替わるので、
+     カードごとではなく #list に1つだけ張る。カード内での移動（見出し→タグ等）で
+     止まらないよう、relatedTarget が同じカードの中なら何もしない。 */
+  const listEl = $("#list");
+  const titleOf = e => {
+    const card = e.target.closest?.(".card");
+    if (!card || card.contains(e.relatedTarget)) return null;
+    return card.querySelector(".title");
+  };
+  listEl.addEventListener("mouseover", e => mqStart(titleOf(e)));
+  listEl.addEventListener("mouseout",  e => mqStop(titleOf(e)));
+  /* キーボードで辿る人にも同じものを見せる（.head は role="button" tabindex="0"）。 */
+  listEl.addEventListener("focusin",  e => mqStart(titleOf(e)));
+  listEl.addEventListener("focusout", e => mqStop(titleOf(e)));
   let t; $("#q").oninput = e => { clearTimeout(t);
     t = setTimeout(() => { state.q = e.target.value; load();
       /* 打鍵が止まるたびに確定するので、第2引数で同じ語の重複を落とす。
