@@ -71,6 +71,15 @@ for (const k of AXES) {
   check(fits, `${k} の行がはみ出している（目盛りの % が読めない）`);
 }
 
+/* 目盛りは 5 刻み。実データに 5%・15%・25%・35% … の配点が 1,100件ぶんあり
+   （10の倍数でない配点を持つ科目は 708件＝9.0%）、10刻みだとその位置で
+   止まれない。とくに低いほう（5/15/25%）は「出席がほとんど効かない授業」を
+   探すときに効く（15%で+134件、25%で+108件）。 */
+for (const k of AXES) {
+  check(await p.$eval(`#s_${k}`, e => e.step) === "5",
+        `${k} のスライダーが 5 刻みでない`);
+}
+
 const all = await count();
 for (const k of AXES) {
   check(await capOf(k) === 100, `${k} の既定が 100% でない`);
@@ -133,6 +142,17 @@ check(/cap_attendance=20/.test(url), `URL に上限が載っていない: ${url}
 await p.goto(url, { waitUntil: "networkidle" });
 await p.waitForSelector("#list > .card, #list");
 check(await capOf("attendance") === 20, "URL から開き直すと上限が復元されない");
+
+/* 5刻みの位置が URL の往復で 10刻みへ丸められないこと。
+   35% は実データに 90件ぶんある（出席の上限35%で+42件）。 */
+await setCap("attendance", 35);
+await p.waitForTimeout(200);
+const at35 = await count();
+await p.goto(p.url(), { waitUntil: "networkidle" });
+await p.waitForSelector("#list > .card, #list");
+check(await capOf("attendance") === 35,
+      `35% が往復で ${await capOf("attendance")}% に丸められた`);
+check(await count() === at35, "35% の件数が往復で変わった");
 
 check(errs.length === 0, `ページ内で例外: ${errs.join(" / ")}`);
 

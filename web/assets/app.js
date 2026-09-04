@@ -345,7 +345,7 @@ function buildFaculty(facets){
 function buildSliders(){
   $("#sliders").innerHTML = CAP_AXES.map(k =>
     `<div class="sl"><label for="s_${k}">${esc(CAP_LABEL[k])}</label>
-       <input type="range" id="s_${k}" min="0" max="100" step="10"
+       <input type="range" id="s_${k}" min="0" max="100" step="${CAP_STEP}"
               value="${state.caps[k]}" data-k="${k}"
               aria-label="${esc(CAP_LABEL[k])}が成績に占める割合の上限">
        <span class="v" id="v_${k}">${state.caps[k]}%</span></div>`).join("");
@@ -738,6 +738,14 @@ const evalKnown = c => !!c.eval_ratio && !c.eval_unclassified;
    規模・形態（scale）は成績評価の内訳ではないので上限をかけられない。 */
 const CAP_AXES = ["attendance", "exam", "quiz", "report"];
 const NO_CAP = 100;
+/* 目盛りの刻み。**実データを見て 10 から 5 にした（2026-09-04）。**
+   配点の値のうち 7.1%（のべ1,100個）が「5の倍数だが10の倍数でない」もので、
+   10の倍数でない配点を持つ科目は 708件＝9.0% ある。10刻みだとその位置で
+   止まれない。効くのは低いほう ―― 出席の上限を 15% にすると 10% より
+   +134件、25% で +108件（「出席がほとんど効かない授業」を探す領域）。
+   5の倍数ですらない値も 1.5% あるが（33/34/66/67% ＝ 1/3・2/3 の分け方）、
+   5刻みなら 33% は上限35% で拾えるので 1刻み（101段）にはしない。 */
+const CAP_STEP = 5;
 const NO_CAPS = { attendance:NO_CAP, exam:NO_CAP, quiz:NO_CAP, report:NO_CAP };
 const CAP_LABEL = { attendance:"出席・平常点", exam:"期末テスト",
                     quiz:"小テスト", report:"レポート" };
@@ -1526,11 +1534,14 @@ function applyPostMode() {
     const urlFaculty = urlParams.get("faculty");
     const urlYear = urlParams.get("year");
     /* 配点の上限。共有されたURLから開いた人が同じ結果を見られるようにする。
-       10刻みに丸める ―― スライダーの目盛りと違う値が入ると、つまみの位置と
-       件数が食い違って「なぜこの件数なのか」が画面から読めなくなる。 */
+       目盛りに合わせて丸める ―― スライダーの位置と違う値が入ると、つまみの
+       位置と件数が食い違って「なぜこの件数なのか」が画面から読めなくなる。
+       **CAP_STEP を直書きしないこと**（10 のまま置いていて、35% がURLの
+       往復で 40% に化けた。tools/test_haiten_ui.mjs が見張っている）。 */
     for (const k of CAP_AXES){
       const v = parseInt(urlParams.get("cap_" + k), 10);
-      if (Number.isFinite(v)) state.caps[k] = Math.max(0, Math.min(100, Math.round(v / 10) * 10));
+      if (Number.isFinite(v))
+        state.caps[k] = Math.max(0, Math.min(100, Math.round(v / CAP_STEP) * CAP_STEP));
     }
 
     /* LINE 公式アカウントの問診から届いた場合だけ、その回答を「本人の回答」
