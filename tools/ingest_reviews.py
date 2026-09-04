@@ -183,12 +183,23 @@ def read_rows(path: str) -> list[dict]:
     return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
 
 
+# 科目コードは KOAN で6桁ちょうど。うち 3,423件（全7,906件の43%）が
+# 「0」で始まる。スプレッドシートがその列を数値として扱うと先頭の0が落ち、
+# 081001 が 81001 になって **どの科目にも当たらないまま黙って捨てられる**。
+# 2026-09-04 に実際に1件出て、政岡さんが手で直した。
+# 手で直し続ける類のものではないので、ここで揃える。
+# （00Z008 のように英字を含むコードは数値化されないので影響を受けない）
+def _course_id(raw: str | None) -> str:
+    code = (raw or "").strip()
+    return code.zfill(6) if code.isdigit() and len(code) < 6 else code
+
+
 def normalize(row: dict) -> dict:
     """1行 → 保存する形。判断はここに寄せ、集計側では素直に平均するだけにする。"""
     att = (row.get("attendance") or "").strip()
     bring = (row.get("exam_bring") or "").strip() or None
     return {
-        "course_id": (row.get("code") or "").strip(),
+        "course_id": _course_id(row.get("code")),
         # 選択肢どおりでない答えは台帳（data/sonota.json）で1件ずつ判断する
         "attendance": ATTEND[att] if att in ATTEND
                       else _lookup("attendance", att) if att else None,
