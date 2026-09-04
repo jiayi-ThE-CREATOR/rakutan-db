@@ -21,7 +21,10 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
    2026-08-26 まで 1年・秋冬 が既定で、初回表示は 319件だった。
    server.py の search() の既定も同じ値にしてある。片方だけ変えないこと。 */
 const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), sort:"fit",
-                preset:"とにかく軽い", weights:null,
+                /* 配点の上限（%）。100＝制限なし。2026-09-03 に「重み 0〜5」から
+                   置き換えた。**チップ「出席なし」等はここと同じ状態を指す** ――
+                   別々に持つと片方を押したときにもう片方と食い違う。 */
+                caps:{ attendance:100, exam:100, quiz:100, report:100 },
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
                 faculty:"", track:"", division:new Set() };
@@ -54,8 +57,7 @@ function qs(){
   if (state.faculty) p.set("faculty", state.faculty);
   if (state.track) p.set("track", state.track);
   state.division.forEach(d => p.append("division", d));
-  if (state.weights) for (const [k,v] of Object.entries(state.weights)) p.set("w_"+k, v);
-  else if (state.preset) p.set("preset", state.preset);
+  for (const k of CAP_AXES) if (state.caps[k] < NO_CAP) p.set("cap_" + k, state.caps[k]);
   return p;
 }
 
@@ -334,27 +336,53 @@ function buildFaculty(facets){
   });
 }
 
-/* ── 優先度 ───────────────────────────── */
-function buildPresets(){
-  $("#presets").innerHTML = Object.keys(META.presets).map(name =>
-    `<button class="chip${state.preset===name && !state.weights ? " on":""}" data-p="${esc(name)}">${esc(name)}</button>`).join("");
-  $("#presets").querySelectorAll("button").forEach(b => b.onclick = () => {
-    state.preset = b.dataset.p; state.weights = null;
-    buildPresets(); buildSliders(); load();
-  });
-}
+/* ── 配点でしぼる（上限スライダー） ───────────────
+   数字はシラバスの「成績評価の内訳」そのもの。
+   「出席率 30%」＝ 出席・平常点が成績の30%以下の科目だけ出す、の意味。
+
+   0% にすると、対応する条件チップ（出席なし・小テストなし）と**同じ状態**に
+   なる。チップはこのスライダーのショートカットであって別の判定ではない。 */
 function buildSliders(){
-  const w = state.weights || META.presets[state.preset];
-  $("#sliders").innerHTML = Object.entries(META.axis_labels).map(([k,label]) =>
-    `<div class="sl"><label for="s_${k}">${esc(label)}</label>
-       <input type="range" id="s_${k}" min="0" max="5" value="${w[k]}" data-k="${k}">
-       <span class="v" id="v_${k}">${w[k]}</span></div>`).join("");
+  $("#sliders").innerHTML = CAP_AXES.map(k =>
+    `<div class="sl"><label for="s_${k}">${esc(CAP_LABEL[k])}</label>
+       <input type="range" id="s_${k}" min="0" max="100" step="${CAP_STEP}"
+              value="${state.caps[k]}" data-k="${k}"
+              aria-label="${esc(CAP_LABEL[k])}が成績に占める割合の上限">
+       <span class="v" id="v_${k}">${state.caps[k]}%</span></div>`).join("");
   $("#sliders").querySelectorAll("input").forEach(i => i.oninput = () => {
-    state.weights = state.weights || {...META.presets[state.preset]};
-    state.weights[i.dataset.k] = +i.value;
-    $("#v_"+i.dataset.k).textContent = i.value;
-    buildPresets(); load();
+    state.caps[i.dataset.k] = +i.value;
+    $("#v_"+i.dataset.k).textContent = i.value + "%";
+    /* チップの点灯はここから導く（別に持たない）。件数も動くので描き直す。 */
+    syncCaps();
+    load();
   });
+  updateCapWarn();
+}
+
+/* 上限の合計が100%を下回ると、成績評価の内訳の合計が100%である以上、
+   条件を満たす科目は**原理的に存在しない**。0件になってから気付かせるのでは
+   なく、そうなる前に理由を出す。score.py の caps_impossible と同じ判定。 */
+function updateCapWarn(){
+  const el = $("#capWarn");
+  if (el) el.hidden = !capsImpossible(state.caps);
+}
+
+/* スライダー・チップ・URL を1つの状態から描き直す。 */
+function syncCaps(){
+  updateCapWarn();
+  for (const k of CAP_AXES){
+    const i = $("#s_"+k);
+    if (i && +i.value !== state.caps[k]){
+      i.value = state.caps[k];
+      $("#v_"+k).textContent = state.caps[k] + "%";
+    }
+  }
+  const u = new URL(location.href);
+  for (const k of CAP_AXES){
+    if (state.caps[k] < NO_CAP) u.searchParams.set("cap_"+k, state.caps[k]);
+    else u.searchParams.delete("cap_"+k);
+  }
+  history.replaceState(history.state, "", u.pathname + u.search + u.hash);
 }
 
 /* ── 条件チップ ───────────────────────── */
@@ -364,12 +392,25 @@ function buildSliders(){
    ここに名前を足すと「条件」から「口コミ」の枠へ移る。 */
 const TRUST_CONDS = ["口コミあり"];
 
+/* 配点系チップが点いているか＝そのチップの軸がすべて 0% か。
+   state.cond には入れない（入れると同じことを2か所で持つことになる）。 */
+const chipOn = c => c in CHIP_CAPS
+  ? Object.keys(CHIP_CAPS[c]).every(k => state.caps[k] === 0)
+  : state.cond.has(c);
+
 function chipRow(el, names, facets){
   el.innerHTML = names.map(c =>
-    `<button class="chip${state.cond.has(c)?" on":""}" data-c="${esc(c)}">${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`).join("");
+    `<button class="chip${chipOn(c)?" on":""}" data-c="${esc(c)}">${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`).join("");
   el.querySelectorAll("button").forEach(b => b.onclick = () => {
     const c = b.dataset.c;
-    state.cond.has(c) ? state.cond.delete(c) : state.cond.add(c);
+    if (c in CHIP_CAPS){
+      /* チップはスライダーのショートカット。押したらスライダーが動く。 */
+      const on = chipOn(c);
+      for (const k of Object.keys(CHIP_CAPS[c])) state.caps[k] = on ? NO_CAP : 0;
+      syncCaps();
+    } else {
+      state.cond.has(c) ? state.cond.delete(c) : state.cond.add(c);
+    }
     /* load() より先に呼ぶ。後だと、外した直後の1回だけ
        意味を失った並び順のまま描いてしまう。 */
     syncReviewSortOptions();
@@ -489,7 +530,7 @@ function card(c){
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
         ${rv.badge}
       </div>
-      <div class="fit"><b>${m.fit ?? "—"}</b><small>相性</small></div>
+      <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
         ${r.needs_review ? `<span class="bandNote">テストの難しさは誰も確認していません</span>` : ""}</div>
       ${rv.alert}
@@ -693,6 +734,52 @@ const reviewCount = c => ((c.reviews || {}).n) || 0;
    内訳そのものが取れていない152件も同じ理由で外す。 */
 const evalKnown = c => !!c.eval_ratio && !c.eval_unclassified;
 
+/* ── 配点の上限（score.py の passes_caps / caps_impossible と同じ） ──
+   規模・形態（scale）は成績評価の内訳ではないので上限をかけられない。 */
+const CAP_AXES = ["attendance", "exam", "quiz", "report"];
+const NO_CAP = 100;
+/* 目盛りの刻み。**10 で確定（2026-09-04 wangさんの判断）。**
+
+   5 刻みも検討して実データを数えた。結論は「取りこぼしは出るが、10 でよい」:
+     ・配点の値の 7.1%（のべ1,100個）は「5の倍数だが10の倍数でない」
+     ・10の倍数でない配点を持つ科目は 708件＝9.0%（出席35%の科目は90件ある）
+     ・5刻みで増える件数は低いほうに偏る（出席の上限15%で+134件、25%で+108件）。
+       35%以上は +42/+16/+7 とほとんど効かない
+   つまみが11段か21段かの差より、11段で迷わず動かせるほうを採った。
+   **上限は「以下」なので、35%の科目が消えるわけではない**（上限40%で入る）。
+   拾えないのは「35%ちょうどで切りたい」という指定のほうだけ。
+
+   刻みを変えるときはここだけ直すこと。URL復元の丸めもこの値を見ている
+   （以前 10 を直書きしていて、5刻みにしたとき 35% が往復で 40% に化けた）。 */
+const CAP_STEP = 10;
+const NO_CAPS = { attendance:NO_CAP, exam:NO_CAP, quiz:NO_CAP, report:NO_CAP };
+const CAP_LABEL = { attendance:"出席・平常点", exam:"期末テスト",
+                    quiz:"小テスト", report:"レポート" };
+
+function passesCaps(c, caps){
+  /* 上限が全部100%（＝既定）なら何も落とさない。触っていないのに件数が
+     減る画面は、何が起きたのか説明できない。 */
+  if (CAP_AXES.every(k => (caps[k] ?? NO_CAP) >= NO_CAP)) return true;
+  /* 上限を1本でも動かしたら、配点が最後まで読めない科目は通さない。
+     eval_unclassified が残る科目は「残りの%」にどの軸が隠れているか分からず、
+     黙って通すとズレは必ず「実際より楽に見える」方向にだけ出る。 */
+  if (!evalKnown(c)) return false;
+  /* 🚨 振り分けられているだけでは足りない。**合計が100%に届いているか**も見る。
+     デンマーク語V〜VIIの6件は eval_unclassified が空なのに内訳が「試験20%」
+     しか無く（シラバスの表がそもそも埋まっていない）、4本の上限を20%にしても
+     通り抜けていた。残り80%に何が入るか分からない以上、通してはいけない。
+     score.py の passes_caps と同じ判定。片方だけ直さないこと。 */
+  const min = (META && META.eval_total_min) || 80;
+  let total = 0;
+  for (const v of Object.values(c.eval_ratio)) total += v || 0;
+  if (total < min) return false;
+  // キーが無い＝0%（不明ではない）。0% はどの上限も通る。
+  return CAP_AXES.every(k => (c.eval_ratio[k] || 0) <= (caps[k] ?? NO_CAP));
+}
+
+const capsImpossible = caps =>
+  CAP_AXES.reduce((sum, k) => sum + (caps[k] ?? NO_CAP), 0) < 100;
+
 /* 2026-08-26: 「出席なし」「レポートのみ」「集中講義」の3つは、全7,877件に対して
    **常に0件**だった。原因は判定のほうにあり、データは正しかった。
 
@@ -706,54 +793,70 @@ const evalKnown = c => !!c.eval_ratio && !c.eval_unclassified;
        "曜限が決まっていない" であって集中講義とは別物（通年305・秋冬210 を含む）。
 
    server.py の CONDITIONS と同じ内容。片方だけ足さない・直さないこと。 */
+/* 2026-09-03: 配点にかかわる3つのチップは、配点スライダーの 0% と**同義**。
+   判定を2つ持つと必ず食い違うので、実装は passesCaps の1つだけにする。
+   server.py の CHIP_CAPS と同じ内容。片方だけ直さないこと。
+
+   「小テストなし」を weekly_quiz（本文の正規表現）で判定するのはやめた ――
+   本文に「毎回小テスト」と書いてあっても配点が0%なら成績には効かない。
+   逆に本文に無くても内訳に小テストがあれば毎週ある。学生が知りたいのは後者。 */
+const CHIP_CAPS = {
+  "出席なし":     { attendance:0 },
+  "小テストなし": { quiz:0 },
+  "レポートのみ": { exam:0, attendance:0, quiz:0 },
+};
+const capChip = caps => c => passesCaps(c, { ...NO_CAPS, ...caps });
+
 const CONDITIONS = {
-  // 出席・平常点が評価に入らない科目。毎回の小テストも「毎週の拘束」なので外す
-  // （score.py の出席軸が weekly_quiz を出席側の負担として足しているのと揃える）。
-  "出席なし":     c => evalKnown(c) && !c.eval_ratio.attendance && !c.weekly_quiz,
-  // レポートだけで成績が付く科目。試験も出席も内訳に無いこと。
-  // いまのデータでは 482件すべてが report 100%。
-  "レポートのみ": c => evalKnown(c) && (c.eval_ratio.report || 0) > 0
-                       && !c.eval_ratio.exam && !c.eval_ratio.attendance,
+  "出席なし":     capChip(CHIP_CAPS["出席なし"]),
+  "レポートのみ": capChip(CHIP_CAPS["レポートのみ"]),
   "持ち込み可":   c => c.exam_type === "持込可",
   "1限以外":      c => !/1$/.test(c.day_period || ""),
   "集中講義":     c => c.term === "集中",
-  "小テストなし": c => c.weekly_quiz === false,
+  "小テストなし": capChip(CHIP_CAPS["小テストなし"]),
   "口コミあり":   c => ((c.reviews || {}).n || 0) > 0,
 };
 
-/* score.py の match() と同じ。内積と理由文だけで、判断は入っていない。 */
-function matchLocal(r, w){
-  // score.py の match() と同じゲート。総合値を出さない科目には相性も出さない。
-  if (r.overall === null || r.overall === undefined)
-    return { fit:null, reason:`判定に必要な情報が足りていません。口コミが${minForScoring()}件そろうと出ます。`,
-             weights:w, labels:META.axis_labels };
-  const axes = r.axes;
-  let total = 0, wsum = 0;
-  for (const [k, weight] of Object.entries(w)){
-    const v = (axes[k] || {}).value;
-    if (v !== null && v !== undefined && weight > 0){ total += v * weight; wsum += weight; }
-  }
-  const fit = wsum > 0 ? Math.round(total / wsum) : null;
+/* score.py の match() と同じ。数字は総合の楽単スコアで、理由は軸の値だけから書く。
 
+   2026-09-03: スライダーが「重み」から「上限」に変わったので、内積で出す
+   「相性」という数字は入力を失った。ユーザーの重み無しで出した数字に
+   「あなたとの相性」という名前を付けると嘘になるので、表に出すのは
+   総合の楽単スコアにした。上限は絞り込み、順位は楽単スコア。 */
+function matchLocal(r){
+  if (r.overall === null || r.overall === undefined){
+    /* 「口コミが集まれば出ます」と言えるのは、口コミで埋まる穴のときだけ。
+       内訳そのものが載っていない科目は待っても出ない（score.py と同文）。 */
+    const cap = r.eval_captured;
+    const min = (META && META.eval_total_min) || 80;
+    let reason;
+    if (cap === null || cap === undefined)
+      reason = "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
+    else if (cap >= min)
+      reason = `判定に必要な情報が足りていません。口コミが${minForScoring()}件そろうと出ます。`;
+    else
+      reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
+    return { fit:null, reason, labels:META.axis_labels };
+  }
+  const axes = r.axes;
   const good = [], bad = [];
-  for (const [k, weight] of Object.entries(w).sort((a,b) => b[1]-a[1])){
+  for (const k of CAP_AXES){
     const v = (axes[k] || {}).value;
-    if (v === null || v === undefined || weight < 3) continue;
+    if (v === null || v === undefined) continue;
     if (v >= 66) good.push(META.axis_labels[k]);
     else if (v < 45) bad.push(META.axis_labels[k]);
   }
   const parts = [];
-  if (good.length) parts.push(`あなたが重視する${good.slice(0,2).join("・")}を満たしています。`);
-  if (bad.length)  parts.push(`一方で${bad.slice(0,2).join("・")}は期待できません。`);
-  if (!parts.length) parts.push("重視している条件については、この科目は平均的です。");
-  return { fit, reason: parts.join(""), weights: w, labels: META.axis_labels };
+  if (good.length) parts.push(`${good.slice(0,2).join("・")}が期待できます。`);
+  if (bad.length)  parts.push(`${bad.slice(0,2).join("・")}は期待できません。`);
+  if (!parts.length) parts.push("どの軸も平均的な科目です。");
+  return { fit: r.overall, reason: parts.join(""), labels: META.axis_labels };
 }
 
 /* server.py の search() と同じ手順。
    空きコマと条件チップの件数は曜限フィルタ「前」で数える。
    そうしないとコマを押した瞬間に他のコマが全部0件になり、次の一手が打てない。 */
 function queryLocal(){
-  const w = state.weights || META.presets[state.preset] || META.presets["とにかく軽い"];
   const conds = [...state.cond].filter(k => k in CONDITIONS);
   const trackAxis = state.track ? state.track.split(":")[0] + ":" : "";
 
@@ -764,11 +867,14 @@ function queryLocal(){
     // full（通年）はどちらの学期でも履修できるので必ず通す。
     if (state.sem !== "all" && c.term_group !== state.sem && c.term_group !== "full") continue;
     if (conds.some(k => !CONDITIONS[k](c))) continue;
+    /* 配点の上限。チップ（出席なし等）もここで一緒に効く ―― チップは
+       state.caps を動かすだけで、別の判定は持たない。 */
+    if (!passesCaps(c, state.caps)) continue;
     // トラック（専攻語・学科）は同じ軸の中でだけ効かせる。トラックを持たない
     // 科目（共通教育・学部共通など）は通す ―― 落とすと上段の共通区分が
     // まるごと0件になる。
     if (trackAxis && c.track && c.track.startsWith(trackAxis) && c.track !== state.track) continue;
-    base.push({ ...c, match: matchLocal(c.rakutan, w) });
+    base.push({ ...c, match: matchLocal(c.rakutan) });
   }
 
   // 区分チップの件数は区分フィルタを掛ける「前」で数える（server.py と同じ理由）。
@@ -797,8 +903,10 @@ function queryLocal(){
   if (state.period) results = results.filter(e => (e.day_period || "").endsWith(state.period));
 
   const nul = v => v === null || v === undefined;
-  /* 相性順。同点や未算出のときの並びをここで1回決め、他の並び替えの
-     第2キーとしても使う（同じ件数の科目が毎回違う順に出ないように）。 */
+  /* おすすめ順。同点や未算出のときの並びをここで1回決め、他の並び替えの
+     第2キーとしても使う（同じ件数の科目が毎回違う順に出ないように）。
+     2026-09-03: match.fit の中身は「重みとの内積」ではなく総合の楽単スコアに
+     なった（matchLocal 参照）。上限は絞り込み、順位は楽単スコア。 */
   /* 🚨 第1キーは「テストの難しさが確認できているか」（needs_review）。
      相性だけで並べると、一番目立つ場所に「誰も難しさを確かめていない
      一発試験の科目」が来る ―― 検証していないから薦めている状態になる
@@ -838,7 +946,7 @@ function queryLocal(){
   else
     results.sort(byFit);   /* おすすめ順（既定）＝検証ずみ → 相性 */
 
-  return { count: results.length, results, slots, facets, weights: w,
+  return { count: results.length, results, slots, facets, caps: { ...state.caps },
            division_facets: divisionFacets };
 }
 
@@ -871,8 +979,9 @@ async function boot(){
     terms:      [...new Set(d.courses.map(c => c.term))].sort(),
     days: ["月","火","水","木","金"], periods: ["1","2","3","4","5","6"],
     weights: m.weights, conditions: Object.keys(CONDITIONS),
-    presets: m.presets, axis_labels: m.axis_label,
+    axis_labels: m.axis_label,
     min_for_scoring: m.min_for_scoring,
+    eval_total_min: m.eval_total_min,
     disclaimer: m.note || "",
   };
   CAN_POST = false;
@@ -1430,6 +1539,16 @@ function applyPostMode() {
     const urlParams = urlObj.searchParams;
     const urlFaculty = urlParams.get("faculty");
     const urlYear = urlParams.get("year");
+    /* 配点の上限。共有されたURLから開いた人が同じ結果を見られるようにする。
+       目盛りに合わせて丸める ―― スライダーの位置と違う値が入ると、つまみの
+       位置と件数が食い違って「なぜこの件数なのか」が画面から読めなくなる。
+       **CAP_STEP を直書きしないこと**（10 のまま置いていて、35% がURLの
+       往復で 40% に化けた。tools/test_haiten_ui.mjs が見張っている）。 */
+    for (const k of CAP_AXES){
+      const v = parseInt(urlParams.get("cap_" + k), 10);
+      if (Number.isFinite(v))
+        state.caps[k] = Math.max(0, Math.min(100, Math.round(v / CAP_STEP) * CAP_STEP));
+    }
 
     /* LINE 公式アカウントの問診から届いた場合だけ、その回答を「本人の回答」
        として確定する。共有リンクの ?faculty=&year= と URL の形はまったく
@@ -1482,11 +1601,11 @@ function applyPostMode() {
   }
 
   $("#note").textContent = META.disclaimer;
-  buildSems(); buildYears(); buildPresets(); buildSliders();
+  buildSems(); buildYears(); buildSliders();
   buildYearRow(); buildHardSelect();
   $("#tog").onclick = () => {
     const o = $("#sliders").classList.toggle("open");
-    $("#tog").textContent = o ? "スライダーを閉じる" : "スライダーで細かく調整する";
+    $("#tog").textContent = o ? "配点スライダーを閉じる" : "配点で細かくしぼる";
   };
   let t; $("#q").oninput = e => { clearTimeout(t);
     t = setTimeout(() => { state.q = e.target.value; load();

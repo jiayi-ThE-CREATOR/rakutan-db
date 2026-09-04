@@ -60,8 +60,11 @@ EVAL_TOTAL_MIN = 80.0
 EXAM_RATIO_COEF = 0.15
 REPORT_RATIO_COEF = 0.15
 
-AXIS_FLOOR = 0.10       # 3軸それぞれの下限（合計 0.30）
-AXIS_SHARE = 0.58       # 成績評価比率に応じて配分される分
+# 2026-09-03: 小テストを出席から独立させて4軸にした。下限が 0.10×4＝0.40 に
+# 増えたぶん、AXIS_SHARE を 0.58 → 0.48 に下げて合計 1.0 を保っている
+# （0.40 ＋ 0.48 ＋ SCALE_WEIGHT 0.12 ＝ 1.00）。
+AXIS_FLOOR = 0.10       # 4軸それぞれの下限（合計 0.40）
+AXIS_SHARE = 0.48       # 成績評価比率に応じて配分される分
 SCALE_WEIGHT = 0.12     # 規模・形態。事実ではなく推定なので最小固定
 
 # /api/meta 用の説明
@@ -70,7 +73,7 @@ WEIGHTS = {
     "axis_floor": AXIS_FLOOR,
     "axis_share": AXIS_SHARE,
     "scale": SCALE_WEIGHT,
-    "note": "試験・レポート・出席の重みは、その科目の成績評価内訳から動的に決まる",
+    "note": "試験・レポート・出席・小テストの重みは、その科目の成績評価内訳から動的に決まる",
 }
 
 
@@ -90,11 +93,12 @@ def _min_for_scoring() -> int:
 
 def dynamic_weights(course: dict) -> dict[str, float]:
     er = course.get("eval_ratio") or {}
-    shares = {k: float(er.get(k) or 0) for k in ("exam", "report", "attendance")}
+    shares = {k: float(er.get(k) or 0)
+              for k in ("exam", "report", "attendance", "quiz")}
     total = sum(shares.values())
     if total <= 0:
         # 評価内訳が不明な科目は均等配分にする（推測で偏らせない）
-        shares = {k: 1 / 3 for k in shares}
+        shares = {k: 1 / len(shares) for k in shares}
     else:
         shares = {k: v / total for k, v in shares.items()}
     w = {k: AXIS_FLOOR + AXIS_SHARE * s for k, s in shares.items()}
@@ -220,28 +224,57 @@ def _report_load(c: dict) -> tuple[float | None, list[str]]:
 
 
 def _attendance_load(c: dict) -> tuple[float | None, list[str]]:
-    """出席・毎回課題による拘束。
+    """出席・平常点による拘束。
 
     注意: 「出席点が高い＝楽」は片面でしかない。出席点が高い科目は
     毎週必ず出る必要があり、拘束としては重い。ここでは
     「出席さえすれば取れる度」ではなく「拘束の軽さ」として扱う。
+
+    2026-09-03: 毎回の小テストの負担は `_quiz_load` へ移した。ここで
+    weekly_quiz を足すと、小テストが独立した軸になった後は**二重計上**になる。
+
+    内訳そのものが読めない科目（eval_ratio が無い）は None を返す。
+    キーが無いだけの科目は「0%」であって「不明」ではない ――
+    出席点が内訳に無いのは事実として読み取れている。
     """
-    ratio = (c.get("eval_ratio") or {}).get("attendance")
-    if ratio is None and c.get("weekly_quiz") is None:
+    er = c.get("eval_ratio")
+    if er is None:
         return None, []
+    ratio = float(er.get("attendance") or 0.0)
+    load = ratio * 0.55
+    if ratio >= 50:
+        why = [f"出席・平常点が{ratio:.0f}%（毎週の出席がほぼ必須）"]
+    elif ratio > 0:
+        why = [f"出席・平常点が{ratio:.0f}%"]
+    else:
+        why = ["出席点なし（試験・課題のみで評価）"]
+    return _clamp(100.0 - load), why
+
+
+def _quiz_load(c: dict) -> tuple[float | None, list[str]]:
+    """毎回の小テスト・リアクションペーパーによる拘束。
+
+    出席とは別の負担である。出席だけなら座っていればよいが、小テストは
+    毎回そのつど準備が要る。以前は出席軸に足し込んでいたため、
+    「出席は緩いが毎週小テストがある科目」が緩い側に出ていた。
+
+    比率が内訳に無いのは「0%」＝負担なしであって不明ではない。
+    内訳そのものが読めない科目だけ None を返す。
+    """
+    er = c.get("eval_ratio")
+    if er is None:
+        return None, []
+    ratio = float(er.get("quiz") or 0.0)
     why = []
-    load = 0.0
-    if ratio is not None:
-        load += ratio * 0.55
-        if ratio >= 50:
-            why.append(f"出席・平常点が{ratio:.0f}%（毎週の出席がほぼ必須）")
-        elif ratio > 0:
-            why.append(f"出席・平常点が{ratio:.0f}%")
-        else:
-            why.append("出席点なし（試験・課題のみで評価）")
+    load = ratio * 0.55
+    if ratio > 0:
+        why.append(f"小テストが成績の{ratio:.0f}%")
+    # 配点が付いていなくても、本文に「毎回小テスト」と書かれていれば拘束はある。
     if c.get("weekly_quiz"):
         load += 25.0
         why.append("毎回の小テスト・リアクションペーパーあり")
+    elif ratio == 0:
+        why.append("小テストなし")
     return _clamp(100.0 - load), why
 
 
@@ -298,6 +331,7 @@ AXES = [
     ("exam", "試験", _exam_load),
     ("report", "レポート・課題", _report_load),
     ("attendance", "出席拘束", _attendance_load),
+    ("quiz", "小テスト", _quiz_load),
     ("scale", "規模・形態", _scale_ease),
 ]
 
@@ -381,6 +415,35 @@ def score(course: dict) -> dict:
     }
 
 
+# band のしきい値。**分布に合わせた定数であって、絶対的な意味は無い。**
+#
+# 2026-09-03、小テストを独立させて4軸→5軸にしたときに 72/55/38 から
+# 80/68/54 へ引き上げた。軸を1本足すと、その軸が満点になる科目
+# （小テストが無い6,473件）の総合値が機械的に上がる。実測では
+# **判定できた3,602件すべてが上がり、下がった科目は0件**だった
+# （中央値 +2.7）。しきい値を据え置くと「新しい根拠は何も無いのに
+# 軽い判定が426件増える」ことになる。
+#
+# 一方、順位はほとんど動いていない（小テストあり/なし/weekly_quiz の
+# 3群とも、順位の中央値の移動は0.6ポイント未満）。動いたのは目盛りの
+# ほうなので、目盛りに合わせてしきい値を置き直した。
+#
+# 新しい値は「変更前と同じ割合を切る位置」を実測して求めた（79.3 / 67.6 / 53.1）。
+#
+# 🚨 **切り上げてはいけない。** 分布が滑らかでないので、1動かすと大きく跳ぶ。
+#   79 → 73.7%（目標 73.5%）だが 80 にすると 67.6% ―― 5.9ポイント飛ぶ
+#   53 → 98.7%（目標 96.6%）だが 54 にすると 88.5% ―― 10.2ポイント飛ぶ
+# とくに **53.1 ちょうどに348件が固まっている**（「出席・平常点が100%」だけで
+# 評価される科目は入力が同一なので総合値も同一になる）。しきい値をこの塊の
+# 上に置くと、348件が一斉に「重め」へ落ちる。だから最も近い整数を採る。
+#
+# 軸を足す・係数を変えるときは、必ず tools/test_haiten_filter.py の
+# band 分布チェックを通すこと。
+LIGHT_MIN = 79
+NORMAL_MIN = 67
+HEAVYISH_MIN = 53
+
+
 def band_of(overall: float | None, conf_level: str,
             coverage: float = 1.0, pending: bool = False) -> str:
     """表示用の区分。信頼度が低いときは断定しない。
@@ -393,15 +456,15 @@ def band_of(overall: float | None, conf_level: str,
         return "情報不足" if coverage > 0 else "判定不可"
     if conf_level == "low":
         return "参考値"
-    if pending and overall >= 72:
+    if pending and overall >= LIGHT_MIN:
         # 拘束の形は軽い。ただしテストの難しさは誰も確認していない。
         # ここで「軽め」と言い切ると、難しい一発試験の科目を推薦してしまう。
         return "拘束は軽い"
-    if overall >= 72:
+    if overall >= LIGHT_MIN:
         return "軽め"
-    if overall >= 55:
+    if overall >= NORMAL_MIN:
         return "標準"
-    if overall >= 38:
+    if overall >= HEAVYISH_MIN:
         return "やや重め"
     return "重め"
 
@@ -429,18 +492,126 @@ AXIS_LABEL = {
     "attendance": "出席の緩さ",
     "report": "課題の軽さ",
     "exam": "テストの楽さ",
+    "quiz": "小テストの少なさ",
     "scale": "成績の甘さ",   # 規模からの推定。口コミが貯まるまでは確度が低い
 }
 
 # よくあるタイプ。スライダーをいきなり出すと誰も触らないので、
 # まずこの4つから選ばせて、必要な人だけ微調整させる。
+# 2026-09-03: サイトの右レールからは外した（上限スライダーへ置き換え）。
+# **消していないのは LINE 公式アカウントがこれを読んでいるから** ――
+# build.py の rank_presets() が preset_top を焼き、worker/index.js が引く。
+# LINE 側の作り直しは別セッションの担当。そこが終わるまでは消さないこと。
+# quiz は 5軸化に合わせて追加した（無いと小テストが順位に効かない）。
 PRESETS = {
-    "バイト優先":   {"attendance": 5, "report": 3, "exam": 2, "scale": 2},
-    "GPA重視":     {"attendance": 2, "report": 3, "exam": 3, "scale": 5},
-    "とにかく軽い": {"attendance": 4, "report": 4, "exam": 4, "scale": 4},
-    "テストが苦手": {"attendance": 2, "report": 3, "exam": 5, "scale": 3},
+    "バイト優先":   {"attendance": 5, "quiz": 5, "report": 3, "exam": 2, "scale": 2},
+    "GPA重視":     {"attendance": 2, "quiz": 3, "report": 3, "exam": 3, "scale": 5},
+    "とにかく軽い": {"attendance": 4, "quiz": 4, "report": 4, "exam": 4, "scale": 4},
+    "テストが苦手": {"attendance": 2, "quiz": 4, "report": 3, "exam": 5, "scale": 3},
 }
 DEFAULT_WEIGHTS = PRESETS["とにかく軽い"]
+
+
+# ═══════════════════════════════════════════════════════════════
+# 配点の上限でしぼる（2026-09-03）
+#
+# スライダーの意味を「あなたがどれだけ気にするか（重み 0〜5）」から
+# 「その配点が何%以下の科目を出すか（上限 0〜100%）」へ変えた。
+# 学生が言うのは「出席が重い授業はイヤ」であって
+# 「出席を重み4で評価したい」ではない。
+#
+# 上限は**科目を落とす**。順位は落とさない ―― 並び順は楽単スコアが決める。
+# 役割を分けておかないと「なぜ消えたか」も「なぜ上位か」も説明できなくなる。
+#
+# server.py と web/assets/app.js に同じ判定がある。片方だけ直さないこと。
+# ═══════════════════════════════════════════════════════════════
+
+# 上限をかけられる軸。規模・形態（scale）は成績評価の内訳ではないので入らない。
+CAP_AXES = ("attendance", "exam", "quiz", "report")
+NO_CAP = 100
+
+
+def _cap(caps: dict, key: str) -> int:
+    try:
+        return max(0, min(100, int(caps.get(key, NO_CAP))))
+    except (TypeError, ValueError):
+        return NO_CAP
+
+
+def caps_impossible(caps: dict) -> bool:
+    """4本の上限の合計が100%を下回っているか。
+
+    成績評価の内訳は合計100%なので、合計が100を割った瞬間に
+    条件を満たす科目は**原理的に存在しない**。実装ミスではなく仕様の性質。
+    0件になってから気付かせるのではなく、そうなる前に画面で理由を出すために使う。
+    """
+    return sum(_cap(caps, k) for k in CAP_AXES) < 100
+
+
+def passes_caps(course: dict, caps: dict) -> bool:
+    """科目が4本の上限をすべて満たすか。
+
+    **上限を1本でも 100% から動かしたら、配点が最後まで読めない科目は通さない。**
+    eval_unclassified が残る科目は「残りの%」にどの軸が隠れているか分からず、
+    黙って通すとズレは必ず「実際より楽に見える」方向にだけ出る
+    （EVAL_TOTAL_MIN と同じ判断。app.js の evalKnown も同じ理由で外している）。
+
+    上限が全部 100%（＝既定）のときは何も落とさない。触っていないのに
+    件数が減る画面は、何が起きたのか説明できない。
+    """
+    if all(_cap(caps, k) >= NO_CAP for k in CAP_AXES):
+        return True
+    er = course.get("eval_ratio")
+    if not er or course.get("eval_unclassified"):
+        return False
+    # 🚨 内訳が「振り分けられている」だけでは足りない。**合計が100%に
+    # 届いているか**も見る。2026-09-03 実測：デンマーク語V〜VIIの6件は
+    # eval_unclassified が空なのに内訳が「試験20%」しか無く（＝シラバスの表が
+    # そもそも埋まっていない）、4本の上限を20%にしても通り抜けていた。
+    # 残り80%に何が入るか分からない以上、通してはいけない。
+    # 同じ理由で score() も EVAL_TOTAL_MIN 未満の科目に総合値を出していない。
+    if sum(er.values()) < EVAL_TOTAL_MIN:
+        return False
+    # キーが無い＝0%（不明ではない）。0% はどの上限も通る。
+    return all(float(er.get(k) or 0.0) <= _cap(caps, k) for k in CAP_AXES)
+
+
+def parse_caps(params: dict) -> dict:
+    """クエリ文字列から上限を取り出す。?cap_attendance=30 の形。"""
+    caps = {}
+    for k in CAP_AXES:
+        v = params.get("cap_" + k)
+        v = v[0] if isinstance(v, list) else v
+        if v is None:
+            continue
+        try:
+            caps[k] = max(0, min(100, int(v)))
+        except (TypeError, ValueError):
+            pass
+    return caps
+
+
+def _unjudged_reason(course_score: dict) -> str:
+    """総合値を出さないと決めた科目に、その理由を返す。
+
+    件数は reviews.MIN_FOR_SCORING が正本。ここに数字を書くと、門を変えたときに
+    文言だけ古くなる（2026-08-24 まで門は3件なのに「1件入ると出ます」と出していた）。
+
+    2026-09-03: eval_captured が None（＝シラバスに成績評価の内訳がそもそも
+    載っていない152件）にも「口コミが3件そろうと出ます」と言っていた。
+    **待っても出ない。** 足りないのは口コミではなくシラバスの表なので、
+    口コミが何件入っても軸は埋まらない。5軸化で出席軸が「不明」を返すように
+    なり、この152件の band が 情報不足→判定不可 に変わって画面で目立つように
+    なったため直した。
+    """
+    captured = course_score.get("eval_captured")
+    if captured is None:
+        return "シラバスに成績評価の内訳が載っていないため、判定を出していません。"
+    if captured >= EVAL_TOTAL_MIN:
+        return (f"判定に必要な情報が足りていません。"
+                f"口コミが{_min_for_scoring()}件そろうと出ます。")
+    return (f"シラバスの成績評価の内訳が{captured:.0f}%分しか読み取れないため、"
+            "判定を出していません。")
 
 
 def match(course_score: dict, weights: dict | None = None) -> dict:
@@ -459,15 +630,8 @@ def match(course_score: dict, weights: dict | None = None) -> dict:
         # 「口コミが入れば出る」と言えるのは、口コミで埋まる穴のときだけ。
         # 成績評価の内訳そのものが欠けている科目は口コミでは直らない
         # （シラバス側の問題）ので、同じ文言を出すと嘘になる。
-        captured = course_score.get("eval_captured")
-        # 件数は reviews.MIN_FOR_SCORING が正本。ここに数字を書くと、
-        # 門を変えたときに文言だけ古くなる（2026-08-24 まで
-        # 門は3件なのに「1件入ると出ます」と出していた）。
-        reason = (f"判定に必要な情報が足りていません。口コミが{_min_for_scoring()}件そろうと出ます。"
-                  if captured is None or captured >= EVAL_TOTAL_MIN else
-                  f"シラバスの成績評価の内訳が{captured:.0f}%分しか読み取れないため、"
-                  "判定を出していません。")
-        return {"fit": None, "reason": reason, "weights": w, "labels": AXIS_LABEL}
+        return {"fit": None, "reason": _unjudged_reason(course_score),
+                "weights": w, "labels": AXIS_LABEL}
 
     total, wsum = 0.0, 0.0
     for k, weight in w.items():
@@ -496,6 +660,40 @@ def match(course_score: dict, weights: dict | None = None) -> dict:
 
     return {"fit": fit, "reason": "".join(parts),
             "weights": w, "labels": AXIS_LABEL}
+
+
+def explain(course_score: dict) -> dict:
+    """画面に出す数字と理由。**ユーザーの重みは使わない。**
+
+    2026-09-03: スライダーが「重み」から「上限」に変わったので、内積で出す
+    「相性」という数字は入力を失った。重み無しで出した数字に「あなたとの相性」
+    という名前を付けると嘘になるので、表に出すのは総合の楽単スコアにする。
+    上限は絞り込み、順位は楽単スコア ―― 役割を分ける。
+
+    match() は消していない。**LINE が読む preset_top は重み付きの順位**で、
+    build.py の rank_presets() がそれを使っている（LINE 側の作り直しは別の担当）。
+
+    web/assets/app.js の matchLocal() と同じ内容にすること。片方だけ直さない。
+    """
+    if course_score.get("overall") is None:
+        return {"fit": None, "reason": _unjudged_reason(course_score),
+                "labels": AXIS_LABEL}
+    axes = course_score["axes"]
+    good, bad = [], []
+    for k in CAP_AXES:
+        v = axes.get(k, {}).get("value")
+        if v is None:
+            continue
+        (good if v >= 66 else bad if v < 45 else []).append(AXIS_LABEL[k])
+    parts = []
+    if good:
+        parts.append(f"{'・'.join(good[:2])}が期待できます。")
+    if bad:
+        parts.append(f"{'・'.join(bad[:2])}は期待できません。")
+    if not parts:
+        parts.append("どの軸も平均的な科目です。")
+    return {"fit": course_score["overall"], "reason": "".join(parts),
+            "labels": AXIS_LABEL}
 
 
 def parse_weights(params: dict) -> dict | None:
