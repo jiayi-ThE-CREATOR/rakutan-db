@@ -89,6 +89,14 @@ V4_EMPTY = V4_NEXT.replace(",7,", ",,")
 empty = read(V4_EMPTY, ".csv")
 eq(empty[0]["exam_hard10"], None, "列があっても空なら None のまま")
 
+# ── 科目コードの先頭の0 ────────────────────────────
+# シートが数値として扱うと 081001 → 81001 になる。全7,906件のうち
+# 3,423件が0始まりなので、放っておくと4割の科目で口コミが迷子になる。
+V4_ZERO = V4.replace(",135425,", ",81001,")
+zero = read(V4_ZERO, ".csv")
+eq(zero[0]["course_id"], "081001", "5桁になった科目コードを6桁に戻す")
+eq(rows[1]["course_id"], "135115", "6桁のコードはそのまま")
+
 # ── 旧フォーム（Netlify・TSV・英語ヘッダ）も読めたまま ──
 LEGACY = (
     "code\tattendance\tin_class\tout_class\texam\texam_bring\texam_hard10"
