@@ -17,6 +17,62 @@
 
 ---
 
+## 2026-09-04 ｜ 開屏に標語を1行足した｜ Claude → 次の人
+
+本人からの依頼。「開屏画面に標語『履修登録、どれくらい手間がかかるか。』を入れたい」。
+**足したのは覆いの中の1行だけ。** API・データ・画面の動きは触っていない。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8791          # 別窓で
+    node tools/test_index_gate.mjs http://127.0.0.1:8791   # OK 37件
+    node tools/smoke.mjs http://127.0.0.1:8791             # コンソールエラーなし
+    python3 tools/test_shell_inject.py && python3 tools/test_layout.py   # 通過 47件 / 17件
+
+触ったファイルは2つ。
+
+- `web/index.html` … `.splashWord` と `.splashBy` のあいだに `<p class="splashTag">`
+- `web/assets/app.css` … `.splashTag` の見た目と出るタイミング（560ms）。
+  GUILD のクレジットを 700ms → 820ms へ後ろにずらして順番を作った
+
+**尺は伸ばしていない。** 覆いは今までどおり 1400ms で閉じ始める。
+`splash.js` の先頭にある約束（演出は待ちを覆うもので、待ちを増やすものではない）を守るため、
+標語ぶんの時間は「クレジットを後ろへ寄せる」ことで作った。逆に言うと、
+**この先ここへ何かを足すなら、もう後ろに寄せる余地はない**（1400ms 側を動かす判断が要る）。
+
+標語はヒーローの `<h2 class="heroT">` と**同じ一文**。覆いが消えたあと同じ言葉がその場に残る。
+どちらかを書き換えるときは両方を直す（`web/index.html` 内に2箇所）。
+
+### 2. 何をしていないか
+
+- **`prefers-reduced-motion` と再訪では、そもそも覆いが出ない**（元からの仕様）。
+  つまり標語を見るのは「タブを開き直した人・新しい訪問者」だけ。全員には出ない
+- 覆いは `aria-hidden="true"` のままにした。読み上げに二重に出さないため
+  （同じ文が `heroT` の見出しとして読まれる）
+- 幅 320px でも1行に収まることは実測ずみ。ただし**文言を長くすると 320px で折り返す**。
+  `text-wrap:balance` を効かせてあるので折り返しても崩れはしないが、行数は増える
+- `tools/test_onboard.mjs` は落ちるが **main でも同じ場所で落ちる**（問診オーバーレイが
+  `.favBtn` のクリックを遮る）。今回の変更とは無関係
+- `tools/test_tokens.py` も **main で既に NG**（`app.css` の裸の `#DB6209`）。
+  `.worktrees/tokens` の `fix/test-tokens-brand-colors` が担当
+
+### 3. 次の人が最初にやること
+
+    git worktree list                      # .worktrees/splashtag がまだ在れば
+    cd .worktrees/splashtag && git log -1
+
+版に載せるかは**本人に確認中**。載せると決まったら `docs/version-pending.md` に1行足す。
+
+### 4. 今回踏んだ罠
+
+- **worktree には `node_modules` が無い**（`.gitignore` 対象）。`node tools/*.mjs` が
+  `ERR_MODULE_NOT_FOUND` で即死する。本体の `node_modules` へ symlink を張れば動く：
+  `ln -sfn ~/Developer/rakutan-db/node_modules node_modules`
+- **スクショで演出を撮るには `rk_splash_seen` を消したままにする**。`tools/shots.mjs` は
+  逆に必ず立てている（差分を安定させるため）ので、あれを流用すると覆いが1枚も写らない
+
+---
+
 ## 2026-09-03 ｜ 版に載せるかの判定と版番号の付け方を決めた｜ Claude → 次の人
 
 本人からの依頼。「本番に出すたびに、右下の更新履歴に載せるかを聞いてほしい。
