@@ -19,6 +19,10 @@ data/raw/
 # web/data/courses.built.json … build.py が原文を落として書き出す公開用。これは追跡する
 data/courses.json
 data/reviews.json
+# data/syllabus_text.jsonl.gz … シラバス本文（授業サブタイトル・目的と概要・
+#   各回の題目）だけを抜いたもの。tools/extract_syllabus_text.py が作る。
+#   原文そのものなので courses.json と同じ線の内側に置く
+data/syllabus_text.jsonl.gz
 
 # ローカル設定
 .env

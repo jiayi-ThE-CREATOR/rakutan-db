@@ -85,6 +85,43 @@
 
 ---
 
+## 2026-09-04 ｜ シラバス本文の抽出ツール（授業内容タグの前工程）｜ Claude → 政岡さん
+
+### 1. 何が動く状態か
+
+    python3 tools/extract_syllabus_text.py     # → data/syllabus_text.jsonl.gz
+    python3 tools/test_syllabus_text.py        # 70件（手元の実ページ10件で確認）
+
+`data/raw/detail/*.html` から **授業サブタイトル・授業の目的と概要・各回の題目**
+だけを抜いて JSONL(gz) にします。全7,906件で **約3MB**。
+
+**政岡さんにお願いしたいのはこれ1回だけです**（`git pull` して上のコマンド、約2分）。
+できた `data/syllabus_text.jsonl.gz` を Discord に貼ってください。
+
+### 2. 何をしていないか
+
+- **HTML そのものは要求していません。** `data/raw/detail/` は全件で約0.9GB
+  （gzip でも63MB）あり Discord に乗りません。本文3つだけなら3MBです
+- タグ付け（Gemini）本体はまだです。ファイルが届いてから
+- **`data/raw/` を持っていない人は流せません**（0件で止まり、案内を出します）。
+  もし消してしまっていたら教えてください。`scrape/fetch.py` で取り直しますが
+  `--delay 2.0` のままで約4.4時間かかります（**縮めるのは禁止事項**）
+
+### 3. 次の人が最初に打つコマンド
+
+    git pull
+    python3 tools/extract_syllabus_text.py
+
+### 4. 踏んだ罠
+
+- **時間割コードは数字だけとは限りません。** ラベルの値が
+  `138539 (知のジムナスティックス科目)` のように科目区分の括弧付きで入っている
+  ものがあり（手元10件中5件）、そのまま id にすると `courses.built.json` の
+  id（`"138539"`）と突き合いません。数字だけ取り出しています
+  （`scrape/parse.py` は索引側の `code` を使うのでこの罠を踏んでいません）
+- **出力は git に入れないこと。** 中身はシラバス原文なので `data/courses.json`
+  と同じ線の内側です。`.gitignore` に追加ずみ
+
 ## 2026-09-03 ｜ 配点でしぼる（上限スライダー）＋小テストを第5軸に｜ Claude → 次の人
 
 同日の設計スペック `docs/plans/2026-09-03-haiten-filter-design.md` の実装。
