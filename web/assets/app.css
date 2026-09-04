@@ -722,9 +722,9 @@ html.splash-on{overflow:hidden}
 /* 句点のところで折り返す。span ごとに inline-block にしておくと、
    狭い画面でも「登録もログインもしなくていい。」が途中で割れない。
    （割れると「登録」「もログインも…」の2行になって読みにくい）
-   62ch は1文目（586px）が1行に収まる最小幅＋余白。54ch だと
+   64ch は1文目（600px）が1行に収まる幅＋余白。足りないと
    「でカバー」だけが2行目に落ちる。文言を伸ばすときはここも見る。 */
-.heroP{margin:0 0 var(--sp-5);max-width:62ch;color:var(--soft)}
+.heroP{margin:0 0 var(--sp-5);max-width:64ch;color:var(--soft)}
 .heroP span{display:inline-block;text-wrap:balance}
 .heroActions{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap}
 .heroCta{display:inline-block;padding:var(--sp-3) var(--sp-6);
