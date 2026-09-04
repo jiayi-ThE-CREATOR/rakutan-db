@@ -71,13 +71,12 @@ for (const k of AXES) {
   check(fits, `${k} の行がはみ出している（目盛りの % が読めない）`);
 }
 
-/* 目盛りは 5 刻み。実データに 5%・15%・25%・35% … の配点が 1,100件ぶんあり
-   （10の倍数でない配点を持つ科目は 708件＝9.0%）、10刻みだとその位置で
-   止まれない。とくに低いほう（5/15/25%）は「出席がほとんど効かない授業」を
-   探すときに効く（15%で+134件、25%で+108件）。 */
+/* 目盛りは 10 刻み（2026-09-04 確定）。4本とも同じ刻みであること。 */
+const STEP = await p.$eval("#s_attendance", e => Number(e.step));
+check(STEP === 10, `目盛りが 10 刻みでない: ${STEP}`);
 for (const k of AXES) {
-  check(await p.$eval(`#s_${k}`, e => e.step) === "5",
-        `${k} のスライダーが 5 刻みでない`);
+  check(await p.$eval(`#s_${k}`, e => Number(e.step)) === STEP,
+        `${k} の刻みが他と違う`);
 }
 
 const all = await count();
@@ -143,16 +142,18 @@ await p.goto(url, { waitUntil: "networkidle" });
 await p.waitForSelector("#list > .card, #list");
 check(await capOf("attendance") === 20, "URL から開き直すと上限が復元されない");
 
-/* 5刻みの位置が URL の往復で 10刻みへ丸められないこと。
-   35% は実データに 90件ぶんある（出席の上限35%で+42件）。 */
-await setCap("attendance", 35);
-await p.waitForTimeout(200);
-const at35 = await count();
-await p.goto(p.url(), { waitUntil: "networkidle" });
+/* URL に目盛りへ乗らない値（35%）が来たら、目盛りに合わせて丸めること。
+   つまみの位置と件数が食い違うと「なぜこの件数なのか」が画面から読めない。
+   **刻みをここに直書きしない** ―― app.js の CAP_STEP を 10 直書きの丸めと
+   組み合わせていたせいで、5刻みにしたとき 35% が 40% に化けた。
+   ここは「丸めた結果が目盛りに乗っているか」だけを見る。 */
+await p.goto(`${base}?cap_attendance=35`, { waitUntil: "networkidle" });
 await p.waitForSelector("#list > .card, #list");
-check(await capOf("attendance") === 35,
-      `35% が往復で ${await capOf("attendance")}% に丸められた`);
-check(await count() === at35, "35% の件数が往復で変わった");
+const snapped = await capOf("attendance");
+check(snapped % STEP === 0,
+      `URL の 35% が目盛り（${STEP}刻み）に乗っていない: ${snapped}%`);
+check((await labelOf("attendance")) === `${snapped}%`,
+      "つまみの位置と表示している数字が食い違っている");
 
 check(errs.length === 0, `ページ内で例外: ${errs.join(" / ")}`);
 
