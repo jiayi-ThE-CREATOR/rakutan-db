@@ -1,6 +1,19 @@
-"""口コミフォームの書き出し（TSV）を data/reviews.json に取り込む。
+"""口コミフォームの書き出しを data/reviews.json に取り込む。
 
-フォーム: https://magnificent-scone-0d2071.netlify.app/
+**2つの書き出し形に対応している**（ヘッダを見て自動で切り替える）:
+
+  v4  サイト内フォーム `/kuchikomi` → しゅんやさんのスプレッドシート（CSV・日本語ヘッダ）
+      1列目が「タイムスタンプ」ならこちら。2026-08 以降の投稿はすべてこの形。
+      旧フォームとの違いは2つあり、どちらも黙って埋めない:
+        ・「テスト」1列に **持ち込み可否** が入る（旧は 有無 と 持ち込みの2列）。
+          空欄は「テストなし」として読む ―― フォームは「なし」を選ぶと
+          持ち込みを聞かないため。原文は exam_bring_raw に残るのでやり直せる
+        ・**テスト難易度（1〜10）の列が無い** → exam_hard10 は埋まらない。
+          サイトのフォームは聞いているので、シート側に列が増えたらここも直す
+
+  旧  Netlify のフォーム（TSV・英語ヘッダ）。2026-08 より前の144件がこの形。
+
+旧フォーム: https://magnificent-scone-0d2071.netlify.app/
 設問と列の対応（フォーム側を変えたらここも直す）:
 
     attendance    2 出席は取られた？          毎回 / たまに / なし / その他
@@ -21,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
 import json
 import re
 import sys
@@ -92,12 +106,100 @@ def _yes(s: str | None) -> bool:
     return (s or "").strip() == "あり"
 
 
+# ── 入力の形 ──────────────────────────────────────
+# v4（サイト内フォーム）の列名 → このスクリプトの内部キー。
+# 内部キーは旧フォームの英語ヘッダに合わせてある（normalize を1つに保つため）。
+V4_MARK = "タイムスタンプ"
+V4_COLS = {
+    "code": "科目コード",
+    "attendance": "出欠",
+    "in_class": "授業中の課題",
+    "out_class": "授業外の課題",
+    "report": "レポート有無",
+    "report_words": "レポート字数",
+    "note": "一言コメント",
+    "taken_year": "受講年度",
+}
+
+
+def _v4_date(raw: str | None) -> str | None:
+    """「2026/08/29 18:03:12」→「08-29」。旧フォームの date 列と形を揃える。"""
+    m = re.search(r"\d{4}/(\d{1,2})/(\d{1,2})", raw or "")
+    return f"{int(m.group(1)):02d}-{int(m.group(2)):02d}" if m else None
+
+
+def _v4_find(r: dict, *needles: str) -> str | None:
+    """列名にゆらぎがあっても拾う。シート側に列が増えたとき、こちらを
+    直さなくても効くようにしておく（列名は人が手で付けるため）。"""
+    for k in r:
+        if k and any(n in k for n in needles):
+            return (r.get(k) or "").strip() or None
+    return None
+
+
+def _v4_row(r: dict) -> dict:
+    row = {k: r.get(v) for k, v in V4_COLS.items()}
+    bring = (r.get("テスト") or "").strip()
+    # 「テスト」1列に持ち込み可否が入る。空欄＝テストなし（フォームは「なし」を
+    # 選ぶと持ち込みを聞かない）。ただし「テスト有無」列がシートに増えたら、
+    # 推測より本人の回答を優先する。
+    presence = _v4_find(r, "テスト有無", "テストの有無")
+    row["exam"] = presence if presence else ("あり" if bring else "なし")
+    row["exam_bring"] = bring
+    # 難易度（1〜10）。**サイトのフォームは聞いて送っているのに、v4 の
+    # スプレッドシートには列が無い**（外部サイトから統合したときの取りこぼし。
+    # 2026-09-03 に判明）。列が増えたらここが勝手に拾う。
+    row["exam_hard10"] = _v4_find(r, "難易度")
+    row["date"] = _v4_date(r.get(V4_MARK))
+    return row
+
+
+def read_rows(path: str) -> list[dict]:
+    """書き出しを読んで、内部キーの dict にして返す。形はヘッダで見分ける。"""
+    text = Path(path).read_text(encoding="utf-8-sig")
+    head = text.splitlines()[0] if text else ""
+    if V4_MARK in head:
+        delim = "," if head.count(",") >= head.count("\t") else "\t"
+        rows = [_v4_row(r) for r in csv.DictReader(io.StringIO(text), delimiter=delim)]
+        # 黙って欠けさせない。ここが無警告だったせいで、難易度が1週間ぶん
+        # 失われていることに誰も気づかなかった（2026-09-03）。
+        if "難易度" not in head:
+            print("  ⚠ シートに「難易度」の列がありません。"
+                  "サイトのフォームは聞いて送っているので、"
+                  "テストの重さの主な入力が丸ごと欠けます。")
+            print("    → スプレッドシート側に列を足すと、ここは自動で拾います"
+                  "（このスクリプトの修正は不要）。")
+        else:
+            # 列を足しただけでは埋まらない ―― GAS が書かなければ空のまま。
+            # 「列があるから安心」で警告が消えるのが一番たちが悪いので、
+            # 中身が1件も入っていないときも同じ強さで知らせる。
+            withexam = [r for r in rows if (r.get("exam") or "") != "なし"]
+            if withexam and not any(r.get("exam_hard10") for r in withexam):
+                print(f"  ⚠ 「難易度」の列はありますが、テストありの {len(withexam)} 件に"
+                      "1つも値が入っていません。")
+                print("    → 列を足しただけで、GAS 側が書き込んでいない可能性があります"
+                      "（review.examDifficulty）。")
+        return rows
+    return list(csv.DictReader(io.StringIO(text), delimiter="\t"))
+
+
+# 科目コードは KOAN で6桁ちょうど。うち 3,423件（全7,906件の43%）が
+# 「0」で始まる。スプレッドシートがその列を数値として扱うと先頭の0が落ち、
+# 081001 が 81001 になって **どの科目にも当たらないまま黙って捨てられる**。
+# 2026-09-04 に実際に1件出て、政岡さんが手で直した。
+# 手で直し続ける類のものではないので、ここで揃える。
+# （00Z008 のように英字を含むコードは数値化されないので影響を受けない）
+def _course_id(raw: str | None) -> str:
+    code = (raw or "").strip()
+    return code.zfill(6) if code.isdigit() and len(code) < 6 else code
+
+
 def normalize(row: dict) -> dict:
     """1行 → 保存する形。判断はここに寄せ、集計側では素直に平均するだけにする。"""
     att = (row.get("attendance") or "").strip()
     bring = (row.get("exam_bring") or "").strip() or None
     return {
-        "course_id": (row.get("code") or "").strip(),
+        "course_id": _course_id(row.get("code")),
         # 選択肢どおりでない答えは台帳（data/sonota.json）で1件ずつ判断する
         "attendance": ATTEND[att] if att in ATTEND
                       else _lookup("attendance", att) if att else None,
@@ -187,9 +289,8 @@ def main() -> None:
         renorm()
         return
 
-    known = {c["id"] for c in json.loads(COURSES.read_text())["courses"]}
-    with open(args.tsv, encoding="utf-8") as f:
-        rows = [normalize(r) for r in csv.DictReader(f, delimiter="\t")]
+    known = {c["id"] for c in json.loads(COURSES.read_text(encoding="utf-8"))["courses"]}
+    rows = [normalize(r) for r in read_rows(args.tsv)]
 
     hit = [r for r in rows if r["course_id"] in known]
     miss = [r for r in rows if r["course_id"] not in known]
@@ -225,7 +326,7 @@ def main() -> None:
     prev = []
     if OUT.exists() and not args.replace:
         try:
-            prev = [r for r in json.loads(OUT.read_text()) if r.get("course_id") != "S001"]
+            prev = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if r.get("course_id") != "S001"]
         except json.JSONDecodeError:
             prev = []
     # 突き合わせは「既存の行」だけでなく「このバッチで既に採った行」とも
