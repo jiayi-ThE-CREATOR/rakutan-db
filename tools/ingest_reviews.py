@@ -278,7 +278,7 @@ def main() -> None:
         renorm()
         return
 
-    known = {c["id"] for c in json.loads(COURSES.read_text())["courses"]}
+    known = {c["id"] for c in json.loads(COURSES.read_text(encoding="utf-8"))["courses"]}
     rows = [normalize(r) for r in read_rows(args.tsv)]
 
     hit = [r for r in rows if r["course_id"] in known]
@@ -315,7 +315,7 @@ def main() -> None:
     prev = []
     if OUT.exists() and not args.replace:
         try:
-            prev = [r for r in json.loads(OUT.read_text()) if r.get("course_id") != "S001"]
+            prev = [r for r in json.loads(OUT.read_text(encoding="utf-8")) if r.get("course_id") != "S001"]
         except json.JSONDecodeError:
             prev = []
     # 突き合わせは「既存の行」だけでなく「このバッチで既に採った行」とも
