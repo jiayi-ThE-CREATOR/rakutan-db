@@ -110,23 +110,43 @@ def _eval_known(c: dict) -> bool:
 #     "集中講義" という値は存在しない。集中講義は KOAN の開講区分（term）が
 #     「集中」になっている（191件）。day_period が「他」の1,060件は
 #     "曜限が決まっていない" であって集中講義とは別物（通年305・秋冬210 を含む）。
+# 2026-09-03: 配点にかかわる3つのチップは、**配点スライダーの 0% と同義**に
+# なった。チップは「よく使う上限のショートカット」であって別の判定ではない。
+# 判定を2つ持つと必ず食い違うので、実装は scoring.passes_caps の1つだけにする。
+#
+#   出席なし     … 出席・平常点 0%
+#   小テストなし … 小テスト 0%
+#   レポートのみ … 期末・出席・小テストがすべて 0%（＝レポートだけ）
+#
+# これで件数が動く。実測（7,906件）:
+#   出席なし     1,536 → 2,170   「毎回小テストが無いこと」を出席側から外したぶん
+#                                （その判定は「小テストなし」チップの仕事になった）
+#   小テストなし 6,453 → 5,939   本文の正規表現ではなく配点で判定するようになったぶん
+#   レポートのみ   482 →   482   **集合ごと一致**。小テスト0%の要求を足しても
+#                                レポートだけで評価される科目は元から小テストが無い
+#
+# **「小テストなし」を weekly_quiz で判定するのはやめた。** 本文に「毎回小テスト」と
+# 書いてあっても配点が 0% なら成績には効かない。逆に本文に書いていなくても
+# 内訳に小テストがあれば毎週ある。学生が知りたいのは成績への効き方のほう。
+CHIP_CAPS = {
+    "出席なし":     {"attendance": 0},
+    "小テストなし": {"quiz": 0},
+    "レポートのみ": {"exam": 0, "attendance": 0, "quiz": 0},
+}
+
+
+def _chip(caps: dict):
+    full = {k: scoring.NO_CAP for k in scoring.CAP_AXES} | caps
+    return lambda c: scoring.passes_caps(c, full)
+
+
 CONDITIONS = {
-    # 出席・平常点が評価に入らない科目。毎回の小テストも「毎週の拘束」なので外す
-    # （score.py の出席軸が weekly_quiz を出席側の負担として足しているのと揃える）。
-    "出席なし":     lambda c: (_eval_known(c)
-                               and not c["eval_ratio"].get("attendance")
-                               and not c.get("weekly_quiz")),
-    # レポートだけで成績が付く科目。試験も出席も内訳に無いこと。
-    # いまのデータでは 482件すべてが report 100% で、
-    # 「レポートが唯一の項目」＝「レポート100%」が一致している。
-    "レポートのみ": lambda c: (_eval_known(c)
-                               and (c["eval_ratio"].get("report") or 0) > 0
-                               and not c["eval_ratio"].get("exam")
-                               and not c["eval_ratio"].get("attendance")),
+    "出席なし":     _chip(CHIP_CAPS["出席なし"]),
+    "レポートのみ": _chip(CHIP_CAPS["レポートのみ"]),
     "持ち込み可":   lambda c: c.get("exam_type") == "持込可",
     "1限以外":      lambda c: not (c.get("day_period") or "").endswith("1"),
     "集中講義":     lambda c: c.get("term") == "集中",
-    "小テストなし": lambda c: c.get("weekly_quiz") is False,
+    "小テストなし": _chip(CHIP_CAPS["小テストなし"]),
     # 口コミが1件でも入っている科目。KOAN から取れない5つ（定員／レポート本数／
     # 字数／時間外学習／毎回小テスト）が埋まっているのはこの科目だけなので、
     # 「シラバスの形だけで出した数字」と「人が確認した数字」を学生が区別できる。
@@ -180,7 +200,8 @@ def search(params: dict) -> dict:
     # ―― 落とすと共通教育がまるごと消える。
     trk = get("track")
     trk_axis = trk.split(":")[0] + ":" if trk else ""
-    weights = scoring.parse_weights(params)
+    # 配点の上限（?cap_attendance=30 …）。既定は全部100%＝制限なし。
+    caps = {k: scoring.NO_CAP for k in scoring.CAP_AXES} | scoring.parse_caps(params)
 
     base = []
     for c in COURSES:
@@ -197,6 +218,8 @@ def search(params: dict) -> dict:
             continue
         if term and c.get("term") != term:
             continue
+        if not scoring.passes_caps(c, caps):
+            continue
         if any(not CONDITIONS[k](c) for k in conds):
             continue
         if trk_axis and (c.get("track") or "").startswith(trk_axis) \
@@ -205,7 +228,9 @@ def search(params: dict) -> dict:
         e = scoring.enrich(c)
         if min_conf and e["rakutan"]["confidence"]["level"] not in _conf_ok(min_conf):
             continue
-        e["match"] = scoring.match(e["rakutan"], weights)
+        # 画面に出すのは総合の楽単スコア。ユーザーの重みはもう無い。
+        # web/assets/app.js の matchLocal() と同じ内容にすること。
+        e["match"] = scoring.explain(e["rakutan"])
         base.append(e)
 
     # 区分チップの件数は、区分フィルタを掛ける「前」の集合で数える。
@@ -288,8 +313,10 @@ def search(params: dict) -> dict:
     return {"count": total, "returned": len(results), "results": results,
             "year": year, "sem": sem, "slots": slots, "facets": facets,
             "division_facets": division_facets,
-            "weights": (results or base or [{}])[0].get("match", {}).get("weights")
-                       if (results or base) else scoring.DEFAULT_WEIGHTS}
+            "caps": caps,
+            # 上限の合計が100%を下回ると該当が無くなる。画面が理由を出せるように
+            # 判定そのものを返す（数字の解釈をクライアント側に散らさない）。
+            "caps_impossible": scoring.caps_impossible(caps)}
 
 
 def _conf_ok(level: str) -> set[str]:

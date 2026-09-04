@@ -85,6 +85,76 @@
 
 ---
 
+## 2026-09-03 ｜ 配点でしぼる（上限スライダー）＋小テストを第5軸に｜ Claude → 次の人
+
+同日の設計スペック `docs/plans/2026-09-03-haiten-filter-design.md` の実装。
+右レールの「あなたの優先度（重み0〜5）」を **配点の上限（0〜100%）** に置き換えた。
+
+### 1. 何が動く状態か
+
+ブランチ `feat/haiten-filter`（PR 前）。テストは全部通っています。
+
+    python3 tools/test_haiten_filter.py     # 49件（新規）
+    python3 tools/test_conditions.py        # 18件
+    node tools/test_bot_flow.mjs            # 17件（LINE。触っていないことの確認）
+    cd web && python3 -m http.server 8146 & # 別の窓で
+    node tools/test_haiten_ui.mjs http://localhost:8146   # 34件（新規・実ブラウザ）
+    node tools/test_conditions.mjs http://localhost:8146  # 18件
+    node tools/test_sort.mjs http://localhost:8146        # 13件
+
+- **スライダーは4本**（出席・平常点／期末テスト／小テスト／レポート）。
+  数字はシラバスの成績評価の内訳そのもの。「30%」＝その配点が30%以下の科目だけ出す
+- **条件チップはスライダーの上へ移し、同じ1つの状態を指す**。
+  「出席なし」を押すと出席スライダーが 0% へ動き、0% にするとチップが点く
+- **小テストを出席から独立させた**（`parse.py:151` が算出済みの値を捨てていた）。
+  採点も第5軸になった
+- 焼き直しは **`python3 build.py --rescore`**（`--represet` と同じ経路の拡張）。
+  `data/courses.json` 全所属ぶんを持っていない人でもこれで本番データを直せる
+
+### 2. 何をしていないか
+
+- **LINE は一切触っていません。** wangさんの指示で別セッションの担当。
+  `score.py:PRESETS` / `build.py:rank_presets()` / `preset_top` / `worker/index.js`
+  はそのまま残してあります ―― **消すと配信中の LINE が即死します**。
+  `PRESETS` には5軸化に合わせて `quiz` の重みだけ足しました
+- **`tools/test_favorite.mjs` が落ちます（`#inspector .detail .favBtn` でタイムアウト）。
+  これは main でも同じように落ちる既存の不具合**で、今回の変更とは無関係です
+  （`~/Developer/rakutan-db` 本体を配信して実測して確認しました）
+- 内容タグ（`docs/plans/2026-09-03-naiyou-tag-design.md`）は未着手。別PR
+
+### 3. 次の人が最初に打つコマンド
+
+    git worktree list                       # .worktrees/haiten があるはず
+    cd .worktrees/haiten
+    python3 tools/test_haiten_filter.py
+    less docs/plans/2026-09-03-haiten-filter-design.md
+
+### 4. 踏んだ罠
+
+- 🚨 **軸を1本足すと、全科目の総合値が上がる。** その軸が満点になる科目
+  （小テストが無い6,473件）にとっては加点でしかないからです。実測で
+  **判定できた3,602件がすべて上がり、下がった科目は0件**でした（中央値 +2.7）。
+  band のしきい値は旧い分布に合わせた定数なので、据え置くと「新しい根拠は
+  何も無いのに『軽い』が426件増える」ことになります。
+  **順位はほとんど動いていない**（3群とも中央値で0.6ポイント未満）ので、
+  目盛りに合わせて **72/55/38 → 79/67/53** に置き直しました。
+  **切り上げは厳禁** ―― 53.1 ちょうどに348件（「出席100%」だけで評価される科目は
+  入力が同一なので総合値も同一）が固まっていて、54 にすると一斉に「重め」へ落ちます
+- **`eval_unclassified` が空でも、内訳が完結しているとは限りません。**
+  デンマーク語V〜VIIの6件は `eval_raw` が「試験20%」しか無く、
+  4本の上限を20%にしても通り抜けていました。`passes_caps` には
+  **合計が `EVAL_TOTAL_MIN`(80) 以上** という条件も要ります
+- **Python と JS の二重実装は必ず片方だけ直します。** 上の `EVAL_TOTAL_MIN` の
+  修正を `score.py` にだけ入れて `app.js` に入れ忘れ、
+  `tools/test_haiten_ui.mjs` が「合計80%なのに6件出ている」で捕まえました。
+  **本番は静的配信なので、実際に絞り込んでいるのは `app.js` のほう**です
+- **`.sl` の3列目が 16px 固定**でした（目盛りが1桁の「4」だった頃の幅）。
+  「100%」にすると枠の外へはみ出して「1」しか読めません。44px にしました。
+  はみ出しは `row.scrollWidth <= row.clientWidth` で機械的に検出できます
+- 「相性」という言葉は `index.html` の並び替えドロップダウンと `about.html` にも
+  ありました。重みが無くなった以上その数字は出せないので、カードは
+  **楽単スコア**、並びは「おすすめ順」に言い換えてあります
+
 ## 2026-09-03 ｜ 絞り込みUIの再設計スペック2本（レビュー待ち・実装未着手）｜ Claude → 次の人
 
 wangさんの依頼。「右の 4本スライダー（出席の緩さ 4 …）が虚である。シラバスに

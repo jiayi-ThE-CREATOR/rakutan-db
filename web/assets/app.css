@@ -266,7 +266,10 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .chip .n{font-family:var(--data);font-size:var(--fs-xs);opacity:.65;margin-left:4px}
 .sliders{margin-top:12px;display:none}
 .sliders.open{display:block}
-.sl{display:grid;grid-template-columns:88px 1fr 16px;gap:10px;align-items:center;margin-bottom:7px}
+/* 3列目は 2026-09-03 に 16px → 44px。目盛りが「4」（1桁）から「100%」に
+   変わったので、16px のままだと数字が枠の外へはみ出して「1」しか読めない。
+   tools/test_haiten_ui.mjs が行のはみ出しを見張っている。 */
+.sl{display:grid;grid-template-columns:88px 1fr 44px;gap:10px;align-items:center;margin-bottom:7px}
 .sl label{font-size:var(--fs-sm);color:var(--soft)}
 .sl input{width:100%;accent-color:var(--brand)}
 .sl .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right}
@@ -831,3 +834,19 @@ html{scroll-behavior:smooth}
   text-decoration:none;color:var(--muted);font-size:var(--fs-xs);font-weight:700}
 .footSns a:hover{color:var(--ink)}
 .footSns .snsIcon{width:36px;height:36px;border-radius:10px}
+
+
+/* ── 配点の上限スライダー（2026-09-03） ──────────────────
+   桁が増えても数字の位置がずれないように等幅の数字にする（幅は .sl の3列目）。 */
+.sl .v { font-variant-numeric: tabular-nums; }
+
+/* 上限の合計が100%を下回ったときだけ出す。0件になる理由を先に言うためのもの
+   なので、エラーの赤ではなくブランド色の注意として出す。 */
+.capWarn {
+  margin: .5rem 0 0;
+  padding: .5rem .6rem;
+  border-left: 3px solid var(--brand, #DB6209);
+  background: rgba(219, 98, 9, .08);
+  font-size: .82rem;
+  line-height: 1.5;
+}

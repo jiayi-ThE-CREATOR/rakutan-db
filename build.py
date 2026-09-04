@@ -276,6 +276,66 @@ def represet(out: Path) -> None:
           f"（学年×プリセット {moved} 通りで順位が変わりました）")
 
 
+def rescore(out: Path) -> None:
+    """焼き済みの courses.built.json を、いまの score.py で採点し直す。
+
+    represet() と同じ経路の拡張版。生データ（data/courses.json 全所属ぶん）は
+    gitignore で取得した人の手元にしか無いので、それを持っていない人でも
+    **採点ロジックの変更を本番へ出せる**ようにする。
+
+    やること:
+      ① eval_raw から eval_ratio / eval_unclassified を作り直す
+         （小テストを出席から独立させる変更が、ここで既存データに効く）
+      ② rakutan（採点）を score.py で付け直す
+      ③ preset_top を組み直す ―― LINE が読むので、採点が動いたら必ず一緒に動かす
+      ④ _meta の weights / axis_label / presets を今の値にする
+
+    **科目そのものは増減しない。** 読むのも書くのも既存の built ファイル。
+    振り分けの規則は scrape.parse.bucket_of（正本は1つ）を tools.rebucket 経由で使う。
+    HTML を持っている人は、これではなく
+    `python3 scrape/parse.py && python3 scrape/years.py && python3 build.py`
+    を流せばよい。結果は同じ。
+    """
+    from tools.rebucket import rebucket
+
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    courses = payload["courses"]
+    changed_ratio = 0
+    before_band = {}
+    after_band = {}
+    for c in courses:
+        before_band[c["rakutan"]["band"]] = before_band.get(c["rakutan"]["band"], 0) + 1
+        raw = c.get("eval_raw") or {}
+        if raw:
+            ratio, unclassified = rebucket(raw)
+            if ratio != c.get("eval_ratio"):
+                changed_ratio += 1
+            c["eval_ratio"] = ratio
+            c["eval_unclassified"] = unclassified
+        c["rakutan"] = scoring.score(c)
+        after_band[c["rakutan"]["band"]] = after_band.get(c["rakutan"]["band"], 0) + 1
+
+    payload["preset_top"] = rank_presets(courses)
+    judged = sum(1 for c in courses if c["rakutan"]["overall"] is not None)
+    payload["_meta"].update({
+        "judged": judged,
+        "unjudged": len(courses) - judged,
+        "weights": scoring.WEIGHTS,
+        "axis_label": scoring.AXIS_LABEL,
+        "presets": scoring.PRESETS,
+        "eval_total_min": scoring.EVAL_TOTAL_MIN,
+    })
+    out.write_text(json.dumps(payload, ensure_ascii=False,
+                              separators=(",", ":")), encoding="utf-8")
+
+    print(f"→ {out}  {len(courses)} 件を採点し直しました"
+          f"（eval_ratio が変わった科目 {changed_ratio} 件）")
+    print("  band の分布（変更前 → 変更後）:")
+    for band in sorted(set(before_band) | set(after_band)):
+        b, a = before_band.get(band, 0), after_band.get(band, 0)
+        print(f"    {band:8} {b:5d} → {a:5d}  ({a - b:+d})")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--full", action="store_true",
@@ -290,10 +350,17 @@ def main() -> None:
     ap.add_argument("--represet", action="store_true",
                     help="焼き済みの courses.built.json の preset_top だけ組み直す"
                          "（全所属ぶんの生データを持っていない人が並び順を直すとき）")
+    ap.add_argument("--rescore", action="store_true",
+                    help="焼き済みの courses.built.json を今の score.py で採点し直す"
+                         "（同上。eval_raw から eval_ratio も作り直す）")
     args = ap.parse_args()
 
     if args.represet:
         represet(Path(args.out))
+        return
+
+    if args.rescore:
+        rescore(Path(args.out))
         return
 
     raw = json.loads(SRC.read_text(encoding="utf-8"))
@@ -373,6 +440,10 @@ def main() -> None:
             "weights": scoring.WEIGHTS,
             "axis_label": scoring.AXIS_LABEL,
             "presets": scoring.PRESETS,
+            # 内訳を何%読めていれば判定を出すか。app.js が「口コミ待ち」と
+            # 「シラバス側が足りない」の文言を出し分けるのに使う。
+            # ここを渡さないと JS 側に同じ数字を書くことになり、必ずズレる。
+            "eval_total_min": scoring.EVAL_TOTAL_MIN,
             # 口コミが採点に効き始める人数。画面の文言がこれを読む。
             # 2026-08-24：門を3件にしたのに「1件入ると出ます」と
             # 表示し続けていたので、数字を持たせて食い違いを止める。

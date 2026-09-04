@@ -89,16 +89,21 @@
         <div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div>
       </section>
 
-      <section>
-        <h2>あなたの優先度</h2>
-        <div class="chips" id="presets"></div>
-        <button class="toggle" id="tog">スライダーを閉じる</button>
-        <div class="sliders open" id="sliders"></div>
-      </section>
-
+      <!-- 条件チップは配点スライダーの「上」に置く。押すと下のスライダーが
+           0% へ動く（同じ1つの状態を指している）。順番を入れ替えると、
+           押した結果がどこに出るのか画面から読めなくなる。 -->
       <section>
         <h2>条件</h2>
         <div class="chips" id="conds"></div>
+      </section>
+
+      <section>
+        <h2>配点でしぼる <span class="sub">シラバスの成績評価の内訳</span></h2>
+        <button class="toggle" id="tog">配点スライダーを閉じる</button>
+        <div class="sliders open" id="sliders"></div>
+        <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も
+             条件を満たさない。0件になってから気付かせず、先に理由を出す。 -->
+        <p class="capWarn" id="capWarn" hidden>上限の合計が100%を下回っています。成績評価の内訳は合計100%なので、この組み合わせに当てはまる科目はありません。</p>
       </section>
 
       <section>
@@ -130,7 +135,11 @@
         <div class="barCount"><b id="count">–</b> <span>件</span></div>
         <input type="search" id="q" placeholder="科目名でしぼりこむ" autocomplete="off">
         <select id="sort">
-          <option value="fit">あなたとの相性順</option>
+          <!-- 2026-09-03: 「相性」は重みスライダーの内積だった。スライダーが
+               上限フィルタに変わって重みが無くなったので、既定の並びは
+               「難しさが確認ずみ → 楽単スコアの高い順」になった。
+               値 fit は URL とクエリの互換のためそのまま使っている。 -->
+          <option value="fit">おすすめ順</option>
           <option value="rakutan">全体の軽い順</option>
           <option value="confidence">情報が揃っている順</option>
           <!-- 口コミの件数で並べる2つは「口コミあり」を押しているときだけ出す。
