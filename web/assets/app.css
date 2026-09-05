@@ -656,15 +656,12 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   #list > .card{margin-bottom:0}
   /* 0件のときの案内は全列ぶち抜き（1列目だけに細く出ると読み落とす）。 */
   #list > .empty{grid-column:1/-1}
-  /* 推薦枠も全列ぶち抜き。中の列数を外と揃えたいが、.picks は
-     padding(--sp-3)×2 + border×2 = 26px ぶん内側が狭い。同じ 380px で組むと
-     「外は2列・中は1列」という食い違いが起きるので、その26pxを引く。
-     .picks の padding か border を変えるときはこの 26px も直すこと。 */
-  .picks{grid-column:1/-1;display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(calc(var(--cardMin) - 26px),1fr));
-    gap:10px;align-items:start}
-  .picksH{grid-column:1/-1}
-  .picks .card{margin-bottom:0}
+  /* 推薦枠は全列ぶち抜き。ただし**中は1枚ずつの縦積みのまま**にしてある。
+     ここは3件しか入らないので、多列にすると2列目の下が大きく空いて
+     「まだ続きがあるのに切れている」ように見える。並べ替えて詰めるのは
+     一覧の仕事で、推薦枠は「人が確認ずみの数件」を読ませる場所。
+     中のカードは .card の margin-bottom:10px をそのまま使う。 */
+  .picks{grid-column:1/-1}
 
   /* ── 2列に収めるためのカード圧縮 ──────────────
      縮めたのは字号でも余白でもなく「行数」。科目名は実測で最長 122 半角幅
