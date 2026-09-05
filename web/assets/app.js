@@ -1374,14 +1374,19 @@ function activeFilterCount(){
   return n;
 }
 
+/* 開閉の操作子は継ぎ目の取っ手（#grip）1つだけ。矢印の向きは CSS が
+   .railOff から出し分けるので、ここでは名前と条件数だけを面倒みる。 */
 function syncRailTog(){
-  const btn = $("#railTog");
+  const btn = $("#grip");
   if (!btn) return;
   const off = $("#workbench").classList.contains("railOff");
-  const n = activeFilterCount();
+  const label = off ? "絞り込みを表示" : "絞り込みを隠す";
   btn.setAttribute("aria-expanded", String(!off));
-  $("#railTogLabel").textContent = off ? "絞り込み" : "絞り込みを隠す";
-  const b = $("#railTogCount");
+  btn.setAttribute("aria-label", label);
+  btn.dataset.label = label;   // 乗せたときに出る名札（app.css の .grip::after）
+  /* 条件の数は畳んでいるときだけ出す。開いていれば条件そのものが左に見えている。 */
+  const n = activeFilterCount();
+  const b = $("#gripCount");
   b.textContent = n;
   b.hidden = !(off && n > 0);
 }
@@ -1687,8 +1692,8 @@ function applyPostMode() {
   /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると
      復元のための classList 操作が「押した」ことになってしまう。 */
   setRail(rkStore.getRailOpen());
-  $("#railTog").onclick = () => {
-    const open = $("#workbench").classList.contains("railOff");
+  $("#grip").onclick = () => {
+    const open = $("#workbench").classList.contains("railOff");   // 畳んでいた＝これから開く
     setRail(open);
     window.rkTrack?.("rail_toggle", open ? "open" : "close");
   };
