@@ -7,6 +7,7 @@
  *   - GET  /line/health   … 死活監視
  *   - POST /api/feedback  … 意見箱（フッタのモーダル → Discord へ中継）
  *   - POST /api/kuchikomi … 口コミ投稿の中継（→ GAS。成功したら Discord へ通知）
+ *   - POST /api/hit       … 実際に使われた回数（→ Analytics Engine）
  *   - それ以外            … env.ASSETS.fetch() でこれまで通り静的配信
  *
  * データ取得は env.ASSETS 経由で /data/courses.built.json を同一オリジンから
@@ -19,7 +20,19 @@
  *   FEEDBACK_DISCORD_WEBHOOK  … 意見箱の落とし先。未設定なら 503
  *   REVIEW_DISCORD_WEBHOOK    … 口コミ通知の落とし先。未設定なら通知しない
  *                               （投稿そのものは今まで通り成立する）
+ *   STATS_DISCORD_WEBHOOK     … 毎朝のアクセス速報の落とし先。未設定なら鳴らさない
+ *   CF_ACCOUNT_ID / CF_API_TOKEN … 速報が Analytics Engine を読むための鍵
+ *                               （権限は アカウント / Account Analytics / 読み取り だけ）
+ *
+ * cron（wrangler.toml の [triggers]）:
+ *   0 23 * * *  … JST 08:00。きのう一日ぶんのアクセスを Discord へ流す
  */
+
+/* 計測リンクの slug と、毎朝のアクセス速報。
+ * 🚨 別ファイルにしてあるのは、Workers の入口モジュールが
+ * **関数以外の named export を受け付けない**ため（`export const STATS_SQL = "…"`
+ * を index.js に置くと Worker が起動時に落ちる。2026-09-03 に実測）。 */
+import { TRACKING_SLUGS, runDailyTraffic } from "./traffic.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -938,13 +951,10 @@ async function handleFavorites(request, env) {
  * Analytics のページ別集計から slug が消えて数えられなくなるため
  * （マニュアルにも明記）。/l/kasai のまま、中身はトップと同じものを返す。
  * クエリ文字列（/?s=kasai）でも同じ理由で数えられない。
+ *
+ * slug の一覧（と、どのチャネルに数えるか）は worker/traffic.js の
+ * STATS_CHANNELS が正本。配信と集計で表を2枚に割らないため。
  */
-const TRACKING_SLUGS = new Set([
-  "kasai", "shunya", "kimura", "wang",
-  "oc1", "oc2", "oc3", "oc4", "oc5",
-  "ig", "story", "dm-a", "dm-b", "x",
-]);
-
 async function handleTrackingLink(request, env, slug) {
   if (!TRACKING_SLUGS.has(slug)) return null;
   // トップページの中身をそのまま返す。アドレス欄は /l/<slug> のまま残る。
@@ -982,6 +992,74 @@ async function handleTrackingLink(request, env, slug) {
  */
 const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
 
+/* ── 実際に使われた回数（POST /api/hit） ──────────────────
+ *
+ * Cloudflare Web Analytics の数字は下限にしかならない。beacon が
+ * cloudflareinsights.com にあるので、広告ブロッカー（Brave / uBlock /
+ * DuckDuckGo）が塞ぐ。ここは同じドメインなので塞がれない。
+ *
+ * クローラは JS を動かさないので、そもそもここには来ない。
+ * 来たとしても UA と Origin で落とす。
+ *
+ * 置かないもの: Cookie・端末ID・IP・検索語・科目ID。
+ * 残すのは「いつ・どの種類の操作が・どのパスで」の3つだけ。
+ */
+const HIT_EVENTS = new Set(["pv", "search", "detail"]);
+
+// JS を動かすクローラ（Googlebot のレンダリング・監視サービス・Lighthouse）を落とす。
+const HIT_BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|monitor|uptime|preview/i;
+
+/* 「合わない Origin だけを弾く」。付いていないものまで弾かないのは、
+   独自ドメインが nginx（VPS）を通って Worker へ来るため
+   ―― 中継のヘッダ設定ひとつで集計が静かにゼロになるのが一番まずい。
+   Origin が無いときは Referer を見て、どちらも無ければ通す。
+   ここを通り抜けられるのは「JSON を POST できる誰か」だけで、
+   その量は UA の判定と MAX（クライアント側60件/ページ）で頭打ちになる。 */
+function hitFromOurSite(request) {
+  const raw = request.headers.get("Origin") || request.headers.get("Referer");
+  if (!raw) return true;
+  let host;
+  try { host = new URL(raw).hostname; } catch (e) { return false; }
+  return host === CANONICAL_HOST || host.endsWith(".workers.dev")
+      || host === "localhost" || host === "127.0.0.1";
+}
+
+async function handleHit(request, env) {
+  /* 返すのは常に 204。数えられなかったことを画面に出す意味は無い
+     ―― 計測の失敗で利用者の操作を止めない。 */
+  const done = () => new Response(null, { status: 204 });
+
+  if (request.method !== "POST") return done();
+  if (HIT_BOT_UA.test(request.headers.get("User-Agent") || "")) return done();
+  if (!hitFromOurSite(request)) return done();
+
+  let body;
+  try { body = await request.json(); } catch (e) { return done(); }
+  const event = String(body?.e ?? "");
+  if (!HIT_EVENTS.has(event)) return done();
+
+  /* パスだけを残し、クエリは落とす。?c=<科目id> まで残すと
+     「誰が何を見たか」に近づく。/l/<slug> は残るので、チャネルごとの
+     効き目は自前の数字でも比較できる。 */
+  let path = "/";
+  try { path = new URL(String(body?.p ?? "/"), "https://x").pathname.slice(0, 64); } catch (e) {}
+
+  const fresh = body?.n === 1 ? 1 : 0;   // その訪問の1回目（クライアントの sessionStorage 判定）
+
+  /* 束ねていないので1リクエスト1件。writeDataPoint は投げっぱなしで
+     例外も返り値も無いが、束縛が無い env（ローカル・テスト）では
+     undefined になるので ?. で守る。計測のために本番を落とさない。 */
+  try {
+    env.STATS?.writeDataPoint({
+      blobs: [event, path],
+      doubles: [1, fresh],
+      indexes: [event],
+    });
+  } catch (e) {}
+
+  return done();
+}
+
 function markNoindex(res) {
   const headers = new Headers(res.headers);
   headers.set("x-robots-tag", "noindex, nofollow");
@@ -993,6 +1071,11 @@ export default {
     const res = await route(request, env, ctx);
     // 独自ドメイン以外（旧 workers.dev・ローカル）は検索に載せない。
     return new URL(request.url).hostname === CANONICAL_HOST ? res : markNoindex(res);
+  },
+
+  // wrangler.toml の [triggers]（JST 08:00）から呼ばれる。
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runDailyTraffic(env, new Date(event.scheduledTime)));
   },
 };
 
@@ -1026,6 +1109,9 @@ async function route(request, env, ctx) {
   }
   if (url.pathname === "/api/favorites") {
     return handleFavorites(request, env);
+  }
+  if (url.pathname === "/api/hit") {
+    return handleHit(request, env);
   }
   return env.ASSETS.fetch(request);
 }

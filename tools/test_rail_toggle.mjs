@@ -1,0 +1,221 @@
+/* 左の絞り込みを畳めること・畳むと一覧が2列になること・長い科目名が
+ * 2行で頭打ちになりホバーで流れることを実ブラウザで見る。
+ *
+ *   cd web && python3 -m http.server 8141 &
+ *   node tools/test_rail_toggle.mjs http://localhost:8141
+ *
+ * 見張っているのは主に3つの回帰:
+ *   1. 畳んだのに中カラムが広がらない（.railOff の grid-template-columns を
+ *      3つの断点すべてに書き忘れると、1160px 以上でだけ効かない等が起きる）
+ *   2. 畳むと条件が画面から消えるのに、効いている条件の数がどこにも出ない
+ *   3. 多列にしたとき、推薦枠（section.picks）が1列目だけに細く出る
+ *      （grid-column:1/-1 の付け忘れ）
+ */
+import { chromium } from "playwright";
+
+const BASE = process.argv[2] || "http://localhost:8141";
+const fails = [];
+let n = 0;
+const check = (cond, msg) => { n++; if (!cond) fails.push(msg); };
+
+const open = async (browser, size) => {
+  const p = await browser.newPage({ viewport: size });
+  await p.addInitScript(() => {
+    try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
+    try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
+  });
+  await p.goto(BASE, { waitUntil: "domcontentloaded" });
+  await p.waitForSelector("#list .card");
+  return p;
+};
+
+const browser = await chromium.launch();
+
+/* ── PC 1440px：畳む → 広がる → 2列 ── */
+{
+  const p = await open(browser, { width: 1440, height: 900 });
+
+  check(await p.locator("#rail").isVisible(), "初期状態で絞り込みが出ていない");
+  /* 開閉の操作子は継ぎ目の取っ手1つだけ。2つ置くと同じ操作の入口が
+     2箇所になり、どちらが何をするのか読めなくなる。 */
+  check(await p.locator("#grip").isVisible(), "取っ手が出ていない");
+  check(await p.locator("#grip").getAttribute("aria-label") === "絞り込みを隠す",
+        "開いているときの取っ手の名前が「絞り込みを隠す」でない");
+  check(await p.locator("#grip").getAttribute("aria-expanded") === "true",
+        "初期の aria-expanded が true でない");
+
+  /* 取っ手は画面の高さの真ん中に貼り付く。これが今回の要件そのもの ――
+     .bar に置いていた頃は、下へスクロールすると操作子が消えていた。
+     上・中・下のどこにいても視界の中に在ること。 */
+  for (const y of [0, 900, 2500]){
+    await p.evaluate(v => scrollTo(0, v), y);
+    await p.waitForTimeout(150);
+    const g = await p.locator("#grip").boundingBox();
+    check(g && g.y > 0 && g.y + g.height < 900,
+          `scrollY=${y} で取っ手が画面の外にいる（y=${g && Math.round(g.y)}）`);
+  }
+  await p.evaluate(() => scrollTo(0, 0));
+  await p.waitForTimeout(150);
+
+  /* 取っ手はカードより上に描かれること。カードは .card{position:relative} で
+     DOM 上は後ろに来るので、z-index が抜けると「取っ手は見えるのに、
+     乗せたときの名札だけカードの下に隠れる」という分かりにくい壊れ方をする。 */
+  const gz = await p.locator(".gripRail").evaluate(el => getComputedStyle(el).zIndex);
+  check(gz !== "auto" && +gz > 0, `取っ手に z-index が無い（${gz}）―― 名札がカードの下に隠れる`);
+
+  /* 見出しの罫線と .bar の罫線が同じ高さで揃っていること。ずれると
+     左右が「別の段」に見えて、見出しが条件欄の見出しだと読めなくなる。 */
+  const hb = await p.locator(".railHead").boundingBox();
+  const bb = await p.locator(".bar").boundingBox();
+  check(Math.abs((hb.y + hb.height) - (bb.y + bb.height)) <= 2,
+        `見出しと .bar の底辺がずれている（${Math.round(hb.y+hb.height)} vs ${Math.round(bb.y+bb.height)}）`);
+
+  /* 見出し行と「◯曜◯限で絞り込み中」はどちらも条件欄の天井に貼り付く。
+     --railHeadH がずれると重なるので、実際にコマを選んで見る。 */
+  await p.locator("#grid button").first().click();
+  await p.waitForTimeout(250);
+  const headBox = await p.locator(".railHead").boundingBox();
+  const slotBox = await p.locator("#slotBar").boundingBox();
+  check(!!slotBox, "コマを選んでも #slotBar が出ない");
+  check(slotBox && slotBox.y >= headBox.y + headBox.height - 1,
+        `見出し行と #slotBar が重なっている（--railHeadH のずれ）`);
+  await p.locator("#slotBarClear").click();
+  await p.waitForTimeout(250);
+
+  const before = (await p.locator("#results").boundingBox()).width;
+  const colsBefore = await p.evaluate(() =>
+    new Set([...document.querySelectorAll("#list > .card")]
+      .map(el => Math.round(el.getBoundingClientRect().x))).size);
+  check(colsBefore === 1, `畳む前に既に多列になっている（${colsBefore}列）`);
+
+  await p.locator("#grip").click();
+  await p.waitForTimeout(80);
+
+  check(!(await p.locator("#rail").isVisible()), "畳んでも絞り込みが消えていない");
+  check(await p.locator("#grip").isVisible(), "畳んだら取っ手まで消えた（開き直せない）");
+  check(await p.locator("#grip").getAttribute("aria-expanded") === "false",
+        "畳んだのに aria-expanded が false でない");
+  check(await p.locator("#grip").getAttribute("aria-label") === "絞り込みを表示",
+        "畳んだあとの取っ手の名前が「絞り込みを表示」でない");
+
+  /* 畳んでも取っ手は一覧に重ならない（一覧の左に 28px の余白を作ってそこへ立てる）。 */
+  const gBox = await p.locator("#grip").boundingBox();
+  const cBox = await p.locator("#list > .card").first().boundingBox();
+  check(gBox.x + gBox.width <= cBox.x + 1,
+        `畳んだとき取っ手がカードに重なっている（${Math.round(gBox.x+gBox.width)} > ${Math.round(cBox.x)}）`);
+
+  /* 同じ取っ手で開き直せること。 */
+  await p.locator("#grip").click();
+  await p.waitForTimeout(80);
+  check(await p.locator("#rail").isVisible(), "取っ手で開き直せない");
+  await p.locator("#grip").click();
+  await p.waitForTimeout(80);
+
+  const after = (await p.locator("#results").boundingBox()).width;
+  check(after > before + 200, `畳んでも中カラムが広がらない（${before} → ${after}）`);
+
+  const colsAfter = await p.evaluate(() =>
+    new Set([...document.querySelectorAll("#list > .card")]
+      .map(el => Math.round(el.getBoundingClientRect().x))).size);
+  check(colsAfter === 2, `畳んでも一覧が2列にならない（${colsAfter}列）`);
+
+  /* 推薦枠は全列ぶち抜き。1列目の幅で止まっていたら付け忘れ。 */
+  const picks = await p.locator("#list > .picks").count();
+  if (picks){
+    const pw = (await p.locator("#list > .picks").boundingBox()).width;
+    check(pw > after * 0.9, `推薦枠が全列ぶち抜きになっていない（${pw} / ${after}）`);
+  }
+
+  /* 畳んだ状態が次に来たときも残ること。 */
+  await p.reload({ waitUntil: "domcontentloaded" });
+  await p.waitForSelector("#list .card");
+  check(!(await p.locator("#rail").isVisible()), "再読込で畳んだ状態が戻ってしまう");
+
+  await p.close();
+}
+
+/* ── 条件の数バッジ ── */
+{
+  const p = await open(browser, { width: 1440, height: 900 });
+
+  check(await p.locator("#gripCount").isVisible() === false,
+        "開いているのに条件数バッジが出ている");
+
+  /* 学年チップを1つ押す（既定は「すべて」なので、押せば条件が1つ増える）。 */
+  await p.locator("#years .chip:not(.on)").first().click();
+  await p.waitForTimeout(250);
+  await p.locator("#grip").click();
+  await p.waitForTimeout(80);
+
+  check(await p.locator("#gripCount").isVisible(),
+        "条件が効いているのに、畳んでもバッジが出ない");
+  const badge = +(await p.locator("#gripCount").textContent());
+  check(badge >= 1, `バッジの数が 1 未満（${badge}）`);
+
+  await p.close();
+}
+
+/* ── 長い科目名：2行で頭打ち、ホバーで流れる ── */
+{
+  const p = await open(browser, { width: 1440, height: 900 });
+  /* 先に畳む。開いたままだとカードが 640px 幅で、2行に 136 半角幅入る
+     ―― 実データの最長（122 半角幅）でも溢れない。溢れるのは2列にして
+     カードが 464px になったときだけなので、そちらで見る。 */
+  await p.locator("#grip").click();
+  await p.waitForTimeout(80);
+  /* 「ものづくり」は11件で1ページに収まり、うち2件が2行に入らない
+     （最長 122 半角幅の「学問への扉（ものづくりサイエンス「…」）」）。 */
+  await p.locator("#q").fill("ものづくり");
+  await p.waitForTimeout(400);
+  await p.waitForSelector("#list .card");
+
+  /* 窓が2行ぶんで固定されていること（16.5px × 1.35 × 2 ≒ 44.5px）。 */
+  const h = await p.locator("#list > .card .title").first().evaluate(el => el.clientHeight);
+  check(Math.abs(h - 44.5) < 2, `科目名の窓が2行ぶんになっていない（${h}px）`);
+
+  /* はみ出している科目名を1つ探して、乗せたときに動くことを見る。 */
+  /* クランプが効いているあいだ scrollHeight は「切ったあとの高さ」を返すので、
+     一瞬だけクランプを外して全高を測る（app.js の mqStart と同じ手順）。 */
+  const idx = await p.evaluate(() => {
+    const ts = [...document.querySelectorAll("#list > .card .title")];
+    return ts.findIndex(t => {
+      const inner = t.firstElementChild;
+      const prev = inner.style.webkitLineClamp;
+      inner.style.webkitLineClamp = "unset";
+      const over = inner.offsetHeight > t.clientHeight + 1;
+      inner.style.webkitLineClamp = prev;
+      return over;
+    });
+  });
+  if (idx >= 0){
+    const t = p.locator("#list > .card .title").nth(idx);
+    await t.hover();
+    await p.waitForTimeout(120);
+    const cls = await t.getAttribute("class");
+    check(/\bmqRun\b/.test(cls), "はみ出した科目名にホバーしても流れ始めない");
+    const shift = await t.evaluate(el => el.style.getPropertyValue("--mqShift"));
+    check(parseFloat(shift) > 0, `流す距離が入っていない（--mqShift=${shift}）`);
+
+    await p.mouse.move(5, 5);
+    await p.waitForTimeout(400);
+    check(!/\bmqRun\b/.test(await t.getAttribute("class")), "離れても流れたまま止まらない");
+  } else {
+    check(false, "2列幅で2行に収まらない科目名が見つからない（検索語かクランプの回帰）");
+  }
+  await p.close();
+}
+
+/* ── スマホ幅：ボタンを出さない・科目名を切らない ── */
+{
+  const p = await open(browser, { width: 390, height: 844 });
+  check(!(await p.locator("#grip").isVisible()), "スマホ幅で取っ手が出ている");
+  check(!(await p.locator(".railHead").isVisible()), "スマホ幅で条件欄の見出し行が出ている");
+  const over = await p.evaluate(() =>
+    getComputedStyle(document.querySelector("#list > .card .title")).overflow);
+  check(over !== "hidden", "スマホ幅で科目名が切られている（クランプが漏れている）");
+  await p.close();
+}
+
+await browser.close();
+console.log(fails.length ? `NG ${fails.length}/${n}\n  ${fails.join("\n  ")}` : `通過 ${n} 件\nOK`);
+process.exit(fails.length ? 1 : 0);

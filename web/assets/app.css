@@ -266,7 +266,10 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .chip .n{font-family:var(--data);font-size:var(--fs-xs);opacity:.65;margin-left:4px}
 .sliders{margin-top:12px;display:none}
 .sliders.open{display:block}
-.sl{display:grid;grid-template-columns:88px 1fr 16px;gap:10px;align-items:center;margin-bottom:7px}
+/* 3列目は 2026-09-03 に 16px → 44px。目盛りが「4」（1桁）から「100%」に
+   変わったので、16px のままだと数字が枠の外へはみ出して「1」しか読めない。
+   tools/test_haiten_ui.mjs が行のはみ出しを見張っている。 */
+.sl{display:grid;grid-template-columns:88px 1fr 44px;gap:10px;align-items:center;margin-bottom:7px}
 .sl label{font-size:var(--fs-sm);color:var(--soft)}
 .sl input{width:100%;accent-color:var(--brand)}
 .sl .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right}
@@ -280,6 +283,80 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;
   gap:var(--sp-2);margin:var(--sp-5) 0 var(--sp-2);padding-bottom:var(--sp-2);
   border-bottom:1px solid var(--rule)}
+/* 条件欄の見出し行。768px 未満では出さない ―― その幅では .rail は
+   ただの縦積みで、畳む相手としての「列」が無い。 */
+.railHead{display:none}
+@media (min-width:768px){
+  /* 高さを決め打ちにしてあるのは、下の .slotBar（「◯曜◯限で絞り込み中」）も
+     sticky で、同じ器の天井に貼り付くから。値がずれると2つが重なる。
+     tools/test_rail_toggle.mjs が重なりを見張っている。 */
+  /* 高さ 51px と上の余白 24px は、右の .bar（件数・検索・並び順）と
+     下の罫線をそろえるための値。2本の罫線が同じ高さで揃うと、左右が
+     「同じ段の見出し」に見える。.bar の中身（検索窓の padding）を変えると
+     ずれるので、tools/test_rail_toggle.mjs が2本の底辺を突き合わせている。 */
+  .rail{--railHeadH:51px}
+  .railHead{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);
+    height:var(--railHeadH);margin-top:var(--sp-5);position:sticky;top:0;z-index:16;
+    background:var(--paper);border-bottom:1px solid var(--rule);margin-bottom:var(--sp-3)}
+  .slotBar{top:var(--railHeadH)}
+}
+.railHeadT{font-size:var(--fs-sm);font-weight:700;color:var(--soft);letter-spacing:.04em}
+
+/* ── 継ぎ目の取っ手 ─────────────────────
+ * 条件欄と一覧のあいだの gap（--sp-5＝24px）に立てる。開閉の操作子はこれだけ。
+ * .gripRail は一覧と同じ高さの帯で、位置を決めるためだけに在る
+ * （pointer-events:none ―― 継ぎ目を通りすがりに押してしまうのを防ぐ。
+ *  押せるのは中の .grip だけ）。その .grip が sticky で画面の高さの真ん中に
+ * 貼り付くので、どこまでスクロールしても視界から出ない。これが要件そのもので、
+ * .bar に置いていた頃は下へスクロールすると消えていた。
+ * 768px 未満では出さない（その幅に継ぎ目は無い）。 */
+.gripRail{display:none}
+@media (min-width:768px){
+  .results{position:relative}
+  /* z-index が要る。カードは .card{position:relative}（app.css の913行あたり、
+     星を右上に置くため）で、DOM 上は .gripRail より後ろに来る。どちらも
+     z-index:auto のままだと、後から来るカードが上に描かれ、取っ手そのものは
+     継ぎ目に在るので見えるのに、乗せたときの名札（.grip::after）だけが
+     カードの下に隠れる。実際にそうなっていた（2026-09-05）。 */
+  .gripRail{display:flex;flex-direction:column;align-items:center;
+    position:absolute;top:0;bottom:0;left:calc(-1 * var(--sp-5));width:var(--sp-5);
+    z-index:5;pointer-events:none}
+  /* 40px は .grip の高さ 80px の半分。画面のちょうど真ん中に来る。
+     地は --card ＋ 罫、矢印は --brand-text。--dim の地に灰色の矢印だと
+     背景の一部に見えて「押せるもの」と読まれない ―― 見つけてもらうのが
+     この取っ手の役目なので、静止状態から操作色を出す。 */
+  .grip{position:sticky;top:calc(50vh - 40px);pointer-events:auto;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    width:22px;height:80px;padding:0;cursor:pointer;
+    border:1px solid var(--rule);border-radius:var(--r-pill);
+    background:var(--card);color:var(--brand-text)}
+  .grip:hover{background:var(--brand-soft);border-color:var(--brand-line)}
+
+  /* 畳むと列が消えて継ぎ目も消えるので、一覧の左に 28px の余白を作って
+     そこへ立てる ―― 同じ縦線の上から動かさないため（位置の記憶が切れない）。
+     28px 使っても、畳んで広がるぶん（284〜304px）のほうがずっと大きい。
+     1280px の画面で一覧は 816px 使えるので、2列は保たれる。 */
+  .workbench.railOff .results{padding-left:28px}
+  .workbench.railOff .gripRail{left:0;width:28px}
+}
+/* 山形。文字の «‹» はフォント任せで太さも位置も揃わないので線で描く。
+   線を 2.5px と太くしてあるのは「押せる」と名指しするため。 */
+.gripIcon{width:9px;height:9px;margin-left:3px;transform:rotate(45deg);
+  border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor}
+.workbench.railOff .gripIcon{margin:0 3px 0 0;transform:rotate(-135deg)}
+/* 効いている条件の数。畳んでいるときだけ出す ―― 開いていれば条件そのものが
+   左に見えている。[hidden] は上の display 指定に特異度で負けるので打ち消す。 */
+.gripCount{display:block;min-width:16px;padding:0 3px;border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);font-size:var(--fs-xs);font-weight:700;
+  font-family:var(--data);text-align:center;line-height:16px}
+.gripCount[hidden]{display:none}
+/* 何のための取っ手かを、乗せたときに名指しする。矢印だけでは伝わらない。 */
+.grip::after{content:attr(data-label);position:absolute;left:calc(100% + 8px);
+  white-space:nowrap;font-size:var(--fs-xs);padding:4px 8px;border-radius:var(--r-sm);
+  background:var(--brand-ground);color:var(--on-dark);
+  opacity:0;pointer-events:none;transition:opacity var(--dur-fast)}
+.grip:hover::after,.grip:focus-visible::after{opacity:1}
+@media (prefers-reduced-motion:reduce){.grip::after{transition:none}}
 .barCount{white-space:nowrap}
 .bar b{font-size:19px;font-family:var(--data);font-variant-numeric:tabular-nums}
 .barCount span{font-size:var(--fs-sm);color:var(--muted)}
@@ -304,6 +381,17 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    width/height/right とセットで見直すこと（2026-08-26 修正）。 */
 .head{padding:13px 58px 13px 14px;cursor:pointer;display:grid;grid-template-columns:1fr 58px;gap:12px}
 .title{font-size:16.5px;font-weight:700;margin:0 0 3px;line-height:1.35}
+/* .title が「窓」、.titleT が「本文」。2枚に分けてあるのは、切り取り
+   （overflow:hidden）と移動（transform）を同じ要素では兼ねられないから。
+   768px 未満では窓に高さを与えていないので、本文はこれまでどおり
+   何行でも折り返す ―― スマホの見た目は変えない。 */
+.titleT{transition:transform .2s linear}
+/* 動きを減らす設定の人には流さない。代わりに app.js が title 属性を付け、
+   ブラウザ標準のツールチップで全文が読めるようにする。 */
+@media (prefers-reduced-motion:reduce){
+  .titleT{transition:none}
+  .title.mqRun .titleT{transform:none}
+}
 .meta{font-size:12px;color:var(--muted);font-family:var(--data)}
 .meta span+span::before{content:"・";margin:0 3px}
 .fit{text-align:right}
@@ -549,6 +637,55 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     padding-right:var(--sp-2)}
   .rail section:first-child{margin-top:0}
   .results{min-width:0}
+
+  /* 畳んだ状態。列そのものを消す（幅0にしない）ので gap も消え、
+     中カラムが 260+24=284px ぶん広がる。1440px 以上では 280+24=304px。 */
+  .workbench.railOff{grid-template-columns:minmax(0,1fr)}
+  .workbench.railOff .rail{display:none}
+
+  /* ── 一覧を容器の幅で自動的に多列にする ──────────────
+     しきい値 380px は「絞り込みを畳んだときだけ2列になる」ように選んである。
+     畳む前の中カラムは 1920px の画面でも 760px しか無く2列にならないので、
+     「畳む → 2列になる」という因果が画面から読める。
+     視口幅ではなく容器幅で決まる（auto-fill）ことが肝 ―― 右の詳細カラムが
+     出入りしても列数が正しく追従する。表示密度を人が選ぶ仕組みを足すときは、
+     この --cardMin を差し替える形にすれば済む。 */
+  .results{--cardMin:380px}
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cardMin),1fr));
+    gap:10px;align-items:start}
+  #list > .card{margin-bottom:0}
+  /* 0件のときの案内は全列ぶち抜き（1列目だけに細く出ると読み落とす）。 */
+  #list > .empty{grid-column:1/-1}
+  /* 推薦枠は全列ぶち抜き。ただし**中は1枚ずつの縦積みのまま**にしてある。
+     ここは3件しか入らないので、多列にすると2列目の下が大きく空いて
+     「まだ続きがあるのに切れている」ように見える。並べ替えて詰めるのは
+     一覧の仕事で、推薦枠は「人が確認ずみの数件」を読ませる場所。
+     中のカードは .card の margin-bottom:10px をそのまま使う。 */
+  .picks{grid-column:1/-1}
+
+  /* ── 2列に収めるためのカード圧縮 ──────────────
+     縮めたのは字号でも余白でもなく「行数」。科目名は実測で最長 122 半角幅
+     （「学問への扉（ものづくりサイエンス「…」）」の類）あり、380px 幅では
+     4行になってカード高が倍近くまで伸びる。字号や padding を削っても
+     1枚あたり数pxしか減らないので触らない。
+     右の 58px は .card > .favBtn の位置と対になっているので動かさない
+     （.head のコメント参照）。 */
+  .head{padding:11px 58px 11px 14px}
+  .reason{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+
+  /* 科目名は2行で頭打ち。2行に満たない科目名でも窓は2行ぶんの高さで固定する
+     ―― 多列に並べたとき、高さが揃っているほうが目が流れる。
+     2行あれば 80 半角幅まで入り、実データの p99（54 半角幅）を超える。
+     はみ出すのは 1% 未満で、それはホバーで流して読ませる。 */
+  .title{height:calc(2 * 1.35em);overflow:hidden}
+  .titleT{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  /* mqOn でクランプを外し、次のフレームで mqRun を足して動かす。2段階なのは
+     transform の開始位置を 0 にするため（クランプ解除と translate が同じ
+     フレームで当たると、途中から始まって見える）。距離と時間は app.js が
+     --mqShift / --mqDur に入れる。 */
+  .title.mqOn .titleT{-webkit-line-clamp:unset;overflow:visible}
+  .title.mqRun .titleT{transform:translateY(calc(-1 * var(--mqShift,0px)));
+    transition:transform var(--mqDur,1s) linear .35s}
 }
 
 /* 3カラムは 260 + 420 + 380 + 隙間48 = 1108px 無いと入らない。
@@ -561,10 +698,16 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 
 @media (min-width:1160px){
   .workbench{grid-template-columns:260px minmax(420px,1fr) 380px}
+  .workbench.railOff{grid-template-columns:minmax(0,1fr) 380px}
   .inspector{display:block;position:sticky;top:var(--sp-3);
     max-height:calc(100vh - var(--sp-6));overflow-y:auto;
     background:var(--card);border:1px solid var(--rule);
     border-radius:var(--r-lg);padding:var(--sp-4)}
+  /* 何も選んでいないときは中身が空。カードの枠だけが残ると
+     「壊れた空箱」に見えるので、枠ごと消す。列（380px）は
+     grid-template-columns で確保したままなので、科目を選んだ瞬間に
+     一覧の幅が変わることはない。 */
+  .inspector:empty{display:none}
   /* PC では詳細が右カラムに出るので、カード内の折りたたみは使わない。 */
   .card.open .detail{display:none}
   .card.sel{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
@@ -577,20 +720,8 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .wrap{max-width:1560px}
   .hd{max-width:1560px}
   .workbench{grid-template-columns:280px minmax(0,1fr) 440px}
+  .workbench.railOff{grid-template-columns:minmax(0,1fr) 440px}
 }
-
-/* 右カラムの空状態。数字を読む直前の人に、いちばん必要な説明を出す。
-   「何も選んでいません」とだけ書くより、この場所を使い切れる。 */
-.inspectorEmpty h3{margin:0 0 var(--sp-2);font-size:var(--fs-lg)}
-.inspectorEmpty p{font-size:var(--fs-sm);color:var(--soft);margin:0 0 var(--sp-3)}
-.inspectorEmpty .legend{list-style:none;padding:0;margin:var(--sp-3) 0}
-.inspectorEmpty .legend li{display:flex;align-items:center;gap:var(--sp-2);
-  margin-bottom:var(--sp-1);font-size:var(--fs-sm);color:var(--soft)}
-.inspectorEmpty .sw{width:14px;height:14px;border-radius:var(--r-xs);flex:none}
-.inspectorEmpty .sw.light{background:var(--scale-light)}
-.inspectorEmpty .sw.mid{background:var(--scale-mid)}
-.inspectorEmpty .sw.heavy{background:var(--scale-heavy)}
-.inspectorEmpty .fine{font-size:var(--fs-xs);color:var(--muted)}
 
 /* 右カラムに出す詳細の見出し。カード内に出すときは不要なので、
    inspector の中にあるときだけ効かせる。 */
@@ -680,7 +811,8 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 /* 覆いが出ているあいだは背後をスクロールさせない。 */
 html.splash-on{overflow:hidden}
 
-.splashInner{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3)}
+.splashInner{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3);
+  padding:0 var(--sp-4)}
 /* ヘッダのロックアップと同じく、マーク＋「クハン」で1語に見せる。
    縦に積むと「ラ」がただの絵になってしまい、書き出す意味が消える。 */
 .splashWord{display:flex;align-items:center}
@@ -701,11 +833,38 @@ html.splash-on{overflow:hidden}
 .splash.run .splashWm span:nth-child(3){animation-delay:500ms}
 @keyframes rkRise{to{opacity:1;transform:translateY(0)}}
 
-/* ③ 縦線が伸びて GUILD の2行が出る。 */
+/* ③ 標語。ヒーローの見出しと同じ一文なので、覆いが消えたあとも
+   同じ言葉がその場に残る ―― 演出と中身が地続きに見える。
+   ロゴより先に読まれないよう、名前が出そろってから。 */
+.splashTag{margin:0;font-size:var(--fs-base);font-weight:700;line-height:1.5;
+  color:var(--on-dark-strong);text-align:center;text-wrap:balance;
+  opacity:0}
+.splash.run .splashTag{animation:rkRise 300ms var(--ease-out) 560ms forwards}
+
+/* ④ 縦線が伸びて GUILD の2行が出る。
+   標語を挟んだぶん 700ms → 820ms。覆いは 1400ms で閉じ始めるので、
+   ここを後ろへずらすほど標語を読む時間が減る。合計の尺は伸ばさない
+   （splash.js の「待ちを増やさない」という約束）。 */
 .splashBy{display:flex;flex-direction:column;align-items:flex-start;
   padding-left:var(--sp-2);border-left:1px solid var(--on-dark-line);
   opacity:0;margin-top:var(--sp-2)}
-.splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 700ms forwards}
+.splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 820ms forwards}
+
+/* ⑤ 版番号。ロックアップの中（クレジットの下）に置く。
+   2026-09-05：最初は画面の下端に貼り付けていたが、**iPhone の Safari では
+   下端 24px はアドレスバーの下に潜り込んで見えなかった**。
+   `position:fixed` の覆いはツールバーの裏まで広がるので、下端からの距離では
+   守れない（`env(safe-area-inset-bottom)` はホームインジケータぶんしか見ない）。
+   ロックアップに寄せてしまえば、どのブラウザのどのツールバーにも隠れない。
+   中身は version.js が RELEASES から入れる。落ちたときや入れ物だけの
+   ページでは空になるので、:empty で消して隙間を残さない。 */
+.splashVer{margin-top:var(--sp-2);font-size:var(--fs-xs);letter-spacing:.06em;
+  color:var(--on-dark-weak);font-variant-numeric:tabular-nums;
+  opacity:0}
+.splashVer:empty{display:none}
+.splash.run .splashVer{animation:rkRise 300ms var(--ease-out) 900ms forwards}
+/* 演出を流さない人（再訪・reduced motion）には覆いごと出ないので、
+   ここで表示を戻す必要は無い。 */
 
 /* ── ヒーロー ───────────────────────────
  * 「登録・ログイン不要」は最大の強みなので、
@@ -718,9 +877,11 @@ html.splash-on{overflow:hidden}
   letter-spacing:-.01em;font-weight:800;text-wrap:balance}
 /* 句点のところで折り返す。span ごとに inline-block にしておくと、
    狭い画面でも「登録もログインもしなくていい。」が途中で割れない。
-   （割れると「登録」「もログインも…」の2行になって読みにくい） */
-.heroP{margin:0 0 var(--sp-5);max-width:54ch;color:var(--soft)}
-.heroP span{display:inline-block}
+   （割れると「登録」「もログインも…」の2行になって読みにくい）
+   64ch は1文目（600px）が1行に収まる幅＋余白。足りないと
+   「でカバー」だけが2行目に落ちる。文言を伸ばすときはここも見る。 */
+.heroP{margin:0 0 var(--sp-5);max-width:64ch;color:var(--soft)}
+.heroP span{display:inline-block;text-wrap:balance}
 .heroActions{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap}
 .heroCta{display:inline-block;padding:var(--sp-3) var(--sp-6);
   background:var(--brand);color:var(--brand-ink);border-radius:var(--r-pill);
@@ -831,3 +992,19 @@ html{scroll-behavior:smooth}
   text-decoration:none;color:var(--muted);font-size:var(--fs-xs);font-weight:700}
 .footSns a:hover{color:var(--ink)}
 .footSns .snsIcon{width:36px;height:36px;border-radius:10px}
+
+
+/* ── 配点の上限スライダー（2026-09-03） ──────────────────
+   桁が増えても数字の位置がずれないように等幅の数字にする（幅は .sl の3列目）。 */
+.sl .v { font-variant-numeric: tabular-nums; }
+
+/* 上限の合計が100%を下回ったときだけ出す。0件になる理由を先に言うためのもの
+   なので、エラーの赤ではなくブランド色の注意として出す。 */
+.capWarn {
+  margin: .5rem 0 0;
+  padding: .5rem .6rem;
+  border-left: 3px solid var(--brand);
+  background: var(--brand-hover);
+  font-size: .82rem;
+  line-height: 1.5;
+}

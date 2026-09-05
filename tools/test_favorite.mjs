@@ -10,6 +10,13 @@
  * （.card > .favBtn）と詳細内の星（.detail .favBtn）を別の場所に
  * 描き分けたので、その回帰を防ぐチェックをモバイル幅で足してある。
  *
+ * 2026-09-05 追記：2026-09-01 の詳細パネル作り直し（案A）で詳細の中の ☆ が
+ * 外れたのに、このテストは `#inspector .detail .favBtn` を待ち続けていて、
+ * それ以降ずっと落ちていた。詳細側の星を見ていた2ブロックを
+ * 「星が戻っていないこと」の確認に置き換えてある。星をまた出すときは、
+ * 2026-08-26 の置き方のテスト（position:absolute を引きずって一覧の星と
+ * 重なる）も一緒に戻すこと。
+ *
  * 2026-08-26 追記2：main の「あなたに合う」枠（#list 内の section.picks）が
  * 入り、口コミ確認ずみの科目は #list の直下カードと picks 内カードの
  * 2枚に同時に描画されるようになった（renderPage が picks を #list の
@@ -79,29 +86,29 @@ const after = await page.evaluate(() => JSON.parse(localStorage.getItem("rk_favo
 check(!(after.ids && after.ids[id]), "もう一度押しても外れない");
 
 /* ここまでで一覧の星は「外れた」状態。PC では詳細は #inspector に出る。
-   星も .panelBtn / .reviewBtn と同じ並びに、浮かせずに出ているか
-   （2026-08-26 修正：もとは無scopeの position:absolute で
-   #inspector 内の星までカード側と同じ置き方を引きずっていた）。 */
+ * 2026-09-01 の詳細パネル作り直し（案A）で、詳細の中の ☆ は外した ――
+ * カード右上の ☆ と重複していて、しかも詳細側にはラベルが無かった。
+ * 機能はカード側の星に一本化され、同じ data-id の星をまとめて更新する
+ * app.js のハンドラが同期を持っている。
+ *
+ * ここが見ているのは「詳細に星が戻っていないこと」。戻すと 2026-08-26 の
+ * 「詳細の星がカード側の position:absolute を引きずって一覧の星に重なる」
+ * 事故が再来する。星をもう一度出すなら、その置き方のテストも一緒に戻すこと。 */
 await page.locator(`${cardSel} .head`).click();
-await page.waitForSelector("#inspector .detail .favBtn");
-const inspStar = page.locator("#inspector .favBtn");
-check(await inspStar.count() === 1, "#inspector に星がちょうど1つ出ていない");
+await page.waitForSelector("#inspector .detail");
+check(await page.locator("#inspector .favBtn").count() === 0,
+      "#inspector の詳細に星が出ている（2026-09-01 にカード右上へ一本化したはず）");
 
-const inspPos = await inspStar.evaluate(el => getComputedStyle(el).position);
-check(inspPos !== "absolute", "#inspector の星が浮いたまま（カード側の配置を引きずっている）");
+/* 詳細を開いたあとでも、カード右上の星はそのまま押せること。 */
+const openStar = page.locator(`${cardSel} > .favBtn`);
+check(await openStar.getAttribute("aria-pressed") === "false", "詳細を開いたら星の状態が変わった");
+await openStar.click();
+check(await openStar.getAttribute("aria-pressed") === "true", "詳細を開いていると星が押せない");
+await openStar.click();
 
-const listStarBox = await page.locator(`${cardSel} > .favBtn`).boundingBox();
-const inspStarBox = await inspStar.boundingBox();
-check(!overlaps(listStarBox, inspStarBox), "一覧の星と #inspector の星が重なっている");
-
-/* #inspector 側を押しても一覧側に反映されること（両方向の同期）。 */
-await inspStar.click();
-check(await inspStar.getAttribute("aria-pressed") === "true", "#inspector の星の aria-pressed が変わらない");
-check(await page.locator(`${cardSel} > .favBtn`).getAttribute("aria-pressed") === "true",
-      "#inspector の星を押しても一覧側に反映されない");
-
-/* ── モバイル：カードを開いたとき、一覧側と詳細側の星が重ならないこと ──
-   （2026-08-26 の CSS バグの回帰テスト。バグ再現時は2つの星がぴったり重なる。） */
+/* ── モバイル：カードの中に開く詳細にも星は無いこと ──
+   詳細の中身（detailHtml）は PC の #inspector とスマホのカード内で同じものを
+   使っているので片方だけ戻ることは無いが、開き先が違うので両方で見ておく。 */
 const mpage = await browser.newPage({ viewport: { width: 390, height: 844 } });
 await bypassOnboarding(mpage);
 await mpage.goto(BASE + "/");
@@ -112,23 +119,17 @@ const mid     = await mfirst.getAttribute("data-id");
 const mCardSel = `#list > .card[data-id="${mid}"]`;
 
 await mpage.locator(`${mCardSel} .head`).click();
-await mpage.waitForSelector(`${mCardSel} .detail .favBtn`);
+await mpage.waitForSelector(`${mCardSel} .detail .dSec`);
 
-const cardStar   = mpage.locator(`${mCardSel} > .favBtn`);
-const detailStar = mpage.locator(`${mCardSel} .detail .favBtn`);
+const cardStar = mpage.locator(`${mCardSel} > .favBtn`);
+check(await mpage.locator(`${mCardSel} .detail .favBtn`).count() === 0,
+      "モバイルで詳細の中に星が出ている（2026-09-01 にカード右上へ一本化したはず）");
 
-const cardBox   = await cardStar.boundingBox();
-const detailBox = await detailStar.boundingBox();
-check(!overlaps(cardBox, detailBox), "モバイルでカード星と詳細星が重なっている");
-
-/* 詳細側を押しても一覧側に、一覧側を押しても詳細側に反映されること。 */
-await detailStar.click();
-check(await detailStar.getAttribute("aria-pressed") === "true", "詳細の星の aria-pressed が変わらない");
-check(await cardStar.getAttribute("aria-pressed") === "true", "詳細の星を押しても一覧側に反映されない");
-
+/* 詳細を開いたままでもカード右上の星が押せること。 */
 await cardStar.click();
-check(await cardStar.getAttribute("aria-pressed") === "false", "一覧の星の aria-pressed が変わらない");
-check(await detailStar.getAttribute("aria-pressed") === "false", "一覧の星を押しても詳細側に反映されない");
+check(await cardStar.getAttribute("aria-pressed") === "true", "モバイルで詳細を開いていると星が押せない");
+await cardStar.click();
+check(await cardStar.getAttribute("aria-pressed") === "false", "モバイルで星がもう一度押しても外れない");
 
 /* ── Critical 回帰：相性スコア(.fit)と星(.card > .favBtn)の重なり ──
  * 星がカード右上に絶対配置（top:6px;right:6px、幅44px）されている一方、

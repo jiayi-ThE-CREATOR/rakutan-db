@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(gh pr create *)",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"版に載せるか判断しましたか？ 物差しは CLAUDE.md「版に載せるかの判定」――利用者が自分の画面で違いに気づくなら載せる。載せるなら docs/version-pending.md に1行追記してから進めてください。\"}}'",
+            "statusMessage": "版に載せるか確認"
+          },
+          {
+            "type": "command",
+            "if": "Bash(gh pr merge *)",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"版に載せるか判断しましたか？ 物差しは CLAUDE.md「版に載せるかの判定」――利用者が自分の画面で違いに気づくなら載せる。載せるなら docs/version-pending.md に1行追記してから進めてください。\"}}'",
+            "statusMessage": "版に載せるか確認"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -57,16 +57,19 @@
     <svg class="splashMark" viewBox="11 10 41 45" fill="none"><g stroke="var(--brand)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path class="s1" d="M26 14H48"/><path class="s2" d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg>
     <div class="splashWm"><span>ク</span><span>ハ</span><span>ン</span></div>
     </div>
+    <p class="splashTag">履修登録、どれくらい手間がかかるか。</p>
     <div class="splashBy">
       <span class="byMain">Designed by GUILD</span>
       <span class="bySub">AI Community</span>
     </div>
+    <!-- 中身は version.js が入れる。ここに数字を書くと版の正本が2か所になる。 -->
+    <span class="splashVer" id="splashVer"></span>
   </div>
 </div>
 
 <section class="hero">
-  <h2 class="heroT">その科目、どれくらい手間がかかるか。</h2>
-  <p class="heroP"><span>阪大 全学部の科目 7,906件を、試験・レポート・出席・規模の4軸で。</span><span>登録もログインもしなくていい。</span></p>
+  <h2 class="heroT">履修登録、どれくらい手間がかかるか。</h2>
+  <p class="heroP"><span>ラクハンなら、全学部の科目 7,906件をレポート、出席、テスト、授業内容の軸でカバー</span><span>登録もログインもしなくていい。</span></p>
   <div class="heroActions">
     <a class="heroCta" href="#workbench">科目をさがす</a>
     <a class="heroSub" href="/about">ラクハンと GUILD について →</a>
@@ -77,7 +80,11 @@
 <div class="wrap">
   <div class="workbench" id="workbench">
 
-    <aside class="rail">
+    <aside class="rail" id="rail" aria-label="絞り込み">
+      <!-- この列の名前。開閉の操作子は持たない ―― 取っ手は条件欄と一覧の
+           継ぎ目（.gripRail）に1つだけ置く。見出しの罫線は右の .bar の罫線と
+           高さを揃えてあり、左右が「同じ段」に見えるようにしてある。 -->
+      <div class="railHead"><span class="railHeadT">絞り込み</span></div>
       <div class="slotBar" id="slotBar" hidden>
         <span id="slotBarText"></span>
         <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
@@ -89,16 +96,21 @@
         <div class="hint" id="slotHint">「火3が空いてる、何取ろう」から始められる。検索語は要らない。</div>
       </section>
 
-      <section>
-        <h2>あなたの優先度</h2>
-        <div class="chips" id="presets"></div>
-        <button class="toggle" id="tog">スライダーを閉じる</button>
-        <div class="sliders open" id="sliders"></div>
-      </section>
-
+      <!-- 条件チップは配点スライダーの「上」に置く。押すと下のスライダーが
+           0% へ動く（同じ1つの状態を指している）。順番を入れ替えると、
+           押した結果がどこに出るのか画面から読めなくなる。 -->
       <section>
         <h2>条件</h2>
         <div class="chips" id="conds"></div>
+      </section>
+
+      <section>
+        <h2>配点でしぼる <span class="sub">シラバスの成績評価の内訳</span></h2>
+        <button class="toggle" id="tog">配点スライダーを閉じる</button>
+        <div class="sliders open" id="sliders"></div>
+        <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も
+             条件を満たさない。0件になってから気付かせず、先に理由を出す。 -->
+        <p class="capWarn" id="capWarn" hidden>上限の合計が100%を下回っています。成績評価の内訳は合計100%なので、この組み合わせに当てはまる科目はありません。</p>
       </section>
 
       <section>
@@ -126,11 +138,30 @@
     </aside>
 
     <main class="results" id="results">
+      <!-- 条件欄と一覧の継ぎ目に立てる取っ手。開閉の操作子はこれ1つだけ。
+           .gripRail は一覧と同じ高さの帯（位置決めだけ・クリックは拾わない）で、
+           中の .grip が sticky で画面の高さの真ん中に貼り付く ―― どこまで
+           スクロールしても視界の中に在る。これが要件そのもので、
+           .bar に置いていた頃は下へスクロールすると消えていた。
+           畳んでいるあいだは .results に 28px の余白を作り、その中に立てる
+           （同じ縦線の上から動かさない。位置の記憶が切れない）。 -->
+      <div class="gripRail">
+        <button type="button" class="grip" id="grip" aria-controls="rail"
+                aria-expanded="true" aria-label="絞り込みを隠す" data-label="絞り込みを隠す">
+          <span class="gripIcon" aria-hidden="true"></span>
+          <span class="gripCount" id="gripCount" hidden></span>
+        </button>
+      </div>
+
       <div class="bar">
         <div class="barCount"><b id="count">–</b> <span>件</span></div>
         <input type="search" id="q" placeholder="科目名でしぼりこむ" autocomplete="off">
         <select id="sort">
-          <option value="fit">あなたとの相性順</option>
+          <!-- 2026-09-03: 「相性」は重みスライダーの内積だった。スライダーが
+               上限フィルタに変わって重みが無くなったので、既定の並びは
+               「難しさが確認ずみ → 楽単スコアの高い順」になった。
+               値 fit は URL とクエリの互換のためそのまま使っている。 -->
+          <option value="fit">おすすめ順</option>
           <option value="rakutan">全体の軽い順</option>
           <option value="confidence">情報が揃っている順</option>
           <!-- 口コミの件数で並べる2つは「口コミあり」を押しているときだけ出す。
@@ -146,18 +177,10 @@
       <nav class="pager" id="pager" aria-label="ページ送り"></nav>
     </main>
 
-    <aside class="inspector" id="inspector">
-      <div class="inspectorEmpty">
-        <h3>数字の読み方</h3>
-        <p>科目を選ぶと、ここに4軸の内訳と根拠が出ます。</p>
-        <ul class="legend">
-          <li><span class="sw light"></span>軽い ―― 負担が小さい</li>
-          <li><span class="sw mid"></span>ふつう</li>
-          <li><span class="sw heavy"></span>重い ―― 負担が大きい</li>
-        </ul>
-        <p class="fine">「信頼度」は、シラバスに書かれていることだけから出した数字か、実際に受けた人が確認した数字かの区別です。一番重い軸が測れていない科目には総合値を出さず「情報不足」と表示します。</p>
-      </div>
-    </aside>
+    <!-- 空のまま置く。科目を選ぶと app.js の showDetail() が中身を入れる。
+         中に空白文字を入れないこと ―― CSS の .inspector:empty が効かなくなり、
+         何も選んでいないときに空のカードの枠だけが右に出る。 -->
+    <aside class="inspector" id="inspector"></aside>
 
   </div>
 
@@ -226,11 +249,15 @@
   </div>
 </dialog>
 <script src="/assets/version.js" defer></script>
-<!-- Cloudflare Web Analytics。宣伝マニュアル §3・§8 の数字はここから取る。
+<!-- 計測。正本は web/assets/analytics.js ひとつで、Cloudflare Web Analytics の
+     beacon はそこから読み込む。ページ側に beacon のタグを直接書かないこと
+     ―― 6ページに複製されていたのを 2026-09-03 に1本へ寄せた。
+     宣伝マニュアル §3・§8 の数字はここから取る。
      /l/<slug> はページ別の集計に slug のまま出るので、チャネルごとの
      効き目が比較できる（だから /l/ は転送していない）。
-     Cookie を置かず、個人を特定する情報も送らない。 -->
-<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "b0324782e4e44ca58b45e4dd0c270112"}'></script>
+     Cookie を置かず、個人を特定する情報も送らない。
+     自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
+<script src="/assets/analytics.js" defer></script>
 <!--/SHELL:FOOTER-->
 </div>
 

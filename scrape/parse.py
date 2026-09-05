@@ -146,9 +146,13 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
             unknown.append(name)
             unclassified[name] = pct
 
-    # 小テストは「毎回の拘束」なので出席側に寄せ、weekly_quiz を立てる
+    # 小テストは独立した軸として残す（2026-09-03）。
+    # 以前はここで `buckets["attendance"] += buckets.pop("quiz")` として
+    # 出席へ足し込んでいた。算出できている事実を捨てていたので、
+    # 「小テストが成績の30%」を画面に出せず、チップ「小テストなし」も
+    # weekly_quiz（本文の正規表現）だけで判定するしかなかった。
+    # 学生にとって「毎週の小テスト」と「毎週の出席」は別の負担である。
     weekly_quiz = buckets["quiz"] > 0 or bool(re.search(r"毎回.{0,12}(小テスト|リアクション)", body))
-    buckets["attendance"] += buckets.pop("quiz")
     eval_ratio = {k: v for k, v in buckets.items() if v > 0} or None
 
     exam_type = None

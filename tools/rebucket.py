@@ -43,9 +43,8 @@ def rebucket(raw: dict[str, float]) -> tuple[dict | None, dict | None]:
             buckets[b] += pct
         else:
             unclassified[name] = pct
-    # 小テストは出席側に寄せる（weekly_quiz は本文由来なので触らない。
-    # 現行の追加ルールは quiz を作らないので、ここで値が変わることは無い）。
-    buckets["attendance"] += buckets.pop("quiz")
+    # 小テストは独立した軸（2026-09-03）。scrape/parse.py と同じ扱いにすること。
+    # weekly_quiz は本文由来なのでここでは触らない。
     return ({k: v for k, v in buckets.items() if v > 0} or None,
             unclassified or None)
 

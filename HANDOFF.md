@@ -171,6 +171,544 @@ node tools/test_kuchikomi_relay.mjs                             # ブラウザ�
 
 ---
 
+## 2026-09-05 ｜ 開屏の版番号が iPhone で見えていなかった（位置の修正）｜ Claude → 次の人
+
+前の PR #116 で開屏に版番号を出したが、**本人の iPhone では見えなかった**という報告。
+原因は「出ていない」ではなく「Safari のアドレスバーの下に潜っていた」。**位置だけ直した。**
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8794
+    node tools/test_version.mjs                            # ✓ 100件すべて通過
+    node tools/test_index_gate.mjs http://127.0.0.1:8794   # OK 37件
+    node tools/smoke.mjs http://127.0.0.1:8794             # ✓ コンソールエラーなし
+    python3 tools/test_shell_inject.py && python3 tools/test_layout.py
+
+入れ物を `.splashInner` の中（クレジットの下）へ移し、`position:absolute` をやめた。
+**測って直したので、同じ判定を再現できる**（本番・428x926 で計測）：
+
+    直す前   bottom: 902 / viewportH: 926  → 画面下端から 24px
+    直した後 bottom: 548 / viewportH: 926  → 画面下端から 378px
+
+本人のスクショ（1284x2778 = 428x926 @3x）で、Safari のアドレスバーの胶囊は
+CSS px の **y≈847〜926**。直す前の版番号は **884〜902** で、ちょうどその裏だった。
+
+### 2. 何をしていないか
+
+- **`--on-dark-faint`（52%）→ `--on-dark-weak`（62%）に上げた**。位置が原因だったので
+  必須ではないが、11.5px でロックアップの端に置くならこのくらいは要る
+- 文字サイズ（`--fs-xs` 11.5px）と出るタイミング（900ms）は変えていない
+- **他のページには入れ物を置いていない**（開屏があるのは `index.html` だけ）
+
+### 3. 次の人が最初にやること
+
+    git worktree list                        # .worktrees/splashverfix がまだ在れば
+
+### 4. 今回踏んだ罠 ―― ここが一番大事
+
+- **Playwright のスクショは「真機で見えること」を保証しない。** ヘッドレスには
+  アドレスバーもツールバーも無いので、下端に貼り付けたものが全部写る。
+  **`position:fixed` の覆いは iOS Safari のツールバーの裏まで広がる**ので、
+  「画面下端から N px」では守れない。`env(safe-area-inset-bottom)` も効かない
+  （あれはホームインジケータぶんしか見ない）
+- **開屏に何かを置くときは、下端・上端に貼らずロックアップに寄せる。**
+  ツールバーの高さはブラウザとスクロール状態で変わるので、避ける計算はできない
+- 見えない報告が来たら、まず `getBoundingClientRect()` と `getComputedStyle()` を
+  本番で読む。今回も「描画はされていて opacity も 1」がすぐ分かり、
+  原因が描画ではなく位置だと1回で切り分けられた
+
+---
+
+## 2026-09-05 ｜ 開屏に版番号を出した｜ Claude → 次の人
+
+本人からの依頼。「開屏画面に今の版番号を出してほしい」。
+前日の標語（PR #111）と同じ覆いの中の話で、**API・データ・一覧の動きは触っていない**。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8793                          # 別窓で
+    node tools/test_version.mjs                            # ✓ 100件すべて通過
+    node tools/test_index_gate.mjs http://127.0.0.1:8793   # OK 37件
+    node tools/smoke.mjs http://127.0.0.1:8793             # ✓ コンソールエラーなし
+    python3 tools/test_shell_inject.py && python3 tools/test_layout.py   # 47件 / 17件
+
+触ったファイルは3つ。
+
+- `web/index.html` … 覆いの直下に**空の** `<span class="splashVer" id="splashVer">`
+- `web/assets/version.js` … `latest` を出したあとに `splashVer` へ `"v" + latest.version` を流し込む
+- `web/assets/app.css` … `.splashVer` の見た目と出るタイミング（900ms）
+
+**数字を index.html に書いていないのが要点。** 版の正本は `version.js` の `RELEASES` ひとつ
+という決まりがあるので、HTML 側は空の入れ物だけを置いて中身は JS が入れる。
+**版を上げるときに開屏を直す必要は無い**（`RELEASES` の先頭を足せば開屏の数字も動く）。
+
+読み込み順は `splash.js`（同期・先に走る）→ `version.js`（defer・後から走る）。
+覆いは 1400ms 出ているので入れ替わりは間に合う。数字が出るのは 900ms から。
+
+### 2. 何をしていないか
+
+- **`about` など他のページには入れ物を置いていない。** `version.js` は入れ物が無ければ
+  何もしないので、置きたくなったら `<span id="splashVer">` を足すだけでよい
+- **`version.js` が落ちた場合は空のまま**。`.splashVer:empty{display:none}` で
+  隙間も残らないようにしてある（数字の代わりに「v」だけが出る事故は起きない）
+- 標語のときと同じで、**覆い自体が再訪と `prefers-reduced-motion` では出ない**。
+  つまり版番号を開屏で見るのは新規訪問者とタブを開き直した人だけ。
+  常時見えるのは右下のバッジのほう（こちらは元からある）
+- 覆いは `aria-hidden="true"` のまま。読み上げには出ない
+
+### 3. 次の人が最初にやること
+
+    git worktree list                     # .worktrees/splashver がまだ在れば
+    cd .worktrees/splashver && git log -1
+
+版に載せるかは**本人に確認中**。
+
+### 4. 今回踏んだ罠
+
+- **`node_modules` の symlink を張っても、worktree の外から `node` を叩くと解決しない。**
+  スクリプトを worktree の中に置いて、その中で実行する必要がある
+  （`/tmp` に置いたまま `node /tmp/x.mjs` を叩いて `ERR_MODULE_NOT_FOUND` を踏んだ）
+
+
+---
+
+## 2026-09-05 ｜ 左の絞り込みを畳めるようにした（一覧の多列化の土台）｜ Claude → 迅亚
+
+本人からの依頼。「左の条件欄を畳めるようにしてほしい。畳めば2列入るはず」。
+畳み込みと、そのぶんの幅を使う多列化まで入れた。**表示密度の切替（6件/8件を
+人が選ぶ）は入れていない ―― そこは迅亚の担当。この土台の上に乗る。**
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8141 &
+    node tools/test_rail_toggle.mjs http://localhost:8141   # 20件通過
+
+- `.bar` 左端の「絞り込みを隠す」で左カラムを畳む。畳むと中カラムが
+  284〜304px 広がる。畳んだ状態は localStorage（`rk_ui`）に残る
+- `#list` は `repeat(auto-fill, minmax(var(--cardMin),1fr))`。`--cardMin` は
+  `.results` に 380px で置いてある。しきい値をこの値にしたのは
+  「畳んだときだけ2列になる」ようにするため（畳む前は 1920px の画面でも
+  中カラムは 760px しか無い）
+- 科目名は2行で頭打ち。実データの最長は 122 半角幅で、2列幅では4行になる。
+  2行に収まらないのは 7,906件中5件だけで、そこはホバーで流して読ませる
+
+### 2. 迅亚へ ―― 表示密度を足すときの申し送り
+
+- **列数は視口幅ではなく容器幅で決まっている**（`auto-fill`）。`@media` の
+  断点で列数を決め直さないこと。右の詳細カラムは中身が空だと消える
+  （`.inspector:empty`）ので、視口幅で決めると実際の幅と食い違う
+- **密度の切替は `--cardMin` を差し替える形にするのが一番安い。**
+  8件なら小さく、6件なら大きく。グリッドの書き換えは要らない
+- カードの中身を密度ごとに変えるなら触るのは `card()`（app.js）。
+  科目名の器は `.title`（窓・高さ固定）＋ `.titleT`（本体・transform で動く）の
+  2枚構造。1枚に戻すと流し読みが壊れる
+- `.picks`（推薦枠）は `grid-column:1/-1` で全列ぶち抜き、中で別のグリッドを
+  組んでいる。内側の `minmax` から 26px 引いているのは
+  .picks の padding(--sp-3)×2 + border×2 のぶん
+
+### 3. 次の人が最初に打つコマンド
+
+    cd web && python3 -m http.server 8141 &
+    node tools/test_rail_toggle.mjs http://localhost:8141
+
+### 4. 踏んだ罠
+
+- **`[hidden]` は `.railTogCount{display:inline-block}` に特異度で負ける。**
+  さらに親が flex なので inline-block は block 化され、`hidden` を立てても
+  出たままになる。`.railTogCount[hidden]{display:none}` を明示した
+- **`-webkit-line-clamp` が効いているあいだ `scrollHeight` は「切ったあとの
+  高さ」を返す。** 溢れているかは一瞬クランプを外して測るしかない
+  （app.js の `mqStart` とテストの両方で同じ手順を踏んでいる）
+- **playwright の `browser.newPage()` の視口指定は `viewport`。**
+  `viewportSize` と書いても黙って既定の 1280×720 になり、
+  スマホ幅のつもりのテストが PC 幅で通ってしまう
+- **`tools/test_favorite.mjs` は main の時点で既に落ちている。** 2026-09-01 の
+  詳細パネル作り直しで ☆ を詳細から外したのに、テストが
+  `#inspector .detail .favBtn` を待ち続けている。別 PR で直す
+- `tools/test_tokens.py` の `#DB6209` 裸色も main から落ちたまま
+  （`fix/test-tokens-brand-colors` が対応中）
+
+## 2026-09-04 ｜ 開屏に標語を1行足した｜ Claude → 次の人
+
+本人からの依頼。「開屏画面に標語『履修登録、どれくらい手間がかかるか。』を入れたい」。
+**足したのは覆いの中の1行だけ。** API・データ・画面の動きは触っていない。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8791          # 別窓で
+    node tools/test_index_gate.mjs http://127.0.0.1:8791   # OK 37件
+    node tools/smoke.mjs http://127.0.0.1:8791             # コンソールエラーなし
+    python3 tools/test_shell_inject.py && python3 tools/test_layout.py   # 通過 47件 / 17件
+
+触ったファイルは2つ。
+
+- `web/index.html` … `.splashWord` と `.splashBy` のあいだに `<p class="splashTag">`
+- `web/assets/app.css` … `.splashTag` の見た目と出るタイミング（560ms）。
+  GUILD のクレジットを 700ms → 820ms へ後ろにずらして順番を作った
+
+**尺は伸ばしていない。** 覆いは今までどおり 1400ms で閉じ始める。
+`splash.js` の先頭にある約束（演出は待ちを覆うもので、待ちを増やすものではない）を守るため、
+標語ぶんの時間は「クレジットを後ろへ寄せる」ことで作った。逆に言うと、
+**この先ここへ何かを足すなら、もう後ろに寄せる余地はない**（1400ms 側を動かす判断が要る）。
+
+標語はヒーローの `<h2 class="heroT">` と**同じ一文**。覆いが消えたあと同じ言葉がその場に残る。
+どちらかを書き換えるときは両方を直す（`web/index.html` 内に2箇所）。
+
+### 2. 何をしていないか
+
+- **`prefers-reduced-motion` と再訪では、そもそも覆いが出ない**（元からの仕様）。
+  つまり標語を見るのは「タブを開き直した人・新しい訪問者」だけ。全員には出ない
+- 覆いは `aria-hidden="true"` のままにした。読み上げに二重に出さないため
+  （同じ文が `heroT` の見出しとして読まれる）
+- 幅 320px でも1行に収まることは実測ずみ。ただし**文言を長くすると 320px で折り返す**。
+  `text-wrap:balance` を効かせてあるので折り返しても崩れはしないが、行数は増える
+- `tools/test_onboard.mjs` は落ちるが **main でも同じ場所で落ちる**（問診オーバーレイが
+  `.favBtn` のクリックを遮る）。今回の変更とは無関係
+- `tools/test_tokens.py` も **main で既に NG**（`app.css` の裸の `#DB6209`）。
+  `.worktrees/tokens` の `fix/test-tokens-brand-colors` が担当
+
+### 3. 次の人が最初にやること
+
+    git worktree list                      # .worktrees/splashtag がまだ在れば
+    cd .worktrees/splashtag && git log -1
+
+版の扱いは**本人の指示で決着ずみ**。新しい版は切らず、
+`web/assets/version.js` の **v1.1.1（2026-09-02）の items に1行足した**
+（`node tools/test_version.mjs` → 100件通過）。`docs/version-pending.md` は触っていない。
+
+**副作用を1つ承知の上で入れている**：版番号も日付も据え置きなので、
+右下のバッジのオレンジの点は**既読の人には出ない**（`rakuhan.seenVersion` が動かないため）。
+また v1.1.1 の題は「科目データを最新の時間割に更新」のままなので、
+題と中身が少しずれる。**題を直すかどうかは本人の判断**（勝手に書き換えていない）。
+
+### 4. 今回踏んだ罠
+
+- **worktree には `node_modules` が無い**（`.gitignore` 対象）。`node tools/*.mjs` が
+  `ERR_MODULE_NOT_FOUND` で即死する。本体の `node_modules` へ symlink を張れば動く：
+  `ln -sfn ~/Developer/rakutan-db/node_modules node_modules`
+- **スクショで演出を撮るには `rk_splash_seen` を消したままにする**。`tools/shots.mjs` は
+  逆に必ず立てている（差分を安定させるため）ので、あれを流用すると覆いが1枚も写らない
+
+---
+
+## 2026-09-03 ｜ 版に載せるかの判定と版番号の付け方を決めた｜ Claude → 次の人
+
+本人からの依頼。「本番に出すたびに、右下の更新履歴に載せるかを聞いてほしい。
+そのとき AI 側の判断も先に出すこと」＋「版番号の付け方を決めたい」。
+**ルールを決めて文書化しただけ。画面の動きも API もデータも変えていない。**
+
+### 1. 何が動く状態か
+
+    node tools/test_version.mjs      # 98件通過（版: v1.1.1, v1.1, v1.0）
+
+決まったことは3つ。
+
+- **版番号は MAJOR.MINOR.PATCH の三段。** new が1件でもあれば MINOR、
+  改善・修正・データ更新だけなら PATCH。MAJOR は人が決める（AI からは提案しない）
+- **9/02 の `v1.11` を `v1.1.1` に直した。** データ更新だけ＝PATCH だから。
+  `1.0 → 1.1 → 1.11 → 1.2` は読めない並びになるので、増える前に潰した
+- **10月から毎週水曜にまとめて出す**（初回 2026-10-07）。その週に1件も無ければ版を切らない。
+  9月のあいだは重要なものだけ
+
+触ったファイルは3つ。
+
+- `CLAUDE.md` … 新しい節「版に載せるかの判定」。載せる①〜④／載せない⑤〜⑨の表と、
+  利用者への聞き方のテンプレ
+- `web/assets/version.js` … 先頭コメントに「版番号の付け方」「いつ出すか」を追記＋ `1.11` → `1.1.1`
+- `docs/version-pending.md`（新規）… 載せると決まったものを水曜まで置く**仮置き場**
+
+**聞き方はこの形で固定。** 判定番号のあとにコロンを打ち、物差しの文をそのまま添える
+（聞かれた側が CLAUDE.md を開かずに判断できるように）。
+
+**取りこぼし防止を別 PR（#103）で出した。** CLAUDE.md は読まれる文脈であって強制ではないので、
+出口（PR）に2つ置いた ―― `.github/pull_request_template.md` の「載せる／載せない」チェック
+（人にも AI にも効く。各自の設定は不要）と、`.claude/settings.json` の PreToolUse フック
+（`gh pr create` / `gh pr merge` の直前に `permissionDecision:ask` を返す。Claude Code 利用者のみ、
+リポジトリ由来なので各自の初回承認が要る）。**#102 → #103 の順にマージすること**
+（テンプレが `docs/version-pending.md` を参照しているため）。
+
+    【版に載せる？】口コミの投稿後に一覧が即反映されるようにした
+      私の判断：載せる —— 利用者の画面で結果が変わる（判定②：既存の操作の結果が変わる）
+      文案（案）：[改善] 口コミを投稿すると、その場で一覧に反映されるようになりました
+      → 載せる / 載せない / 文案を直す
+
+### 2. 何をしていないか
+
+- **まだ本番に出していない。** `main` の作業ツリー上の変更のみ（PR 未作成）
+- **`v1.1.1` へ書き換えたので、既に更新履歴を開いた人にもう一度オレンジの点が出る。**
+  `localStorage` の `rakuhan.seenVersion` に `"1.11"` が残っているため。一度きり・実害なしと判断した
+- **番号を自動で上げる仕組みは作っていない。** 従来どおり `RELEASES` を手で足す運用
+- **pending → RELEASES の移し忘れを見張るテストは無い。** 水曜に人が動く前提。
+  空振りが続くようなら `test_version.mjs` に「pending が2週ぶん溜まっていたら落とす」を足す手はある
+- 10月の水曜を誰が切るかは決めていない
+
+### 3. 次の人が最初にやること
+
+1. `node tools/test_version.mjs`
+2. `CLAUDE.md`「版に載せるかの判定」を読む。**本番に何か出すときは、判定を勝手に決めず必ず聞く**
+3. 載せると決まったら `docs/version-pending.md` に1行足す。水曜に `RELEASES` へ移す
+
+### 4. 踏んだ罠
+
+- **`1.11` は semver で読むと「11個目の minor」で、`1.2` より大きい。**
+  日常の感覚（1.1 の小修）とずれる。三段にしておけば `1.1.1` と書けて迷わない
+- `tools/test_version.mjs:84` の正規表現は最初から `^\d+\.\d+(\.\d+)?$` で、
+  **三段は既に通る**。テストを直す必要は無かった（先に確認してよかった）
+- `web/assets/version.js` は `build.py` の生成物では**ない**（`web/*.html` に注入されるのは
+  `templates/shell.html` 側の器だけ）。今回は再注入の必要なし
+
+---
+
+## 2026-09-04 ｜ シラバス本文の抽出ツール（授業内容タグの前工程）｜ Claude → 政岡さん
+
+### 1. 何が動く状態か
+
+    python3 tools/extract_syllabus_text.py     # → data/syllabus_text.jsonl.gz
+    python3 tools/test_syllabus_text.py        # 70件（手元の実ページ10件で確認）
+
+`data/raw/detail/*.html` から **授業サブタイトル・授業の目的と概要・各回の題目**
+だけを抜いて JSONL(gz) にします。全7,906件で **約3MB**。
+
+**政岡さんにお願いしたいのはこれ1回だけです**（`git pull` して上のコマンド、約2分）。
+できた `data/syllabus_text.jsonl.gz` を Discord に貼ってください。
+
+### 2. 何をしていないか
+
+- **HTML そのものは要求していません。** `data/raw/detail/` は全件で約0.9GB
+  （gzip でも63MB）あり Discord に乗りません。本文3つだけなら3MBです
+- タグ付け（Gemini）本体はまだです。ファイルが届いてから
+- **`data/raw/` を持っていない人は流せません**（0件で止まり、案内を出します）。
+  もし消してしまっていたら教えてください。`scrape/fetch.py` で取り直しますが
+  `--delay 2.0` のままで約4.4時間かかります（**縮めるのは禁止事項**）
+
+### 3. 次の人が最初に打つコマンド
+
+    git pull
+    python3 tools/extract_syllabus_text.py
+
+### 4. 踏んだ罠
+
+- **時間割コードは数字だけとは限りません。** ラベルの値が
+  `138539 (知のジムナスティックス科目)` のように科目区分の括弧付きで入っている
+  ものがあり（手元10件中5件）、そのまま id にすると `courses.built.json` の
+  id（`"138539"`）と突き合いません。数字だけ取り出しています
+  （`scrape/parse.py` は索引側の `code` を使うのでこの罠を踏んでいません）
+- **出力は git に入れないこと。** 中身はシラバス原文なので `data/courses.json`
+  と同じ線の内側です。`.gitignore` に追加ずみ
+
+## 2026-09-03 ｜ 配点でしぼる（上限スライダー）＋小テストを第5軸に｜ Claude → 次の人
+
+同日の設計スペック `docs/plans/2026-09-03-haiten-filter-design.md` の実装。
+右レールの「あなたの優先度（重み0〜5）」を **配点の上限（0〜100%）** に置き換えた。
+
+### 1. 何が動く状態か
+
+ブランチ `feat/haiten-filter`（PR 前）。テストは全部通っています。
+
+    python3 tools/test_haiten_filter.py     # 49件（新規）
+    python3 tools/test_conditions.py        # 18件
+    node tools/test_bot_flow.mjs            # 17件（LINE。触っていないことの確認）
+    cd web && python3 -m http.server 8146 & # 別の窓で
+    node tools/test_haiten_ui.mjs http://localhost:8146   # 34件（新規・実ブラウザ）
+    node tools/test_conditions.mjs http://localhost:8146  # 18件
+    node tools/test_sort.mjs http://localhost:8146        # 13件
+
+- **スライダーは4本**（出席・平常点／期末テスト／小テスト／レポート）。
+  数字はシラバスの成績評価の内訳そのもの。「30%」＝その配点が30%以下の科目だけ出す
+- **条件チップはスライダーの上へ移し、同じ1つの状態を指す**。
+  「出席なし」を押すと出席スライダーが 0% へ動き、0% にするとチップが点く
+- **小テストを出席から独立させた**（`parse.py:151` が算出済みの値を捨てていた）。
+  採点も第5軸になった
+- 焼き直しは **`python3 build.py --rescore`**（`--represet` と同じ経路の拡張）。
+  `data/courses.json` 全所属ぶんを持っていない人でもこれで本番データを直せる
+
+### 2. 何をしていないか
+
+- **LINE は一切触っていません。** wangさんの指示で別セッションの担当。
+  `score.py:PRESETS` / `build.py:rank_presets()` / `preset_top` / `worker/index.js`
+  はそのまま残してあります ―― **消すと配信中の LINE が即死します**。
+  `PRESETS` には5軸化に合わせて `quiz` の重みだけ足しました
+- **`tools/test_favorite.mjs` が落ちます（`#inspector .detail .favBtn` でタイムアウト）。
+  これは main でも同じように落ちる既存の不具合**で、今回の変更とは無関係です
+  （`~/Developer/rakutan-db` 本体を配信して実測して確認しました）
+- 内容タグ（`docs/plans/2026-09-03-naiyou-tag-design.md`）は未着手。別PR
+
+### 3. 次の人が最初に打つコマンド
+
+    git worktree list                       # .worktrees/haiten があるはず
+    cd .worktrees/haiten
+    python3 tools/test_haiten_filter.py
+    less docs/plans/2026-09-03-haiten-filter-design.md
+
+### 4. 踏んだ罠
+
+- 🚨 **軸を1本足すと、全科目の総合値が上がる。** その軸が満点になる科目
+  （小テストが無い6,473件）にとっては加点でしかないからです。実測で
+  **判定できた3,602件がすべて上がり、下がった科目は0件**でした（中央値 +2.7）。
+  band のしきい値は旧い分布に合わせた定数なので、据え置くと「新しい根拠は
+  何も無いのに『軽い』が426件増える」ことになります。
+  **順位はほとんど動いていない**（3群とも中央値で0.6ポイント未満）ので、
+  目盛りに合わせて **72/55/38 → 79/67/53** に置き直しました。
+  **切り上げは厳禁** ―― 53.1 ちょうどに348件（「出席100%」だけで評価される科目は
+  入力が同一なので総合値も同一）が固まっていて、54 にすると一斉に「重め」へ落ちます
+- **`eval_unclassified` が空でも、内訳が完結しているとは限りません。**
+  デンマーク語V〜VIIの6件は `eval_raw` が「試験20%」しか無く、
+  4本の上限を20%にしても通り抜けていました。`passes_caps` には
+  **合計が `EVAL_TOTAL_MIN`(80) 以上** という条件も要ります
+- **Python と JS の二重実装は必ず片方だけ直します。** 上の `EVAL_TOTAL_MIN` の
+  修正を `score.py` にだけ入れて `app.js` に入れ忘れ、
+  `tools/test_haiten_ui.mjs` が「合計80%なのに6件出ている」で捕まえました。
+  **本番は静的配信なので、実際に絞り込んでいるのは `app.js` のほう**です
+- **`.sl` の3列目が 16px 固定**でした（目盛りが1桁の「4」だった頃の幅）。
+  「100%」にすると枠の外へはみ出して「1」しか読めません。44px にしました。
+  はみ出しは `row.scrollWidth <= row.clientWidth` で機械的に検出できます
+- 「相性」という言葉は `index.html` の並び替えドロップダウンと `about.html` にも
+  ありました。重みが無くなった以上その数字は出せないので、カードは
+  **楽単スコア**、並びは「おすすめ順」に言い換えてあります
+- **目盛りは 10 刻み。5刻みも実測した上で 10 に決めています（再提案不要）。**
+  配点の 7.1%（のべ1,100個）は「5の倍数だが10の倍数でない」値で、
+  10の倍数でない配点を持つ科目は **708件＝9.0%**（出席35%の科目は90件）。
+  ただし5刻みで増える件数は低いほうに偏り、出席の上限 15% で +134件・25% で +108件、
+  **35%以上は +42/+16/+7 とほとんど効きません**。11段で迷わず動かせるほうを採りました。
+  上限は「以下」なので **35%の科目が消えるわけではありません**（上限40%で入る）。
+  拾えないのは「35%ちょうどで切りたい」という指定だけです。
+  **刻みは `app.js` の `CAP_STEP` が正本。** 5刻みを試したとき、URL復元の丸めだけ
+  10 を直書きのままだったので 35% が往復で 40% に化けました
+  （`tools/test_haiten_ui.mjs` が捕まえた）。丸めに刻みを直書きしないこと
+
+## 2026-09-03 ｜ 絞り込みUIの再設計スペック2本（レビュー待ち・実装未着手）｜ Claude → 次の人
+
+wangさんの依頼。「右の 4本スライダー（出席の緩さ 4 …）が虚である。シラバスに
+書いてある配点（%）そのものを出したい」＋「授業内容で探せるようにしたい」。
+
+### 1. 何が動く状態か
+
+**コードは1行も書いていません。** ブランチ `docs/filter-redesign`（PR 前）に
+設計スペックが2本あるだけです。
+
+    docs/plans/2026-09-03-haiten-filter-design.md   配点フィルタ
+    docs/plans/2026-09-03-naiyou-tag-design.md      内容タグ
+
+実装は**別々の2つの PR** に分けます（`feat/haiten-filter` / `feat/naiyou-tag`）。
+相互依存はありませんが、`parse.py` と `build.py` は両方が触るので後発が寄せます。
+
+### 2. 何をしていないか
+
+- **実装計画（`-plan.md`）をまだ書いていません。** wangさんのスペックレビュー待ち
+- **内容タグは政岡さんの `data/raw/` キャッシュが要ります。** このマシンには
+  詳細HTMLが 10件しかありません（`.gitignore` 対象）。自前で取り直すと
+  `--delay 2.0` で約4.4時間かかるので、**まず政岡さんに聞くこと**
+- AI（Gemini）にはまだ1回も投げていません。語彙33語は**草案**で、
+  品質ゲート（頻度・共起・学部集中度の3表）を通すまで確定しません
+- 配点フィルタ側は追加のデータ取得が不要なので、**先にこちらを出せます**
+
+### 3. 次の人が最初に打つコマンド
+
+    git worktree list                      # .worktrees/filter-redesign があるはず
+    cd .worktrees/filter-redesign
+    less docs/plans/2026-09-03-haiten-filter-design.md
+
+### 4. 踏んだ罠
+
+- **ナンバリングから「授業内容」を作ろうとして1回失敗しました。**
+  `08MEEN→機械` `04MATH→数学` は一見きれいですが、実測すると
+  そうやって作ったラベルの **77% が「1つの学部で90%以上」** ―― つまり
+  `category` が既に持っている情報の言い換えでしかなく、学部フィルタと重複します。
+  内容の層を作るときは「**1学部に90%以上偏ったタグは偽タグ**」を必ず自動チェックに入れること
+- **preset 4つは LINE の骨格です。** `score.py:PRESETS` → `build.py:rank_presets()`
+  → `preset_top` → `worker/index.js:buildRecommendation()` と繋がっていて、
+  web から消すだけでは LINE の問診が死にます。配り済みのボタンに
+  `action=preset&preset=バイト優先` が残っているので、ハンドラは消さず転送を残すこと
+- **上限スライダーを4本とも下げると数学的に必ず0件になります**（配点合計が100%なので）。
+  実装ミスに見えますが仕様の性質です。画面で先に警告を出す設計にしてあります
+- `scrape/parse.py:151` が `buckets["attendance"] += buckets.pop("quiz")` で
+  小テストの配点を**捨てていました**。1行消すだけで4本目が手に入ります（取り直し不要）
+
+## 2026-09-03 ｜ 毎朝のアクセス速報を流入元ごとに Discord へ（cron）｜ Claude → 次の人
+
+本人からの依頼。「毎日のアクセス数を、Instagram / LINE / X と**流入元を分けて** Discord に自動で流したい」。
+
+### 1. 何が動く状態か
+
+**まだ本番には出ていません。** ブランチ `feat/daily-traffic-report`（PR 待ち）。
+
+新しく数を取る仕組みは足していません。**すでにある `POST /api/hit` の blob2（パス）を読むだけ**です。
+`/api/hit` はパスを残しているので、配布ずみの `/l/<slug>` がそのまま流入元になります
+（＝**過去ぶんの数字も最初から埋まる**。クライアントは1行も変えていない）。
+
+    node tools/test_traffic_report.mjs        # 通過 65 件
+    npx wrangler dev --test-scheduled --local # 別の窓で
+    curl "http://localhost:8788/__scheduled?cron=0+23+*+*+*"
+
+ローカルで cron → Discord まで一通り通してあります（webhook を 127.0.0.1 に向けて実測）。
+
+- `worker/traffic.js`（新規）… slug の表・SQL・本文の組み立て・cron の中身
+- `worker/index.js` … `scheduled` を生やして `runDailyTraffic` を呼ぶだけ
+- `wrangler.toml` … `[triggers] crons = ["0 23 * * *"]`（**UTC。JST 08:00**）
+- `tools/traffic_preview.mjs`（新規）… けさ届くはずの本文を手元で見る（Discord へは送らない）
+
+**slug を2枚に割らないこと。** 配信（`TRACKING_SLUGS`）も集計も
+`worker/traffic.js` の `STATS_CHANNELS` 1枚から作っています。ここから漏れた slug は
+404 になるか「直接・その他」へ静かに化けます。テストが両方を見張ります。
+
+**LINE 公式アカウント用に `/l/line`（メッセージ）と `/l/line-rich`（リッチメニュー）を足しました**
+（従来の14本 → 16本）。オープンチャットの oc1〜5 とは別枠で数えます。
+
+### 2. 何をしていないか
+
+- ~~本物の SQL を通していない~~ → **2026-09-03 に本番データで確認ずみ**。
+  `node tools/traffic_preview.mjs` の結果が `node tools/stats.mjs` と一致（訪問12／表示12／検索42／詳細13）、
+  流入元も `/l/shunya`→個人配布5・`/l/ig`→Instagram1・`/` と `/mypage`→直接6 と正しく割れました。
+  `CF_ACCOUNT_ID` と `CF_API_TOKEN` は `~/.zshrc` に export ずみなので、そのまま打てば動きます。
+- **計測そのものが 2026-09-03 に始まったばかりで、まだ丸一日ぶんのデータがありません。**
+  だから 9/4 の朝に届く1通目が「初めてのまともな1日」になります。9/3 の朝に流すと 0件 の通知が出ます
+  （出ても壊れてはいない ―― 計測開始前だから）。
+- secret が3本未登録です（下記）。`STATS_DISCORD_WEBHOOK` が無いあいだ cron は外へ一切出ません。
+- **`/l/line`・`/l/line-rich` はまだどこにも貼っていません。** LINE 公式のリッチメニューと
+  自動応答のURLを差し替えるのは人の作業です。貼るまで LINE 公式ぶんは「直接・その他」に混ざります。
+- 流入元が分かるのは **slug 付きのリンクを踏んだ人だけ**です。裸のURL・ブックマーク・
+  口コミで聞いて手打ちした人は全部「直接・その他」。ここは仕様として諦めています
+  （referrer を送らせる案は、Instagram と LINE のアプリ内ブラウザが referrer を落とすので割に合わない）。
+- 入口が `/l/ig` でも、サイト内でロゴや About を押すとパスが `/` に変わります。だから
+  **流入元の正本は「訪問」**（タブを開いて最初の1回＝必ず入口で立つ）。ページ表示・検索・詳細は参考値です。
+
+### 3. 次の人が最初に打つコマンド
+
+    # ① 本文を手元で見る（鍵は ~/.zshrc に export ずみ。確認ずみなので任意）
+    node tools/traffic_preview.mjs
+
+    # ② PR を main へ入れる（約80秒で自動デプロイ）
+
+    # ③ secret を3本入れる（**wrangler.toml にもコードにも書かない。このリポジトリは public**）
+    npx wrangler secret put STATS_DISCORD_WEBHOOK   # Discord「サイトトラフィック」の webhook URL
+    npx wrangler secret put CF_ACCOUNT_ID
+    npx wrangler secret put CF_API_TOKEN            # 権限は アカウント / Account Analytics / 読み取り だけ
+
+    # ④ 翌朝 08:00 を待たずに確かめたいなら、Cloudflare のダッシュボード
+    #    （Workers → rakutan-db → 設定 → トリガー）から cron を手で1回実行する
+
+### 4. 踏んだ罠
+
+- 🚨 **Workers の入口モジュールは「関数以外の named export」を受け付けない。**
+  `export const STATS_SQL = "…"` を `worker/index.js` に置いたら、`wrangler dev` が
+  `Incorrect type for map entry 'STATS_SQL': the provided value is not of type
+  'function or ExportedHandler'` で**起動ごと**落ちました（＝本番なら全機能が死ぬ）。
+  単体テスト（node から import）では素通りするので、**入口を触ったら必ず一度 `wrangler dev` を起こす**。
+  表や SQL 文をテストから読みたいときは、入口ではない別ファイルに置く（それが `worker/traffic.js`）。
+  戻り防止として `test_traffic_report.mjs` が `worker/index.js` の `export const|let|var|class` を弾きます。
+- **cron の時刻は UTC。** `0 8 * * *` と書くと JST 17:00 に鳴ります。JST 08:00 は `0 23 * * *`（前日）。
+- Analytics Engine を読むときは `_sample_interval` を掛ける。件数が増えると Cloudflare 側が
+  間引いて保存するので、掛け忘れるとその日だけ静かに少なく出ます（`tools/stats.mjs` と同じ罠）。
+- 流入元の**内訳を出す条件は「その日いくつ来たか」ではなく「そのチャネルを何本の slug で配ってあるか」**。
+  本番データで見て直しました ―― 1本しか来なかった日に「個人配布 5」とだけ出ても、
+  誰の紹介で来た5人なのかが読めない（そこが知りたい欄なので）。X のように配布が1本だけの欄には付けません。
+- **0件のときに黙らない設計にしてあります。** Discord 上では「誰も来なかった」と
+  「計測が壊れた」が同じ沈黙に見えるためで、0でも失敗でも1通は鳴ります。
+- `tools/test_favorite.mjs` は**この作業より前から落ちています**（`#inspector .detail .favBtn` が
+  30秒出てこない）。`main` でも同じところで落ちるので、今回の変更とは無関係です。誰かの担当分。
+
+---
+
 ## 2026-09-02 ｜ ヘッダの組み替え（GUILD をロゴの隣へ／マイページを隅へ／口コミを塗る）｜ Claude → 次の人
 
 本人からの依頼、3点。
@@ -288,6 +826,119 @@ node tools/test_kuchikomi_relay.mjs                             # ブラウザ�
 - **Homebrew も `gh` も入っていなかった。** Homebrew は sudo が要るので入れず、
   `gh` の公式バイナリ（darwin arm64）を `~/.local/bin/gh` に置いた。認証は済んでいる
   （`olive10ma10`・keyring・`repo` スコープ）。**PATH に `~/.local/bin` が無いのでフルパスで叩くこと**
+
+---
+
+## 2026-09-03 ｜ 「本当の訪問数」を数えられるようにした ｜ Claude → 次の人
+
+本人から「AI のクローラや自分たちの閲覧が混ざっていない数字が欲しい」。
+調べた結果、**混ざっていたのは思っていた場所ではなかった**ので、まずそこから。
+
+- Cloudflare の数字は2種類ある。**Workers のリクエスト数**（サーバ側）は
+  GPTBot・ClaudeBot・スキャナまで全部入りで、これは訪問数として使えない。
+  一方 **Web Analytics の beacon** はブラウザで JS が動いたときだけ上がるので、
+  JS を動かさないクローラは最初から入っていない
+- 残っていた穴は2つ ―― ① ダッシュボードで **`Exclude Bots = Yes`** を
+  掛けていなかった（JS をレンダリングする Googlebot はここで落ちる）。
+  これは本人が 9/2 に設定ずみ。② 自分たちの閲覧。これが今回のコード
+
+### 1. 何が動く状態か
+
+```bash
+node tools/test_analytics.mjs        # OK 65（偽ブラウザ＋Worker の両方）
+python3 -m http.server 8140 --directory web &
+node tools/test_sort.mjs             # OK
+node tools/test_mypage.mjs           # OK 51 checks
+python3 tools/test_shell_inject.py   # OK
+```
+
+**PR #95（2026-09-03 マージずみ）と PR #97 の2本立て。**
+#97 は当初 #96 として #95 の上に積んでいたが、#95 を `--delete-branch` 付きで
+マージした時点で base ごと消えて自動クローズされた（GitHub は再オープンさせない）。
+作り直したのが #97 で、中身は同じ・main の上に rebase ずみ。
+
+**#95 ― 計測の入口を1本に。** `web/assets/analytics.js` が唯一の正本になり、
+6ページに複製されていた beacon のタグが消えた。チームに配る URL:
+
+    https://rakuhan.nocode-sol.co.jp/?nostats=1   … 以後この端末を数えない
+    https://rakuhan.nocode-sol.co.jp/?nostats=0   … 数に戻す
+
+踏むと帯が4秒出る。印は localStorage の `rk_nostats` ひとつ。
+**ブラウザごと・端末ごとに1回ずつ**必要（シークレットには残らない）。
+
+**#97 ― 自前の計測 `POST /api/hit`。** Analytics Engine（`STATS` 束縛・
+データセット `rakutan_use`）へ3種類だけ書く: `pv` / `search` / `detail`。
+読み出しは `CF_ACCOUNT_ID=… CF_API_TOKEN=… node tools/stats.mjs [日数]`。
+Cookie・端末ID・IP・**検索語**・科目IDは送っていない（送るのはパスだけで、
+クエリは Worker 側で落としている）。
+
+実ブラウザで確認ずみ ―― 読み込みで `{e:"pv",n:1}`、カードを開いて
+`{e:"detail"}`、同じ語で2回検索して `search` は1件、`?nostats=1` のあとは0件。
+
+### 2. 何をしていないか
+
+- **まだデプロイしていない。** `[[analytics_engine_datasets]]` を足したので、
+  マージ後の自動デプロイで初めて `STATS` が生える。それまで `/api/hit` は
+  204 を返すだけで何も記録しない（束縛が無い環境で落ちないことはテストずみ）
+- **API トークンを作っていない。** `tools/stats.mjs` は
+  「アカウント / Account Analytics / 読み取り」だけのトークンが要る。
+  作れるのは本番アカウントの持ち主（政岡さん）。作り方は stats.mjs の先頭
+- **広告ブロッカーにどれくらい塞がれているかは、まだ数字が無い。**
+  デプロイ後、Web Analytics の数と `stats.mjs` の `pv` を並べて初めて分かる
+- **無料枠（Analytics Engine 1日10万件）の見張りが無い。** 履修登録の山で
+  近づいたら、まず `pv` を落として `search` / `detail` だけにする
+- **`/about` に説明を足していない。** 元から利用者向けの計測の記載が無く、
+  今回も個人を特定する情報を増やしていないため、文面を触っていない
+- `tools/test_favorite.mjs` は落ちるが **main でも同じように落ちる**
+  （`#inspector .detail .favBtn` が出ない）。今回の変更とは無関係
+
+### 3. 次の人が最初にやること
+
+```bash
+gh pr merge 97 --squash --delete-branch   # #95 はマージずみ。約80秒で自動デプロイ
+# デプロイ後、自分の端末を除外してから数分待って:
+CF_ACCOUNT_ID=<32桁> CF_API_TOKEN=<作ったトークン> node tools/stats.mjs 7
+```
+
+`stats.mjs` が「まだ1件も届いていません」と言ったら、疑う順番は
+① まだデプロイされていない ② **nginx が Origin と Referer を両方落としている**
+③ 自分の端末が `?nostats=1` で除外されている。
+
+### 4. 踏んだ罠
+
+- **Web Analytics の Rules（パスで計測を止める機能）は使えない。**
+  あれは Cloudflare に DNS を向けたサイト専用で、独自ドメインは
+  nginx（VPS）から Worker へ中継している＝向けていない。除外は自前で持つしかない
+- **`data-cf-beacon` 属性は、動的に足したタグで読まれる保証が無い。**
+  トークンは `?token=…` のクエリで渡す（Cloudflare 公式のタグマネージャ向けの書き方）
+- **`showDetail()` の中で数えてはいけない。** あの関数は画面幅が変わったときにも
+  呼ばれるので、PC で窓を縮めただけで「詳細を開いた」が1件増える。
+  数えるのは `bindCardHandler` のクリック側
+- **`/api/hit` で Origin を必須にしてはいけない。** nginx がヘッダを落とす設定に
+  変わった日に、集計が誰にも気づかれずゼロになる。だから
+  「**合わない Origin だけを弾く**（無いものは通す）」にしてある
+- **Analytics Engine の集計では `_sample_interval` を必ず掛ける。**
+  件数が増えると Cloudflare が間引いて保存するので、掛け忘れるとその日だけ
+  静かに少なく出る（`tools/stats.mjs` の SQL に入れてある）
+- **積んだ PR（stacked PR）の下の段を `--delete-branch` でマージしてはいけない。**
+  base ブランチが消えた瞬間、上の段の PR は **retarget ではなく自動クローズ**され、
+  しかも GitHub は再オープンさせてくれない（作り直すしかない）。
+  下の段は `--delete-branch` を付けずにマージし、上の段の base を main に
+  付け替えてからブランチを消すこと
+- **`[[analytics_engine_datasets]]` は、先にダッシュボードで dataset を作らないと
+  デプロイが落ちる**（`[code: 10089] You need to enable Analytics Engine`）。
+  2026-09-03 に20分溶かした。厄介なのは **`wrangler deploy --dry-run` では気づけない**
+  こと ―― dry-run は束縛を一覧に出すだけでサーバへ問い合わせないので、
+  ローカルでは何の問題も無いように見える。作る場所は
+  `dash.cloudflare.com/<account_id>/workers/analytics-engine` で、
+  「Enable」ボタンは無く **Create Dataset が実質の有効化**。
+  入力する2つは wrangler.toml と完全一致させること（`rakutan_use` / `STATS`）
+- **`sendBeacon` は DevTools の Network で `ping` 型として出る。**
+  「Fetch/XHR」で絞ると **1件も見えない**ので、動いていないと誤診する。
+  「全部」にしてから `hit` で絞ること
+- **PM 本人のブラウザで beacon が `ERR_BLOCKED_BY_CLIENT` になっていた**（2026-09-03 実測）。
+  広告ブロッカーが効いているのは仮説ではなく事実で、
+  Cloudflare Web Analytics の数字が下限であることの裏付けになる
 
 ---
 
@@ -514,16 +1165,22 @@ Worker は投稿を一件も見ておらず、「来た」を知る手段が無�
       ・基礎工学のための数学A（田中）
 
 - 科目は10件まで並べ、超えた分は「… ほか N 科目」。`allowed_mentions` は閉じてある
+- **本番でも実測ずみ（2026-09-02、デプロイ版 `e6b75df7`）**:
+  `GET /api/kuchikomi` は独自ドメイン・workers.dev とも 405、
+  `POST` は `{"status":"success"}` が 3.41秒で返る（＝Cloudflare の本番エッジ → GAS は通る）
 
 ### 2. 何をしていないか
 
-- ★**`REVIEW_DISCORD_WEBHOOK` が未登録**（人がやること）。登録するまで**投稿は今まで通り
-  成功するが通知は鳴らない**。意見箱と secret を分けてあるので別チャンネルに落とせる
-- ★**しゅんやさんのシートにテスト行が1行入っている**
-  （`【テスト】通知配線の疎通確認（この行は削除してください）` / 学部も `【テスト】…`）。**削除が要る**
-- **Cloudflare の本番エッジからの POST は未確認。** ローカルの workerd → 本番 GAS は
-  実測ずみだが、デプロイ後にもう1件だけ試すのが確実（同じ手順でテスト行が増えるので、
-  試したらまた消す）
+- ★**Discord に通知がまだ届いていない（調査中）。** マージ・デプロイ・secret 登録は
+  すべて済み、**GAS への中継は本番エッジで実測ずみ**（下記）。それでもチャンネルに
+  出ないので、残る疑いは「登録した URL が、作り直す前の消したウェブフックのもの」。
+  切り分けは ①その URL に直接 `curl` して新チャンネルに出るか見る
+  ②`npx wrangler secret put REVIEW_DISCORD_WEBHOOK` で入れ直す
+  ③`npx wrangler tail` を出しながら1件投稿して `review webhook failed <status>` を見る、の順
+- ★**しゅんやさんのシートにテスト行が2行入っている**
+  （`【テスト】通知配線の疎通確認…` と `【テスト】本番エッジの疎通確認…`。学部名も `【テスト】…`）。
+  **削除が要る**。調査でもう1件増えることがあるので、`【テスト】` で始まる行は全部消してよい
+- `REVIEW_DISCORD_WEBHOOK` は登録ずみ（`npx wrangler secret list` に出る）
 - `server.py`（ローカル開発サーバ）は `/api/kuchikomi` を持たない。**ローカルで投稿を
   試すには `npx wrangler dev`**。`server.py` に中継を足すかは未決（足せばローカルからも
   本番シートに書けてしまうので、足さない方がいいかもしれない）
@@ -534,10 +1191,21 @@ Worker は投稿を一件も見ておらず、「来た」を知る手段が無�
 
 ### 3. 次の人が最初にやること
 
-    npx wrangler secret put REVIEW_DISCORD_WEBHOOK
+通知が届かない件の切り分け（上の ★1つめ）。ウェブフック URL を手元に用意して:
+
+    # ① URL 自体が生きているか（シートには何も書かない）
+    curl -X POST -H 'content-type: application/json' \
+      -d '{"content":"接線テスト"}' '<ウェブフックURL>'
+
+    # ② 入れ直す
+    cd ~/Developer/rakutan-db && npx wrangler secret put REVIEW_DISCORD_WEBHOOK
 
 URL は Discord の該当チャンネル → 編集 → 連携サービス → ウェブフックを作成 → コピー。
 （意見箱 `FEEDBACK_DISCORD_WEBHOOK` と同じ作り方。別チャンネルでよい）
+
+**ウェブフックを消したり作り直したりしたら、secret も入れ直すこと。** URL が変わるので、
+消した方の URL が secret に残っていると、投稿は成功するのに永久に鳴らない
+（Worker 側は Discord の失敗を握りつぶす設計なので、画面には何も出ない）。
 
 ### 4. 踏んだ罠
 
@@ -546,6 +1214,13 @@ URL は Discord の該当チャンネル → 編集 → 連携サービス → �
 - **通知のために投稿を落とす設計にしてはいけない。** webhook 未設定・Discord 落ち・
   body 破損のどれが起きても中継だけは通る、をテストで固定してある。ここを緩めると
   一番混む日に投稿ごと死ぬ
+- **PR を出すと Workers Builds がブランチをビルドして「デプロイされていないバージョン」を
+  作る。** その状態だと `wrangler secret put` が
+  「the latest version of your Worker isn't currently deployed」で必ず失敗する。
+  慌てて未デプロイのバージョンを deploy すると、レビュー前のブランチが本番に出る。
+  **正しい順番は「PR をマージ → 自動デプロイ（約80秒）→ secret を入れる」**。
+  どうしてもマージ前に入れるなら `npx wrangler versions secret put`（新バージョンを
+  作るだけでデプロイはしない）
 - **`wrangler dev` は `.dev.vars` の変更を拾わないことがある。** 受け皿のポートを変えたら
   dev ごと再起動する（古い値のまま動いていて、通知が届かないように見えた）
 
