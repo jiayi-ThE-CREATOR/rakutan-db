@@ -943,8 +943,8 @@ html{scroll-behavior:smooth}
 .capWarn {
   margin: .5rem 0 0;
   padding: .5rem .6rem;
-  border-left: 3px solid var(--brand, #DB6209);
-  background: rgba(219, 98, 9, .08);
+  border-left: 3px solid var(--brand);
+  background: var(--brand-hover);
   font-size: .82rem;
   line-height: 1.5;
 }
