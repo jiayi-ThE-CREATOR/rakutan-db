@@ -288,13 +288,43 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    狭い画面の .bar は 3列のまま＝既存の折り返し規則をそのまま使える。 */
 .railTog{display:none}
 @media (min-width:768px){
-  .bar{grid-template-columns:auto auto 1fr auto}
-  .railTog{display:inline-flex;align-items:center;gap:6px;
+  /* 開いているあいだ、畳むハンドルは条件欄の中（#railFold）にある。
+     .bar のボタンは「開く」専用なので、畳んでいるときだけ出す。
+     display:none のあいだはグリッド項目にならないので、開いているときの
+     .bar は 3列のまま＝既存の折り返し規則をそのまま使える。 */
+  .workbench.railOff .bar{grid-template-columns:auto auto 1fr auto}
+  .workbench.railOff .railTog{display:inline-flex;align-items:center;gap:6px;
     border:1px solid var(--rule);border-radius:var(--r-sm);
     background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-sm);
     padding:5px 10px;cursor:pointer;white-space:nowrap}
   .railTog:hover{background:var(--dim)}
 }
+/* 条件欄の見出し行。768px 未満では出さない ―― その幅では .rail は
+   ただの縦積みで、畳む相手としての「列」が無い。 */
+.railHead{display:none}
+@media (min-width:768px){
+  /* 高さを決め打ちにしてあるのは、下の .slotBar（「◯曜◯限で絞り込み中」）も
+     sticky で、同じ器の天井に貼り付くから。値がずれると2つが重なる。
+     tools/test_rail_toggle.mjs が重なりを見張っている。 */
+  /* 高さ 51px と上の余白 24px は、右の .bar（件数・検索・並び順）と
+     下の罫線をそろえるための値。2本の罫線が同じ高さで揃うと、左右が
+     「同じ段の見出し」に見える。.bar の中身（検索窓の padding）を変えると
+     ずれるので、tools/test_rail_toggle.mjs が2本の底辺を突き合わせている。 */
+  .rail{--railHeadH:51px}
+  .railHead{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);
+    height:var(--railHeadH);margin-top:var(--sp-5);position:sticky;top:0;z-index:16;
+    background:var(--paper);border-bottom:1px solid var(--rule);margin-bottom:var(--sp-3)}
+  .slotBar{top:var(--railHeadH)}
+}
+.railHeadT{font-size:var(--fs-sm);font-weight:700;color:var(--soft);letter-spacing:.04em}
+.railFold{display:flex;align-items:center;justify-content:center;flex:none;
+  width:30px;height:30px;padding:0;cursor:pointer;
+  border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--card)}
+.railFold:hover{background:var(--dim)}
+/* 左向きの山形。文字の «‹» を使うとフォント任せで太さと位置が揃わない。 */
+.railFoldIcon{width:7px;height:7px;margin-left:2px;transform:rotate(45deg);
+  border-left:2px solid var(--soft);border-bottom:2px solid var(--soft)}
+
 /* 三本線。閉じているときだけ「開く方向」を示したいが、記号を出し分けると
    幅が変わってボタンの右にある件数が動く。だから絵は固定し、状態は
    ラベルの文言（「絞り込みを隠す」／「絞り込み」）とバッジで示す。 */

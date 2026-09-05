@@ -1374,13 +1374,17 @@ function activeFilterCount(){
   return n;
 }
 
+/* 開閉のボタンは2つある。畳むほう（#railFold）は条件欄の見出しの中、
+   開くほう（#railTog）は .bar の中。「そのとき目が置かれている場所に
+   ボタンを置く」ためで、どちらも同じ状態を指している。 */
 function syncRailTog(){
   const btn = $("#railTog");
   if (!btn) return;
   const off = $("#workbench").classList.contains("railOff");
-  const n = activeFilterCount();
   btn.setAttribute("aria-expanded", String(!off));
-  $("#railTogLabel").textContent = off ? "絞り込み" : "絞り込みを隠す";
+  $("#railFold")?.setAttribute("aria-expanded", String(!off));
+  /* 条件の数は畳んでいるときだけ出す。開いていれば条件そのものが左に見えている。 */
+  const n = activeFilterCount();
   const b = $("#railTogCount");
   b.textContent = n;
   b.hidden = !(off && n > 0);
@@ -1687,11 +1691,13 @@ function applyPostMode() {
   /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると
      復元のための classList 操作が「押した」ことになってしまう。 */
   setRail(rkStore.getRailOpen());
-  $("#railTog").onclick = () => {
-    const open = $("#workbench").classList.contains("railOff");
+  const toggleRail = () => {
+    const open = $("#workbench").classList.contains("railOff");   // 畳んでいた＝これから開く
     setRail(open);
     window.rkTrack?.("rail_toggle", open ? "open" : "close");
   };
+  $("#railTog").onclick = toggleRail;    // .bar の「開く」
+  $("#railFold").onclick = toggleRail;   // 条件欄の見出しの「畳む」
 
   /* 長い科目名の流し読み。#list は描き直すたびに中身が入れ替わるので、
      カードごとではなく #list に1つだけ張る。カード内での移動（見出し→タグ等）で

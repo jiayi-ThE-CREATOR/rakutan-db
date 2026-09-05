@@ -36,10 +36,32 @@ const browser = await chromium.launch();
   const p = await open(browser, { width: 1440, height: 900 });
 
   check(await p.locator("#rail").isVisible(), "初期状態で絞り込みが出ていない");
-  check(await p.locator("#railTogLabel").textContent() === "絞り込みを隠す",
-        "初期のボタン文言が「絞り込みを隠す」でない");
-  check(await p.locator("#railTog").getAttribute("aria-expanded") === "true",
+  /* 開いているあいだ、畳むハンドルは条件欄の中にある。.bar のボタンは
+     「開く」専用なので出ていてはいけない（2つ出ると同じ操作の入口が
+     2箇所になり、どちらが何をするのか読めなくなる）。 */
+  check(await p.locator("#railFold").isVisible(), "開いているのに畳むハンドルが条件欄に無い");
+  check(!(await p.locator("#railTog").isVisible()), "開いているのに .bar の「開く」ボタンが出ている");
+  check(await p.locator("#railFold").getAttribute("aria-expanded") === "true",
         "初期の aria-expanded が true でない");
+
+  /* 見出しの罫線と .bar の罫線が同じ高さで揃っていること。ずれると
+     左右が「別の段」に見えて、見出しが条件欄の見出しだと読めなくなる。 */
+  const hb = await p.locator(".railHead").boundingBox();
+  const bb = await p.locator(".bar").boundingBox();
+  check(Math.abs((hb.y + hb.height) - (bb.y + bb.height)) <= 2,
+        `見出しと .bar の底辺がずれている（${Math.round(hb.y+hb.height)} vs ${Math.round(bb.y+bb.height)}）`);
+
+  /* 見出し行と「◯曜◯限で絞り込み中」はどちらも条件欄の天井に貼り付く。
+     --railHeadH がずれると重なるので、実際にコマを選んで見る。 */
+  await p.locator("#grid button").first().click();
+  await p.waitForTimeout(250);
+  const headBox = await p.locator(".railHead").boundingBox();
+  const slotBox = await p.locator("#slotBar").boundingBox();
+  check(!!slotBox, "コマを選んでも #slotBar が出ない");
+  check(slotBox && slotBox.y >= headBox.y + headBox.height - 1,
+        `見出し行と #slotBar が重なっている（--railHeadH のずれ）`);
+  await p.locator("#slotBarClear").click();
+  await p.waitForTimeout(250);
 
   const before = (await p.locator("#results").boundingBox()).width;
   const colsBefore = await p.evaluate(() =>
@@ -47,14 +69,21 @@ const browser = await chromium.launch();
       .map(el => Math.round(el.getBoundingClientRect().x))).size);
   check(colsBefore === 1, `畳む前に既に多列になっている（${colsBefore}列）`);
 
-  await p.locator("#railTog").click();
+  await p.locator("#railFold").click();
   await p.waitForTimeout(80);
 
   check(!(await p.locator("#rail").isVisible()), "畳んでも絞り込みが消えていない");
+  check(await p.locator("#railTog").isVisible(), "畳んだのに .bar の「開く」ボタンが出ない");
   check(await p.locator("#railTog").getAttribute("aria-expanded") === "false",
         "畳んだのに aria-expanded が false でない");
-  check(await p.locator("#railTogLabel").textContent() === "絞り込み",
-        "畳んだあとのボタン文言が「絞り込み」でない");
+
+  /* 開き直せること（.bar のボタン → また条件欄が出る）。 */
+  await p.locator("#railTog").click();
+  await p.waitForTimeout(80);
+  check(await p.locator("#rail").isVisible(), ".bar のボタンで開き直せない");
+  check(!(await p.locator("#railTog").isVisible()), "開いたのに「開く」ボタンが残っている");
+  await p.locator("#railFold").click();
+  await p.waitForTimeout(80);
 
   const after = (await p.locator("#results").boundingBox()).width;
   check(after > before + 200, `畳んでも中カラムが広がらない（${before} → ${after}）`);
@@ -89,7 +118,7 @@ const browser = await chromium.launch();
   /* 学年チップを1つ押す（既定は「すべて」なので、押せば条件が1つ増える）。 */
   await p.locator("#years .chip:not(.on)").first().click();
   await p.waitForTimeout(250);
-  await p.locator("#railTog").click();
+  await p.locator("#railFold").click();
   await p.waitForTimeout(80);
 
   check(await p.locator("#railTogCount").isVisible(),
@@ -106,7 +135,7 @@ const browser = await chromium.launch();
   /* 先に畳む。開いたままだとカードが 640px 幅で、2行に 136 半角幅入る
      ―― 実データの最長（122 半角幅）でも溢れない。溢れるのは2列にして
      カードが 464px になったときだけなので、そちらで見る。 */
-  await p.locator("#railTog").click();
+  await p.locator("#railFold").click();
   await p.waitForTimeout(80);
   /* 「ものづくり」は11件で1ページに収まり、うち2件が2行に入らない
      （最長 122 半角幅の「学問への扉（ものづくりサイエンス「…」）」）。 */
@@ -153,7 +182,8 @@ const browser = await chromium.launch();
 /* ── スマホ幅：ボタンを出さない・科目名を切らない ── */
 {
   const p = await open(browser, { width: 390, height: 844 });
-  check(!(await p.locator("#railTog").isVisible()), "スマホ幅で畳むボタンが出ている");
+  check(!(await p.locator("#railTog").isVisible()), "スマホ幅で「開く」ボタンが出ている");
+  check(!(await p.locator(".railHead").isVisible()), "スマホ幅で条件欄の見出し行が出ている");
   const over = await p.evaluate(() =>
     getComputedStyle(document.querySelector("#list > .card .title")).overflow);
   check(over !== "hidden", "スマホ幅で科目名が切られている（クランプが漏れている）");
