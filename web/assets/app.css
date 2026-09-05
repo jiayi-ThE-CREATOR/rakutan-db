@@ -767,7 +767,8 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 /* 覆いが出ているあいだは背後をスクロールさせない。 */
 html.splash-on{overflow:hidden}
 
-.splashInner{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3)}
+.splashInner{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3);
+  padding:0 var(--sp-4)}
 /* ヘッダのロックアップと同じく、マーク＋「クハン」で1語に見せる。
    縦に積むと「ラ」がただの絵になってしまい、書き出す意味が消える。 */
 .splashWord{display:flex;align-items:center}
@@ -788,11 +789,22 @@ html.splash-on{overflow:hidden}
 .splash.run .splashWm span:nth-child(3){animation-delay:500ms}
 @keyframes rkRise{to{opacity:1;transform:translateY(0)}}
 
-/* ③ 縦線が伸びて GUILD の2行が出る。 */
+/* ③ 標語。ヒーローの見出しと同じ一文なので、覆いが消えたあとも
+   同じ言葉がその場に残る ―― 演出と中身が地続きに見える。
+   ロゴより先に読まれないよう、名前が出そろってから。 */
+.splashTag{margin:0;font-size:var(--fs-base);font-weight:700;line-height:1.5;
+  color:var(--on-dark-strong);text-align:center;text-wrap:balance;
+  opacity:0}
+.splash.run .splashTag{animation:rkRise 300ms var(--ease-out) 560ms forwards}
+
+/* ④ 縦線が伸びて GUILD の2行が出る。
+   標語を挟んだぶん 700ms → 820ms。覆いは 1400ms で閉じ始めるので、
+   ここを後ろへずらすほど標語を読む時間が減る。合計の尺は伸ばさない
+   （splash.js の「待ちを増やさない」という約束）。 */
 .splashBy{display:flex;flex-direction:column;align-items:flex-start;
   padding-left:var(--sp-2);border-left:1px solid var(--on-dark-line);
   opacity:0;margin-top:var(--sp-2)}
-.splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 700ms forwards}
+.splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 820ms forwards}
 
 /* ── ヒーロー ───────────────────────────
  * 「登録・ログイン不要」は最大の強みなので、
@@ -806,9 +818,9 @@ html.splash-on{overflow:hidden}
 /* 句点のところで折り返す。span ごとに inline-block にしておくと、
    狭い画面でも「登録もログインもしなくていい。」が途中で割れない。
    （割れると「登録」「もログインも…」の2行になって読みにくい）
-   62ch は1文目（586px）が1行に収まる最小幅＋余白。54ch だと
+   64ch は1文目（600px）が1行に収まる幅＋余白。足りないと
    「でカバー」だけが2行目に落ちる。文言を伸ばすときはここも見る。 */
-.heroP{margin:0 0 var(--sp-5);max-width:62ch;color:var(--soft)}
+.heroP{margin:0 0 var(--sp-5);max-width:64ch;color:var(--soft)}
 .heroP span{display:inline-block;text-wrap:balance}
 .heroActions{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap}
 .heroCta{display:inline-block;padding:var(--sp-3) var(--sp-6);
