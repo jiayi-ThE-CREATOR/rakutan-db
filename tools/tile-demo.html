@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>タイル表示デモ（検討用・本番非公開）</title>
+<style>
+:root{
+  --paper:#fbf5ef; --card:#fff; --ink:#1c1a18; --soft:#4a4643; --muted:#8a837d;
+  --rule:#e6ddd4; --brand:#DB6209;
+  --light:#0e7c66; --mid:#b8862c; --heavy:#C0392B; --none:#d9d2ca;
+  --r:12px;
+  --tw:170px;              /* タイルの最小幅。スライダーで動かす */
+  --gap:12px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+  font-feature-settings:"palt";}
+.wrap{max-width:1560px;margin:0 auto;padding:0 16px 64px}
+h1{font-size:19px;margin:20px 0 6px}
+.lead{font-size:13px;color:var(--soft);margin:0 0 4px;max-width:74ch}
+.warn{font-size:12px;color:var(--heavy);margin:0 0 16px}
+
+/* ── 操作パネル ───────────────────── */
+.panel{position:sticky;top:0;z-index:20;background:var(--paper);
+  border-bottom:1px solid var(--rule);padding:10px 0;margin-bottom:16px;
+  display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.seg{display:flex;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:none;font:inherit;font-size:13px;padding:7px 12px;cursor:pointer;color:var(--soft)}
+.seg button+button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--brand);color:#fff;font-weight:700}
+.fld{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--soft)}
+.fld input[type=range]{width:150px;accent-color:var(--brand)}
+.readout{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;
+  margin-left:auto;text-align:right;line-height:1.5}
+.readout b{color:var(--ink);font-size:13px}
+
+/* ── グリッド ───────────────────── */
+#list{display:grid;gap:var(--gap)}
+#list[data-view="tile"]{grid-template-columns:repeat(auto-fill,minmax(var(--tw),1fr))}
+#list[data-view="card"]{grid-template-columns:1fr;max-width:620px}
+
+/* ── タイル ───────────────────── */
+.tile{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);
+  padding:10px 11px;display:flex;flex-direction:column;gap:5px;
+  height:var(--th,148px);overflow:hidden;cursor:pointer;position:relative}
+.tile:hover{border-color:var(--brand)}
+.tile.poor{border-style:dashed}
+.tRow1{display:flex;align-items:baseline;gap:6px}
+.band{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:5px;white-space:nowrap}
+.b-light{background:#e5f0ec;color:var(--light)}
+.b-mid{background:#f6efdf;color:#8a6418}
+.b-heavy{background:#f8e8e6;color:var(--heavy)}
+.b-none{background:#efeae4;color:var(--muted)}
+.sc{margin-left:auto;font-size:19px;font-weight:700;line-height:1;color:var(--brand);
+  font-variant-numeric:tabular-nums}
+.sc small{font-size:9px;color:var(--muted);display:block;text-align:right;font-weight:400;margin-top:2px}
+.sc.na{font-size:12px;color:var(--muted)}
+
+/* 科目名 ── 2行で固定。溢れたぶんは「…」。 */
+.tt{font-size:13.5px;font-weight:700;line-height:1.32;margin:0;
+  height:calc(1.32em * 2);overflow:hidden;position:relative;container-type:inline-size}
+.ttIn{display:block;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* 電光掲示板 ── 溢れているタイルに触れている間だけ、1行で流す。
+   静止時は上の「…」のまま。動きを止めても情報が消えないようにするため。 */
+[data-marquee="on"] .tile:hover .tt.over .ttIn{
+  -webkit-line-clamp:unset;display:inline-block;white-space:nowrap;overflow:visible;
+  animation:mq 8s linear infinite}
+/* 流す量は「文字列の幅 - 枠の幅」。translateX の % は自分の幅、100cqw が枠の幅なので、
+   JS で測らずに済む（clamp 中の要素は scrollWidth が枠幅と同じになり、測れない）。 */
+@keyframes mq{0%,10%{transform:translateX(0)}90%,100%{transform:translateX(calc(-100% + 100cqw))}}
+@media (prefers-reduced-motion:reduce){ .tile .ttIn{animation:none!important} }
+.tMeta{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+
+/* ── 4軸（「重さの根拠」をタイルに載せる部分） ── */
+.ax{margin-top:auto;display:grid;gap:3px}
+.axR{display:grid;grid-template-columns:var(--lab,1.6em) 1fr var(--num,2.1em);
+  gap:5px;align-items:center;font-size:10px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.axL{white-space:nowrap;overflow:hidden}
+.axB{height:5px;border-radius:3px;background:#ece6df;overflow:hidden}
+.axB i{display:block;height:100%;border-radius:3px}
+.axN{text-align:right}
+.f-light{background:var(--light)} .f-mid{background:var(--mid)} .f-heavy{background:var(--heavy)}
+.axB.na{background:repeating-linear-gradient(135deg,#ece6df 0 4px,#e0d9d1 4px 8px)}
+.axR.na .axN{color:#b6ada4}
+
+/* 幅で情報量を落とす段階。small ではラベルを消してバーだけにする。 */
+#list.sz-s{--lab:0;--num:0}
+#list.sz-s .axL,#list.sz-s .axN{display:none}
+#list.sz-s .axR{gap:0}
+#list.sz-s .tt{font-size:12.5px}
+#list.sz-m{--lab:1.5em;--num:2em}
+#list.sz-l{--lab:5.4em;--num:2.3em}
+#list.sz-l .axR{font-size:11px}
+
+/* ── 比較用：いまの本番に近いカード ── */
+.card{background:var(--card);border:1px solid var(--rule);border-radius:var(--r);padding:13px 14px}
+.card h3{font-size:16.5px;margin:0 0 3px;line-height:1.35}
+.cMeta{font-size:12px;color:var(--muted);margin-bottom:8px}
+.cBand{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-right:8px}
+.cWhy{font-size:13px;color:var(--soft)}
+.cSc{float:right;font-size:25px;font-weight:700;color:var(--brand);line-height:1;
+  font-variant-numeric:tabular-nums}
+.cSc small{display:block;font-size:10px;color:var(--muted);text-align:right;font-weight:400}
+
+.legend{margin:18px 0 0;font-size:12px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.legend span{display:flex;align-items:center;gap:5px}
+.sw{width:12px;height:6px;border-radius:3px;display:inline-block}
+.note{margin-top:28px;padding-top:16px;border-top:1px solid var(--rule);
+  font-size:12.5px;color:var(--soft);max-width:78ch}
+.note h2{font-size:14px;margin:0 0 8px}
+.note li{margin-bottom:5px}
+kbd{font:inherit;font-size:11.5px;background:#efeae4;border-radius:4px;padding:1px 5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>タイル表示デモ ― 小さくするほど「重さの根拠」を見せる</h1>
+<p class="lead">
+  実データ52件（<code>web/data/courses.built.json</code> から抜粋）。タイルを小さくしたときに
+  4軸のバーがカードより<b>多く</b>見えることを確かめるための検討用ページです。
+  スライダーを動かすと、幅がいくつを切ったところで何が読めなくなるかが分かります。
+</p>
+<p class="warn">検討用。<code>tools/</code> 配下にあるので Cloudflare Pages には公開されません。本番の <code>web/</code> には触れていません。</p>
+
+<div class="panel">
+  <div class="seg" id="view">
+    <button data-v="card" aria-pressed="false">いまのカード</button>
+    <button data-v="tile" aria-pressed="true">タイル</button>
+  </div>
+  <label class="fld">タイル幅
+    <input type="range" id="tw" min="110" max="280" step="5" value="170">
+    <b id="twv">170px</b>
+  </label>
+  <label class="fld"><input type="checkbox" id="mq"> 電光掲示板（溢れたタイルに触れている間だけ流す）</label>
+  <div class="readout" id="ro"></div>
+</div>
+
+<div id="list" data-view="tile" data-marquee="off"></div>
+
+<div class="legend">
+  <span><i class="sw f-light"></i>70以上＝軽い</span>
+  <span><i class="sw f-mid"></i>40〜69</span>
+  <span><i class="sw f-heavy"></i>40未満＝重い</span>
+  <span><i class="sw axB na" style="height:6px"></i>未取得（平均で埋めない）</span>
+  <span>軸の順：出席の緩さ／課題の軽さ／テストの楽さ／規模の小ささ</span>
+</div>
+
+<div class="note">
+  <h2>このデモで確かめたいこと</h2>
+  <ul>
+    <li><b>小さいほど情報が増える。</b>いまのカードは1枚に理由文1行だけ。タイルは4軸すべてを常に見せるので、
+      画面あたりに出る「根拠の数」はタイルのほうが多くなります（右上の読み値で比較できます）。</li>
+    <li><b>幅110px まで下げてみてください。</b>ラベルと数値が消えてバー4本だけになります。
+      色と長さだけでも「試験だけ重い科目」は拾えますが、<b>数値が消えると根拠を提示できなくなる</b>ので、
+      どこを下限にするかの判断材料にしてください。</li>
+    <li><b>高さは科目名の行数で動きません。</b>科目名は2行で固定。溢れたものは「…」で、
+      <kbd>電光掲示板</kbd>を入れたときだけ、触れているあいだ1行で流れます。</li>
+    <li><b>情報不足の科目</b>（破線の枠）は数字を出さず、未取得の軸を斜線で見せています。</li>
+  </ul>
+  <h2 style="color:#C0392B">先に知っておくこと ― 手元のデータでは4本のうち平均1.5本しか出ない</h2>
+  <ul>
+    <li>7,906件を数えた結果：<b>出席 100% ／ 試験 46.4% ／ レポート・課題 1.9% ／ 規模・形態 0%</b> しか値がありません。
+      1科目あたり平均 <b>1.48本 / 4本</b>。<b>バーが1本だけの科目が52.5%</b>、2本が46.7%です。</li>
+    <li>つまり「小さくして情報量を増やす」効果は、<b>いまのデータではまだ出ません</b>。
+      レポートの本数・字数は口コミ（4タップ）でしか埋まらないので、
+      <b>タイル表示の価値は口コミの件数に比例して上がります</b>。</li>
+    <li>このデモの52件は<b>口コミ付きを14件わざと混ぜてある</b>ので、実際の一覧より賑やかに見えます。
+      平均的な見え方を知りたいときは、口コミなしの科目（バー1〜2本）のほうを見てください。</li>
+    <li>ただし公開版は軸の構成が違う（「小テストの少なさ」がある）ので、
+      <b>実装前に公開版のデータで同じ集計を取り直すこと。</b></li>
+  </ul>
+
+  <h2>本番と違う点（実装前に確認が要る）</h2>
+  <ul>
+    <li>4軸の名前は手元の <code>courses.built.json</code> に入っている
+      <b>試験／レポート・課題／出席拘束／規模・形態</b>を、公開版の言い回し（出席の緩さ…）に読み替えて出しています。
+      公開版にある<b>「小テストの少なさ」の軸は手元のデータにまだありません</b>。</li>
+    <li>同じく、公開版の「楽単スコア」は手元の <code>app.js</code> では「相性」と出ています。<b>手元のツリーが公開版より古い</b>ので、実装前に最新を引くこと。</li>
+    <li>お気に入り☆・ページ送り・絞り込みは入れていません。見え方だけのデモです。</li>
+  </ul>
+</div>
+
+</div>
+<script>
+const DATA = [{"id":"135159","t":"【社会】マクロ経済学の考え方","dp":"月4","ins":"祝迫　達郎","cat":"全学教育推進機構","sc":88.3,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":89.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":null},"exam":{"v":88.0,"e":"試験が成績の80%"},"scale":{"v":null,"e":null}},"rv":2},{"id":"135163","t":"【社会】ミクロ経済学の考え方","dp":"月3","ins":"佐々木　周作","cat":"全学教育推進機構","sc":70.0,"band":"標準","conf":"mid","cov":0.78,"ax":{"attendance":{"v":47.5,"e":"出席・平常点が50%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":92.5,"e":"試験が成績の50%"},"scale":{"v":null,"e":null}},"rv":2},{"id":"135139","t":"【社会】日本国憲法","dp":"水4","ins":"柴田　尭史","cat":"全学教育推進機構","sc":40.3,"band":"やや重め","conf":"mid","cov":0.78,"ax":{"attendance":{"v":25.5,"e":"出席・平常点が90%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":98.5,"e":"試験が成績の10%"},"scale":{"v":null,"e":null}},"rv":1},{"id":"135147","t":"【社会】法学の考え方","dp":"月5","ins":"青木　大也","cat":"全学教育推進機構","sc":20.0,"band":"重め","conf":"mid","cov":0.68,"ax":{"attendance":{"v":20.0,"e":"出席・平常点が100%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":1},{"id":"135093","t":"【社会】行動学の考え方","dp":"金1","ins":"松井　大,木村　司","cat":"全学教育推進機構","sc":76.5,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":null,"e":null},"exam":{"v":73.0,"e":"試験が成績の100%"},"scale":{"v":null,"e":null}},"rv":2},{"id":"135349","t":"【総合】SDGs＋Beyondに向けた新しい共感・共助の経済づくり","dp":"火5","ins":"伊藤　武志","cat":"全学教育推進機構","sc":82.9,"band":"軽め","conf":"mid","cov":0.78,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":80.4175,"e":"レポートが成績の100%"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":3},{"id":"135327","t":"【総合】カーボンニュートラルと私たちの未来","dp":"金1","ins":"鈴木　智博","cat":"全学教育推進機構","sc":85.0,"band":"軽め","conf":"mid","cov":0.78,"ax":{"attendance":{"v":83.5,"e":"出席・平常点が30%"},"report":{"v":85.75,"e":"レポートが成績の70%"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":4},{"id":"135297","t":"【総合】データ解析の実際","dp":"水1","ins":"髙野　渉","cat":"全学教育推進機構","sc":86.9,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":null,"e":null},"exam":{"v":85.0,"e":"試験が成績の100%"},"scale":{"v":null,"e":null}},"rv":1},{"id":"135233","t":"【総合】人文地理学の考え方","dp":"月2","ins":"佐藤　廉也","cat":"全学教育推進機構","sc":78.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":1},{"id":"135335","t":"【総合】文理融合に向けた数理科学 I","dp":"月1","ins":"髙野　渉,梅垣　俊仁","cat":"全学教育推進機構","sc":78.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":1},{"id":"135339","t":"【総合】文理融合に向けた数理科学 I","dp":"木1","ins":"髙野　渉,梅垣　俊仁","cat":"全学教育推進機構","sc":78.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":1},{"id":"135312","t":"【総合】文理融合に向けた数理科学　I","dp":"金5","ins":"髙野　渉,梅垣　俊仁","cat":"全学教育推進機構","sc":78.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":2},{"id":"135316","t":"【総合】文理融合に向けた数理科学　I","dp":"火4","ins":"髙野　渉,梅垣　俊仁","cat":"全学教育推進機構","sc":78.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":1},{"id":"135251","t":"【総合】現代の医療と生命を考える","dp":"水3","ins":"山本　陵平","cat":"全学教育推進機構","sc":91.3,"band":"拘束は軽い","conf":"mid","cov":0.606,"ax":{"attendance":{"v":89.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":"レポートが成績の30%だが、本数・分量が未取得"},"exam":{"v":92.5,"e":"試験が成績の50%"},"scale":{"v":null,"e":null}},"rv":1},{"id":"083261","t":"建築鋼構造学第二部","dp":"火2","ins":"桑原　進,瀧野　敦夫","cat":"工学部","sc":78.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"192612","t":"中国語初級II","dp":"金2","ins":"小野　絵理","cat":"マルチリンガル教育センター","sc":49.3,"band":"やや重め","conf":"mid","cov":0.78,"ax":{"attendance":{"v":31.0,"e":"出席・平常点が80%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":97.0,"e":"試験が成績の20%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"082125","t":"電気電子回路演習（A組）","dp":"木3,木4","ins":"廣瀬　哲也,井渕　貴章","cat":"工学部","sc":82.5,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":72.5,"e":"出席・平常点が50%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":92.5,"e":"試験が成績の50%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"137499","t":"基礎解析学・同演義II","dp":"木3,木4","ins":"德永　裕介","cat":"全学教育推進機構","sc":81.4,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":64.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":null},"exam":{"v":88.0,"e":"試験が成績の80%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"137515","t":"線形代数学・同演義II","dp":"金3,金4","ins":"田中　晴喜","cat":"全学教育推進機構","sc":81.4,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":64.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":null},"exam":{"v":88.0,"e":"試験が成績の80%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"100647","t":"ペルシア語Ia","dp":"木4","ins":"サイーディー","cat":"外国語学部外国語学科","sc":87.4,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":83.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"193507","t":"ドイツ語中級（吹田開講）","dp":"金3","ins":"アウマン　オリバー","cat":"マルチリンガル教育センター","sc":85.5,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":78.0,"e":"出席・平常点が40%"},"report":{"v":null,"e":null},"exam":{"v":91.0,"e":"試験が成績の60%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"080377","t":"物理有機化学","dp":"火1","ins":"平野　康次","cat":"工学部","sc":88.4,"band":"拘束は軽い","conf":"mid","cov":0.722,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":null,"e":"レポートが成績の10%だが、本数・分量が未取得"},"exam":{"v":86.5,"e":"試験が成績の90%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"101236","t":"＜兼修＞英語（語学）a(E)","dp":"火4","ins":"大神　雄一郎","cat":"外国語学部外国語学科","sc":64.1,"band":"標準","conf":"mid","cov":0.78,"ax":{"attendance":{"v":42.0,"e":"出席・平常点が60%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":94.0,"e":"試験が成績の40%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"138115","t":"統計学Ｂ-II","dp":"木2","ins":"梅垣　俊仁","cat":"全学教育推進機構","sc":88.4,"band":"拘束は軽い","conf":"mid","cov":0.722,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":null,"e":"レポートが成績の10%だが、本数・分量が未取得"},"exam":{"v":86.5,"e":"試験が成績の90%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"100698","t":"トルコ語IVb","dp":"月3","ins":"ディリック セバル","cat":"外国語学部外国語学科","sc":89.4,"band":"拘束は軽い","conf":"mid","cov":0.722,"ax":{"attendance":{"v":94.5,"e":"出席・平常点が10%"},"report":{"v":null,"e":"レポートが成績の10%だが、本数・分量が未取得"},"exam":{"v":88.0,"e":"試験が成績の80%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"026004","t":"政治学の基礎","dp":"火4","ins":"上川　龍之進","cat":"法学部","sc":86.9,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":null,"e":null},"exam":{"v":85.0,"e":"試験が成績の100%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"135597","t":"基礎解析学I","dp":"火2","ins":"藤田　健人","cat":"全学教育推進機構","sc":81.4,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":64.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":null},"exam":{"v":88.0,"e":"試験が成績の80%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"193453","t":"ドイツ語中級","dp":"火2","ins":"土居　三佐子","cat":"マルチリンガル教育センター","sc":81.2,"band":"拘束は軽い","conf":"mid","cov":0.606,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":null,"e":"レポートが成績の30%だが、本数・分量が未取得"},"exam":{"v":77.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"090336","t":"物理化学Ｄ","dp":"火3","ins":"平井　隆之","cat":"基礎工学部","sc":76.5,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":100.0,"e":null},"report":{"v":null,"e":null},"exam":{"v":73.0,"e":"試験が成績の100%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"090206","t":"情報処理演習","dp":"月3","ins":"各教員,石井　明男,田村　弘,万　偉偉","cat":"基礎工学部","sc":82.5,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":72.5,"e":"出席・平常点が50%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":92.5,"e":"試験が成績の50%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"135649","t":"線形代数学・同演義I","dp":"木2,木3","ins":"岩井　雅崇","cat":"全学教育推進機構","sc":81.4,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":64.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":null},"exam":{"v":88.0,"e":"試験が成績の80%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"030224","t":"組織論","dp":"火3","ins":"SHIN HAYOUNG","cat":"経済学部","sc":78.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"194447","t":"ドイツ語中級","dp":"火2","ins":"白井　智美","cat":"マルチリンガル教育センター","sc":79.6,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":83.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":null},"exam":{"v":77.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"100843","t":"ロシア語Xb","dp":"火2","ins":"藤川　敏宏","cat":"外国語学部外国語学科","sc":90.1,"band":"拘束は軽い","conf":"mid","cov":0.693,"ax":{"attendance":{"v":91.75,"e":"出席・平常点が15%"},"report":{"v":null,"e":"レポートが成績の15%だが、本数・分量が未取得"},"exam":{"v":89.5,"e":"試験が成績の70%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"090596","t":"有機化学Ⅱ－２","dp":"月2,水1","ins":"山元 淳平","cat":"基礎工学部","sc":73.5,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":69.5,"e":"出席・平常点が10%"},"report":{"v":null,"e":null},"exam":{"v":74.5,"e":"試験が成績の90%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"137387","t":"統計学Ｃ-II","dp":"水3","ins":"田中　冬彦","cat":"全学教育推進機構","sc":88.3,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":89.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":null},"exam":{"v":88.0,"e":"試験が成績の80%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"101123","t":"英語2(B)（豊中開講）","dp":"金3","ins":"田村　幸誠","cat":"外国語学部外国語学科","sc":82.3,"band":"拘束は軽い","conf":"mid","cov":0.664,"ax":{"attendance":{"v":89.0,"e":"出席・平常点が20%"},"report":{"v":null,"e":"レポートが成績の20%だが、本数・分量が未取得"},"exam":{"v":79.0,"e":"試験が成績の60%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"192551","t":"フランス語初級II","dp":"金2","ins":"江川　記世子","cat":"マルチリンガル教育センター","sc":74.8,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":53.0,"e":"出席・平常点が40%"},"report":{"v":null,"e":null},"exam":{"v":91.0,"e":"試験が成績の60%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"135444","t":"スマート・スポーツリテラシー（バドミントン）","dp":"火1","ins":"伊奈　新太郎","cat":"全学教育推進機構","sc":51.2,"band":"やや重め","conf":"mid","cov":0.78,"ax":{"attendance":{"v":44.99999999999999,"e":"出席・平常点が100%（毎週の出席がほぼ必須）"},"report":{"v":93.75,"e":"時間外学習の指示 週1時間"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"030887","t":"実践講義（ビジネスモデル研究）　【旧、新→特殊講義】","dp":"金2","ins":"株式会社U-TEAM,勝又　壮太郎","cat":"経済学部","sc":70.0,"band":"標準","conf":"mid","cov":0.78,"ax":{"attendance":{"v":47.5,"e":"出席・平常点が50%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":92.5,"e":"試験が成績の50%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"194207","t":"総合英語（Liberal Arts & Sciences）（吹田開講）","dp":"水4","ins":"米崎　啓和","cat":"マルチリンガル教育センター","sc":78.5,"band":"拘束は軽い","conf":"mid","cov":0.664,"ax":{"attendance":{"v":58.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":"レポートが成績の20%だが、本数・分量が未取得"},"exam":{"v":92.5,"e":"試験が成績の50%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"135451","t":"スマート・スポーツリテラシー（アダプテッドスポーツ）","dp":"火2","ins":"林　龍也","cat":"全学教育推進機構","sc":45.0,"band":"やや重め","conf":"mid","cov":0.68,"ax":{"attendance":{"v":44.99999999999999,"e":"出席・平常点が100%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"194205","t":"総合英語（Liberal Arts & Sciences）（吹田開講）","dp":"水4","ins":"中尾　朋子,中尾　朋子","cat":"マルチリンガル教育センター","sc":80.7,"band":"拘束は軽い","conf":"mid","cov":0.722,"ax":{"attendance":{"v":83.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":"レポートが成績の10%だが、本数・分量が未取得"},"exam":{"v":79.0,"e":"試験が成績の60%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"193725","t":"国際コミュニケーション演習（ドイツ語）＜再履修および自由選択用＞","dp":"月5","ins":"アウマン　オリバー","cat":"マルチリンガル教育センター","sc":85.5,"band":"拘束は軽い","conf":"mid","cov":0.78,"ax":{"attendance":{"v":78.0,"e":"出席・平常点が40%"},"report":{"v":null,"e":null},"exam":{"v":91.0,"e":"試験が成績の60%"},"scale":{"v":null,"e":null}},"rv":0},{"id":"138671","t":"ウォーキング・ノルディックウォーキングの科学","dp":"他","ins":"藤田　和樹","cat":"全学教育推進機構","sc":45.0,"band":"やや重め","conf":"mid","cov":0.68,"ax":{"attendance":{"v":44.99999999999999,"e":"出席・平常点が100%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"138669","t":"ウォーキング・ノルディックウォーキングの科学","dp":"他","ins":"藤田　和樹","cat":"全学教育推進機構","sc":45.0,"band":"やや重め","conf":"mid","cov":0.68,"ax":{"attendance":{"v":44.99999999999999,"e":"出席・平常点が100%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":null},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"001409","t":"中国哲学演習","dp":"木2","ins":"辛 賢","cat":"文学部","sc":null,"band":"情報不足","conf":"mid","cov":0.39,"ax":{"attendance":{"v":72.5,"e":"出席・平常点が50%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":"レポートが成績の50%だが、本数・分量が未取得"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"048129","t":"生物学文献調査","dp":"他","ins":"志賀 向子","cat":"理学部","sc":null,"band":"情報不足","conf":"mid","cov":0.39,"ax":{"attendance":{"v":72.5,"e":"出席・平常点が50%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":"レポートが成績の50%だが、本数・分量が未取得"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"100441","t":"【専攻科目】ビルマ社会演習Ia","dp":"火4","ins":"池田 一人","cat":"外国語学部外国語学科","sc":null,"band":"情報不足","conf":"mid","cov":0.274,"ax":{"attendance":{"v":83.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":"レポートが成績の70%だが、本数・分量が未取得"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"004234","t":"日本文学演習","dp":"火3","ins":"宮本　祐規子","cat":"文学部","sc":null,"band":"情報不足","conf":"mid","cov":0.274,"ax":{"attendance":{"v":83.5,"e":"出席・平常点が30%"},"report":{"v":null,"e":"レポートが成績の70%だが、本数・分量が未取得"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"191389","t":"総合英語Ｉ","dp":"月4","ins":"服部　拓哉","cat":"マルチリンガル教育センター","sc":null,"band":"情報不足","conf":"mid","cov":0.506,"ax":{"attendance":{"v":36.5,"e":"出席・平常点が70%（毎週の出席がほぼ必須）"},"report":{"v":null,"e":"レポートが成績の30%だが、本数・分量が未取得"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0},{"id":"047107","t":"高分子科学特別研究","dp":"他","ins":"橋爪　章仁","cat":"理学部","sc":null,"band":"情報不足","conf":"mid","cov":0.332,"ax":{"attendance":{"v":78.0,"e":"出席・平常点が40%"},"report":{"v":null,"e":"レポートが成績の60%だが、本数・分量が未取得"},"exam":{"v":null,"e":null},"scale":{"v":null,"e":null}},"rv":0}];
+
+const AXES = [["attendance","出席の緩さ","出"],["report","課題の軽さ","課"],
+              ["exam","テストの楽さ","試"],["scale","規模の小ささ","規"]];
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const cls = v => v==null ? "na" : v>=70 ? "light" : v>=40 ? "mid" : "heavy";
+const bandCls = b => b==="情報不足" ? "none" : /重/.test(b) ? "heavy" : /やや|標準|ふつう/.test(b) ? "mid" : "light";
+const ins = s => { const a=String(s||"").split(/[・,、]/); return a.length>1 ? a[0]+"ほか" : a[0]; };
+
+function bars(c, sz){
+  return `<div class="ax">` + AXES.map(([k,long,sh])=>{
+    const v = c.ax[k]?.v;
+    const lab = sz==="l" ? long : sh;
+    return `<div class="axR${v==null?" na":""}">
+      <span class="axL">${lab}</span>
+      <span class="axB${v==null?" na":""}">${v==null?"":`<i class="f-${cls(v)}" style="width:${Math.round(v)}%"></i>`}</span>
+      <span class="axN">${v==null?"–":Math.round(v)}</span></div>`;
+  }).join("") + `</div>`;
+}
+
+function tile(c, sz){
+  const poor = c.sc==null;
+  return `<article class="tile${poor?" poor":""}" title="${esc(c.t)}">
+    <div class="tRow1">
+      <span class="band b-${bandCls(c.band)}">${esc(c.band)}</span>
+      ${poor ? `<span class="sc na">情報不足</span>`
+             : `<span class="sc">${c.sc.toFixed(1)}<small>楽単スコア</small></span>`}
+    </div>
+    <h3 class="tt"><span class="ttIn">${esc(c.t)}</span></h3>
+    <div class="tMeta">${esc(c.dp)}・${esc(ins(c.ins))}${c.rv?`・口コミ${c.rv}`:""}</div>
+    ${bars(c, sz)}
+  </article>`;
+}
+
+function card(c){
+  const poor = c.sc==null;
+  const why = (AXES.map(([k,long])=>[long,c.ax[k]?.v]).filter(x=>x[1]!=null&&x[1]>=70)
+               .slice(0,2).map(x=>x[0]).join("・")) || "";
+  return `<article class="card">
+    ${poor?`<span class="cSc" style="font-size:15px">情報不足</span>`
+          :`<span class="cSc">${c.sc.toFixed(1)}<small>楽単スコア</small></span>`}
+    <h3>${esc(c.t)}</h3>
+    <div class="cMeta">${esc(c.dp)}・${esc(c.ins)}・${esc(c.cat)}</div>
+    <div><span class="cBand b-${bandCls(c.band)}">${esc(c.band)}</span>
+    <span class="cWhy">${why?esc(why)+"が期待できます。":"総合値を出せる材料が足りません。"}</span></div>
+  </article>`;
+}
+
+const list = document.getElementById("list");
+const ro = document.getElementById("ro");
+let view = "tile", tw = 170;
+
+function sizeClass(px){ return px < 150 ? "s" : px < 205 ? "m" : "l"; }
+
+function render(){
+  const sz = sizeClass(tw);
+  list.className = view==="tile" ? "sz-"+sz : "";
+  list.dataset.view = view;
+  list.innerHTML = DATA.map(c => view==="tile" ? tile(c,sz) : card(c)).join("");
+  if (view==="tile") markOverflow();
+  measure();
+}
+
+/* 2行に収まらないタイルへ .over を付ける。電光掲示板を出すのはこれだけ。 */
+function markOverflow(){
+  list.querySelectorAll(".tt").forEach(el=>{
+    const inner = el.firstElementChild;
+    inner.style.webkitLineClamp = "unset";      // clamp 中は本当の高さが取れない
+    const full = inner.scrollHeight;
+    inner.style.webkitLineClamp = "";
+    if (full > el.clientHeight + 1) el.classList.add("over");
+  });
+}
+
+function measure(){
+  const first = list.firstElementChild;
+  if (!first){ ro.textContent = ""; return; }
+  const r = first.getBoundingClientRect();
+  const cols = view==="tile"
+    ? Math.max(1, Math.round(list.clientWidth / (r.width + 12)))
+    : 1;
+  const vh = window.innerHeight - 120;
+  const rows = Math.floor(vh / (r.height + 12));
+  const n = Math.max(1, cols*rows);
+  const over = list.querySelectorAll(".tt.over").length;
+  ro.innerHTML = view==="tile"
+    ? `<b>${cols}列</b>・実寸 ${Math.round(r.width)}×${Math.round(r.height)}px<br>`
+      + `1画面に <b>${n}件</b>（根拠バー ${n*4}本）／科目名が2行に入らない <b>${over}件</b> / ${DATA.length}件`
+    : `<b>1列</b>・実寸 ${Math.round(r.width)}×${Math.round(r.height)}px<br>`
+      + `1画面に <b>${n}件</b>（根拠は理由文 ${n}行のみ）`;
+}
+
+document.getElementById("view").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  view = b.dataset.v;
+  [...e.currentTarget.children].forEach(x=>x.setAttribute("aria-pressed", String(x===b)));
+  render();
+});
+document.getElementById("tw").addEventListener("input", e=>{
+  tw = +e.target.value;
+  document.getElementById("twv").textContent = tw+"px";
+  document.documentElement.style.setProperty("--tw", tw+"px");
+  render();
+});
+document.getElementById("mq").addEventListener("change", e=>{
+  list.dataset.marquee = e.target.checked ? "on" : "off";
+});
+window.addEventListener("resize", measure);
+render();
+</script>
+</body>
+</html>
