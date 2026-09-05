@@ -78,7 +78,7 @@
 <div class="wrap">
   <div class="workbench" id="workbench">
 
-    <aside class="rail">
+    <aside class="rail" id="rail">
       <div class="slotBar" id="slotBar" hidden>
         <span id="slotBarText"></span>
         <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
@@ -133,6 +133,15 @@
 
     <main class="results" id="results">
       <div class="bar">
+        <!-- 左の絞り込みを畳むボタン。畳むと中カラムが 284〜304px 広がり、
+             #list が自動で2列になる（app.css の #list の grid 参照）。
+             畳んでいる間は効いている条件の数をバッジで出す ―― 条件そのものが
+             画面から消えるので、これが無いと「なぜ12件しか出ないのか」が
+             どこにも書かれていない状態になる。768px 未満では出さない
+             （その幅では .rail は横に並んでおらず、畳む意味が無い）。 -->
+        <button type="button" class="railTog" id="railTog" aria-controls="rail" aria-expanded="true">
+          <span class="railTogIcon" aria-hidden="true"></span><span id="railTogLabel">絞り込みを隠す</span><span class="railTogCount" id="railTogCount" hidden></span>
+        </button>
         <div class="barCount"><b id="count">–</b> <span>件</span></div>
         <input type="search" id="q" placeholder="科目名でしぼりこむ" autocomplete="off">
         <select id="sort">
@@ -156,18 +165,10 @@
       <nav class="pager" id="pager" aria-label="ページ送り"></nav>
     </main>
 
-    <aside class="inspector" id="inspector">
-      <div class="inspectorEmpty">
-        <h3>数字の読み方</h3>
-        <p>科目を選ぶと、ここに4軸の内訳と根拠が出ます。</p>
-        <ul class="legend">
-          <li><span class="sw light"></span>軽い ―― 負担が小さい</li>
-          <li><span class="sw mid"></span>ふつう</li>
-          <li><span class="sw heavy"></span>重い ―― 負担が大きい</li>
-        </ul>
-        <p class="fine">「信頼度」は、シラバスに書かれていることだけから出した数字か、実際に受けた人が確認した数字かの区別です。一番重い軸が測れていない科目には総合値を出さず「情報不足」と表示します。</p>
-      </div>
-    </aside>
+    <!-- 空のまま置く。科目を選ぶと app.js の showDetail() が中身を入れる。
+         中に空白文字を入れないこと ―― CSS の .inspector:empty が効かなくなり、
+         何も選んでいないときに空のカードの枠だけが右に出る。 -->
+    <aside class="inspector" id="inspector"></aside>
 
   </div>
 

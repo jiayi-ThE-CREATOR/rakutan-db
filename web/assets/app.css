@@ -283,6 +283,33 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;
   gap:var(--sp-2);margin:var(--sp-5) 0 var(--sp-2);padding-bottom:var(--sp-2);
   border-bottom:1px solid var(--rule)}
+/* 畳むボタン。768px 未満では出さない（.rail が横に並んでいないので
+   畳む意味が無い）。display:none のあいだはグリッド項目にならないので、
+   狭い画面の .bar は 3列のまま＝既存の折り返し規則をそのまま使える。 */
+.railTog{display:none}
+@media (min-width:768px){
+  .bar{grid-template-columns:auto auto 1fr auto}
+  .railTog{display:inline-flex;align-items:center;gap:6px;
+    border:1px solid var(--rule);border-radius:var(--r-sm);
+    background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-sm);
+    padding:5px 10px;cursor:pointer;white-space:nowrap}
+  .railTog:hover{background:var(--dim)}
+}
+/* 三本線。閉じているときだけ「開く方向」を示したいが、記号を出し分けると
+   幅が変わってボタンの右にある件数が動く。だから絵は固定し、状態は
+   ラベルの文言（「絞り込みを隠す」／「絞り込み」）とバッジで示す。 */
+.railTogIcon{width:13px;height:11px;flex:none;
+  background:linear-gradient(var(--soft),var(--soft)) 0 0/100% 2px no-repeat,
+             linear-gradient(var(--soft),var(--soft)) 0 50%/100% 2px no-repeat,
+             linear-gradient(var(--soft),var(--soft)) 0 100%/100% 2px no-repeat}
+/* 効いている条件の数。畳んでいるあいだだけ出す。 */
+.railTogCount{display:inline-block;min-width:17px;padding:0 4px;border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);font-size:var(--fs-xs);font-weight:700;
+  font-family:var(--data);text-align:center;line-height:17px}
+/* [hidden] の既定（display:none）は、上の display 指定に特異度で負ける。
+   さらに .railTog が flex なので inline-block は block 化され、
+   hidden を立てても出たままになる。明示的に打ち消す。 */
+.railTogCount[hidden]{display:none}
 .barCount{white-space:nowrap}
 .bar b{font-size:19px;font-family:var(--data);font-variant-numeric:tabular-nums}
 .barCount span{font-size:var(--fs-sm);color:var(--muted)}
@@ -307,6 +334,17 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    width/height/right とセットで見直すこと（2026-08-26 修正）。 */
 .head{padding:13px 58px 13px 14px;cursor:pointer;display:grid;grid-template-columns:1fr 58px;gap:12px}
 .title{font-size:16.5px;font-weight:700;margin:0 0 3px;line-height:1.35}
+/* .title が「窓」、.titleT が「本文」。2枚に分けてあるのは、切り取り
+   （overflow:hidden）と移動（transform）を同じ要素では兼ねられないから。
+   768px 未満では窓に高さを与えていないので、本文はこれまでどおり
+   何行でも折り返す ―― スマホの見た目は変えない。 */
+.titleT{transition:transform .2s linear}
+/* 動きを減らす設定の人には流さない。代わりに app.js が title 属性を付け、
+   ブラウザ標準のツールチップで全文が読めるようにする。 */
+@media (prefers-reduced-motion:reduce){
+  .titleT{transition:none}
+  .title.mqRun .titleT{transform:none}
+}
 .meta{font-size:12px;color:var(--muted);font-family:var(--data)}
 .meta span+span::before{content:"・";margin:0 3px}
 .fit{text-align:right}
@@ -552,6 +590,58 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     padding-right:var(--sp-2)}
   .rail section:first-child{margin-top:0}
   .results{min-width:0}
+
+  /* 畳んだ状態。列そのものを消す（幅0にしない）ので gap も消え、
+     中カラムが 260+24=284px ぶん広がる。1440px 以上では 280+24=304px。 */
+  .workbench.railOff{grid-template-columns:minmax(0,1fr)}
+  .workbench.railOff .rail{display:none}
+
+  /* ── 一覧を容器の幅で自動的に多列にする ──────────────
+     しきい値 380px は「絞り込みを畳んだときだけ2列になる」ように選んである。
+     畳む前の中カラムは 1920px の画面でも 760px しか無く2列にならないので、
+     「畳む → 2列になる」という因果が画面から読める。
+     視口幅ではなく容器幅で決まる（auto-fill）ことが肝 ―― 右の詳細カラムが
+     出入りしても列数が正しく追従する。表示密度を人が選ぶ仕組みを足すときは、
+     この --cardMin を差し替える形にすれば済む。 */
+  .results{--cardMin:380px}
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cardMin),1fr));
+    gap:10px;align-items:start}
+  #list > .card{margin-bottom:0}
+  /* 0件のときの案内は全列ぶち抜き（1列目だけに細く出ると読み落とす）。 */
+  #list > .empty{grid-column:1/-1}
+  /* 推薦枠も全列ぶち抜き。中の列数を外と揃えたいが、.picks は
+     padding(--sp-3)×2 + border×2 = 26px ぶん内側が狭い。同じ 380px で組むと
+     「外は2列・中は1列」という食い違いが起きるので、その26pxを引く。
+     .picks の padding か border を変えるときはこの 26px も直すこと。 */
+  .picks{grid-column:1/-1;display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(calc(var(--cardMin) - 26px),1fr));
+    gap:10px;align-items:start}
+  .picksH{grid-column:1/-1}
+  .picks .card{margin-bottom:0}
+
+  /* ── 2列に収めるためのカード圧縮 ──────────────
+     縮めたのは字号でも余白でもなく「行数」。科目名は実測で最長 122 半角幅
+     （「学問への扉（ものづくりサイエンス「…」）」の類）あり、380px 幅では
+     4行になってカード高が倍近くまで伸びる。字号や padding を削っても
+     1枚あたり数pxしか減らないので触らない。
+     右の 58px は .card > .favBtn の位置と対になっているので動かさない
+     （.head のコメント参照）。 */
+  .head{padding:11px 58px 11px 14px}
+  .reason{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+
+  /* 科目名は2行で頭打ち。2行に満たない科目名でも窓は2行ぶんの高さで固定する
+     ―― 多列に並べたとき、高さが揃っているほうが目が流れる。
+     2行あれば 80 半角幅まで入り、実データの p99（54 半角幅）を超える。
+     はみ出すのは 1% 未満で、それはホバーで流して読ませる。 */
+  .title{height:calc(2 * 1.35em);overflow:hidden}
+  .titleT{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  /* mqOn でクランプを外し、次のフレームで mqRun を足して動かす。2段階なのは
+     transform の開始位置を 0 にするため（クランプ解除と translate が同じ
+     フレームで当たると、途中から始まって見える）。距離と時間は app.js が
+     --mqShift / --mqDur に入れる。 */
+  .title.mqOn .titleT{-webkit-line-clamp:unset;overflow:visible}
+  .title.mqRun .titleT{transform:translateY(calc(-1 * var(--mqShift,0px)));
+    transition:transform var(--mqDur,1s) linear .35s}
 }
 
 /* 3カラムは 260 + 420 + 380 + 隙間48 = 1108px 無いと入らない。
@@ -564,10 +654,16 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 
 @media (min-width:1160px){
   .workbench{grid-template-columns:260px minmax(420px,1fr) 380px}
+  .workbench.railOff{grid-template-columns:minmax(0,1fr) 380px}
   .inspector{display:block;position:sticky;top:var(--sp-3);
     max-height:calc(100vh - var(--sp-6));overflow-y:auto;
     background:var(--card);border:1px solid var(--rule);
     border-radius:var(--r-lg);padding:var(--sp-4)}
+  /* 何も選んでいないときは中身が空。カードの枠だけが残ると
+     「壊れた空箱」に見えるので、枠ごと消す。列（380px）は
+     grid-template-columns で確保したままなので、科目を選んだ瞬間に
+     一覧の幅が変わることはない。 */
+  .inspector:empty{display:none}
   /* PC では詳細が右カラムに出るので、カード内の折りたたみは使わない。 */
   .card.open .detail{display:none}
   .card.sel{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
@@ -580,20 +676,8 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .wrap{max-width:1560px}
   .hd{max-width:1560px}
   .workbench{grid-template-columns:280px minmax(0,1fr) 440px}
+  .workbench.railOff{grid-template-columns:minmax(0,1fr) 440px}
 }
-
-/* 右カラムの空状態。数字を読む直前の人に、いちばん必要な説明を出す。
-   「何も選んでいません」とだけ書くより、この場所を使い切れる。 */
-.inspectorEmpty h3{margin:0 0 var(--sp-2);font-size:var(--fs-lg)}
-.inspectorEmpty p{font-size:var(--fs-sm);color:var(--soft);margin:0 0 var(--sp-3)}
-.inspectorEmpty .legend{list-style:none;padding:0;margin:var(--sp-3) 0}
-.inspectorEmpty .legend li{display:flex;align-items:center;gap:var(--sp-2);
-  margin-bottom:var(--sp-1);font-size:var(--fs-sm);color:var(--soft)}
-.inspectorEmpty .sw{width:14px;height:14px;border-radius:var(--r-xs);flex:none}
-.inspectorEmpty .sw.light{background:var(--scale-light)}
-.inspectorEmpty .sw.mid{background:var(--scale-mid)}
-.inspectorEmpty .sw.heavy{background:var(--scale-heavy)}
-.inspectorEmpty .fine{font-size:var(--fs-xs);color:var(--muted)}
 
 /* 右カラムに出す詳細の見出し。カード内に出すときは不要なので、
    inspector の中にあるときだけ効かせる。 */

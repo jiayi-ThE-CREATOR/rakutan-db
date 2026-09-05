@@ -32,6 +32,9 @@
   const K_TT  = "rk_timetable";
   const K_CAL = "rk_cal_added";
   const K_LINE = "rk_line_linked";
+  /* 画面の見た目の好み。絞り込みを畳んだかどうか等、
+     「データではないが次に来たときも同じであってほしいもの」を入れる。 */
+  const K_UI  = "rk_ui";
   const TERMS = ["haru", "aki"];
   /* localStorage への書き込みが失敗したキーだけを持つメモリ内フォールバック
      （プライベートモードの全滅・quota 枯渇のどちらでも使う）。
@@ -105,6 +108,16 @@
 
     isOnboarded()  { return read(K_ON) === "1"; },
     markOnboarded(){ write(K_ON, "1"); },
+
+    /* 左の絞り込みが開いているか。既定は「開いている」―― 初めて来た人には
+       何で絞れるのかが見えていないと始められない。畳むのは、一度使って
+       中身を把握した人が自分で選ぶこと。 */
+    getRailOpen()  { return readObj(K_UI).railOpen !== false; },
+    setRailOpen(v) {
+      const o = readObj(K_UI);
+      o.railOpen = !!v;
+      write(K_UI, JSON.stringify({ v: 1, ...o }));
+    },
 
     getFavorites() {
       const ids = readObj(K_FAV).ids;
