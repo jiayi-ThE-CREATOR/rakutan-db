@@ -17,6 +17,80 @@
 
 ---
 
+## 2026-09-05 ｜ 手元のフォルダが zip 展開で git 管理外だった ― 本物のクローンに直し、main の45コミットを取り込んだ ｜ Claude → しゅんやさん
+
+### 1. 何が動く状態か
+
+```bash
+cd ~/Desktop/rakutan-db-main
+git log --oneline -3      # マージ済み。ブランチは feat/tile-demo
+git diff origin/main --stat   # 追加のみ 5ファイル 929行・削除0
+```
+
+`~/Desktop/rakutan-db-main` は **git リポジトリではなかった**（GitHub の「Download ZIP」を展開したもの。
+フォルダ名の `-main` がその証拠）。そのため `git pull` も `git push` もできず、
+他の人の変更が一切降りてこない状態だった。
+
+やったこと:
+
+| 手順 | 内容 |
+|---|---|
+| 基点の特定 | 手元のツリーを main の全コミットと総当たりで突き合わせ、**`bc97449`（9/2 17:24）** と判明（差1ファイル） |
+| クローン化 | `git init` → `remote add origin` → `fetch` → `git reset` で index を基点に合わせる（**作業ツリーは無変更**） |
+| 自分の作業を確定 | `feat/tile-demo` に `caac4be`。タイルデモ・GAS 2本・計画メモ・HANDOFF 追記 |
+| main を取り込む | `226c37d` で 45コミット（`bc97449..58c666a`）をマージ |
+
+**衝突は `HANDOFF.md` の1ファイルだけ。** 双方が先頭に追記しただけなので両方残した。
+節の数が **共通66 + こちら2 + main側10 = 78** で一致することを確認済み（取りこぼし0）。
+
+これで `data/reviews.agg.json` は141科目、`tools/stats.mjs` `worker/traffic.js`
+`docs/version-pending.md` `web/assets/version.js` など、9/3〜9/5 の他の人の作業が手元に揃った。
+
+### 2. 何をしていないか
+
+- **push していない。PR も出していない。** ブランチ `feat/tile-demo` はローカルにあるだけ。
+- **テストを1本も通していない。** この Mac に **node が入っていない**（`node not found`）ので
+  `tools/smoke.mjs` `tools/test_version.mjs` などが動かせない。マージ後の `web/` は未検証。
+- **版に載せるかの判定は未了。** 今回の5ファイルは全部 `tools/` `docs/` と HANDOFF なので
+  「載せない（内部だけ）」で通ると思うが、PR を出す人が判断してチェックを入れること。
+- **「他の人の変更が自動で反映される」仕組みは入れていない。** 今できるのは手動の `git pull`。
+  自動 fetch（launchd／Claude Code の SessionStart フック）を入れるかは未決。
+- **チームの他の人の手元も同じ状態かもしれない。** zip を配って始めた人がいれば、同じ罠にいる。
+
+### 3. 次の人が最初に打つコマンド
+
+```bash
+cd ~/Desktop/rakutan-db-main
+git push -u origin feat/tile-demo
+# → 表示される URL で PR を作る（gh は入っていないのでブラウザ）
+```
+
+以後、**作業を始める前に必ず**:
+
+```bash
+git switch main && git pull        # 他の人の変更を取り込む
+git switch -c feat/自分の作業名     # 新しい枝を切ってから触る
+```
+
+### 4. 踏んだ罠
+
+- **`rakutan-db-main` という名前は「zip を展開しただけ」の印。** GitHub の Download ZIP は
+  `<repo>-<branch>` というフォルダ名で落ちてくる。`.git` が無いので **git は一切効かない**。
+  この状態で「push したい」と思っても押す先が無く、無理に押すと**他人の45コミットを消す形になる**。
+  → 直し方は `git init` + `remote add` + `fetch` + **`git reset`（`--hard` は絶対に付けない）**。
+  `--hard` を付けた瞬間、手元の未コミットの作業が消える。
+- **基点コミットを特定せずに `origin/main` へ直接 reset すると、他人の45コミット分が
+  「自分が削除した」ように見える。** 先に基点（`bc97449`）を割り出し、そこから枝を切ってから
+  マージすること。そうすれば git が3方向マージをしてくれて、他人の作業は自動で残る。
+- **`git --work-tree=... diff <commit>` は、index が空だと全ファイルを "D"（削除）と報告する。**
+  最初これで「130ファイル消えている」と誤読した。比較の前に `git read-tree <commit>` で
+  index を埋めること。
+- **zsh は `$var` を単語分割しない。** `for pair in ...; set -- $pair` 方式のスクリプトが
+  無言で空回りする。この手の集計は `bash -c` で回すか、macOS の bash 3.2 に無い
+  連想配列（`declare -A`）を避けて書く。
+
+---
+
 ## 2026-09-05 ｜ 一覧の「タイル表示」検討 ― デモを `tools/tile-demo.html` に置いた（**案の段階・本番は未変更**） ｜ Claude → しゅんやさん
 
 ### 1. 何が動く状態か
