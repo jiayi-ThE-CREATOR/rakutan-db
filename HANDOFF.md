@@ -17,6 +17,59 @@
 
 ---
 
+## 2026-09-05 ｜ 開屏に版番号を出した｜ Claude → 次の人
+
+本人からの依頼。「開屏画面に今の版番号を出してほしい」。
+前日の標語（PR #111）と同じ覆いの中の話で、**API・データ・一覧の動きは触っていない**。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8793                          # 別窓で
+    node tools/test_version.mjs                            # ✓ 100件すべて通過
+    node tools/test_index_gate.mjs http://127.0.0.1:8793   # OK 37件
+    node tools/smoke.mjs http://127.0.0.1:8793             # ✓ コンソールエラーなし
+    python3 tools/test_shell_inject.py && python3 tools/test_layout.py   # 47件 / 17件
+
+触ったファイルは3つ。
+
+- `web/index.html` … 覆いの直下に**空の** `<span class="splashVer" id="splashVer">`
+- `web/assets/version.js` … `latest` を出したあとに `splashVer` へ `"v" + latest.version` を流し込む
+- `web/assets/app.css` … `.splashVer` の見た目と出るタイミング（900ms）
+
+**数字を index.html に書いていないのが要点。** 版の正本は `version.js` の `RELEASES` ひとつ
+という決まりがあるので、HTML 側は空の入れ物だけを置いて中身は JS が入れる。
+**版を上げるときに開屏を直す必要は無い**（`RELEASES` の先頭を足せば開屏の数字も動く）。
+
+読み込み順は `splash.js`（同期・先に走る）→ `version.js`（defer・後から走る）。
+覆いは 1400ms 出ているので入れ替わりは間に合う。数字が出るのは 900ms から。
+
+### 2. 何をしていないか
+
+- **`about` など他のページには入れ物を置いていない。** `version.js` は入れ物が無ければ
+  何もしないので、置きたくなったら `<span id="splashVer">` を足すだけでよい
+- **`version.js` が落ちた場合は空のまま**。`.splashVer:empty{display:none}` で
+  隙間も残らないようにしてある（数字の代わりに「v」だけが出る事故は起きない）
+- 標語のときと同じで、**覆い自体が再訪と `prefers-reduced-motion` では出ない**。
+  つまり版番号を開屏で見るのは新規訪問者とタブを開き直した人だけ。
+  常時見えるのは右下のバッジのほう（こちらは元からある）
+- 覆いは `aria-hidden="true"` のまま。読み上げには出ない
+
+### 3. 次の人が最初にやること
+
+    git worktree list                     # .worktrees/splashver がまだ在れば
+    cd .worktrees/splashver && git log -1
+
+版に載せるかは**本人に確認中**。
+
+### 4. 今回踏んだ罠
+
+- **`node_modules` の symlink を張っても、worktree の外から `node` を叩くと解決しない。**
+  スクリプトを worktree の中に置いて、その中で実行する必要がある
+  （`/tmp` に置いたまま `node /tmp/x.mjs` を叩いて `ERR_MODULE_NOT_FOUND` を踏んだ）
+
+
+---
+
 ## 2026-09-05 ｜ 左の絞り込みを畳めるようにした（一覧の多列化の土台）｜ Claude → 迅亚
 
 本人からの依頼。「左の条件欄を畳めるようにしてほしい。畳めば2列入るはず」。
@@ -72,8 +125,6 @@
   `#inspector .detail .favBtn` を待ち続けている。別 PR で直す
 - `tools/test_tokens.py` の `#DB6209` 裸色も main から落ちたまま
   （`fix/test-tokens-brand-colors` が対応中）
-
----
 
 ## 2026-09-04 ｜ 開屏に標語を1行足した｜ Claude → 次の人
 

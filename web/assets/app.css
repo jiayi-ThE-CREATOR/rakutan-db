@@ -806,6 +806,20 @@ html.splash-on{overflow:hidden}
   opacity:0;margin-top:var(--sp-2)}
 .splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 820ms forwards}
 
+/* ⑤ 版番号。ロックアップの一部にはしない ―― 名前と標語の並びに
+   数字が混ざると、読ませたい順番が濁る。画面の下に小さく置いて、
+   探した人だけが見つける位置にする。
+   中身は version.js が RELEASES から入れる。落ちたときや入れ物だけの
+   ページでは空になるので、:empty で消して隙間を残さない。 */
+.splashVer{position:absolute;left:0;right:0;bottom:calc(var(--sp-5) + env(safe-area-inset-bottom));
+  text-align:center;font-size:var(--fs-xs);letter-spacing:.06em;
+  color:var(--on-dark-faint);font-variant-numeric:tabular-nums;
+  opacity:0}
+.splashVer:empty{display:none}
+.splash.run .splashVer{animation:rkRise 300ms var(--ease-out) 900ms forwards}
+/* 演出を流さない人（再訪・reduced motion）には覆いごと出ないので、
+   ここで表示を戻す必要は無い。 */
+
 /* ── ヒーロー ───────────────────────────
  * 「登録・ログイン不要」は最大の強みなので、
  * ヘッダのバッジから外したぶん、ここで必ず言う。

@@ -90,6 +90,15 @@
 
   const latest = RELEASES[0];
 
+  /* 開屏の左下にも同じ番号を出す。版の正本はこの RELEASES ひとつなので、
+     index.html 側は空の入れ物だけを置き、数字はここから流し込む。
+     splash.js は同期スクリプトで先に走り、version.js は defer で後から走るが、
+     覆いは 1400ms 出ているので入れ替わりは間に合う。
+     入れ物が無いページ（about など）と、version.js が落ちた場合は
+     空のまま ―― CSS の :empty で消える。 */
+  const splashVer = $("splashVer");
+  if (splashVer) splashVer.textContent = "v" + latest.version;
+
   /* 2026-08-26 → 2026.8.26。0埋めしないのは、リリース告知の書き方に合わせるため。 */
   const fmt = (iso) => {
     const [y, m, d] = iso.split("-");
