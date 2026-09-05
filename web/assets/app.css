@@ -704,10 +704,32 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     background:var(--card);border:1px solid var(--rule);
     border-radius:var(--r-lg);padding:var(--sp-4)}
   /* 何も選んでいないときは中身が空。カードの枠だけが残ると
-     「壊れた空箱」に見えるので、枠ごと消す。列（380px）は
-     grid-template-columns で確保したままなので、科目を選んだ瞬間に
-     一覧の幅が変わることはない。 */
+     「壊れた空箱」に見えるので、枠ごと消す。 */
   .inspector:empty{display:none}
+
+  /* ── 空のときは残りの2カラムを中央に寄せる（2026-09-05）──────
+     枠を消しても列そのものは grid-template-columns が確保していたので、
+     開いた直後の画面は右が丸ごと空いて見えていた（1440px で 440px ぶん）。
+     空の列を畳み、残った2カラムを視口の中央に置く。
+
+     引き換えに払うのは、科目を選んだ瞬間に一覧の幅が変わること
+     （736 → 420〜640）。カードの**列数は変えない**ようにしてあるので、
+     組み直しは起きず、幅が縮むだけになる。736px という数字はそのため
+     ―― 一覧が2列になるのは 380*2+gap10 = 770px からで、その手前に置いている。
+     ここを 770 以上に広げると2つ壊れる：選んだ瞬間に2列→1列の
+     組み直しが起きること、そして「畳んだときだけ2列になる」という
+     この下（--cardMin のコメント）の約束が、畳む前から2列になって崩れること。
+
+     一覧の幅を 1fr ではなく固定値で置いているのは、1fr が余った幅を
+     食ってしまい justify-content:center が効かなくなるため。
+     :has() を解さないブラウザは、これまでどおり右を空けた3カラムに
+     落ちる（壊れずに古い見た目になるだけ）。 */
+  .workbench:has(#inspector:empty){
+    grid-template-columns:260px minmax(0,736px);
+    justify-content:center}
+  /* 畳んだうえで何も選んでいないとき。ここだけは2列に広げる ――
+     畳む操作の結果が画面に出ないと、取っ手を押した意味が読めない。 */
+  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,1020px)}
   /* PC では詳細が右カラムに出るので、カード内の折りたたみは使わない。 */
   .card.open .detail{display:none}
   .card.sel{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
@@ -721,6 +743,13 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .hd{max-width:1560px}
   .workbench{grid-template-columns:280px minmax(0,1fr) 440px}
   .workbench.railOff{grid-template-columns:minmax(0,1fr) 440px}
+  /* 空のときの中央寄せ。一覧の幅（736px）は1160px 側と同じ値のまま ――
+     ここだけ広げると 770px を越えて2列になり、科目を選んだときに
+     2列→1列の組み直しが起きる（1160px 側のコメント参照）。
+     広い画面ほど左右の余白が増えるが、それは中央に置いた結果であって
+     「空いている右カラム」ではない。 */
+  .workbench:has(#inspector:empty){grid-template-columns:280px minmax(0,736px)}
+  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,1020px)}
 }
 
 /* 右カラムに出す詳細の見出し。カード内に出すときは不要なので、

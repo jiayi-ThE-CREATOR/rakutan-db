@@ -17,6 +17,59 @@
 
 ---
 
+## 2026-09-05 ｜ 何も選んでいないとき、右カラムぶんの空白をやめて中央に寄せた｜ Claude → 次の人
+
+本人からの依頼。「開いた直後、右がまるごと空いて見える」。
+**触ったのは `web/assets/app.css` の PC 断点だけ。** HTML と JS は1行も変えていない。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8798                              # API モード
+    cd web && python3 -m http.server 8799                      # 静的モード（本番相当・7,906件）
+
+    node tools/test_inspector_center.mjs http://127.0.0.1:8799  # 通過 12 件（今回追加）
+    node tools/test_rail_toggle.mjs      http://127.0.0.1:8799  # 通過 32 件
+    node tools/test_haiten_ui.mjs        http://127.0.0.1:8799  # 通過 41 件
+    node tools/test_index_gate.mjs       http://127.0.0.1:8799  # OK 37件
+    node tools/smoke.mjs                 http://127.0.0.1:8798  # ✓ コンソールエラーなし
+    python3 tools/test_layout.py && python3 tools/test_shell_inject.py   # 17件 / 47件
+
+`.inspector:empty{display:none}` は前からあったので**枠**は消えていた。残っていたのは
+`grid-template-columns` が確保していた**列そのもの**（1440px で 440px）。
+何も選んでいないあいだだけ列を畳み、残った2カラムを `justify-content:center` で中央へ置く。
+判定は CSS の `:has(#inspector:empty)` だけでやっている（新しい状態を JS に持たせていない）。
+
+### 2. 何をしていないか
+
+- **1160px 未満は一切変えていない**（その幅には元から右カラムが無い）。スマホは無関係
+- **選択を外す導線は作っていない**。一度科目を選ぶと右カラムは出たままなので、
+  中央寄せに戻るのは再読込したときだけ。「閉じる」を足すならこの CSS はそのまま使える
+- `:has()` を解さない古いブラウザでは**これまでどおり**右を空けた3カラムに落ちる（壊れない）
+- 版に載せるかは本人に確認中。`docs/version-pending.md` にはまだ足していない
+
+### 3. 次の人が最初にやること
+
+    git worktree list          # .worktrees/inscenter がまだ在れば、そこが作業ツリー
+
+### 4. 今回踏んだ罠 ―― ここが一番大事
+
+- **一覧の幅は 736px 固定。ここを 770px 以上にしてはいけない。** `--cardMin:380px` の
+  2列は 380*2+gap10 = 770px から成立するので、それを越えると2つ同時に壊れる：
+  ① 科目を選んだ瞬間にカードが2列→1列へ組み直され、読んでいた場所を見失う
+  ② 「畳んだときだけ2列になる」という既存の約束（app.css の --cardMin のコメント）が、
+  畳む前から2列になって崩れる。実際に最初 860px で書いて `test_rail_toggle.mjs` に
+  2件叩かれた。**あの2件は仕様の見張りであって、通すために書き換えてはいけない**
+- **`justify-content:center` が寄せるのは「列」で、コンテナは幅いっぱいのまま。**
+  なので `#workbench` の座標を測っても中央寄せは検出できず、効いていても 0/0 に見える。
+  測るのは `#rail`（畳んでいるときは `#results`）の左端と、`#inspector`／`#results` の右端
+- **一覧の幅を `1fr` のままにすると中央に寄らない。** 1fr が余った幅を全部食うため。
+  固定値を置いているのはそのため（`minmax(0,736px)`）
+- `tools/test_haiten_ui.mjs` は API モード（`server.py`）だと `既定で全件出ていない: 1112件`
+  で落ちる。これは `data/courses.json` が全学教育の1,112件しか無いからで、回帰ではない。
+  **全件を見たいテストは静的モード（`web/` を http.server で配る）で走らせる**
+
+---
+
 ## 2026-09-05 ｜ 開屏の版番号が iPhone で見えていなかった（位置の修正）｜ Claude → 次の人
 
 前の PR #116 で開屏に版番号を出したが、**本人の iPhone では見えなかった**という報告。
