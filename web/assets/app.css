@@ -806,14 +806,16 @@ html.splash-on{overflow:hidden}
   opacity:0;margin-top:var(--sp-2)}
 .splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 820ms forwards}
 
-/* ⑤ 版番号。ロックアップの一部にはしない ―― 名前と標語の並びに
-   数字が混ざると、読ませたい順番が濁る。画面の下に小さく置いて、
-   探した人だけが見つける位置にする。
+/* ⑤ 版番号。ロックアップの中（クレジットの下）に置く。
+   2026-09-05：最初は画面の下端に貼り付けていたが、**iPhone の Safari では
+   下端 24px はアドレスバーの下に潜り込んで見えなかった**。
+   `position:fixed` の覆いはツールバーの裏まで広がるので、下端からの距離では
+   守れない（`env(safe-area-inset-bottom)` はホームインジケータぶんしか見ない）。
+   ロックアップに寄せてしまえば、どのブラウザのどのツールバーにも隠れない。
    中身は version.js が RELEASES から入れる。落ちたときや入れ物だけの
    ページでは空になるので、:empty で消して隙間を残さない。 */
-.splashVer{position:absolute;left:0;right:0;bottom:calc(var(--sp-5) + env(safe-area-inset-bottom));
-  text-align:center;font-size:var(--fs-xs);letter-spacing:.06em;
-  color:var(--on-dark-faint);font-variant-numeric:tabular-nums;
+.splashVer{margin-top:var(--sp-2);font-size:var(--fs-xs);letter-spacing:.06em;
+  color:var(--on-dark-weak);font-variant-numeric:tabular-nums;
   opacity:0}
 .splashVer:empty{display:none}
 .splash.run .splashVer{animation:rkRise 300ms var(--ease-out) 900ms forwards}
