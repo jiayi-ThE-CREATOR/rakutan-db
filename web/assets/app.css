@@ -411,19 +411,19 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 
 .detail{display:none;border-top:1px solid var(--rule);padding:13px 14px;background:var(--paper)}
 .card.open .detail{display:block}
-.ax{display:grid;grid-template-columns:70px 1fr 30px;gap:9px;align-items:center;margin-bottom:9px}
-.ax .l{font-size:12.5px;color:var(--soft)}
-.track{height:7px;background:var(--dim);border-radius:var(--r-pill);overflow:hidden}
-.fill{height:100%;border-radius:var(--r-pill);background:var(--scale-light)}
-.fill.m{background:var(--scale-mid)} .fill.w{background:var(--scale-heavy)}
-.ax .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right;
-  font-variant-numeric:tabular-nums}
-.why{grid-column:2/4;font-size:var(--fs-xs);color:var(--muted);margin-top:-3px;line-height:1.5}
-/* 値の取れていない軸をまとめた1行（2026-09-01・案A）。
-   地は --dim（中立）。--scale-heavy-soft を敷くと「この科目は重い」に見えて、
-   データ目盛り色の意味が壊れる。「情報が無い」は重さではない。 */
-.axMiss{font-size:var(--fs-xs);color:var(--soft);background:var(--dim);
-  border-radius:var(--r-sm);padding:5px 8px;margin-bottom:var(--sp-2)}
+/* 成績評価の内訳バー（KOANシラバスの生の%を積み上げ表示。2026-09-05）。
+   旧・4/5軸バー（.ax/.track/.fill/.why/.axMiss）はここから置き換え、未使用になったので削除した。
+   区分の色分けは tokens.css の --comp-*（--scale-* とは別トークン）を使う。 */
+.compBar{display:flex;height:16px;border-radius:var(--r-pill);overflow:hidden;background:var(--dim)}
+.compSeg{height:100%}
+.compLegend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px}
+.compLegend span{display:flex;align-items:center;gap:5px;font-size:var(--fs-xs);color:var(--soft)}
+.compLegend b{font-family:var(--data);color:var(--muted);font-weight:400}
+.compDot{width:9px;height:9px;border-radius:50%;flex:none}
+/* 「情報なし」「一部未分類」の注記。地は --dim（中立）。
+   axMiss と同じ考え方 ―― 「情報が無い」は重さではないので警告色を敷かない。 */
+.compNote{font-size:var(--fs-xs);color:var(--soft);background:var(--dim);
+  border-radius:var(--r-sm);padding:5px 8px;margin-top:8px}
 .conf{font-size:var(--fs-xs);color:var(--muted);margin-top:4px;padding-top:9px;
   border-top:1px dashed var(--rule);line-height:1.6}
 .conf b{color:var(--scale-heavy)}

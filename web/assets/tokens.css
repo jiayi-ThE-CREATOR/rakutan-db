@@ -92,6 +92,17 @@
   --scale-heavy:#C0392B;
   --scale-heavy-soft:#f7eae3;
 
+  /* 成績評価の内訳バー専用の色（2026-09-05）。KOANシラバスの生の%を
+     出席・平常点／期末テスト／小テスト／レポートの4区分＋不明で塗り分ける。
+     --scale-* は「軽い→重い」の目盛り専用（4/5軸バーとband）なので、
+     ここに転用すると「カテゴリの違い」が「軽さ・重さ」に見えてしまう。
+     別の役割として色相を分けた（青・紫・緑みの3色＋灰）。 */
+  --comp-attendance:#2f6fa8;
+  --comp-exam:#7a4fb0;
+  --comp-quiz:#1f8a9e;
+  --comp-report:#b8478f;
+  --comp-unknown:#828282;
+
   /* band（拘束の帯）。b0 は「情報不足」で、目盛りの外。 */
   --band-none-bg:#e8e8e8;   --band-none-ink:#5c5c5c;
   --band-light-bg:#dcf3e3;  --band-light-ink:#1c7a41;
@@ -153,6 +164,10 @@
     --scale-light:#3fbfa1; --scale-light-text:#3fbfa1; --scale-light-soft:#15302b;
     --scale-mid:#d3a955;
     --scale-heavy:#e0725c; --scale-heavy-soft:#33211a;
+    /* 成績評価の内訳バー（暗地用）。明地の色そのままだと暗い地に沈むので、
+       同じ色相のまま明るい側へ振る。 */
+    --comp-attendance:#6fa8dc; --comp-exam:#b593e0; --comp-quiz:#4fc4dc;
+    --comp-report:#e08cc4; --comp-unknown:#8a8f96;
     /* band は元の実装がライト固定で、暗地では帯だけ白く浮いていた。
        トークン化のついでに暗地の値を与える。 */
     --band-none-bg:#2b2f35;   --band-none-ink:#9aa1a8;

@@ -17,6 +17,117 @@
 
 ---
 
+## 2026-09-05 ｜ 科目詳細の「重さの根拠」を「成績評価の内訳」バーに置き換え｜ Claude（松下）→ 次の人
+
+松下の依頼：科目詳細の4本バーを、シラバスの成績評価%（出席・平常点／期末テスト／小テスト／レポート）を
+そのまま積み上げバーで見せる形に変えたい。添付画像（Excelの目標比較バーのような1本の100%積み上げ）が元ネタ。
+
+**作業中に発覚：ローカルが origin/main から55コミット遅れていた。** その中に
+`5aeee5e 小テストを採点の第5軸に` があり、**小テストが2026-09-03に出席から独立した**。
+最初の実装（3区分＋小テストは出席に合算、という前提）はこの発覚で丸ごと作り直した。
+**このリポジトリを開いたら必ず `git fetch origin && git log --oneline origin/main -5` を先にやること**
+（web/CLAUDE.md 1章に同じ注意があるのに、今回それを怠って手戻りした）。
+
+### 1. 何が動く状態か
+
+    python -m http.server 8123 --directory web
+    # ブラウザで http://localhost:8123/index.html を開き、任意の科目カードをクリックして詳細を開く
+    # 「成績評価の内訳」という見出しの下に、出席・平常点／期末テスト／小テスト／レポートの
+    # 積み上げバー＋凡例（各カテゴリの%）が出ていればOK
+
+    PYTHONIOENCODING=utf-8 python tools/test_tokens.py     # ✓ OK（新トークン --comp-* も含めて合格）
+    PYTHONIOENCODING=utf-8 python tools/test_layout.py     # ✓ OK
+    PYTHONIOENCODING=utf-8 python tools/test_web_split.py  # ✓ OK
+    PYTHONIOENCODING=utf-8 python tools/test_shell_inject.py  # ✓ OK
+    PYTHONIOENCODING=utf-8 python tools/test_scoring_gate.py  # ✓ OK
+
+変更ファイルは4つ（`tools/test_tokens.py` 以外は松下の担当ファイル）：
+
+- `web/assets/app.js` … `detailHtml()` の「重さの根拠」4/5軸バー（`axRow`）を削除し、
+  `evalCompHtml()`（新規）に置き換え。`c.eval_ratio` の attendance/exam/quiz/report を
+  この順で積み上げる。合計が100%に届かない科目（`eval_unclassified` が残る）は残りを
+  「不明」（灰色）で埋める。`c.eval_ratio` 自体が無い科目（152件前後）は
+  「評価方法の内訳はKOANから取得できていません」の文言だけ出す。`weekly_quiz` が
+  true なのに quiz% が無い20件だけの科目には「配点は取得できていません」の注記を足した
+- `web/assets/app.css` … 旧 `.ax`/`.track`/`.fill`/`.why`/`.axMiss`（未使用になった）を削除し、
+  `.compBar`/`.compSeg`/`.compLegend`/`.compDot`/`.compNote` を新設
+- `web/assets/tokens.css` … `--comp-attendance`/`--comp-exam`/`--comp-quiz`/`--comp-report`/
+  `--comp-unknown` を追加（ライト・ダーク両方）。`--scale-*`（4/5軸バー・band専用）とは
+  意味が違う（カテゴリの塗り分けであって「軽い→重い」の目盛りではない）ので、
+  流用せず新しいトークンにした
+- `tools/test_tokens.py` … 新トークン5色 × `--dim` のコントラスト検査を `CONTRAST` に追加
+  （後述）
+
+**この置き換えで「重さの根拠」（相性スコアの説明）という役割は詳細パネルから消えた。**
+band・相性の理由（good/bad の一言）はカード上部の `.reason` に残っており、
+そちらは今まで通り5軸（試験・レポート・出席・小テスト・規模）の計算値を使い続けている。
+つまり「詳細を開いて見える内訳」と「カード上部の相性の理由」は別のデータを見せている
+（前者＝KOANの生%、後者＝score.pyが計算したスコア）。ここが分かりにくければ
+見出しの付け方をさらに相談してほしい。
+
+### 2. 何をしていないか
+
+- **`tools/test_tokens.py` の `CONTRAST` リストに `--comp-*` × `--dim` の5行を足した
+  （このファイルは担当表に無いが、ファイル自身のコメントが「色を足すときは1行足すこと」と
+  指示しているので追加した）。** `card`/`paper` に対する組み合わせまでは登録していない
+  ―― 手計算では light/dark とも3.0:1以上を確認済み（下記）だが、機械チェックは `--dim`
+  基準の1本だけ。気になるなら残り2背景ぶんも足してよい
+- **本番の `data/courses.json`（1,112件のみ・gitignore）で `python build.py` は実行していない。**
+  実行すると「7,906件→6,794件に減る」というガードで止まる。**このガードは正しい**ので
+  `--allow-fewer-courses` で突破していない。今回は既にコミット済みの
+  `web/data/courses.built.json`（7,906件・quiz分離済み）を読むだけで検証した
+- **`node tools/shots.mjs`（PR前スクショ11枚）は実行していない。** Node環境の用意から
+  やる時間が無かった。ブラウザでの目視確認（デスクトップ・390pxモバイル・ダーク）は
+  上記の通りやった
+- **`tools/test_reviews.py` は1件失敗するが、これは今回の変更と無関係。**
+  「実データの受講年が全件埋まっている」に対して `137199` が引っかかる。
+  origin/main に merge する前の bad509d 時点でも同じ失敗をするのを確認済み
+  ―― 既存のデータ品質の穴で、政岡さん案件
+- **push・PRはまだ出していない。** 区切りが付いたのでこのメモを書いたが、
+  他の作業と合わせてまとめて出すかは松下さんの判断待ち
+- 色のコントラスト実測値（light）：attendance/card 5.30・exam/card 5.88・quiz/card 4.05・
+  report/card 4.84・unknown/card 3.84（dim基準でも全部3.0以上）。dark側も同様に確認済み
+  （tokens.css のコメントには実測値そのものは書いていない。必要なら追記する）
+
+### 3. 次の人が最初にやること
+
+    git fetch origin && git log --oneline origin/main -5    # 遅れていないか必ず確認
+    python -m http.server 8123 --directory web
+    # → http://localhost:8123/index.html?c=138537 を開く
+    #   （"見る"を神経科学するⅠ。quiz20%/report80%の実例。ただし ?c= は詳細カードではなく
+    #    「口コミを読む」パネルを開く仕様なので、詳細を見るには一覧で検索してカードを開く）
+
+### 4. 今回踏んだ罠 ―― ここが一番大事
+
+- **55コミット遅れたローカルで、しかも大きめのUI変更に着手してしまった。**
+  `web/CLAUDE.md` 1章に「作業前に git fetch && git log origin/main -3 で確認」と
+  明記してあるのに、それをせずに調査・実装・ユーザーへの質問（AskUserQuestion）まで
+  済ませてから気づいた。**幸い質問への回答（小テストの扱い・置き換え範囲・不明の見せ方）は
+  そのまま新しい前提でも使えたが、前提データ（小テストは出席に合算、という認識）が
+  古かったせいで実装を丸ごと作り直す羽目になった。** 大きめの変更に入る前は必ず最初に
+  `git fetch origin` を打つこと ―― 特に「意図的な設計判断」を調べて回答するようなタスクでは、
+  古い前提のまま答えを出すと後工程が全部やり直しになる
+- **`git merge origin/main` の前に `git stash push -u` で退避してから合流し、
+  合流後に中身を見て作り直す（stashを無理にpopしない）** という順序が安全だった。
+  先にpopしていたら、364行増えたapp.jsに対して古い3行diffを無理やり当てて
+  コンフリクトだらけになっていたはず
+- **Windowsのコンソール（cp932）は日本語の print を化かす。**
+  `python tools/test_*.py` の出力や `print(タイトル)` は `PYTHONIOENCODING=utf-8` を
+  付けないと文字化けし、`✗`（U+2717）のような記号は素の状態だと
+  `UnicodeEncodeError` で落ちる。この環境で python の日本語出力を扱うときは
+  常に `PYTHONIOENCODING=utf-8` を付けること
+- **`python build.py` は手元の `data/courses.json` が1,112件（実データは7,906件）しか
+  無いと気づかずに実行すると、確認プロンプト無しで「上書きすると科目が減る」警告を出して
+  止まる。** これは正しい安全装置なので `--allow-fewer-courses` で突破しないこと
+- **`?c=<id>` の深リンクは科目の詳細カードではなく「口コミを1件ずつ読む」パネル
+  （`#panel`）を開く。** 検証用に特定の科目を開きたいときは、検索ボックス（`#q`）に
+  タイトルを入れて一覧からカードをクリックする方が確実
+- ブラウザ操作の `zoom`（領域指定の拡大）はこの環境では未対応（"region crop not yet
+  supported" で通常スクリーンショットにフォールバックする）。細部確認は
+  `resize_window` で画面を広げてから通常スクリーンショットで代替した
+
+---
+
 ## 2026-09-05 ｜ 開屏の版番号が iPhone で見えていなかった（位置の修正）｜ Claude → 次の人
 
 前の PR #116 で開屏に版番号を出したが、**本人の iPhone では見えなかった**という報告。

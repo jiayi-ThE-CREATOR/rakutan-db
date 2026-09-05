@@ -453,16 +453,35 @@ const CONF = {high:"情報は揃っている", mid:"情報は一部のみ", low:
 const FIELD_JA = {eval_ratio:"成績評価の内訳", report_count:"レポート本数",
   out_of_class_hours:"時間外学習", capacity:"定員", class_format:"授業形態", day_period:"曜限"};
 
-/* 値の取れていない軸はここでは出さない。detailHtml がラベルだけ集めて1行にする。
-   1軸1行のままだと、4軸中2軸が欠測の科目（実データでは多数）で
-   「データなし」だけが詳細の上半分を占める（2026-09-01）。 */
-function axRow(key, a, label){
-  if (a.value === null) return "";
-  const cls = a.value >= 66 ? "" : a.value >= 45 ? "m" : "w";
-  return `<div class="ax"><div class="l">${esc(label)}</div>
-      <div class="track"><div class="fill ${cls}" style="width:${a.value}%"></div></div>
-      <div class="v">${a.value.toFixed(0)}</div>
-      ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
+/* 成績評価の内訳（KOANシラバスの生の%）を積み上げバーで見せる（2026-09-05）。
+ *
+ * eval_ratio は 出席・試験・小テスト・レポート の4区分（2026-09-03 に小テストが
+ * 出席から独立した。score.py の quiz 軸と同じデータを見ている）。
+ * 内訳の合計が100%に届かない科目（分類しきれなかった項目が残る＝eval_unclassified）は、
+ * 残りを「不明」として灰色で埋める。欠損を他区分の比率へ埋め戻すと、
+ * 実際の内訳と違う数字を見せることになるため行わない。 */
+const EVAL_CATS = [["attendance","出席・平常点"], ["exam","期末テスト"], ["quiz","小テスト"], ["report","レポート"]];
+
+function evalCompHtml(c){
+  const er = c.eval_ratio;
+  if (!er) return `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
+  const segs = EVAL_CATS.filter(([k]) => er[k] > 0).map(([k,l]) => ({k, l, v: er[k]}));
+  const known = segs.reduce((s, x) => s + x.v, 0);
+  const unknown = Math.max(0, Math.round((100 - known) * 10) / 10);
+  const hasUnknown = unknown >= 1;
+  // 本文に「毎回小テスト」の記載はあるが、配点が読み取れず quiz% が立っていない20件（2026-09-05実測）。
+  const quizNoPct = c.weekly_quiz && !(er.quiz > 0);
+  const dot = (k) => `<i class="compDot" style="background:var(--comp-${k || "unknown"})"></i>`;
+  return `<div class="compBar">
+      ${segs.map(s => `<div class="compSeg" style="width:${s.v}%;background:var(--comp-${s.k})"></div>`).join("")}
+      ${hasUnknown ? `<div class="compSeg" style="width:${unknown}%;background:var(--comp-unknown)"></div>` : ""}
+    </div>
+    <div class="compLegend">
+      ${segs.map(s => `<span>${dot(s.k)}${esc(s.l)}<b>${s.v.toFixed(0)}%</b></span>`).join("")}
+      ${hasUnknown ? `<span>${dot()}不明<b>${unknown.toFixed(0)}%</b></span>` : ""}
+    </div>
+    ${quizNoPct ? `<div class="compNote">毎回小テストがありますが、配点は取得できていません</div>` : ""}
+    ${hasUnknown ? `<div class="compNote">内訳の一部は分類できていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}`;
 }
 
 /* ── 担当教員 ─────────────────────────────
@@ -622,26 +641,25 @@ function detailHtml(c){
      区切りを自分で書ける <bdi> にしたうえで、「・」の後ろに <wbr> を置く
      （nowrap の外に改行機会を作らないと、Chromium は要素の境目でも折り返さない）。 */
   const insHtml = names.map(n => `<bdi style="white-space:nowrap">${esc(n)}</bdi>`).join("・<wbr>");
-  /* 値の取れていない軸はラベルだけ集めて1行にまとめる（axRow のコメント参照）。 */
-  const miss = Object.entries(META.axis_labels)
-    .filter(([k]) => r.axes[k].value === null).map(([, l]) => l);
   const rn = c.reviews?.n || 0;
-  /* ── 詳細の並び（2026-09-01・案A）───────────────
+  /* ── 詳細の並び（2026-09-05・成績評価の内訳バーに置き換え）───────────
    * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
    * 5つ縦積みで、最後の ☆ はラベルが無くカード右上の ☆ と重複していた。
    *
    *   担当教員        （識別のための添え書き。見出しは付けない）
-   *   ── 重さの根拠   4軸バー ＋ 欠測1行 ＋ 信頼度
+   *   ── 成績評価の内訳  KOANの%を積み上げバーで ＋ 信頼度
    *   ── 口コミ N件   一言3件 ＋ 集計 ＋ 1件ずつへのリンク
    *   ── 操作         時間割に追加（主）／口コミを書く・KOAN（副）
    *
-   * ☆ は詳細から外した。カード右上の ☆ が残り、クリックの同期は data-id で
-   * まとめて行っている（下の .favBtn のハンドラ）ので機能は落ちない。 */
+   * 元は score.py が計算した5軸（試験・レポート・出席・小テスト・規模）の「重さ」
+   * スコアをバーで見せていたが、松下さんの依頼で「KOANシラバスに書かれている
+   * 成績評価の生の%」を見せる形に置き換えた。相性スコアの根拠説明としての役目は
+   * ここでは持たない ―― band・相性の理由（good/bad）はカード上部の .reason に
+   * 残っており、そちらは5軸の値をそのまま使い続けている。 */
   return `${names.length ? `<div class="meta insLine">担当教員：${insHtml}</div>` : ""}
       <div class="dSec">
-        <div class="secH">重さの根拠</div>
-        ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
-        ${miss.length ? `<div class="axMiss">${miss.map(esc).join("・")} ― データなし（相性の計算から除外）</div>` : ""}
+        <div class="secH">成績評価の内訳</div>
+        ${evalCompHtml(c)}
         <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
           ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
         </div>
