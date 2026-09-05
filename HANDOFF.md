@@ -17,6 +17,64 @@
 
 ---
 
+## 2026-09-05 ｜ 左の絞り込みを畳めるようにした（一覧の多列化の土台）｜ Claude → 迅亚
+
+本人からの依頼。「左の条件欄を畳めるようにしてほしい。畳めば2列入るはず」。
+畳み込みと、そのぶんの幅を使う多列化まで入れた。**表示密度の切替（6件/8件を
+人が選ぶ）は入れていない ―― そこは迅亚の担当。この土台の上に乗る。**
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8141 &
+    node tools/test_rail_toggle.mjs http://localhost:8141   # 20件通過
+
+- `.bar` 左端の「絞り込みを隠す」で左カラムを畳む。畳むと中カラムが
+  284〜304px 広がる。畳んだ状態は localStorage（`rk_ui`）に残る
+- `#list` は `repeat(auto-fill, minmax(var(--cardMin),1fr))`。`--cardMin` は
+  `.results` に 380px で置いてある。しきい値をこの値にしたのは
+  「畳んだときだけ2列になる」ようにするため（畳む前は 1920px の画面でも
+  中カラムは 760px しか無い）
+- 科目名は2行で頭打ち。実データの最長は 122 半角幅で、2列幅では4行になる。
+  2行に収まらないのは 7,906件中5件だけで、そこはホバーで流して読ませる
+
+### 2. 迅亚へ ―― 表示密度を足すときの申し送り
+
+- **列数は視口幅ではなく容器幅で決まっている**（`auto-fill`）。`@media` の
+  断点で列数を決め直さないこと。右の詳細カラムは中身が空だと消える
+  （`.inspector:empty`）ので、視口幅で決めると実際の幅と食い違う
+- **密度の切替は `--cardMin` を差し替える形にするのが一番安い。**
+  8件なら小さく、6件なら大きく。グリッドの書き換えは要らない
+- カードの中身を密度ごとに変えるなら触るのは `card()`（app.js）。
+  科目名の器は `.title`（窓・高さ固定）＋ `.titleT`（本体・transform で動く）の
+  2枚構造。1枚に戻すと流し読みが壊れる
+- `.picks`（推薦枠）は `grid-column:1/-1` で全列ぶち抜き、中で別のグリッドを
+  組んでいる。内側の `minmax` から 26px 引いているのは
+  .picks の padding(--sp-3)×2 + border×2 のぶん
+
+### 3. 次の人が最初に打つコマンド
+
+    cd web && python3 -m http.server 8141 &
+    node tools/test_rail_toggle.mjs http://localhost:8141
+
+### 4. 踏んだ罠
+
+- **`[hidden]` は `.railTogCount{display:inline-block}` に特異度で負ける。**
+  さらに親が flex なので inline-block は block 化され、`hidden` を立てても
+  出たままになる。`.railTogCount[hidden]{display:none}` を明示した
+- **`-webkit-line-clamp` が効いているあいだ `scrollHeight` は「切ったあとの
+  高さ」を返す。** 溢れているかは一瞬クランプを外して測るしかない
+  （app.js の `mqStart` とテストの両方で同じ手順を踏んでいる）
+- **playwright の `browser.newPage()` の視口指定は `viewport`。**
+  `viewportSize` と書いても黙って既定の 1280×720 になり、
+  スマホ幅のつもりのテストが PC 幅で通ってしまう
+- **`tools/test_favorite.mjs` は main の時点で既に落ちている。** 2026-09-01 の
+  詳細パネル作り直しで ☆ を詳細から外したのに、テストが
+  `#inspector .detail .favBtn` を待ち続けている。別 PR で直す
+- `tools/test_tokens.py` の `#DB6209` 裸色も main から落ちたまま
+  （`fix/test-tokens-brand-colors` が対応中）
+
+---
+
 ## 2026-09-03 ｜ 版に載せるかの判定と版番号の付け方を決めた｜ Claude → 次の人
 
 本人からの依頼。「本番に出すたびに、右下の更新履歴に載せるかを聞いてほしい。
