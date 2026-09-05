@@ -36,13 +36,32 @@ const browser = await chromium.launch();
   const p = await open(browser, { width: 1440, height: 900 });
 
   check(await p.locator("#rail").isVisible(), "初期状態で絞り込みが出ていない");
-  /* 開いているあいだ、畳むハンドルは条件欄の中にある。.bar のボタンは
-     「開く」専用なので出ていてはいけない（2つ出ると同じ操作の入口が
-     2箇所になり、どちらが何をするのか読めなくなる）。 */
-  check(await p.locator("#railFold").isVisible(), "開いているのに畳むハンドルが条件欄に無い");
-  check(!(await p.locator("#railTog").isVisible()), "開いているのに .bar の「開く」ボタンが出ている");
-  check(await p.locator("#railFold").getAttribute("aria-expanded") === "true",
+  /* 開閉の操作子は継ぎ目の取っ手1つだけ。2つ置くと同じ操作の入口が
+     2箇所になり、どちらが何をするのか読めなくなる。 */
+  check(await p.locator("#grip").isVisible(), "取っ手が出ていない");
+  check(await p.locator("#grip").getAttribute("aria-label") === "絞り込みを隠す",
+        "開いているときの取っ手の名前が「絞り込みを隠す」でない");
+  check(await p.locator("#grip").getAttribute("aria-expanded") === "true",
         "初期の aria-expanded が true でない");
+
+  /* 取っ手は画面の高さの真ん中に貼り付く。これが今回の要件そのもの ――
+     .bar に置いていた頃は、下へスクロールすると操作子が消えていた。
+     上・中・下のどこにいても視界の中に在ること。 */
+  for (const y of [0, 900, 2500]){
+    await p.evaluate(v => scrollTo(0, v), y);
+    await p.waitForTimeout(150);
+    const g = await p.locator("#grip").boundingBox();
+    check(g && g.y > 0 && g.y + g.height < 900,
+          `scrollY=${y} で取っ手が画面の外にいる（y=${g && Math.round(g.y)}）`);
+  }
+  await p.evaluate(() => scrollTo(0, 0));
+  await p.waitForTimeout(150);
+
+  /* 取っ手はカードより上に描かれること。カードは .card{position:relative} で
+     DOM 上は後ろに来るので、z-index が抜けると「取っ手は見えるのに、
+     乗せたときの名札だけカードの下に隠れる」という分かりにくい壊れ方をする。 */
+  const gz = await p.locator(".gripRail").evaluate(el => getComputedStyle(el).zIndex);
+  check(gz !== "auto" && +gz > 0, `取っ手に z-index が無い（${gz}）―― 名札がカードの下に隠れる`);
 
   /* 見出しの罫線と .bar の罫線が同じ高さで揃っていること。ずれると
      左右が「別の段」に見えて、見出しが条件欄の見出しだと読めなくなる。 */
@@ -69,20 +88,27 @@ const browser = await chromium.launch();
       .map(el => Math.round(el.getBoundingClientRect().x))).size);
   check(colsBefore === 1, `畳む前に既に多列になっている（${colsBefore}列）`);
 
-  await p.locator("#railFold").click();
+  await p.locator("#grip").click();
   await p.waitForTimeout(80);
 
   check(!(await p.locator("#rail").isVisible()), "畳んでも絞り込みが消えていない");
-  check(await p.locator("#railTog").isVisible(), "畳んだのに .bar の「開く」ボタンが出ない");
-  check(await p.locator("#railTog").getAttribute("aria-expanded") === "false",
+  check(await p.locator("#grip").isVisible(), "畳んだら取っ手まで消えた（開き直せない）");
+  check(await p.locator("#grip").getAttribute("aria-expanded") === "false",
         "畳んだのに aria-expanded が false でない");
+  check(await p.locator("#grip").getAttribute("aria-label") === "絞り込みを表示",
+        "畳んだあとの取っ手の名前が「絞り込みを表示」でない");
 
-  /* 開き直せること（.bar のボタン → また条件欄が出る）。 */
-  await p.locator("#railTog").click();
+  /* 畳んでも取っ手は一覧に重ならない（一覧の左に 28px の余白を作ってそこへ立てる）。 */
+  const gBox = await p.locator("#grip").boundingBox();
+  const cBox = await p.locator("#list > .card").first().boundingBox();
+  check(gBox.x + gBox.width <= cBox.x + 1,
+        `畳んだとき取っ手がカードに重なっている（${Math.round(gBox.x+gBox.width)} > ${Math.round(cBox.x)}）`);
+
+  /* 同じ取っ手で開き直せること。 */
+  await p.locator("#grip").click();
   await p.waitForTimeout(80);
-  check(await p.locator("#rail").isVisible(), ".bar のボタンで開き直せない");
-  check(!(await p.locator("#railTog").isVisible()), "開いたのに「開く」ボタンが残っている");
-  await p.locator("#railFold").click();
+  check(await p.locator("#rail").isVisible(), "取っ手で開き直せない");
+  await p.locator("#grip").click();
   await p.waitForTimeout(80);
 
   const after = (await p.locator("#results").boundingBox()).width;
@@ -112,18 +138,18 @@ const browser = await chromium.launch();
 {
   const p = await open(browser, { width: 1440, height: 900 });
 
-  check(await p.locator("#railTogCount").isVisible() === false,
+  check(await p.locator("#gripCount").isVisible() === false,
         "開いているのに条件数バッジが出ている");
 
   /* 学年チップを1つ押す（既定は「すべて」なので、押せば条件が1つ増える）。 */
   await p.locator("#years .chip:not(.on)").first().click();
   await p.waitForTimeout(250);
-  await p.locator("#railFold").click();
+  await p.locator("#grip").click();
   await p.waitForTimeout(80);
 
-  check(await p.locator("#railTogCount").isVisible(),
+  check(await p.locator("#gripCount").isVisible(),
         "条件が効いているのに、畳んでもバッジが出ない");
-  const badge = +(await p.locator("#railTogCount").textContent());
+  const badge = +(await p.locator("#gripCount").textContent());
   check(badge >= 1, `バッジの数が 1 未満（${badge}）`);
 
   await p.close();
@@ -135,7 +161,7 @@ const browser = await chromium.launch();
   /* 先に畳む。開いたままだとカードが 640px 幅で、2行に 136 半角幅入る
      ―― 実データの最長（122 半角幅）でも溢れない。溢れるのは2列にして
      カードが 464px になったときだけなので、そちらで見る。 */
-  await p.locator("#railFold").click();
+  await p.locator("#grip").click();
   await p.waitForTimeout(80);
   /* 「ものづくり」は11件で1ページに収まり、うち2件が2行に入らない
      （最長 122 半角幅の「学問への扉（ものづくりサイエンス「…」）」）。 */
@@ -182,7 +208,7 @@ const browser = await chromium.launch();
 /* ── スマホ幅：ボタンを出さない・科目名を切らない ── */
 {
   const p = await open(browser, { width: 390, height: 844 });
-  check(!(await p.locator("#railTog").isVisible()), "スマホ幅で「開く」ボタンが出ている");
+  check(!(await p.locator("#grip").isVisible()), "スマホ幅で取っ手が出ている");
   check(!(await p.locator(".railHead").isVisible()), "スマホ幅で条件欄の見出し行が出ている");
   const over = await p.evaluate(() =>
     getComputedStyle(document.querySelector("#list > .card .title")).overflow);

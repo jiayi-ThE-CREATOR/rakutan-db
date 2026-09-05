@@ -81,15 +81,10 @@
   <div class="workbench" id="workbench">
 
     <aside class="rail" id="rail" aria-label="絞り込み">
-      <!-- この列の見出しと、畳むハンドル。畳むボタンを .bar 側に置いていた頃は
-           「7906件・検索・並び順」と同じ行に並んでしまい、左の列の把手だとは
-           読めなかった（2026-09-05 に作り直し）。畳んだあとは列ごと消えるので、
-           開くほうのボタンは .bar の #railTog が持つ。 -->
-      <div class="railHead">
-        <span class="railHeadT">絞り込み</span>
-        <button type="button" class="railFold" id="railFold" aria-controls="rail"
-                aria-expanded="true" aria-label="絞り込みを隠す"><span class="railFoldIcon" aria-hidden="true"></span></button>
-      </div>
+      <!-- この列の名前。開閉の操作子は持たない ―― 取っ手は条件欄と一覧の
+           継ぎ目（.gripRail）に1つだけ置く。見出しの罫線は右の .bar の罫線と
+           高さを揃えてあり、左右が「同じ段」に見えるようにしてある。 -->
+      <div class="railHead"><span class="railHeadT">絞り込み</span></div>
       <div class="slotBar" id="slotBar" hidden>
         <span id="slotBarText"></span>
         <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
@@ -143,16 +138,22 @@
     </aside>
 
     <main class="results" id="results">
-      <div class="bar">
-        <!-- 畳んだときだけ出る「開く」ボタン。畳むほうは条件欄の中の
-             #railFold が持っている（開閉のボタンは、そのとき目が置かれている
-             場所に置く）。効いている条件の数をバッジで出すのは、畳むと条件が
-             画面から消えるから ―― これが無いと「なぜ12件しか出ないのか」が
-             どこにも書かれていない状態になる。768px 未満では出さない
-             （その幅では .rail は横に並んでおらず、畳む意味が無い）。 -->
-        <button type="button" class="railTog" id="railTog" aria-controls="rail" aria-expanded="false">
-          <span class="railTogIcon" aria-hidden="true"></span><span>絞り込み</span><span class="railTogCount" id="railTogCount" hidden></span>
+      <!-- 条件欄と一覧の継ぎ目に立てる取っ手。開閉の操作子はこれ1つだけ。
+           .gripRail は一覧と同じ高さの帯（位置決めだけ・クリックは拾わない）で、
+           中の .grip が sticky で画面の高さの真ん中に貼り付く ―― どこまで
+           スクロールしても視界の中に在る。これが要件そのもので、
+           .bar に置いていた頃は下へスクロールすると消えていた。
+           畳んでいるあいだは .results に 28px の余白を作り、その中に立てる
+           （同じ縦線の上から動かさない。位置の記憶が切れない）。 -->
+      <div class="gripRail">
+        <button type="button" class="grip" id="grip" aria-controls="rail"
+                aria-expanded="true" aria-label="絞り込みを隠す" data-label="絞り込みを隠す">
+          <span class="gripIcon" aria-hidden="true"></span>
+          <span class="gripCount" id="gripCount" hidden></span>
         </button>
+      </div>
+
+      <div class="bar">
         <div class="barCount"><b id="count">–</b> <span>件</span></div>
         <input type="search" id="q" placeholder="科目名でしぼりこむ" autocomplete="off">
         <select id="sort">

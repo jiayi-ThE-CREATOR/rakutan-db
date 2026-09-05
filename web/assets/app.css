@@ -283,22 +283,6 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;
   gap:var(--sp-2);margin:var(--sp-5) 0 var(--sp-2);padding-bottom:var(--sp-2);
   border-bottom:1px solid var(--rule)}
-/* 畳むボタン。768px 未満では出さない（.rail が横に並んでいないので
-   畳む意味が無い）。display:none のあいだはグリッド項目にならないので、
-   狭い画面の .bar は 3列のまま＝既存の折り返し規則をそのまま使える。 */
-.railTog{display:none}
-@media (min-width:768px){
-  /* 開いているあいだ、畳むハンドルは条件欄の中（#railFold）にある。
-     .bar のボタンは「開く」専用なので、畳んでいるときだけ出す。
-     display:none のあいだはグリッド項目にならないので、開いているときの
-     .bar は 3列のまま＝既存の折り返し規則をそのまま使える。 */
-  .workbench.railOff .bar{grid-template-columns:auto auto 1fr auto}
-  .workbench.railOff .railTog{display:inline-flex;align-items:center;gap:6px;
-    border:1px solid var(--rule);border-radius:var(--r-sm);
-    background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-sm);
-    padding:5px 10px;cursor:pointer;white-space:nowrap}
-  .railTog:hover{background:var(--dim)}
-}
 /* 条件欄の見出し行。768px 未満では出さない ―― その幅では .rail は
    ただの縦積みで、畳む相手としての「列」が無い。 */
 .railHead{display:none}
@@ -317,29 +301,62 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   .slotBar{top:var(--railHeadH)}
 }
 .railHeadT{font-size:var(--fs-sm);font-weight:700;color:var(--soft);letter-spacing:.04em}
-.railFold{display:flex;align-items:center;justify-content:center;flex:none;
-  width:30px;height:30px;padding:0;cursor:pointer;
-  border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--card)}
-.railFold:hover{background:var(--dim)}
-/* 左向きの山形。文字の «‹» を使うとフォント任せで太さと位置が揃わない。 */
-.railFoldIcon{width:7px;height:7px;margin-left:2px;transform:rotate(45deg);
-  border-left:2px solid var(--soft);border-bottom:2px solid var(--soft)}
 
-/* 三本線。閉じているときだけ「開く方向」を示したいが、記号を出し分けると
-   幅が変わってボタンの右にある件数が動く。だから絵は固定し、状態は
-   ラベルの文言（「絞り込みを隠す」／「絞り込み」）とバッジで示す。 */
-.railTogIcon{width:13px;height:11px;flex:none;
-  background:linear-gradient(var(--soft),var(--soft)) 0 0/100% 2px no-repeat,
-             linear-gradient(var(--soft),var(--soft)) 0 50%/100% 2px no-repeat,
-             linear-gradient(var(--soft),var(--soft)) 0 100%/100% 2px no-repeat}
-/* 効いている条件の数。畳んでいるあいだだけ出す。 */
-.railTogCount{display:inline-block;min-width:17px;padding:0 4px;border-radius:var(--r-pill);
+/* ── 継ぎ目の取っ手 ─────────────────────
+ * 条件欄と一覧のあいだの gap（--sp-5＝24px）に立てる。開閉の操作子はこれだけ。
+ * .gripRail は一覧と同じ高さの帯で、位置を決めるためだけに在る
+ * （pointer-events:none ―― 継ぎ目を通りすがりに押してしまうのを防ぐ。
+ *  押せるのは中の .grip だけ）。その .grip が sticky で画面の高さの真ん中に
+ * 貼り付くので、どこまでスクロールしても視界から出ない。これが要件そのもので、
+ * .bar に置いていた頃は下へスクロールすると消えていた。
+ * 768px 未満では出さない（その幅に継ぎ目は無い）。 */
+.gripRail{display:none}
+@media (min-width:768px){
+  .results{position:relative}
+  /* z-index が要る。カードは .card{position:relative}（app.css の913行あたり、
+     星を右上に置くため）で、DOM 上は .gripRail より後ろに来る。どちらも
+     z-index:auto のままだと、後から来るカードが上に描かれ、取っ手そのものは
+     継ぎ目に在るので見えるのに、乗せたときの名札（.grip::after）だけが
+     カードの下に隠れる。実際にそうなっていた（2026-09-05）。 */
+  .gripRail{display:flex;flex-direction:column;align-items:center;
+    position:absolute;top:0;bottom:0;left:calc(-1 * var(--sp-5));width:var(--sp-5);
+    z-index:5;pointer-events:none}
+  /* 40px は .grip の高さ 80px の半分。画面のちょうど真ん中に来る。
+     地は --card ＋ 罫、矢印は --brand-text。--dim の地に灰色の矢印だと
+     背景の一部に見えて「押せるもの」と読まれない ―― 見つけてもらうのが
+     この取っ手の役目なので、静止状態から操作色を出す。 */
+  .grip{position:sticky;top:calc(50vh - 40px);pointer-events:auto;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    width:22px;height:80px;padding:0;cursor:pointer;
+    border:1px solid var(--rule);border-radius:var(--r-pill);
+    background:var(--card);color:var(--brand-text)}
+  .grip:hover{background:var(--brand-soft);border-color:var(--brand-line)}
+
+  /* 畳むと列が消えて継ぎ目も消えるので、一覧の左に 28px の余白を作って
+     そこへ立てる ―― 同じ縦線の上から動かさないため（位置の記憶が切れない）。
+     28px 使っても、畳んで広がるぶん（284〜304px）のほうがずっと大きい。
+     1280px の画面で一覧は 816px 使えるので、2列は保たれる。 */
+  .workbench.railOff .results{padding-left:28px}
+  .workbench.railOff .gripRail{left:0;width:28px}
+}
+/* 山形。文字の «‹» はフォント任せで太さも位置も揃わないので線で描く。
+   線を 2.5px と太くしてあるのは「押せる」と名指しするため。 */
+.gripIcon{width:9px;height:9px;margin-left:3px;transform:rotate(45deg);
+  border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor}
+.workbench.railOff .gripIcon{margin:0 3px 0 0;transform:rotate(-135deg)}
+/* 効いている条件の数。畳んでいるときだけ出す ―― 開いていれば条件そのものが
+   左に見えている。[hidden] は上の display 指定に特異度で負けるので打ち消す。 */
+.gripCount{display:block;min-width:16px;padding:0 3px;border-radius:var(--r-pill);
   background:var(--brand);color:var(--brand-ink);font-size:var(--fs-xs);font-weight:700;
-  font-family:var(--data);text-align:center;line-height:17px}
-/* [hidden] の既定（display:none）は、上の display 指定に特異度で負ける。
-   さらに .railTog が flex なので inline-block は block 化され、
-   hidden を立てても出たままになる。明示的に打ち消す。 */
-.railTogCount[hidden]{display:none}
+  font-family:var(--data);text-align:center;line-height:16px}
+.gripCount[hidden]{display:none}
+/* 何のための取っ手かを、乗せたときに名指しする。矢印だけでは伝わらない。 */
+.grip::after{content:attr(data-label);position:absolute;left:calc(100% + 8px);
+  white-space:nowrap;font-size:var(--fs-xs);padding:4px 8px;border-radius:var(--r-sm);
+  background:var(--brand-ground);color:var(--on-dark);
+  opacity:0;pointer-events:none;transition:opacity var(--dur-fast)}
+.grip:hover::after,.grip:focus-visible::after{opacity:1}
+@media (prefers-reduced-motion:reduce){.grip::after{transition:none}}
 .barCount{white-space:nowrap}
 .bar b{font-size:19px;font-family:var(--data);font-variant-numeric:tabular-nums}
 .barCount span{font-size:var(--fs-sm);color:var(--muted)}
