@@ -61,7 +61,14 @@
     git worktree list                      # .worktrees/splashtag がまだ在れば
     cd .worktrees/splashtag && git log -1
 
-版に載せるかは**本人に確認中**。載せると決まったら `docs/version-pending.md` に1行足す。
+版の扱いは**本人の指示で決着ずみ**。新しい版は切らず、
+`web/assets/version.js` の **v1.1.1（2026-09-02）の items に1行足した**
+（`node tools/test_version.mjs` → 100件通過）。`docs/version-pending.md` は触っていない。
+
+**副作用を1つ承知の上で入れている**：版番号も日付も据え置きなので、
+右下のバッジのオレンジの点は**既読の人には出ない**（`rakuhan.seenVersion` が動かないため）。
+また v1.1.1 の題は「科目データを最新の時間割に更新」のままなので、
+題と中身が少しずれる。**題を直すかどうかは本人の判断**（勝手に書き換えていない）。
 
 ### 4. 今回踏んだ罠
 
