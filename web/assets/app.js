@@ -517,6 +517,17 @@ function reviewMark(rv){
       まだ数字には入っていません。中身を確認してください<span class="go">${esc(goText())}</span></div></div>` };
 }
 
+/* テストの難しさが確認できていないときの一言。
+   口コミが1件も無い科目は「最初の1人」に誘う ―― 出るのは誰も書いていない科目なので、
+   ここが投稿への入口になる。
+   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、
+   すぐ下の注意帯（口コミ N件）と矛盾するので、そのときは書きぶりを変える。 */
+function needsReviewNote(c){
+  return c.reviews?.n
+    ? "テストの難しさは、まだ誰も書いてない"
+    : "口コミはまだ誰も書いてないけど、最初の1人になりませんか？";
+}
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
@@ -532,7 +543,7 @@ function card(c){
       </div>
       <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
-        ${r.needs_review ? `<span class="bandNote">テストの難しさは誰も確認していません</span>` : ""}</div>
+        ${r.needs_review ? `<span class="bandNote">${esc(needsReviewNote(c))}</span>` : ""}</div>
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>

@@ -17,6 +17,53 @@
 
 ---
 
+## 2026-09-06 ｜ 「誰も確認していません」を口コミへの誘いに変えた ｜ Claude → 次の人
+
+カードの band の下に出ていた `※ テストの難しさは誰も確認していません` を、
+**口コミを書いてもらう誘い**に変えた。触ったのは `web/assets/app.js` の1か所だけ。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8795
+    node tools/smoke.mjs http://127.0.0.1:8795            # ✓ コンソールエラーなし
+    node tools/test_index_gate.mjs http://127.0.0.1:8795  # OK 37件
+    python3 tools/test_layout.py                          # 通過 17件
+    python3 tools/test_shell_inject.py                    # 通過 47件
+    python3 tools/test_recommend_order.py                 # OK 27件
+    python3 tools/test_scoring_gate.py                    # 通過 21件
+
+`needsReviewNote(c)` を足して、**口コミの有無で書き分ける**：
+
+| 科目 | 出る文 |
+|---|---|
+| 口コミ 0件 | `※ 口コミはまだ誰も書いてないけど、最初の1人になりませんか？` |
+| 口コミはあるが門を越えていない | `※ テストの難しさは、まだ誰も書いてない` |
+
+### 2. 何をしていないか
+
+- **`/kuchikomi` への直リンクは張っていない。** カード見出し全体が展開ボタン（role="button"）
+  なので、中にリンクを置くとタップが競合する。導線は既存の FAB「口コミを書く」のまま
+- **版番号（右下の「バージョン＆最新機能」）には載せていない**（本人判断・2026-09-06）。
+  機能追加ではなく文言の言い換えなので
+- 詳細（開いた中身）側の文言は触っていない
+
+### 3. 次の人が最初にやること
+
+    git worktree list        # .worktrees/kuchikomi-note がまだ在れば消す
+
+### 4. 今回踏んだ罠 ―― ここが一番大事
+
+- **`needs_review` は「口コミがゼロ」ではない。**「成績に試験があるのに、テストの難しさが
+  採点に効く形で確認できていない」フラグ（`score.py` の `pending`）。実データで
+  **needs_review 501件のうち 59件は口コミが1件以上ある**。ここで一律に
+  「まだ誰も書いていません」と出すと、**すぐ下の注意帯「⚠ 口コミ 1件 ― まだ数字には
+  入っていません」と同じカードの中で矛盾する**。だから書き分けた
+- **worktree には `node_modules` が無いが、`node` は親ディレクトリまで遡って解決する**ので
+  `.worktrees/<name>/` から `tools/*.mjs` はそのまま動く。ただし
+  **scratchpad など repo の外に置いたスクリプトからは playwright を解決できない**
+- worktree には `data/courses.json` と `web/data/*.built.json` が無い（gitignore）。
+  本体からコピーしてから `server.py` を起動する。`build.py` は「科目が減る」と言って止まる
+
 ## 2026-09-05 ｜ 開屏の版番号が iPhone で見えていなかった（位置の修正）｜ Claude → 次の人
 
 前の PR #116 で開屏に版番号を出したが、**本人の iPhone では見えなかった**という報告。
