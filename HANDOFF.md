@@ -122,6 +122,216 @@
 - `tools/test_haiten_ui.mjs` は API モード（`server.py`）だと `既定で全件出ていない: 1112件`
   で落ちる。これは `data/courses.json` が全学教育の1,112件しか無いからで、回帰ではない。
   **全件を見たいテストは静的モード（`web/` を http.server で配る）で走らせる**
+## 2026-09-06 ｜ 「誰も確認していません」を口コミへの誘いに変えた ｜ Claude → 次の人
+
+カードの band の下に出ていた `※ テストの難しさは誰も確認していません` を、
+**口コミを書いてもらう誘い**に変えた。触ったのは `web/assets/app.js` の1か所だけ。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8795
+    node tools/smoke.mjs http://127.0.0.1:8795            # ✓ コンソールエラーなし
+    node tools/test_index_gate.mjs http://127.0.0.1:8795  # OK 37件
+    python3 tools/test_layout.py                          # 通過 17件
+    python3 tools/test_shell_inject.py                    # 通過 47件
+    python3 tools/test_recommend_order.py                 # OK 27件
+    python3 tools/test_scoring_gate.py                    # 通過 21件
+
+`needsReviewNote(c)` を足して、**口コミの有無で書き分ける**：
+
+| 科目 | 出る文 |
+|---|---|
+| 口コミ 0件 | `※ 口コミはまだ誰も書いてないけど、最初の1人になりませんか？` |
+| 口コミはあるが門を越えていない | `※ テストの難しさは、まだ誰も書いてない` |
+
+### 2. 何をしていないか
+
+- **`/kuchikomi` への直リンクは張っていない。** カード見出し全体が展開ボタン（role="button"）
+  なので、中にリンクを置くとタップが競合する。導線は既存の FAB「口コミを書く」のまま
+- **版番号（右下の「バージョン＆最新機能」）には載せていない**（本人判断・2026-09-06）。
+  機能追加ではなく文言の言い換えなので
+- 詳細（開いた中身）側の文言は触っていない
+
+### 3. 次の人が最初にやること
+
+    git worktree list        # .worktrees/kuchikomi-note がまだ在れば消す
+
+### 4. 今回踏んだ罠 ―― ここが一番大事
+
+- **`needs_review` は「口コミがゼロ」ではない。**「成績に試験があるのに、テストの難しさが
+  採点に効く形で確認できていない」フラグ（`score.py` の `pending`）。実データで
+  **needs_review 501件のうち 59件は口コミが1件以上ある**。ここで一律に
+  「まだ誰も書いていません」と出すと、**すぐ下の注意帯「⚠ 口コミ 1件 ― まだ数字には
+  入っていません」と同じカードの中で矛盾する**。だから書き分けた
+- **worktree には `node_modules` が無いが、`node` は親ディレクトリまで遡って解決する**ので
+  `.worktrees/<name>/` から `tools/*.mjs` はそのまま動く。ただし
+  **scratchpad など repo の外に置いたスクリプトからは playwright を解決できない**
+- worktree には `data/courses.json` と `web/data/*.built.json` が無い（gitignore）。
+  本体からコピーしてから `server.py` を起動する。`build.py` は「科目が減る」と言って止まる
+
+---
+
+## 2026-09-06 ｜ 科目詳細から「担当教員」行と信頼度の注記を削除｜ Claude（松下）→ 次の人
+
+wang からの Discord 依頼（@松下大輔宛て）：科目詳細パネルの「担当教員：〜」の行と、
+「成績評価の内訳」ブロック下にある信頼度の注記（「情報は一部のみ（6項目中3項目）／
+未取得：〜」等）の両方を削除してほしい、というもの。指示どおり両方消した。
+
+### 1. 何が動く状態か
+
+    python -m http.server 8123 --directory web
+    # ブラウザで http://localhost:8123/index.html を開き、任意の科目カードをクリックして詳細を開く
+    # 「成績評価の内訳」の見出しの直後に積み上げバー＋凡例が出て、
+    # その下に「担当教員：〜」の行や「情報は◯◯（n項目中m項目）」の注記が
+    # **出ていなければ**OK（口コミセクションへ直接続く）
+
+変更ファイルは2つ（どちらも松下の担当ファイル。web/CLAUDE.md 1章の例外により app.js も直接編集）：
+
+- `web/assets/app.js` … `detailHtml()` から `担当教員：` の行（`names`/`insHtml` 変数ごと）と
+  `.conf`（信頼度）の div を削除。付随して未使用になった `CONF`／`FIELD_JA` 定数（カードの
+  セクション見出し付近、452-454行あたりにあった）も削除
+- `web/assets/app.css` … 対応する `.conf`／`.conf b`／`.insLine` のCSSルールを削除
+  （`.dSec` 等は他の用途でまだ使っているので残した）
+
+教員名そのものは一覧カードの `.meta`（`insMetaSpan`／`insLabel`）にはまだ残っている
+―― 消したのは詳細パネル側の重複表示だけ。これは直下の `CLAUDE.md` が禁じている
+「担当教員を軸にした集計・検索」ではなく、単なる表示の削除なので設計上の線には触れていない。
+
+### 2. 何をしていないか
+
+- **`docs/version-pending.md`（版のお知らせ）には追加していない。** `CLAUDE.md` の「版に載せるかの判定」
+  に従い、私の判断は「載せる（判定②：既存の操作の結果が変わる）」だが、2026年9月は重要度の門があり
+  「小さい改善は貯めておく」対象になりうる境界例。チャットで本人に判断を仰いでいる途中
+- **PR は作っていない。** `git commit` もまだ。区切り（本人の目視確認）がついてから
+- `tools/shots.mjs` のスクショ・`tools/test_*.py` 一式は実行していない。今回はCSS/JSの
+  削除のみで新しいトークンや構造変更が無いため、影響範囲は小さいと判断したが、
+  PR前には3章の手順（build.py＋test一式＋shots.mjs）を通すこと
+
+### 3. 次の人が最初にやること
+
+このタスク自体はここで完結（1ファイルの表示削除）。次に何かある場合は
+`git status` で今回の未コミット差分（`web/assets/app.js`・`web/assets/app.css`・
+`HANDOFF.md`）を確認してから着手すること。
+
+### 4. 踏んだ罠
+
+- **Browser pane の仮想化リストで `find`/`read_page` が返す ref の座標が、スクロール後に
+  ズレることがある。** `scroll_to` → 同じ ref で `left_click` すると、別のスクロール位置の
+  座標にクリックが飛んで学年フィルタ等を誤爆した（件数が 7906→6711 に変わって気づいた）。
+  スクリーンショットで実際の座標を確認してから座標クリックする方が確実だった
+- 検証は DOM の `innerHTML` を `javascript_tool` で直接見るのが一番早い
+  （UIクリックでの目視より、削除した文字列が本当に0件かをその場で確認できる）
+
+---
+
+## 2026-09-05 ｜ 科目詳細の「重さの根拠」を「成績評価の内訳」バーに置き換え｜ Claude（松下）→ 次の人
+
+松下の依頼：科目詳細の4本バーを、シラバスの成績評価%（出席・平常点／期末テスト／小テスト／レポート）を
+そのまま積み上げバーで見せる形に変えたい。添付画像（Excelの目標比較バーのような1本の100%積み上げ）が元ネタ。
+
+**作業中に発覚：ローカルが origin/main から55コミット遅れていた。** その中に
+`5aeee5e 小テストを採点の第5軸に` があり、**小テストが2026-09-03に出席から独立した**。
+最初の実装（3区分＋小テストは出席に合算、という前提）はこの発覚で丸ごと作り直した。
+**このリポジトリを開いたら必ず `git fetch origin && git log --oneline origin/main -5` を先にやること**
+（web/CLAUDE.md 1章に同じ注意があるのに、今回それを怠って手戻りした）。
+
+### 1. 何が動く状態か
+
+    python -m http.server 8123 --directory web
+    # ブラウザで http://localhost:8123/index.html を開き、任意の科目カードをクリックして詳細を開く
+    # 「成績評価の内訳」という見出しの下に、出席・平常点／期末テスト／小テスト／レポートの
+    # 積み上げバー＋凡例（各カテゴリの%）が出ていればOK
+
+    PYTHONIOENCODING=utf-8 python tools/test_tokens.py     # ✓ OK（新トークン --comp-* も含めて合格）
+    PYTHONIOENCODING=utf-8 python tools/test_layout.py     # ✓ OK
+    PYTHONIOENCODING=utf-8 python tools/test_web_split.py  # ✓ OK
+    PYTHONIOENCODING=utf-8 python tools/test_shell_inject.py  # ✓ OK
+    PYTHONIOENCODING=utf-8 python tools/test_scoring_gate.py  # ✓ OK
+
+変更ファイルは4つ（`tools/test_tokens.py` 以外は松下の担当ファイル）：
+
+- `web/assets/app.js` … `detailHtml()` の「重さの根拠」4/5軸バー（`axRow`）を削除し、
+  `evalCompHtml()`（新規）に置き換え。`c.eval_ratio` の attendance/exam/quiz/report を
+  この順で積み上げる。合計が100%に届かない科目（`eval_unclassified` が残る）は残りを
+  「不明」（灰色）で埋める。`c.eval_ratio` 自体が無い科目（152件前後）は
+  「評価方法の内訳はKOANから取得できていません」の文言だけ出す。`weekly_quiz` が
+  true なのに quiz% が無い20件だけの科目には「配点は取得できていません」の注記を足した
+- `web/assets/app.css` … 旧 `.ax`/`.track`/`.fill`/`.why`/`.axMiss`（未使用になった）を削除し、
+  `.compBar`/`.compSeg`/`.compLegend`/`.compDot`/`.compNote` を新設
+- `web/assets/tokens.css` … `--comp-attendance`/`--comp-exam`/`--comp-quiz`/`--comp-report`/
+  `--comp-unknown` を追加（ライト・ダーク両方）。`--scale-*`（4/5軸バー・band専用）とは
+  意味が違う（カテゴリの塗り分けであって「軽い→重い」の目盛りではない）ので、
+  流用せず新しいトークンにした
+- `tools/test_tokens.py` … 新トークン5色 × `--dim` のコントラスト検査を `CONTRAST` に追加
+  （後述）
+
+**この置き換えで「重さの根拠」（相性スコアの説明）という役割は詳細パネルから消えた。**
+band・相性の理由（good/bad の一言）はカード上部の `.reason` に残っており、
+そちらは今まで通り5軸（試験・レポート・出席・小テスト・規模）の計算値を使い続けている。
+つまり「詳細を開いて見える内訳」と「カード上部の相性の理由」は別のデータを見せている
+（前者＝KOANの生%、後者＝score.pyが計算したスコア）。ここが分かりにくければ
+見出しの付け方をさらに相談してほしい。
+
+### 2. 何をしていないか
+
+- **`tools/test_tokens.py` の `CONTRAST` リストに `--comp-*` × `--dim` の5行を足した
+  （このファイルは担当表に無いが、ファイル自身のコメントが「色を足すときは1行足すこと」と
+  指示しているので追加した）。** `card`/`paper` に対する組み合わせまでは登録していない
+  ―― 手計算では light/dark とも3.0:1以上を確認済み（下記）だが、機械チェックは `--dim`
+  基準の1本だけ。気になるなら残り2背景ぶんも足してよい
+- **本番の `data/courses.json`（1,112件のみ・gitignore）で `python build.py` は実行していない。**
+  実行すると「7,906件→6,794件に減る」というガードで止まる。**このガードは正しい**ので
+  `--allow-fewer-courses` で突破していない。今回は既にコミット済みの
+  `web/data/courses.built.json`（7,906件・quiz分離済み）を読むだけで検証した
+- **`node tools/shots.mjs`（PR前スクショ11枚）は実行していない。** Node環境の用意から
+  やる時間が無かった。ブラウザでの目視確認（デスクトップ・390pxモバイル・ダーク）は
+  上記の通りやった
+- **`tools/test_reviews.py` は1件失敗するが、これは今回の変更と無関係。**
+  「実データの受講年が全件埋まっている」に対して `137199` が引っかかる。
+  origin/main に merge する前の bad509d 時点でも同じ失敗をするのを確認済み
+  ―― 既存のデータ品質の穴で、政岡さん案件
+- **push・PRはまだ出していない。** 区切りが付いたのでこのメモを書いたが、
+  他の作業と合わせてまとめて出すかは松下さんの判断待ち
+- 色のコントラスト実測値（light）：attendance/card 5.30・exam/card 5.88・quiz/card 4.05・
+  report/card 4.84・unknown/card 3.84（dim基準でも全部3.0以上）。dark側も同様に確認済み
+  （tokens.css のコメントには実測値そのものは書いていない。必要なら追記する）
+
+### 3. 次の人が最初にやること
+
+    git fetch origin && git log --oneline origin/main -5    # 遅れていないか必ず確認
+    python -m http.server 8123 --directory web
+    # → http://localhost:8123/index.html?c=138537 を開く
+    #   （"見る"を神経科学するⅠ。quiz20%/report80%の実例。ただし ?c= は詳細カードではなく
+    #    「口コミを読む」パネルを開く仕様なので、詳細を見るには一覧で検索してカードを開く）
+
+### 4. 今回踏んだ罠 ―― ここが一番大事
+
+- **55コミット遅れたローカルで、しかも大きめのUI変更に着手してしまった。**
+  `web/CLAUDE.md` 1章に「作業前に git fetch && git log origin/main -3 で確認」と
+  明記してあるのに、それをせずに調査・実装・ユーザーへの質問（AskUserQuestion）まで
+  済ませてから気づいた。**幸い質問への回答（小テストの扱い・置き換え範囲・不明の見せ方）は
+  そのまま新しい前提でも使えたが、前提データ（小テストは出席に合算、という認識）が
+  古かったせいで実装を丸ごと作り直す羽目になった。** 大きめの変更に入る前は必ず最初に
+  `git fetch origin` を打つこと ―― 特に「意図的な設計判断」を調べて回答するようなタスクでは、
+  古い前提のまま答えを出すと後工程が全部やり直しになる
+- **`git merge origin/main` の前に `git stash push -u` で退避してから合流し、
+  合流後に中身を見て作り直す（stashを無理にpopしない）** という順序が安全だった。
+  先にpopしていたら、364行増えたapp.jsに対して古い3行diffを無理やり当てて
+  コンフリクトだらけになっていたはず
+- **Windowsのコンソール（cp932）は日本語の print を化かす。**
+  `python tools/test_*.py` の出力や `print(タイトル)` は `PYTHONIOENCODING=utf-8` を
+  付けないと文字化けし、`✗`（U+2717）のような記号は素の状態だと
+  `UnicodeEncodeError` で落ちる。この環境で python の日本語出力を扱うときは
+  常に `PYTHONIOENCODING=utf-8` を付けること
+- **`python build.py` は手元の `data/courses.json` が1,112件（実データは7,906件）しか
+  無いと気づかずに実行すると、確認プロンプト無しで「上書きすると科目が減る」警告を出して
+  止まる。** これは正しい安全装置なので `--allow-fewer-courses` で突破しないこと
+- **`?c=<id>` の深リンクは科目の詳細カードではなく「口コミを1件ずつ読む」パネル
+  （`#panel`）を開く。** 検証用に特定の科目を開きたいときは、検索ボックス（`#q`）に
+  タイトルを入れて一覧からカードをクリックする方が確実
+- ブラウザ操作の `zoom`（領域指定の拡大）はこの環境では未対応（"region crop not yet
+  supported" で通常スクリーンショットにフォールバックする）。細部確認は
+  `resize_window` で画面を広げてから通常スクリーンショットで代替した
 
 ---
 
