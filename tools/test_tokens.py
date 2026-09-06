@@ -68,6 +68,13 @@ CONTRAST = [
     ("4軸バー ふつう",              "--scale-mid",        "--dim",              3.0),
     ("4軸バー 重い",                "--scale-heavy",      "--dim",              3.0),
 
+    # 成績評価の内訳バー（2026-09-05）。カテゴリの塗り分けなので図形。3.0 でよい。
+    ("内訳バー 出席・平常点",       "--comp-attendance",  "--dim",              3.0),
+    ("内訳バー 期末テスト",         "--comp-exam",        "--dim",              3.0),
+    ("内訳バー 小テスト",           "--comp-quiz",        "--dim",              3.0),
+    ("内訳バー レポート",           "--comp-report",      "--dim",              3.0),
+    ("内訳バー 不明",               "--comp-unknown",     "--dim",              3.0),
+
     ("band 情報不足",               "--band-none-ink",    "--band-none-bg",     4.5),
     ("band 軽い",                   "--band-light-ink",   "--band-light-bg",    4.5),
     ("band ふつう",                 "--band-mid-ink",     "--band-mid-bg",      4.5),
