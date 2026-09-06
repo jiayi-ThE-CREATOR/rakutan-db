@@ -468,7 +468,7 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    2026-08-24 本番実測：502科目（全体の45%）に立つ。「軽い順」の上位40件では
    40件すべてに出る。だから口コミの帯と同じ強さにはしない
    ―― 100%に出る警告は壁紙になり、10%しかない帯の方を埋もれさせる。 */
-.bandNote{display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:var(--sp-1)}
+.bandNote{display:block;font-size:var(--fs-sm);color:var(--muted);margin-top:var(--sp-1)}
 .bandNote::before{content:"※ "}
 /* 見出し（口コミ N件）は .secH へ移した。区切りも .dSec が引くので、
    ここでは罫も上余白も持たない（2026-09-01）。 */
