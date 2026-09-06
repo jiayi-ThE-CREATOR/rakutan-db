@@ -67,37 +67,85 @@ const browser = await chromium.launch();
   check(g.left > 40,
         `左右の余白が小さすぎる（${g.left}px）―― 列が畳まれていない`);
 
-  /* 中央寄せは「幅を変える」ので、カードの列数まで変わると
-     選んだ瞬間に一覧が組み直されて読んでいた場所を見失う。
-     空のときの一覧幅（736px）は2列の閾値 770px の手前に置いてあり、
-     前後どちらも1列であることをここで固定する。 */
+  const lw = Math.round((await p.locator("#results").boundingBox()).width);
+  check(Math.abs(lw - 860) <= 2, `空のときの一覧が 860px でない（${lw}px）`);
+
+  /* 空のときは2列（2026-09-06 の決定）。それ以前は「畳んだときだけ2列」で、
+     選ぶ前後とも1列に保っていた。いまは 860px > 770px なので空のときは
+     2列になり、選ぶと1列へ組み直る ―― この組み直しは承知のうえ。 */
   const cols = () => p.evaluate(() => new Set(
     [...document.querySelectorAll("#list > .card")]
       .map(el => Math.round(el.getBoundingClientRect().x))).size);
-  const before = await cols();
+  check(await cols() === 2, `空のときに一覧が2列になっていない（${await cols()}列）`);
+
+  /* カードの高さが揃っていること。バラつきの原因は3つ ―― 口コミバッジ
+     （+28px）／タグの行（+30px）／理由が2行に折り返す（+20px）。
+     揃えないと2列にしたとき段違いになる。
+
+     例外は口コミの注意帯（.rvAlert）が入る科目で、そこは帯を切るより
+     行ごと伸ばす。だからここは「行」で見る:
+       ・注意帯のいない行 … すべて同じ高さ（--cardH）
+       ・注意帯のいる行   … その行の2枚が互いに同じ高さ（stretch が効く）
+     .unscored を単に除くだけでは、その相方（stretch で引き伸ばされた
+     ふつうのカード）が残って落ちる。 */
+  const rows = await p.evaluate(() => {
+    const by = {};
+    document.querySelectorAll("#list > .card").forEach(c => {
+      const r = c.getBoundingClientRect();
+      (by[Math.round(r.y)] ||= []).push({ h: Math.round(r.height), alert: c.classList.contains("unscored") });
+    });
+    return Object.values(by);
+  });
+  const plain = rows.filter(r => !r.some(c => c.alert)).flatMap(r => r.map(c => c.h));
+  const uniq = [...new Set(plain)].sort((a, b) => a - b);
+  check(uniq.length === 1, `カードの高さが揃っていない（${uniq.join(" / ")}）`);
+  const ragged = rows.filter(r => r.length > 1 && new Set(r.map(c => c.h)).size > 1);
+  check(ragged.length === 0,
+        `同じ行のカードで高さが違う（${ragged.map(r => r.map(c => c.h).join("と")).join(" / ")}）`);
 
   await p.locator("#list > .card .head").first().click();
   await p.waitForTimeout(250);
-
-  const after = await cols();
-  check(before === 1 && after === 1,
-        `選ぶ前後でカードの列数が変わる（${before}列 → ${after}列）―― 一覧が組み直される`);
 
   check(await p.locator("#inspector").isVisible(), "科目を選んでも右カラムが出ない");
   const g2 = await gaps(p);
   check(g2.left <= 1 && g2.right <= 1,
         `選んだあと3カラムに戻っていない（左${g2.left} / 右${g2.right}）`);
 
+  /* ── ✕ で閉じられること（2026-09-06 追加）──────────────
+     これが無いと、いちど科目を押した人は再読込するまで
+     「開いた直後の中央寄せ」に戻れない。 */
+  check(await p.locator(".insClose").isVisible(), "詳細に閉じる ✕ が無い");
+  await p.locator(".insClose").click();
+  await p.waitForTimeout(250);
+  check(!(await p.locator("#inspector").isVisible()), "✕ を押しても右カラムが閉じない");
+  check(await p.locator(".card.sel").count() === 0,
+        "✕ を押してもカードの選択の印（.sel）が残っている");
+  const g3 = await gaps(p);
+  check(Math.abs(g3.left - g3.right) <= 2 && g3.left > 40,
+        `✕ のあと中央寄せに戻っていない（左${g3.left} / 右${g3.right}）`);
+
+  /* Esc でも同じ。閉じ方が2つあるので、両方が同じ場所を通ることを見る。 */
+  await p.locator("#list > .card .head").first().click();
+  await p.waitForTimeout(250);
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(250);
+  check(!(await p.locator("#inspector").isVisible()), "Esc で右カラムが閉じない");
+
   await p.close();
 }
 
-/* ── 1160px（3カラムの下限）：ここでも中央に寄る ── */
+/* ── 1160px（3カラムの下限）：はみ出さないこと ── */
 {
   const p = await open(browser, { width: 1160, height: 900 });
   const g = await gaps(p);
   check(Math.abs(g.left - g.right) <= 2,
         `1160px で中央へ寄っていない（左${g.left} / 右${g.right}）`);
-  check(g.left > 20, `1160px で列が畳まれていない（余白 ${g.left}px）`);
+  /* この幅では 860px が入りきらず、min(860px, calc(100% - 284px)) が
+     容器いっぱいまで縮める。余白が 0 なのは正しい。見るべきは
+     「横にはみ出していないこと」―― ここを固定値で書くと、
+     1160〜1176px で一覧が画面外へ出る回帰を素通りさせる。 */
+  const ov = await p.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1);
+  check(!ov, "1160px で横にはみ出している（一覧の幅が容器を越えた）");
   await p.close();
 }
 

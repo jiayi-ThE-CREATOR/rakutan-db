@@ -644,9 +644,11 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .workbench.railOff .rail{display:none}
 
   /* ── 一覧を容器の幅で自動的に多列にする ──────────────
-     しきい値 380px は「絞り込みを畳んだときだけ2列になる」ように選んである。
-     畳む前の中カラムは 1920px の画面でも 760px しか無く2列にならないので、
-     「畳む → 2列になる」という因果が画面から読める。
+     しきい値 380px は元々「絞り込みを畳んだときだけ2列になる」ように
+     選んだ値。2026-09-06、空のときの一覧を 860px 固定にした時点で
+     この約束は退役した（空なら畳む前から2列）。いま 380px が効くのは
+     **科目を選んでいるとき**で、そこでは「畳む → 中カラムが広がって2列」
+     という因果がそのまま残っている。
      視口幅ではなく容器幅で決まる（auto-fill）ことが肝 ―― 右の詳細カラムが
      出入りしても列数が正しく追従する。表示密度を人が選ぶ仕組みを足すときは、
      この --cardMin を差し替える形にすれば済む。 */
@@ -707,29 +709,54 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
      「壊れた空箱」に見えるので、枠ごと消す。 */
   .inspector:empty{display:none}
 
-  /* ── 空のときは残りの2カラムを中央に寄せる（2026-09-05）──────
+  /* ── 空のときは残りの2カラムを中央に寄せる（2026-09-05 / 幅は 09-06 改訂）──
      枠を消しても列そのものは grid-template-columns が確保していたので、
      開いた直後の画面は右が丸ごと空いて見えていた（1440px で 440px ぶん）。
      空の列を畳み、残った2カラムを視口の中央に置く。
 
-     引き換えに払うのは、科目を選んだ瞬間に一覧の幅が変わること
-     （736 → 420〜640）。カードの**列数は変えない**ようにしてあるので、
-     組み直しは起きず、幅が縮むだけになる。736px という数字はそのため
-     ―― 一覧が2列になるのは 380*2+gap10 = 770px からで、その手前に置いている。
-     ここを 770 以上に広げると2つ壊れる：選んだ瞬間に2列→1列の
-     組み直しが起きること、そして「畳んだときだけ2列になる」という
-     この下（--cardMin のコメント）の約束が、畳む前から2列になって崩れること。
+     一覧の幅 860px は本人の決定（2026-09-06）。380*2+gap10=770 を越えるので
+     **空のときは2列**になり、科目を選ぶと 420〜640px の1列へ組み直る。
+     この一度きりの組み直しを承知のうえで開屏の空白を優先する、という判断。
+     これに伴い「畳んだときだけ2列」という約束は退役した（下の --cardMin の
+     コメントと tools/test_rail_toggle.mjs を併せて直してある）。
 
-     一覧の幅を 1fr ではなく固定値で置いているのは、1fr が余った幅を
-     食ってしまい justify-content:center が効かなくなるため。
+     min(860px, calc(100% - 284px)) の 284 は 260(絞り込み)+24(gap)。
+     1160〜1176px では 860 が入りきらず横にはみ出すので、そこだけ縮める。
+     幅を 1fr ではなく固定値で置いているのは、1fr が余りを食ってしまい
+     justify-content:center が効かなくなるため。
      :has() を解さないブラウザは、これまでどおり右を空けた3カラムに
      落ちる（壊れずに古い見た目になるだけ）。 */
   .workbench:has(#inspector:empty){
-    grid-template-columns:260px minmax(0,736px);
+    grid-template-columns:260px minmax(0,min(860px,calc(100% - 284px)));
     justify-content:center}
-  /* 畳んだうえで何も選んでいないとき。ここだけは2列に広げる ――
-     畳む操作の結果が画面に出ないと、取っ手を押した意味が読めない。 */
-  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,1020px)}
+  /* 畳んでも一覧の幅は変えない。空のときの一覧は「中央に置いた860px」で、
+     絞り込みの在る無しで動かさない ―― 畳む操作で列数まで変わると、
+     いま何を見ているのか分からなくなる。畳んだ結果は「絞り込みが消えて
+     一覧が中央へ寄り直す」ことで画面に出る。 */
+  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,860px)}
+
+  /* ── 空のとき（2列）はカードの高さを揃える ──────────────
+     揃わない原因は3つで、どれも「有る科目と無い科目がある」行:
+     口コミバッジ（+28px）／タグの行（+30px）／理由が2行に折り返す（+20px）。
+     いちばん背の高い組み合わせ（バッジ＋タグ1行＋理由2行＝224px）を下限にし、
+     align-items:stretch で同じ行の相方を必ず追従させる。
+     height ではなく min-height なのは、想定外に伸びる科目が出たとき
+     中身を切らずに行ごと伸びてほしいから（切ると事実が消える）。 */
+  .workbench:has(#inspector:empty) #list{--cardH:224px;align-items:stretch}
+  .workbench:has(#inspector:empty) #list > .card{min-height:var(--cardH)}
+  /* meta を1行に詰める。425px 幅では教員名の長い科目が2行になり、
+     その科目だけ背が高くなる（全文は右カラムの詳細に出る）。 */
+  .workbench:has(#inspector:empty) #list > .card .meta{
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* nowrap にすると、.head の 1fr 列の自動最小幅（min-content）が
+     meta の行の長さまで膨らみ、右の 58px 列（楽単スコア）を
+     星（.card > .favBtn）の上まで押し出す。grid のこの既定を切って、
+     はみ出しは ellipsis 側に受けさせる（tools/test_favorite.mjs が
+     この重なりを見張っている）。 */
+  .workbench:has(#inspector:empty) #list > .card .head > div:first-child{min-width:0}
+  /* タグは4個までに絞ってあるので通常は1行。溢れた2行目は出さない。 */
+  .workbench:has(#inspector:empty) #list > .card .tags{max-height:22px;overflow:hidden}
+
   /* PC では詳細が右カラムに出るので、カード内の折りたたみは使わない。 */
   .card.open .detail{display:none}
   .card.sel{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
@@ -743,19 +770,28 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .hd{max-width:1560px}
   .workbench{grid-template-columns:280px minmax(0,1fr) 440px}
   .workbench.railOff{grid-template-columns:minmax(0,1fr) 440px}
-  /* 空のときの中央寄せ。一覧の幅（736px）は1160px 側と同じ値のまま ――
-     ここだけ広げると 770px を越えて2列になり、科目を選んだときに
-     2列→1列の組み直しが起きる（1160px 側のコメント参照）。
-     広い画面ほど左右の余白が増えるが、それは中央に置いた結果であって
+  /* 空のとき。一覧の 860px は据え置きで、絞り込みだけ 280px に広がる。 */
+  .workbench:has(#inspector:empty){
+    grid-template-columns:280px minmax(0,min(860px,calc(100% - 304px)))}
+  /* 畳んだときも一覧は 860px のまま中央に置く（1160px 側と同じ考え）。
+     広い画面ほど左右の余白は増えるが、それは中央に置いた結果であって
      「空いている右カラム」ではない。 */
-  .workbench:has(#inspector:empty){grid-template-columns:280px minmax(0,736px)}
-  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,1020px)}
+  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,860px)}
 }
 
 /* 右カラムに出す詳細の見出し。カード内に出すときは不要なので、
    inspector の中にあるときだけ効かせる。 */
-.inspector .inspectorHead{margin:0 0 var(--sp-3);padding-bottom:var(--sp-3);
+.inspector .inspectorHead{position:relative;margin:0 0 var(--sp-3);
+  padding-bottom:var(--sp-3);padding-right:34px;
   border-bottom:1px solid var(--rule)}
+/* 閉じる ✕。右カラムの右上に置く（カードの星と同じ「右上＝その枠の操作子」）。
+   44px 四方の当たりを確保しつつ、見た目は文字だけ。 */
+.insClose{position:absolute;top:-10px;right:-10px;width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  border:none;background:none;color:var(--muted);font-size:15px;line-height:1;
+  border-radius:var(--r-sm);cursor:pointer}
+.insClose:hover{background:var(--scale-light-soft);color:var(--ink)}
+.insClose:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .inspector .inspectorHead h3{margin:0 0 var(--sp-1);font-size:var(--fs-lg);line-height:1.35}
 .inspector .inspectorHead .meta{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data)}
 .inspector .detail{display:block;border:none;padding:0;background:none}
