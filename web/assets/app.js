@@ -1030,9 +1030,11 @@ function showDetail(c, article){
     const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
     const ins = $("#inspector");
     ins.innerHTML = `<div class="inspectorHead">
+        <button type="button" class="insClose" aria-label="この科目を閉じる">✕</button>
         <h3>${esc(c.title)}</h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
       </div><div class="detail">${detailHtml(c)}</div>`;
+    ins.querySelector(".insClose").onclick = closeDetail;
     ins.scrollTop = 0;
     lastOpenedCourseId = c.id;
     return;
@@ -1047,6 +1049,18 @@ function showDetail(c, article){
   const opening = !article.classList.contains("open");
   article.classList.toggle("open");
   if (opening) lastOpenedCourseId = c.id;
+}
+
+/* 右カラムを閉じて「何も選んでいない」状態へ戻す（2026-09-06 追加）。
+   これが無いと、いちど科目を押した人は再読込するまで開いた直後の
+   画面（2カラムを中央に寄せた状態）に戻れなかった。閉じる手段は
+   ✕ と Esc の2つで、どちらもここを呼ぶ。
+   lastOpenedCourseId は消さない ―― 下の「口コミを書く」の初期選択に
+   使うもので、閉じたあとも直前に見ていた科目のままでよい。 */
+function closeDetail(){
+  selectedCourseId = null;
+  document.querySelectorAll(".card.sel").forEach(el => el.classList.remove("sel"));
+  $("#inspector").innerHTML = "";
 }
 
 /* 増えた分のカードだけにクリック判定を付ける。以前は呼ばれるたびに
@@ -1200,7 +1214,9 @@ $("#panel").onclick = e => { if (e.target === $("#panel")) closePanel(); };
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if ($("#panel").classList.contains("open")
-      || document.querySelector(".pList")) closePanel();
+      || document.querySelector(".pList")){ closePanel(); return; }
+  // パネルが無いときの Esc は、右カラムの詳細を閉じる（✕ と同じ動き）。
+  if (isDesktop() && $("#inspector").innerHTML) closeDetail();
 });
 
 ["#list", "#inspector"].forEach(sel => {

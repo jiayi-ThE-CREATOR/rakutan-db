@@ -82,6 +82,13 @@ const browser = await chromium.launch();
   await p.locator("#slotBarClear").click();
   await p.waitForTimeout(250);
 
+  /* 2026-09-06: 何も選んでいないときの一覧は 860px 固定・中央寄せになった
+     （空の列を畳むため）。畳んで中カラムが広がるのは**科目を選んでいるとき**
+     なので、先に1件選んでから測る。空のときの並びは
+     tools/test_inspector_center.mjs が見ている。 */
+  await p.locator("#list > .card .head").first().click();
+  await p.waitForTimeout(300);
+
   const before = (await p.locator("#results").boundingBox()).width;
   const colsBefore = await p.evaluate(() =>
     new Set([...document.querySelectorAll("#list > .card")]
