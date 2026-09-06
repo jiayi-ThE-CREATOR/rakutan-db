@@ -533,15 +533,25 @@ function reviewMark(rv){
       まだ数字には入っていません。中身を確認してください<span class="go">${esc(goText())}</span></div></div>` };
 }
 
-/* テストの難しさが確認できていないときの一言。
-   口コミが1件も無い科目は「最初の1人」に誘う ―― 出るのは誰も書いていない科目なので、
-   ここが投稿への入口になる。
-   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、
-   すぐ下の注意帯（口コミ N件）と矛盾するので、そのときは書きぶりを変える。 */
-function needsReviewNote(c){
-  return c.reviews?.n
-    ? "テストの難しさは、まだ誰も書いてない"
-    : "口コミはまだ誰も書いてないけど、最初の1人になりませんか？";
+/* band の下の ※ の行。「口コミが集まれば数字が出る」科目にだけ出す。
+   出す条件は2つ ―― テストの難しさ待ち（needs_review）と、総合値がまだ出せず
+   その穴が口コミで埋まる科目（内訳は読めている）。後者は 2026-09-06 まで
+   .reason 側が「口コミが3件そろうと出ます」と言っていたぶんで、同じことを
+   2か所で言うのをやめ、投稿への誘い1本に寄せた（score.py の _unjudged_reason）。
+
+   口コミが1件も無いなら「最初の1人」に誘う ―― ここが投稿への入口になる。
+   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、すぐ下の
+   注意帯（口コミ N件 ― まだ数字には入っていません）と矛盾するので、
+   足りない話（テストの難しさ）だけを書く。それも無いなら注意帯に任せて黙る。 */
+function bandNoteText(c){
+  const r = c.rakutan;
+  const cap = r.eval_captured;
+  const min = (META && META.eval_total_min) || 80;
+  const unjudged = (r.overall === null || r.overall === undefined)
+    && cap !== null && cap !== undefined && cap >= min;
+  if (!r.needs_review && !unjudged) return "";
+  if (!c.reviews?.n) return "口コミはまだ誰も書いてないけど、最初の1人になりませんか？";
+  return r.needs_review ? "テストの難しさは、まだ誰も書いてない" : "";
 }
 
 function card(c){
@@ -549,6 +559,7 @@ function card(c){
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
   const tags = [...r.tags, ...r.notes];
   const rv = reviewMark(c.reviews);
+  const note = bandNoteText(c);
   const fav = rkStore.isFavorite(c.id);
   return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
@@ -559,7 +570,7 @@ function card(c){
       </div>
       <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
-        ${r.needs_review ? `<span class="bandNote">${esc(needsReviewNote(c))}</span>` : ""}</div>
+        ${note ? `<span class="bandNote">${esc(note)}</span>` : ""}</div>
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
@@ -845,7 +856,7 @@ function matchLocal(r){
     if (cap === null || cap === undefined)
       reason = "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
     else if (cap >= min)
-      reason = `判定に必要な情報が足りていません。口コミが${minForScoring()}件そろうと出ます。`;
+      reason = "";          // 口コミ待ちは band の下の ※ の行が言う（bandNoteText）
     else
       reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
     return { fit:null, reason, labels:META.axis_labels };
