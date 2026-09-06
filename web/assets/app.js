@@ -449,9 +449,6 @@ function syncReviewSortOptions(){
 }
 
 /* ── カード ───────────────────────────── */
-const CONF = {high:"情報は揃っている", mid:"情報は一部のみ", low:"情報がほとんど無い"};
-const FIELD_JA = {eval_ratio:"成績評価の内訳", report_count:"レポート本数",
-  out_of_class_hours:"時間外学習", capacity:"定員", class_format:"授業形態", day_period:"曜限"};
 
 /* 成績評価の内訳（KOANシラバスの生の%）を積み上げバーで見せる（2026-09-05）。
  *
@@ -628,26 +625,12 @@ function reviewHtml(c){
 
 function detailHtml(c){
   const r = c.rakutan;
-  const names = instructors(c);   // showDetail の ins（#inspector）とは別物
-  /* 全員をここに出す。見出しは「ほかN名」で畳んであるので、
-     複数担当のコマは詳細を開かないと誰が出るのか分からない。
-     氏名ごとに nowrap を掛けるのは、姓と名の間が全角空白で、
-     そこで折り返されると「モ／ハーチ ゲルゲイ」のように人名が割れるため。
-
-     入れ物が <span> でないのは、app.css の .meta span+span::before が
-     「・」を自動で足してしまい、その「・」が nowrap の内側に入るから。
-     「・」は行頭に来られない文字（行頭禁則）なので、直前でも改行できず、
-     16名の科目で一行が右へ突き抜ける（実測 2026-08-25）。
-     区切りを自分で書ける <bdi> にしたうえで、「・」の後ろに <wbr> を置く
-     （nowrap の外に改行機会を作らないと、Chromium は要素の境目でも折り返さない）。 */
-  const insHtml = names.map(n => `<bdi style="white-space:nowrap">${esc(n)}</bdi>`).join("・<wbr>");
   const rn = c.reviews?.n || 0;
   /* ── 詳細の並び（2026-09-05・成績評価の内訳バーに置き換え）───────────
    * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
    * 5つ縦積みで、最後の ☆ はラベルが無くカード右上の ☆ と重複していた。
    *
-   *   担当教員        （識別のための添え書き。見出しは付けない）
-   *   ── 成績評価の内訳  KOANの%を積み上げバーで ＋ 信頼度
+   *   ── 成績評価の内訳  KOANの%を積み上げバーで
    *   ── 口コミ N件   一言3件 ＋ 集計 ＋ 1件ずつへのリンク
    *   ── 操作         時間割に追加（主）／口コミを書く・KOAN（副）
    *
@@ -655,14 +638,14 @@ function detailHtml(c){
    * スコアをバーで見せていたが、松下さんの依頼で「KOANシラバスに書かれている
    * 成績評価の生の%」を見せる形に置き換えた。相性スコアの根拠説明としての役目は
    * ここでは持たない ―― band・相性の理由（good/bad）はカード上部の .reason に
-   * 残っており、そちらは5軸の値をそのまま使い続けている。 */
-  return `${names.length ? `<div class="meta insLine">担当教員：${insHtml}</div>` : ""}
-      <div class="dSec">
+   * 残っており、そちらは5軸の値をそのまま使い続けている。
+   *
+   * 担当教員の行と信頼度（「情報は一部のみ」等の注記）は wang の依頼で2026-09-06に
+   * 削除した（Discord）。教員名自体は一覧カードの .meta（insMetaSpan）に残っている
+   * ので、識別に必要な情報は消えていない。 */
+  return `<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
-        <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
-          ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
-        </div>
       </div>
       ${rn ? `<div class="dSec">
         <div class="secH">口コミ <b>${rn}件</b></div>
