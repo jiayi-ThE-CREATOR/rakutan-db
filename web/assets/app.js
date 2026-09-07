@@ -628,9 +628,7 @@ const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 
 
 /* 口コミの集計。モーダルの先頭に出す。
    一言3件（.rvn）は廃止した ―― モーダルに全件が1件ずつ出るので重複になる。
-   値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。
-   なお detailHtml もまだこの関数を呼んでいるので、いまは詳細にも同じ集計が出る。
-   その呼び出しは詳細から口コミ節ごと外すときに消える。 */
+   値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。 */
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
@@ -673,7 +671,12 @@ function detailHtml(c){
    *
    * 元は score.py が計算した5軸の「重さ」スコアをバーで見せていたが、
    * 松下さんの依頼で「KOANシラバスに書かれている成績評価の生の%」に置き換えた
-   * （2026-09-05）。担当教員の行と信頼度の注記は wang の依頼で削除（2026-09-06）。 */
+   * （2026-09-05）。担当教員の行と信頼度の注記は wang の依頼で削除（2026-09-06）。
+   *
+   * .dSec 自体は app.css に固有のスタイルを持たない（レイアウトは中の
+   * .secH/.compBar 側が持つ）が、クラス名として消さないこと ――
+   * tools/test_favorite.mjs が `.detail .dSec` を「詳細が描画された」の
+   * 目印として待っている（2026-09-07）。 */
   return `<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
@@ -1113,7 +1116,7 @@ mqDesktop.addEventListener("change", () => {
 });
 
 /* ── 口コミパネル（1件ずつ）─────────────
- * 何のためか: **Android の戻るボタン**。全画面のシートが開いた状態で
+ * 何のためか: **Android の戻るボタン**。中央モーダルが開いた状態で
  * 戻るを押すと、履歴に何も積んでいなければページごと離脱する。
  * 口コミを読みに来た人が一覧を失う。おまけで ?c=<id> の共有もできる。
  * この履歴エントリを積む理由は今も変わらずこれ1つ（2026-09-07）。
@@ -1197,8 +1200,7 @@ $("#panelClose").onclick = closePanel;
 $("#panel").onclick = e => { if (e.target === $("#panel")) closePanel(); };
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
-  if ($("#panel").classList.contains("open")
-      || document.querySelector(".pList")){ closePanel(); return; }
+  if ($("#panel").classList.contains("open")){ closePanel(); return; }
   // パネルが無いときの Esc は、右カラムの詳細を閉じる（✕ と同じ動き）。
   if (isDesktop() && $("#inspector").innerHTML) closeDetail();
 });
@@ -1740,48 +1742,48 @@ function applyPostMode() {
 })();
 
 /* お気に入りの星。カードは絞り込みのたびに作り直されるので、
-   1枚ずつに onclick を付けず、親で受ける（.ttAddBtn と同じ型）。 */
-for (const sel of ["#list", "#inspector"]) {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".favBtn");
-    if (!btn) return;
-    const now = rkStore.toggleFavorite(btn.dataset.id);
-    /* 一覧と詳細に同じ科目の星が同時に出ていることがある。両方直す。 */
-    document.querySelectorAll(`.favBtn[data-id="${CSS.escape(btn.dataset.id)}"]`)
-      .forEach(b => { b.setAttribute("aria-pressed", String(now));
-                      b.textContent = now ? "★" : "☆"; });
-  });
-}
+   1枚ずつに onclick を付けず、親で受ける（.ttAddBtn と同じ型）。
+   委譲先は #list だけ ―― .favBtn は詳細（#inspector）には出ない
+   （カード右上に☆があるので詳細から外した。detailHtml 前のコメント参照）。 */
+$("#list").addEventListener("click", e => {
+  const btn = e.target.closest(".favBtn");
+  if (!btn) return;
+  const now = rkStore.toggleFavorite(btn.dataset.id);
+  /* 「あなたに合う」枠と通常の一覧に同じ科目が重複して出ることがあるので、
+     同じ id の .favBtn が複数あり得る。両方直す。 */
+  document.querySelectorAll(`.favBtn[data-id="${CSS.escape(btn.dataset.id)}"]`)
+    .forEach(b => { b.setAttribute("aria-pressed", String(now));
+                    b.textContent = now ? "★" : "☆"; });
+});
 
-/* 一覧カードと詳細パネル、両方の「時間割に追加」（2026-09-06、カードの
-   操作バー新設で .ttAddBtn の置き場所が増えた）。配置ロジック（コンフリクト確認＋一括配置）は
+/* 「時間割に追加」（2026-09-06、カードの操作バー新設で .ttAddBtn が詳細から
+   カードの .cardActs へ移った。委譲先は #list だけ ―― detailHtml はもう
+   .ttAddBtn を出さない）。配置ロジック（コンフリクト確認＋一括配置）は
    rkStore.putCourse に1本化されている（mypage.jsのputCourseと共有。理由は
    web/assets/mypage.js の putCourse 直前コメントを参照）。曜限が無い科目は
    putCourse が何もしない（false を返す）ので、ここで addExtra に振り分ける。 */
-for (const sel of ["#list", "#inspector"]) {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".ttAddBtn");
-    if (!btn) return;
-    const id = btn.dataset.id;
-    const c = courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id);
-    if (!c) return;
-    const terms = rkStore.termsFor(c);
-    let placed;
-    if (rkStore.slotsOf(c).length){
-      placed = rkStore.putCourse(terms, c, null, tid =>
-        (courses.find(x => x.id === tid) || DATA.courses.find(x => x.id === tid) || {}).title);
-    } else {
-      for (const t of terms) rkStore.addExtra(t, c.id);
-      placed = true;
-    }
-    if (placed){
-      document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`).forEach(b => {
-        b.setAttribute("aria-pressed", "true");
-        b.textContent = "✓ 時間割に入れた";
-      });
-    }
-  });
-}
+$("#list").addEventListener("click", e => {
+  const btn = e.target.closest(".ttAddBtn");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const c = courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id);
+  if (!c) return;
+  const terms = rkStore.termsFor(c);
+  let placed;
+  if (rkStore.slotsOf(c).length){
+    placed = rkStore.putCourse(terms, c, null, tid =>
+      (courses.find(x => x.id === tid) || DATA.courses.find(x => x.id === tid) || {}).title);
+  } else {
+    for (const t of terms) rkStore.addExtra(t, c.id);
+    placed = true;
+  }
+  if (placed){
+    document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`).forEach(b => {
+      b.setAttribute("aria-pressed", "true");
+      b.textContent = "✓ 時間割に入れた";
+    });
+  }
+});
 
 /* 画面幅で出す番号の数を変えているので、幅が変わったら描き直す。
    スマホを横にしたときに「…」の畳み方が古いままになるのを防ぐ。 */

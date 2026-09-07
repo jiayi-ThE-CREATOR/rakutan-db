@@ -561,8 +561,9 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」
    のような、誰も言っていない値になりうる。1人ずつの回答をそのまま読める
    場所を別に用意する。値の出どころは web/data/reviews.built.json。
-   置き場所は画面幅で変える（PC は右カラムの詳細の下、スマホは全画面のシート）が、
-   1件ぶんの見た目はどちらでも同じなので、ここでまとめて持つ。 */
+   2026-09-06 に口コミ節が detailHtml() から外れたので、いまは .pEntry も
+   .rv と同じくモーダル（#panelBody = .kBody）の直下でしか使われない。
+   PC・スマホで形を分けない、1つの中央モーダルの中身。 */
 .pEntry{padding:var(--sp-4) 0;border-bottom:1px solid var(--rule)}
 .pEntry:last-child{border-bottom:none}
 .pYear{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data);margin-bottom:5px}

@@ -63,7 +63,11 @@ CONTRAST = [
     ("口コミの吹き出しの文字",      "--ink",              "--brand-soft",       4.5),
     ("吹き出しの引用符",            "--brand",            "--brand-soft",       3.0),
     ("条件タグ",                    "--scale-light-text", "--scale-light-soft", 4.5),
-    ("口コミ件数",                  "--scale-light-text", "--card",             4.5),
+    # 「口コミ件数」だった行は削除（2026-09-07）。--scale-light-text on --card は
+    # 旧・件数バッジ .rvb（2026-09-06 に .cardActs へ統合されて廃止）専用の組み合わせで、
+    # 現行の app.css に --scale-light-text on --card の組み合わせは無い
+    # （.tag と .rvBtn は --scale-light-soft 地、.secH b は --paper 地で、
+    # かつ .secH b 自体もう <b> を持つ呼び出し元が無い死んだセレクタ）。
     ("未取得・情報不足の赤",        "--scale-heavy",      "--card",             4.5),
     # 4軸バーの塗りは図形。3.0 でよい。
     ("4軸バー 軽い",                "--scale-light",      "--dim",              3.0),
