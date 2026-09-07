@@ -244,7 +244,6 @@ option:hover, option:focus{ background:var(--brand-soft); }
 
 section{margin-top:22px}
 h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-weight:700}
-h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 
 /* ── 空きコマグリッド ─────────────────── */
 .grid{display:grid;grid-template-columns:20px repeat(5,1fr);gap:4px}
@@ -255,7 +254,6 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   cursor:pointer;font-variant-numeric:tabular-nums}
 .grid button.zero{color:var(--rule);background:transparent}
 .grid button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:700}
-.hint{font-size:var(--fs-xs);color:var(--muted);margin-top:6px}
 
 /* ── 選択中コマの貼り付きバー ─────────── */
 .slotBar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;
