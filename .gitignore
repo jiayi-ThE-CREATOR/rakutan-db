@@ -37,3 +37,6 @@ shots/
 # wrangler のローカル実行状態（キャッシュ・ローカルD1など）
 .wrangler/
 .dev.vars
+
+# Claude Code の作業用（superpowers/sdd の台帳・ブリーフ）。成果物ではない。
+.superpowers/

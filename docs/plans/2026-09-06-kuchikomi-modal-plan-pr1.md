@@ -156,7 +156,10 @@ PC 幅で `#panel.open` が現れずタイムアウト（いまは右カラム�
 
 - [ ] **Step 3: `#panel` のマークアップを差し替える**
 
-`web/index.html` の 272-280 行を丸ごと置き換える：
+`web/index.html` の **265-280 行**（`<!-- 口コミを1件ずつ読むシート（スマホ用）。` の
+コメント段落から `</div>` まで）を丸ごと置き換える。**古いコメントも一緒に消すこと**
+―― 「PC では右カラムの詳細の下に展開する」「投稿フォームと同じ .sheet を使い回している」
+はどちらも、この変更で嘘になる：
 
 ```html
 <!-- 口コミの中央モーダル。投稿フォーム（#sheet）と器を共有しない
@@ -411,14 +414,24 @@ function panelEntry(row){
 
 `.pLine` は使わなくなる。
 
-- [ ] **Step 5: CSS を作り直す**
+- [ ] **Step 5: `openPanel` がモーダルに集計を差し込むようにする**
+
+Task 1 の `openPanel` は1件ずつ（`panelListHtml`）しか入れていない。集計を先頭に足す：
+
+```javascript
+  $("#panelBody").innerHTML = reviewHtml(c) + await panelListHtml(id);
+```
+
+（`reviewHtml` は口コミ0件のとき空文字を返すので、0件の科目でも壊れない。）
+
+- [ ] **Step 6: CSS を作り直す**
 
 `web/assets/app.css`：
 
-1. `.rvb` の規則（2行）を**削除**
-2. `.rvn` の規則3つ（`.rvn` / `.rvn li` / `.rvn li::before` / `.rvn li::after`）と、
+1. `.rvn` の規則3つ（`.rvn` / `.rvn li` / `.rvn li::before` / `.rvn li::after`）と、
    その上の「口コミの一言。しゅんやさんの指摘④」コメントを**削除**
-3. `.rvf` / `.rvf span` / `.rvf i` を次で置き換える：
+   （`.rvb` は Task 3 で markup ごと消すので、ここでは触らない）
+2. `.rvf` / `.rvf span` / `.rvf i` を次で置き換える：
 
 ```css
 /* 集計。モーダルの先頭に置くので、詰めたチップではなく2列の表にする。
@@ -433,7 +446,7 @@ function panelEntry(row){
 .rvf span.w{grid-column:1/-1}
 ```
 
-4. `.pLine` の規則を**削除**し、`.pNote` を置き換えて `.pFacts` を足す：
+3. `.pLine` の規則を**削除**し、`.pNote` を置き換えて `.pFacts` を足す：
 
 ```css
 /* 本人が書いた一言。ここだけが自由記述で、KOAN にも集計にも出てこない情報。
@@ -446,13 +459,13 @@ function panelEntry(row){
   border-radius:var(--r-sm);padding:3px var(--sp-2)}
 ```
 
-5. `.pEntry` の区切りを破線から実線にする（モーダルの中で1件ずつが太くなるため）：
+4. `.pEntry` の区切りを破線から実線にする（モーダルの中で1件ずつが太くなるため）：
 
 ```css
 .pEntry{padding:var(--sp-4) 0;border-bottom:1px solid var(--rule)}
 ```
 
-- [ ] **Step 6: `CONTRAST` に組み合わせを1行足す**
+- [ ] **Step 7: `CONTRAST` に組み合わせを1行足す**
 
 `tools/test_tokens.py` の `CONTRAST` の `("案内帯（.note）", ...)` の次に足す：
 
@@ -461,7 +474,7 @@ function panelEntry(row){
     ("集計の数字",                  "--ink",              "--dim",              4.5),
 ```
 
-- [ ] **Step 7: テストが通ることを確かめる**
+- [ ] **Step 8: テストが通ることを確かめる**
 
 ```bash
 node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8794
@@ -470,7 +483,7 @@ python3 tools/test_tokens.py
 
 期待：両方 OK。`test_tokens.py` は「通過 N 件」の N が2つ増える。
 
-- [ ] **Step 8: 目で1回見る**
+- [ ] **Step 9: 目で1回見る**
 
 ```bash
 node -e '
@@ -488,7 +501,7 @@ open /tmp/kmodal.png
 見るところ：レポートの「1本あたり約1,500字」が2列に割れて折り返していないか。
 一言が数字より大きく見えるか。
 
-- [ ] **Step 9: コミット**
+- [ ] **Step 10: コミット**
 
 ```bash
 git rev-parse --abbrev-ref HEAD
@@ -555,17 +568,21 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
           `✎ の href が /kuchikomi?c=<id> でない（${bar.writeHref}）`);
   }
 
-  /* 読むボタンでモーダルが開く。詳細を開かずに、が要件。 */
-  const rv = await p.$(".card .cardActs .rvBtn");
+  /* 読むボタンでモーダルが開く。詳細を開かずに、が要件。
+     押すカードを id で名指しする ―― 先頭のカードが口コミ0件だと
+     .rvBtn がそこに無く、別のカードの状態を見て「通った」ことにしてしまう。 */
+  const rvId = await p.evaluate(() =>
+    document.querySelector(".card .cardActs .rvBtn")?.closest(".card")?.dataset.id || "");
+  const rv = rvId ? await p.$(`.card[data-id="${rvId}"] .cardActs .rvBtn`) : null;
   check(rv, "口コミのある科目に .rvBtn が無い");
   if (rv){
     /* 2行目のプレビュー。1行に収まっていること（省略記号が効くこと）。 */
-    const prev = await p.evaluate(() => {
-      const s = document.querySelector(".card .cardActs .rvBtn small");
+    const prev = await p.evaluate(id => {
+      const s = document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn small`);
       if (!s) return { none: true };
       return { none: false, text: s.textContent.trim(),
                fits: s.scrollWidth <= s.clientWidth + 1 };
-    });
+    }, rvId);
     check(prev.none || prev.text.length > 0, "プレビューの2行目が空のまま出ている");
     check(prev.none || prev.fits, "プレビューが1行に収まっていない（省略記号が効いていない）");
 
@@ -573,8 +590,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
     await p.waitForTimeout(400);
     check(await p.evaluate(() => document.querySelector("#panel").classList.contains("open")),
           ".rvBtn を押してもモーダルが開かない");
-    check(!(await p.evaluate(() =>
-            document.querySelector(".card .cardActs").closest(".card").classList.contains("open"))),
+    check(!(await p.evaluate(id =>
+            document.querySelector(`.card[data-id="${id}"]`).classList.contains("open"), rvId)),
           ".rvBtn を押すと詳細まで開いてしまう");
   }
 
@@ -663,7 +680,10 @@ function card(c){
 
 - [ ] **Step 4: CSS を足す**
 
-`web/assets/app.css` の `.rvAlert` 系の規則の**直前**に足す：
+まず `.rvb` の規則（2行）を**削除**する ―― Step 3 で `${rv.badge}` を出さなくなり、
+件数は `.rvBtn` が持つようになるので、宛先の無い規則になる。
+
+そのうえで、`.rvAlert` 系の規則の**直前**に足す：
 
 ```css
 /* ── カードの操作バー（2026-09-06）──────────────
@@ -687,7 +707,9 @@ function card(c){
 .wrBtn:hover{border-color:var(--brand)}
 /* 口コミ0件の科目。7,906件のほとんどがこれなので、一覧の既定の見た目になる。
    面を張らず点線にして、口コミのある科目の緑より弱く見せる。 */
-.wrBtn.ghost{flex:1;width:auto;border-style:dashed;color:var(--muted);
+/* 色は --soft。--muted は --card との組み合わせしか CONTRAST に無く、
+   ここの下地は .cardActs の --paper なので、登録済みの --soft を使う。 */
+.wrBtn.ghost{flex:1;width:auto;border-style:dashed;color:var(--soft);
   font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cardActs .ttAddBtn{flex:none;width:auto;padding:7px var(--sp-3);
   border:1px solid var(--brand);border-radius:var(--r-pill);background:none;
