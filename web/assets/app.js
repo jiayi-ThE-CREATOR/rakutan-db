@@ -608,6 +608,9 @@ const rvLv = v => (v === null || v === undefined) ? "―" : RV_LV[Math.round(v)]
  */
 const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 2`;
 
+/* 口コミの集計（モーダルの先頭）。詳細には出さない ―― 詳細に出していた
+   一言3件（.rvn）は、モーダルに全件が1件ずつ出るので重複になる。
+   値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。 */
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
@@ -622,13 +625,11 @@ function reviewHtml(c){
     f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
   }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  /* 一言は先頭3件まで（2026-09-01）。全件出すと口コミが増えた科目ほど詳細が伸び続ける。
-     残りは下の「N件すべてを1件ずつ読む →」から読める。
-     見出し（口コミ N件）は detailHtml の .secH へ移した。 */
-  const notes = (r.notes || []).slice(0, 3);
+  /* 値が長いものは2列に割ると折り返して2行になるので、1行ぶん使い切る。 */
+  const cell = ([k, v]) =>
+    `<span${String(v).length > 9 ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
   return `<div class="rv">
-      ${notes.length ? `<ul class="rvn">${notes.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
-      <div class="rvf">${f.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join("")}</div>
+      <div class="rvf">${f.map(cell).join("")}</div>
       <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
         r.conflicts?.length ? "。<b>答えが割れている項目があります</b>ので、下の1件ずつを読んでください" : ""}</span>
     </div>`;
@@ -690,6 +691,9 @@ async function fetchReviewsData(){
 const attFull = v => (v === null || v === undefined) ? "―" : RV_ATT[Math.round(v)];
 
 /* null は「―」のまま出す。埋めると「無回答だった」という情報が消える。
+   並びは 受講年 → 本人が書いた一言 → 選択式の答え（2026-09-06）。
+   以前は選択式が先だったので、読みたい一言に届く前に
+   「出席 毎回 ／ 授業中の課題 ― ／ 授業外の課題 ―」を読まされていた。
    .pReport（通報リンク）は入れていない ―― 通報フォームの URL がまだ無い。 */
 function panelEntry(row){
   const curYear = new Date().getFullYear();
@@ -698,18 +702,17 @@ function panelEntry(row){
   const age = row.taken_year == null ? 0 : curYear - row.taken_year;
   const old = row.taken_year != null && age >= 3;
 
-  const examBits = [];
-  if (row.exam_hard10 != null) examBits.push(`テスト ${row.exam_hard10}/10`);
-  if (row.exam_bring)          examBits.push(`持ち込み ${row.exam_bring}`);
-
-  const lines = [`出席 ${attFull(row.attendance)} ／ 授業中の課題 ${rvLv(row.in_class)} ／ 授業外の課題 ${rvLv(row.out_class)}`];
-  if (examBits.length) lines.push(examBits.join(" ・ "));
-  if (row.report_words != null) lines.push(`レポート 1本あたり約${row.report_words.toLocaleString()}字`);
+  const facts = [`出席 ${attFull(row.attendance)}`,
+                 `授業中の課題 ${rvLv(row.in_class)}`,
+                 `授業外の課題 ${rvLv(row.out_class)}`];
+  if (row.exam_hard10 != null) facts.push(`テスト ${row.exam_hard10}/10`);
+  if (row.exam_bring)          facts.push(`持ち込み ${row.exam_bring}`);
+  if (row.report_words != null) facts.push(`レポート 約${row.report_words.toLocaleString()}字`);
 
   return `<div class="pEntry">
       <div class="pYear">${esc(yearLabel)}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
-      ${lines.map(l => `<div class="pLine">${esc(l)}</div>`).join("")}
       ${row.note ? `<div class="pNote">${esc(row.note)}</div>` : ""}
+      <div class="pFacts">${facts.map(t => `<span>${esc(t)}</span>`).join("")}</div>
     </div>`;
 }
 
@@ -1154,7 +1157,7 @@ async function openPanel(id, push = true){
   $("#panelTitle").textContent = c.title;
   $("#panelSub").textContent = `口コミ ${n}件 ― 実際に取った人が書いたもの`;
   $("#panelWrite").href = `/kuchikomi?c=${encodeURIComponent(id)}`;
-  $("#panelBody").innerHTML = await panelListHtml(id);
+  $("#panelBody").innerHTML = reviewHtml(c) + await panelListHtml(id);
   $("#panel").classList.add("open");
   $("#panelBody").scrollTop = 0;
 }

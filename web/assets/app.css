@@ -473,30 +473,16 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 /* 見出し（口コミ N件）は .secH へ移した。区切りも .dSec が引くので、
    ここでは罫も上余白も持たない（2026-09-01）。 */
 .rv{margin-top:0}
-.rvf{display:flex;flex-wrap:wrap;gap:5px}
-.rvf span{font-size:var(--fs-xs);background:var(--dim);border-radius:var(--r-sm);padding:3px 8px;color:var(--soft)}
-.rvf i{font-style:normal;color:var(--muted);margin-right:5px}
-/* 口コミの一言。しゅんやさんの指摘④：
-   いちばん重要な情報なのに、ただの箇条書きで埋もれていた。
-   吹き出しにして、数値の内訳より前に置く（順番も app.js 側で入れ替えた）。
-
-   地に --brand-soft を使うのは、詳細の下地が2種類あるため。
-   スマホはカード内（--paper）、PC は右カラム（--card）で、
-   --card の吹き出しは右カラムだと同色で消える。 */
-.rvn{margin:var(--sp-2) 0 var(--sp-3);padding:0;list-style:none;
-  display:grid;gap:var(--sp-3)}
-.rvn li{position:relative;font-size:var(--fs-sm);color:var(--ink);line-height:1.7;
-  background:var(--brand-soft);border:1px solid var(--brand-line);
-  border-radius:var(--r-md);padding:var(--sp-3) var(--sp-3) var(--sp-3) 32px}
-/* 引用符。人の声だと分かるようにする。 */
-.rvn li::before{content:"\201D";position:absolute;left:11px;top:9px;
-  font-size:24px;line-height:1;color:var(--brand);font-family:var(--data)}
-/* しっぽ。左下に出して「誰かが言ったこと」に見せる。 */
-.rvn li::after{content:"";position:absolute;left:20px;bottom:-5px;
-  width:9px;height:9px;background:var(--brand-soft);
-  border-right:1px solid var(--brand-line);
-  border-bottom:1px solid var(--brand-line);
-  transform:rotate(45deg)}
+/* 集計。モーダルの先頭に置くので、詰めたチップではなく2列の表にする。
+   数字（<b>）を --fs-base まで上げる ―― ここが「字が小さい」の
+   いちばん強い訴えどころだった（旧 --fs-xs = 11.5px）。 */
+.rvf{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);margin:var(--sp-3) 0 var(--sp-2)}
+.rvf span{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-2);
+  background:var(--dim);border-radius:var(--r-sm);padding:var(--sp-2) var(--sp-3)}
+.rvf i{font-style:normal;font-size:var(--fs-sm);color:var(--soft)}
+.rvf b{font-family:var(--data);font-size:var(--fs-base);color:var(--ink)}
+/* 値が長いもの（レポートの字数など）は2列に割らない。 */
+.rvf span.w{grid-column:1/-1}
 /* ── 詳細の操作（2026-09-01・案A）───────────────
  * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
  * 5つ縦積みで、どれが主か分からず、最後の ☆ はラベルも無かった。5つ→3つにし、
@@ -530,16 +516,19 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    場所を別に用意する。値の出どころは web/data/reviews.built.json。
    置き場所は画面幅で変える（PC は右カラムの詳細の下、スマホは全画面のシート）が、
    1件ぶんの見た目はどちらでも同じなので、ここでまとめて持つ。 */
-.pEntry{padding:var(--sp-3) 0;border-bottom:1px dashed var(--rule)}
+.pEntry{padding:var(--sp-4) 0;border-bottom:1px solid var(--rule)}
 .pEntry:last-child{border-bottom:none}
 .pYear{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data);margin-bottom:5px}
 /* 古い回答であることの但し書き。年そのものと同じ強さにはしない。 */
 .pOld{margin-left:var(--sp-2);color:var(--muted)}
-.pLine{font-size:var(--fs-sm);color:var(--soft);line-height:1.6;margin-bottom:3px}
-/* 本人が書いた一言。上の選択式の行より強くする ―― ここだけが自由記述で、
-   KOAN にも集計にも出てこない情報。 */
-.pNote{font-size:var(--fs-sm);color:var(--ink);line-height:1.6;margin-top:var(--sp-2);
-  padding:var(--sp-2) var(--sp-3);background:var(--paper);border-radius:var(--r-sm)}
+/* 本人が書いた一言。ここだけが自由記述で、KOAN にも集計にも出てこない情報。
+   モーダルの主役なので、いちばん大きくする（旧 --fs-sm = 13px）。 */
+.pNote{font-size:var(--fs-base);line-height:1.8;color:var(--ink);
+  margin:var(--sp-2) 0 var(--sp-3)}
+/* 選択式の答え。一言の添え書きなので、一言より弱くする。 */
+.pFacts{display:flex;flex-wrap:wrap;gap:var(--sp-1)}
+.pFacts span{font-size:var(--fs-sm);color:var(--soft);background:var(--dim);
+  border-radius:var(--r-sm);padding:3px var(--sp-2)}
 .pEmpty{padding:var(--sp-6) 0;text-align:center;color:var(--muted);font-size:var(--fs-sm)}
 
 /* ── 1件ずつを「どこに出すか」 ─────────────

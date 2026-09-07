@@ -43,6 +43,27 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
         `[${label}] モーダルが左右中央にない（左 ${Math.round(box.left)} / 右 ${Math.round(box.right)}）`);
   check(box.width <= 560 + 1, `[${label}] モーダルが 560px より広い（${Math.round(box.width)}px）`);
 
+  /* 字の大きさ。「読みやすくした」を回帰させないために実測で固定する。
+     いまの本文は 13px、集計の数字は 11.5px。 */
+  const type = await p.evaluate(() => {
+    const px = (el, prop) => el ? parseFloat(getComputedStyle(el)[prop]) : 0;
+    const note = document.querySelector("#panelBody .pNote");
+    const val  = document.querySelector("#panelBody .rvf b");
+    return { note: px(note, "fontSize"),
+             lh:   px(note, "lineHeight") / (px(note, "fontSize") || 1),
+             val:  px(val, "fontSize"),
+             /* 本文が属性より前にあること（DOM 順） */
+             noteBeforeFacts: !!(note && note.compareDocumentPosition(
+               note.parentElement.querySelector(".pFacts")) & Node.DOCUMENT_POSITION_FOLLOWING) };
+  });
+  check(type.note >= 15, `[${label}] 口コミ本文が 15px 未満（${type.note}px）`);
+  check(type.lh >= 1.75, `[${label}] 口コミ本文の行高が 1.75 未満（${type.lh.toFixed(2)}）`);
+  check(type.val >= 15, `[${label}] 集計の数字が 15px 未満（${type.val}px）`);
+  check(type.noteBeforeFacts, `[${label}] 口コミ本文が属性より後ろにある`);
+
+  /* 集計がモーダルの中にあること（詳細から移したので、こちらに無いと消えたことになる） */
+  check(await p.$("#panelBody .rvf"), `[${label}] モーダルに集計（.rvf）が無い`);
+
   /* 閉じる手段3つ。どれも ?c= が URL から消えること。 */
   await p.click("#panelClose");
   await p.waitForTimeout(300);
