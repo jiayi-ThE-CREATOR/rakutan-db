@@ -486,12 +486,21 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    ここの下地は .cardActs の --paper なので、登録済みの --soft を使う。
    面を張らないよう background を明示的に none にする（.wrBtn の --card 地を打ち消す）。
    高さは .wrBtn の固定34pxを height:auto で外す ―― min-height:57px による
-   .rvBtn との統一は PC 専用の @media 側に移した（上の .rvBtn のコメント参照）。 */
-.wrBtn.ghost{flex:1;width:auto;height:auto;border-style:dashed;
+   .rvBtn との統一は PC 専用の @media 側に移した（上の .rvBtn のコメント参照）。
+   min-height:44px は44pxの床そのもの（2026-09-07）。口コミ0件のカードは
+   全体の7/8を占め、ここの「最初の口コミを書く」と隣の「＋時間割」は
+   このPRが押しやすくしたい操作そのものなので、82pxバー側（.wrBtn／
+   .cardActs .ttAddBtn 側のコメント参照）と同じ床を、遠慮せずここにも敷く。
+   バーはこの分だけ伸びる（約62px→約69px、+7px）。C章で0件カードの高さを
+   縮めた分（約-20px）を一部だけ使う判断（意図的・オーナー確認済み）。 */
+.wrBtn.ghost{flex:1;width:auto;height:auto;min-height:44px;border-style:dashed;
   background:none;color:var(--soft);
   font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* padding + 1行ぶんの文字だけだと約37px ―― .wrBtn と同じ理由（上のコメント参照）
    で 44px の床に届かないので、同じく align-self:stretch で伸ばす。
+   82pxバー側（.rvBtn 隣）では .rvBtn の57pxまで伸びる。62pxバー側
+   （.wrBtn.ghost 隣、口コミ0件）では .wrBtn.ghost の min-height:44px が
+   行の高さを決めるので、ここも44pxまで伸びる。
    text-align:center は幅方向は元から中央寄せだったので変わらないが、
    縦方向はブロックの上寄せのままになるため display:flex で中央に揃える。 */
 .cardActs .ttAddBtn{flex:none;width:auto;align-self:stretch;
