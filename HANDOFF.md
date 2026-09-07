@@ -17,6 +17,96 @@
 
 ---
 
+## 2026-09-07 ｜ 口コミモーダル（PR-1）最終レビューの修正波 ｜ Claude → 次の人
+
+whole-branch final review が拾った指摘（虚偽化したコメント4件・未実装の
+`aria-modal`・スコープが広すぎる高さの床・軽微ないくつか・テスト欠落・ドキュメント2件）
+をまとめて直したタスク。PR-2（`/kuchikomi` の `?c=` 受け）はまだ手つかず。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8794 &
+    node tools/smoke.mjs http://127.0.0.1:8794
+    node tools/test_index_gate.mjs http://127.0.0.1:8794
+    node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8794
+    node tools/test_favorite.mjs http://127.0.0.1:8794
+    node tools/test_inspector_center.mjs http://127.0.0.1:8794
+    node tools/test_rail_toggle.mjs http://127.0.0.1:8794
+    node tools/test_kuchikomi_relay.mjs
+    node tools/test_version.mjs
+    python3 tools/test_layout.py
+    python3 tools/test_tokens.py                # 113件（口コミ件数の1組を削除。下記参照）
+    python3 tools/test_shell_inject.py
+    cd web && python3 -m http.server 8795 &
+    node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8795
+    node tools/smoke.mjs http://127.0.0.1:8795   # 既知の POST /api/hit 501 のみ
+
+全部 OK。主な変更：
+
+- **虚偽化した4コメントを修正**（`reviewHtml`／`.ttAddBtn`委譲／`.pEntry`／Android戻る）
+- **`.ttAddBtn`・`.favBtn` の委譲ループから `#inspector` を除去。** どちらも詳細
+  （`#inspector`）にはもう出ないので、そちらへの委譲は死んでいた
+- **`aria-modal="true"` に見合う最低限のフォーカス管理を実装。** `openPanel` で
+  開く前のフォーカスを覚えて✕へ移し、`panelSetOpen(false)` で戻す。タブトラップは
+  意図的に未実装（Esc がどこからでも閉じるので無くても迷子にならない、という判断）
+- **`.rvBtn`/`.wrBtn.ghost` の `min-height:57px` をデスクトップ専用 `@media` に移動。**
+  この床はデスクトップの等高要求（`--cardH`、`.workbench:has(#inspector:empty)`、
+  1160px以上）のためだけのものだった。スマホは一度も等高を求められていない。
+  **実測（390px）**：0件カード（131221）279.45px→259.25px（-20.2px）、
+  プレビュー行つきカード（135312）257.375px→257.375px（不変）。
+  **実測（1440px）**：両方とも279pxで不変（等高テスト20/20は変わらず通過）
+- Esc の死んだ `.pList` 分岐を削除／`cardActsHtml` の `rkStore.inTimetable(c)` を
+  1回にホイスト／`.cardActs` を `.favBtn` の後ろへ移動（タブ順修正、`.favBtn` は
+  `position:absolute` なので見た目は無変化。実測で確認ずみ）
+- `.rvBtn` 1行目に折り返し止め（`white-space:nowrap`等）を追加
+- `.wrBtn`（36×34）と `.cardActs .ttAddBtn`（約37px）に `align-self:stretch` を
+  足し、`.dActs` が定めるプロジェクトの床「44px を下回らせない」を満たした。
+  **実測（135327・390px、2行の82pxバー）**：バー高82.19px（不変）、
+  `.wrBtn`/`.ttAddBtn`/`.rvBtn` いずれも57.19px（44px超）。
+  **注**：口コミ0件カード（ghostボタン、バー約62px）はこの床にまだ届いていない
+  （約37px）。ここを44pxまで伸ばすとバー自体が伸び、C章でせっかく縮めた
+  0件カードの高さ（全体の7/8）を再び伸ばすことになるので、今回は
+  レビューが名指しした「82pxバー」のケースだけを直した。次の人が判断すること
+- `tools/test_tokens.py` の CONTRAST から「口コミ件数」行を削除（`.rvb` は
+  既に廃止済みで、`--scale-light-text` on `--card` は現行 app.css のどこにも
+  対応する組み合わせが無いと確認した。似た候補だった `.secH b` も呼び出し元
+  （`<b>`）が無い死んだセレクタだったので、リネーム先には使わなかった）
+- `detailHtml` の `.dSec` に、`tools/test_favorite.mjs` が「詳細が描画された」の
+  目印として待っていることのコメントを追加（固有スタイルが無く消されやすいため）
+- `tools/test_kuchikomi_modal.mjs` に Esc／幕クリック／`.kBox` 内クリック非伝播／
+  `#panelWrite` href の4アサーションを追加（390px・PC 両方）
+- ドキュメント2件：設計書§5に共有リンク（PC）を閉じたときの挙動変化を追記、
+  HANDOFF の矛盾（「既知エラー1件」と直後の「全部OK」）を解消、カード高さの数字を
+  上の床スコープ変更に合わせて更新
+- **`renderPage` 描画時間の実測（設計書のリスク表が約束していたが未実施だった分）**：
+  `card()` の innerHTML 構築（50件・390px・main比較・25試行の中央値、1試行=20回反復の平均）：
+  `main` 0.050ms → このブランチ 0.080ms（ノード数 883→1041、+158）。
+  **意味のある変化ではない**（絶対値で+0.03ms、24枚/ページ描画1回あたり体感不能）
+
+### 2. 何をしていないか
+
+- **PR-2（`/kuchikomi` の `?c=` 受け）は未着手**（従来通り）
+- 口コミ0件カードの `.wrBtn.ghost`／`.ttAddBtn` は44px未満のまま（上記「実測」の注を参照。
+  意図的に見送った。バーを伸ばさずに44pxへ届かせる方法があるなら次の人が検討してよい）
+- 本番 Cloudflare Pages での `?c=` クエリ到達確認は前回から引き続き未確認
+
+### 3. 次の人が最初に打つコマンド
+
+    git log --oneline -8
+    cat .superpowers/sdd/2026-09-06-kuchikomi-modal-plan-pr1/final-fix-report.md
+
+### 4. 踏んだ罠
+
+- `#inspector` に `.favBtn`/`.ttAddBtn`/`.cardActs` が本当に一度も出ないことは
+  `showDetail`/`renderPage`/`appendCards` の呼び出し経路を全部追って確認した。
+  見た目やコメントだけで「委譲先を消して大丈夫」と判断すると壊す
+- 高さの実測は search ボックス（`#q`）で科目名にフィルタして1件に絞ると、
+  その科目が「あなたに合う」推薦枠にも同時に載っていた場合 `.card[data-id=...]`
+  が2つヒットする（推薦枠＋通常一覧）。`#list` の**直接の子**の方だけを見ないと
+  誤った高さ（等高スタイルが効いていない推薦枠側）を拾う
+
+---
+
 ## 2026-09-07 ｜ 口コミモーダル（PR-1）の静的配信確認と数字の記録 ｜ Claude → 次の人
 
 Task 1〜4（口コミを科目詳細から出し、一覧カードに「読む・書く・時間割」の操作バーを
@@ -45,7 +135,10 @@ Task 1〜4（口コミを科目詳細から出し、一覧カードに「読む�
     python3 tools/test_tokens.py                                # 通過115件（LINE友だち追加ボタンのコントラスト例外は既知・対象外）
     python3 tools/test_shell_inject.py                          # 通過47件
 
-全部 OK。実測値（Task 3・4 で測定。このタスクでは再測定していない）：
+全部 OK（静的配信の smoke.mjs だけ既知エラー1件を出すが、これは
+`POST /api/hit` が 501 になる `python3 -m http.server` 側の制約で、`main` でも
+同じ場所で同じエラーが出る ―― 回帰ではない。踏んだ罠の項を参照）。
+実測値（Task 3・4 で測定。このタスクでは再測定していない）：
 
 - **詳細パネルの高さ：695px → 170px**（科目135327・幅390px）。これが今回のPRの目的そのもの
 - **一覧カードの高さ増加（`main` 比・幅390px）――数字が2つある。先に +82px を見ること**：
@@ -54,6 +147,13 @@ Task 1〜4（口コミを科目詳細から出し、一覧カードに「読む�
   - +54px だけを見ると実態を過小評価する。このベンチマークのカードはもともと2行の高い
     バリアントだったため。0件カードは2段階で伸びた ―― ①操作バーが付いた分、②全カードの
     高さを揃えるために操作バーの高さの床を上げた分
+
+  **【2026-09-07 最終修正で更新】** ②の床（`.rvBtn`/`.wrBtn.ghost` の
+  `min-height:57px`）はデスクトップの等高要求（`--cardH`・`.workbench:has(#inspector:empty)`、
+  1160px以上）のためのものだと判明したので、モバイルには効かせないよう `@media` 内に
+  移した（下の最終修正の記録を参照）。この結果、0件カードの高さは
+  **197px → 259px = +62px**（従来の+82pxから-20px）に縮む。プレビュー行つきの
+  カード（135312）は元から2行分の内容で床を実質使っていなかったので**+54pxのまま不変**。
 
 ### 2. 何をしていないか
 
