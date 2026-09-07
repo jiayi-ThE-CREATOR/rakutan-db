@@ -270,7 +270,7 @@ node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8794
 ```bash
 node tools/smoke.mjs http://127.0.0.1:8794
 node tools/test_index_gate.mjs http://127.0.0.1:8794
-node tools/test_inspector_center.mjs
+node tools/test_inspector_center.mjs http://127.0.0.1:8794
 python3 tools/test_layout.py
 python3 tools/test_tokens.py
 python3 tools/test_shell_inject.py
@@ -941,7 +941,7 @@ node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8794
 python3 tools/test_layout.py
 python3 tools/test_tokens.py
 node tools/smoke.mjs http://127.0.0.1:8794
-node tools/test_inspector_center.mjs
+node tools/test_inspector_center.mjs http://127.0.0.1:8794
 ```
 
 期待：全部 OK。
@@ -1027,7 +1027,7 @@ node tools/smoke.mjs http://127.0.0.1:8794
 node tools/test_index_gate.mjs http://127.0.0.1:8794
 node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8794
 node tools/test_favorite.mjs
-node tools/test_inspector_center.mjs
+node tools/test_inspector_center.mjs http://127.0.0.1:8794
 node tools/test_rail_toggle.mjs
 node tools/test_kuchikomi_relay.mjs
 node tools/test_version.mjs
