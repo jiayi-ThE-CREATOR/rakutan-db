@@ -556,9 +556,13 @@ function cardActsHtml(c){
        <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
           title="この科目の口コミを書く">✎</a>`
     : `<a class="wrBtn ghost" href="${esc(write)}">✎ 最初の口コミを書く ›</a>`;
+  /* inTimetable は termsFor→getTimetable→readTT→localStorage.getItem+JSON.parse
+     を学期ごとに歩く。1回に抑える ―― 1ページ24枚で毎回2回呼ぶと、
+     絞り込みを変えるたびに同期ストレージ読み取りが最大96回走っていた。 */
+  const inTT = rkStore.inTimetable(c);
   return `<div class="cardActs">${read}
-      <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.inTimetable(c)}">
-        ${rkStore.inTimetable(c) ? "✓ 時間割に入れた" : "＋ 時間割"}</button>
+      <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${inTT}">
+        ${inTT ? "✓ 時間割に入れた" : "＋ 時間割"}</button>
     </div>`;
 }
 
@@ -580,9 +584,9 @@ function card(c){
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
-    ${cardActsHtml(c)}
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
             aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
+    ${cardActsHtml(c)}
     <div class="detail"></div>
   </article>`;
 }
