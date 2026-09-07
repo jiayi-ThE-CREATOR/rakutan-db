@@ -437,7 +437,6 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    2026-09-07に削除した ―― 罫を引く相手（2つ目の .dSec）がもう無い。 */
 .secH{display:flex;align-items:baseline;gap:6px;margin:0 0 var(--sp-2);
   font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:.09em}
-.secH b{font-family:var(--data);font-size:12px;color:var(--scale-light-text);letter-spacing:0}
 
 /* ── カードの操作バー（2026-09-06）──────────────
    .head（role="button"）の外に置く。中に入れると入れ子の押せる要素になる。 */
