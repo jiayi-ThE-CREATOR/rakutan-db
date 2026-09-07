@@ -468,7 +468,12 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    2026-08-24 本番実測：502科目（全体の45%）に立つ。「軽い順」の上位40件では
    40件すべてに出る。だから口コミの帯と同じ強さにはしない
    ―― 100%に出る警告は壁紙になり、10%しかない帯の方を埋もれさせる。 */
-.bandNote{display:block;font-size:var(--fs-sm);color:var(--muted);margin-top:var(--sp-1)}
+/* ※ の行。カードでは .head の grid に直接ぶら下げる（.reason の中ではない）。
+   768px 以上で .reason は -webkit-line-clamp:2 で切られるので、中に入れると
+   13px にしたぶん折り返した2行目が 2列レイアウトで消える（2026-09-07 本人指摘。
+   実測：24枚中19枚で .reason が 46px 表示／66px 実寸＝1行ぶん欠けていた）。
+   詳細パネルでも同じクラスを使うが、あちらは grid ではないので指定は無視される。 */
+.bandNote{display:block;grid-column:1/3;font-size:var(--fs-sm);color:var(--muted);margin-top:var(--sp-1)}
 .bandNote::before{content:"※ "}
 /* 見出し（口コミ N件）は .secH へ移した。区切りも .dSec が引くので、
    ここでは罫も上余白も持たない（2026-09-01）。 */
