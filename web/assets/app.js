@@ -1106,15 +1106,15 @@ mqDesktop.addEventListener("change", () => {
  * 何のためか: **Android の戻るボタン**。全画面のシートが開いた状態で
  * 戻るを押すと、履歴に何も積んでいなければページごと離脱する。
  * 口コミを読みに来た人が一覧を失う。おまけで ?c=<id> の共有もできる。
+ * この履歴エントリを積む理由は今も変わらずこれ1つ（2026-09-07）。
  *
- * 勘所は「閉じる手段を全部 history.back() 経由にまとめ、実際に閉じる処理は
- * popstate の1箇所だけにする」こと。バラバラに書くと「✕では消えるが
- * 戻るボタンでは消えない」のような手段ごとの食い違いが必ず出る。
- *
- * 置き場所は決定A ―― PC は右カラムの詳細の下に展開、スマホは全画面シート。
- * 組み立てる関数（panelListHtml）は1本のまま、差し込み先だけ変える。
- * PC でも履歴に積む（2026-08-24 決定）。戻るの意味が両方で
- * 「1つ前の状態に戻る」に揃い、共有リンクも両方で効く。
+ * 今は幅によらず同じ中央モーダル1つ（#panel）。入口は ?c=<id> か
+ * .panelBtn のどちらか、閉じ方は2通り：
+ *   - 自分で開いた（history.pushState 済み）→ ✕/Esc/幕クリックは
+ *     history.back() を呼ぶだけ。実際に閉じるのは popstate 側。
+ *   - 共有リンクで直接開いた（積んでいない）→ history.back() だと
+ *     サイトの外へ出てしまうので、その場で ?c= を剥がして直接閉じる
+ *     （closePanel、2026-09-07）。
  */
 
 /* 絞り込みで一覧から外れている科目や、まだ読んでいないページの科目も
@@ -1131,7 +1131,9 @@ async function findCourse(id){
   } catch { return null; }
 }
 
-/* 閉じるのはここ1箇所だけ。popstate から呼ばれる。 */
+/* 実際に閉じる処理（クラス外し・中身の空っぽ化）はここ1箇所だけ。
+   popstate から呼ばれるのが基本だが、共有リンクを直接閉じる経路
+   （closePanel）は history.back() を経由せずここを直接呼ぶ（2026-09-07）。 */
 function panelSetOpen(open){
   if (open) return;                       // 開くのは openPanel の仕事
   $("#panel").classList.remove("open");
@@ -1177,9 +1179,10 @@ window.addEventListener("popstate", () => {
   if (id) openPanel(id, false); else panelSetOpen(false);
 });
 
-/* 幕は #panel 自身（投稿フォームと同じ .sheet を使い回しているので
-   別の .panelOv は無い）。#panel のクリックには2つの役割が乗るため、
-   e.target の判定を入れないとリストの中を触るだけで閉じる。 */
+/* 幕は #panel 自身（.kModal が幕を描くので、別の .panelOv は無い）。
+   #panel のクリックには2つの役割が乗るため、e.target の判定を
+   入れないと箱（.kBox）の中を触るだけで閉じる（クリックが #panel まで
+   バブリングするため）。 */
 $("#panelClose").onclick = closePanel;
 $("#panel").onclick = e => { if (e.target === $("#panel")) closePanel(); };
 document.addEventListener("keydown", e => {
@@ -1194,9 +1197,9 @@ document.addEventListener("keydown", e => {
   $(sel).addEventListener("click", e => {
     const btn = e.target.closest(".panelBtn");
     if (!btn) return;
-    // 開いているものをもう一度押したら閉じる
-    if (btn.getAttribute("aria-expanded") === "true") closePanel();
-    else openPanel(btn.dataset.id);
+    /* モーダルは幕の裏にボタンが隠れるので「もう一度押して閉じる」は成立しない。
+       閉じるのは ✕ / Esc / 幕クリック / 戻る の4つ（2026-09-07）。 */
+    openPanel(btn.dataset.id);
   });
 });
 
