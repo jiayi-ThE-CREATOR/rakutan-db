@@ -1131,28 +1131,11 @@ async function findCourse(id){
   } catch { return null; }
 }
 
-/* PC の .panelBtn は右カラム（#inspector）の中。スマホはカードの .detail の中。
-   両方に同じ data-id のボタンが居ることは無いが、探す順を決めておく。 */
-const panelBtnFor = id =>
-  $(`#inspector .panelBtn[data-id="${CSS.escape(id)}"]`)
-  || document.querySelector(`.panelBtn[data-id="${CSS.escape(id)}"]`);
-
-/* 閉じるのはここ1箇所だけ。popstate から呼ばれる。
-   PC/スマホのどちらで開いていたか覚えずに、両方の跡地を片付ける
-   ―― 開いたあとに幅が変わっていることがあるため。 */
+/* 閉じるのはここ1箇所だけ。popstate から呼ばれる。 */
 function panelSetOpen(open){
   if (open) return;                       // 開くのは openPanel の仕事
   $("#panel").classList.remove("open");
   $("#panelBody").innerHTML = "";
-  document.querySelectorAll(".pList").forEach(el => el.remove());
-  // PC で差し替えていた集計を戻す（openPanel の hidden とセット）。
-  document.querySelectorAll(".rv[hidden]").forEach(el => el.removeAttribute("hidden"));
-  document.querySelectorAll(".panelBtn").forEach(b => {
-    const c = courses.find(x => x.id === b.dataset.id);
-    // detailHtml の同じ文言と揃えること（片方だけ直すと閉じた瞬間に文字が変わる）。
-    if (c?.reviews?.n) b.textContent = `${c.reviews.n}件すべてを1件ずつ読む →`;
-    b.setAttribute("aria-expanded", "false");
-  });
 }
 
 async function openPanel(id, push = true){
@@ -1165,40 +1148,28 @@ async function openPanel(id, push = true){
     history.pushState({ panelCourse: id }, "", url);
   }
 
-  const html = await panelListHtml(id);
-
-  if (isDesktop()){
-    // 共有リンクで入ってきた人の右カラムは空。リストを挿す前に詳細を出す。
-    // article は見つからなくて構わない（showDetail は undefined でも動く。
-    // カードの選択ハイライトが付かないだけ）。
-    if (selectedCourseId !== id){
-      const article = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
-      showDetail(c, article);
-    }
-    const btn = panelBtnFor(id);
-    if (!btn) return;
-    /* 集計を「差し替える」。下に足し続けない（2026-09-01）。
-       足す形だと、生ログ4件（約450px）が集計と操作のあいだに割り込み、
-       右カラムの中身が 926px → 1,376px になって「時間割に追加」が
-       枠（1280×1000 で 968px）の外へ出る（実測）。
-       集計と1件ずつは同じデータの粒度違いなので、同じ場所で入れ替える。
-       4軸バーと操作は動かないので、見ながら読める形も残る。 */
-    btn.closest(".dSec")?.querySelector(".rv")?.setAttribute("hidden", "");
-    btn.insertAdjacentHTML("beforebegin", html);
-    btn.textContent = "集計に戻る";
-    btn.setAttribute("aria-expanded", "true");
-    return;
-  }
-
+  const n = c.reviews?.n || 0;
   $("#panelTitle").textContent = c.title;
-  $("#panelBody").innerHTML = html;
+  $("#panelSub").textContent = `口コミ ${n}件 ― 実際に取った人が書いたもの`;
+  $("#panelWrite").href = `/kuchikomi?c=${encodeURIComponent(id)}`;
+  $("#panelBody").innerHTML = await panelListHtml(id);
   $("#panel").classList.add("open");
+  $("#panelBody").scrollTop = 0;
 }
 
 function closePanel(){
-  // 開いたときに積んだ履歴を1つ戻すだけ。閉じる本体は popstate 側。
-  if (new URL(location.href).searchParams.get("c")) history.back();
-  else panelSetOpen(false);
+  /* 開くときに積んだぶんだけ戻す。閉じる本体は popstate 側。
+     ?c= が URL に在ることは「自分で積んだ」の証拠にならない ―― 共有リンクで
+     直接入ってきた人は openPanel(id, false) で積んでいないので、history.back()
+     はこの画面ではなく直前のページ（新規タブなら about:blank）へ飛び、
+     サイトから出てしまう（2026-09-07 実測）。積んだかどうかは history.state で見る。 */
+  if (history.state?.panelCourse){ history.back(); return; }
+  const url = new URL(location.href);
+  if (url.searchParams.has("c")){
+    url.searchParams.delete("c");
+    history.replaceState(null, "", url);
+  }
+  panelSetOpen(false);
 }
 
 window.addEventListener("popstate", () => {
