@@ -425,14 +425,16 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .compNote{font-size:var(--fs-xs);color:var(--soft);background:var(--dim);
   border-radius:var(--r-sm);padding:5px 8px;margin-top:8px}
 
-/* ── 詳細の区切り（2026-09-01・案A）─────────────
+/* ── 詳細の見出し（2026-09-01・案A）─────────────
    作り直し前は点線1本しか無く、担当教員・4軸・信頼度・口コミ・操作が
    ぜんぶ同じ灰色の小さい文字で続いていて、一かたまりの範囲が読めなかった。
    見出しは 11.5px・--muted・字間広めで、中身より弱くする
    ―― ここで強くすると band や相性の数字と見出しが競合する。
    .insLine（担当教員の行）と .conf（信頼度の注記）は wang の依頼で
-   2026-09-06 に detailHtml() から消えたので、対応するこのCSSも削除した。 */
-.dSec+.dSec{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule)}
+   2026-09-06 に detailHtml() から消えたので、対応するこのCSSも削除した。
+   .dSec+.dSec（2つ目以降の .dSec の上に罫を引く隣接セレクタ）も同じ日に
+   口コミ節が detailHtml() から外れて .dSec が1つだけになったので、
+   2026-09-07に削除した ―― 罫を引く相手（2つ目の .dSec）がもう無い。 */
 .secH{display:flex;align-items:baseline;gap:6px;margin:0 0 var(--sp-2);
   font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:.09em}
 .secH b{font-family:var(--data);font-size:12px;color:var(--scale-light-text);letter-spacing:0}
@@ -507,8 +509,12 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    ―― 100%に出る警告は壁紙になり、10%しかない帯の方を埋もれさせる。 */
 .bandNote{display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:var(--sp-1)}
 .bandNote::before{content:"※ "}
-/* 見出し（口コミ N件）は .secH へ移した。区切りも .dSec が引くので、
-   ここでは罫も上余白も持たない（2026-09-01）。 */
+/* 元は detailHtml() の .dSec の中で使われ、見出し（口コミ N件）は .secH、
+   区切りは .dSec+.dSec が引いていたので、ここでは罫も上余白も持たない
+   （2026-09-01）。2026-09-06 に口コミ節が detailHtml() から外れたので、
+   いまは .rv はモーダル（#panelBody = .kBody）の直下でしか使われない。
+   .kBody は上側の padding を持たないので、margin-top:0 のままでよい
+   ―― 見出しは .secH ではなく panelTitle/panelSub（.kHead 側）が持つ。 */
 .rv{margin-top:0}
 /* 集計。モーダルの先頭に置くので、詰めたチップではなく2列の表にする。
    数字（<b>）を --fs-base まで上げる ―― ここが「字が小さい」の
@@ -533,18 +539,18 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
  * 高さは 44px を下回らせない（padding 12px + 13px×1.6 ≒ 45px）。
  *
  * 2026-09-06、時間割と口コミは一覧カードの操作バー（.cardActs）へ移したので、
- * 詳細の .dActs に残るのは副の KOAN リンク1つだけになった。下の .ttAddBtn（主）
- * は見た目を .cardActs 側と共有するために同じクラス名のまま残している。 */
+ * 詳細の .dActs に残るのは副の KOAN リンク1つだけになった。.dActs 直下の
+ * .ttAddBtn（主）はそれと一緒に外れたので、対応する裸の .ttAddBtn /
+ * .ttAddBtn[aria-pressed="true"] ルールも2026-09-07に削除した ――
+ * どちらも .cardActs の中にしか無い .ttAddBtn とマッチはするが、
+ * .cardActs .ttAddBtn 側が同じプロパティ（background・color）を
+ * より高い詳細度で定義しており、しかも中身が逆（未押下で面を張るか
+ * 枠線だけにするか）なので、共有ではなく単なる死んだルールだった。 */
 .dActs{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule);
   display:grid;gap:var(--sp-2)}
 .dActs>*{display:block;width:100%;border:none;border-radius:var(--r-md);padding:12px;
   font:inherit;font-size:var(--fs-sm);font-weight:700;text-align:center;
   text-decoration:none;cursor:pointer}
-/* 主。時間割に入れるのがこの画面のいちばん先の行き先。 */
-.ttAddBtn{background:var(--brand);color:var(--brand-ink)}
-/* 入っている科目で主ボタンのままだと「まだ押していない」に見える。
-   押した結果を表す状態なので、面を落として副より弱くする。 */
-.ttAddBtn[aria-pressed="true"]{background:var(--dim);color:var(--soft)}
 /* 副。ホバーの色替えは付けない ―― --brand-line の面に --brand-text を載せると
    3.75:1 で通常文字の 4.5:1 に届かない（2026-09-01 実測）。入口はスマホなので
    ホバーを足す理由もない。.reviewBtn は2026-09-06に詳細から外れて使われなく
