@@ -608,9 +608,11 @@ const rvLv = v => (v === null || v === undefined) ? "―" : RV_LV[Math.round(v)]
  */
 const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 2`;
 
-/* 口コミの集計（モーダルの先頭）。詳細には出さない ―― 詳細に出していた
-   一言3件（.rvn）は、モーダルに全件が1件ずつ出るので重複になる。
-   値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。 */
+/* 口コミの集計。モーダルの先頭に出す。
+   一言3件（.rvn）は廃止した ―― モーダルに全件が1件ずつ出るので重複になる。
+   値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。
+   なお detailHtml もまだこの関数を呼んでいるので、いまは詳細にも同じ集計が出る。
+   その呼び出しは詳細から口コミ節ごと外すときに消える。 */
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
@@ -625,9 +627,13 @@ function reviewHtml(c){
     f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
   }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  /* 値が長いものは2列に割ると折り返して2行になるので、1行ぶん使い切る。 */
+  /* 値が長いものは2列に割ると折り返すので、1行ぶん使い切る。
+     境界は実データから引いた（2026-09-07・courses.built.json）：
+     数値側の最長は rvAvg の「2.0 / 2」＝7文字、
+     持ち込みの括弧つきは「可（オンライン）」＝8文字が最短。
+     この隙間に閾値を置けば、数値は2列のまま・文言だけ全幅になる。 */
   const cell = ([k, v]) =>
-    `<span${String(v).length > 9 ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
+    `<span${String(v).length > 7 ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
   return `<div class="rv">
       <div class="rvf">${f.map(cell).join("")}</div>
       <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
@@ -643,7 +649,7 @@ function detailHtml(c){
    * 5つ縦積みで、最後の ☆ はラベルが無くカード右上の ☆ と重複していた。
    *
    *   ── 成績評価の内訳  KOANの%を積み上げバーで
-   *   ── 口コミ N件   一言3件 ＋ 集計 ＋ 1件ずつへのリンク
+   *   ── 口コミ N件   集計 ＋ 1件ずつへのリンク
    *   ── 操作         時間割に追加（主）／口コミを書く・KOAN（副）
    *
    * 元は score.py が計算した5軸（試験・レポート・出席・小テスト・規模）の「重さ」
