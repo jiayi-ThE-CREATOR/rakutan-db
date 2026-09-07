@@ -34,12 +34,18 @@
 
     python3 server.py --port 8146
     tools/test_*.py 19本すべて通過
+    tools/test_eval_raw.mjs：86件すべて通過（シラバスとの一致を突き合わせる新規テスト）
     tools/test_*.mjs：main と同じ 40/41（唯一の NG は環境要因。§4参照）
 
 差分は表示層だけ（`web/assets/app.js` / `web/assets/tokens.css` / `tools/test_tokens.py`）。
 `score.py` `scrape/parse.py` `tools/rebucket.py` は **main のまま1行も変えていない**。
 
 - `app.js` … `evalCompHtml()` が `c.eval_raw` を読む。`EVAL_CATS`（4区分の対応表）は削除
+- `tools/test_eval_raw.mjs`（新規）… **凡例の文字列がシラバスの表と一字一句・一数字
+  一致していること**を実ブラウザで突き合わせる。名前の言い換え・合算・按分・並べ替え・
+  項目数の増減を全部落とす。**回帰を注入して落ちることを確認ずみ**（レポートと発表を
+  合算する旧挙動を入れると 86件中10件が NG になる）。
+  この種のズレは「画面には数字が出ている」ので目視でも既存テストでも気づけない
 - `tokens.css` … `--comp-attendance` 等を **`--comp-1`〜`--comp-5` ＋ `--comp-gap` に改名**。
   🚨 色は種類ではなく**並び順**を指す。種類で名前を付けたままだと
   「`--comp-report` が『発表』を塗っている」状態になり、次の人が必ず踏む。
