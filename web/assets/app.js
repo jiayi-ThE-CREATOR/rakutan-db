@@ -627,13 +627,15 @@ function reviewHtml(c){
     f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
   }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  /* 値が長いものは2列に割ると折り返すので、1行ぶん使い切る。
-     境界は実データから引いた（2026-09-07・courses.built.json）：
-     数値側の最長は rvAvg の「2.0 / 2」＝7文字、
-     持ち込みの括弧つきは「可（オンライン）」＝8文字が最短。
-     この隙間に閾値を置けば、数値は2列のまま・文言だけ全幅になる。 */
+  /* 全幅にする条件は2つ。どちらも実データ・実測から引いた（2026-09-07）。
+     ・値が長い ―― 数値側の最長「2.0 / 2」＝7文字と、持ち込みの括弧つき最短
+       「可（オンライン）」＝8文字のあいだに境界を置く。
+     ・ラベルが長い ―― 390px では半幅セルが 159px しかなく、ラベルは6文字までしか
+       1行に収まらない（「授業中の課題」＝6文字は 21px の1行、
+       「テストの難易度」＝7文字は 42px の2行になる。実測）。
+       ラベルは固定文字列なので、値の長さでは拾えない。 */
   const cell = ([k, v]) =>
-    `<span${String(v).length > 7 ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
+    `<span${(String(v).length > 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
   return `<div class="rv">
       <div class="rvf">${f.map(cell).join("")}</div>
       <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
