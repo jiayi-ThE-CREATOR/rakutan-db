@@ -441,9 +441,18 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    .head（role="button"）の外に置く。中に入れると入れ子の押せる要素になる。 */
 .cardActs{display:flex;align-items:center;gap:var(--sp-2);
   padding:var(--sp-3) 14px;border-top:1px solid var(--rule);background:var(--paper)}
-/* 「口コミ N件を読む」。2行目は先頭の一言。押す理由をここに置く。 */
+/* 「口コミ N件を読む」。2行目は先頭の一言。押す理由をここに置く。
+   2行目が無い科目（口コミはあるが notes が空、または口コミ0件で
+   .wrBtn.ghost に差し替わる）は1行だけになり、.rvBtn が縮んで .cardActs の
+   高さが62px と82pxの2種類に割れていた（2026-09-07、
+   tools/test_inspector_center.mjs の「カードの高さが揃っていない」で検出。
+   Task 3 の時点ではこのテストを実行していなかった）。
+   min-height の57pxは2行版（科目135312）の .rvBtn を実測した border-box
+   高さ。1行版はここに justify-content:center を足して中央へ寄せる
+   ―― 2行版は元から57pxをほぼ埋めているので影響しない。 */
 .rvBtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
-  gap:2px;padding:7px var(--sp-3);border:1px solid transparent;border-radius:var(--r-pill);
+  justify-content:center;min-height:57px;gap:2px;padding:7px var(--sp-3);
+  border:1px solid transparent;border-radius:var(--r-pill);
   background:var(--scale-light-soft);color:var(--scale-light-text);
   font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;text-align:left}
 .rvBtn small{max-width:100%;font-size:var(--fs-xs);font-weight:400;
@@ -460,8 +469,11 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    面を張らず点線にして、口コミのある科目の緑より弱く見せる。 */
 /* 色は --soft。--muted は --card との組み合わせしか CONTRAST に無く、
    ここの下地は .cardActs の --paper なので、登録済みの --soft を使う。
-   面を張らないよう background を明示的に none にする（.wrBtn の --card 地を打ち消す）。 */
-.wrBtn.ghost{flex:1;width:auto;border-style:dashed;background:none;color:var(--soft);
+   面を張らないよう background を明示的に none にする（.wrBtn の --card 地を打ち消す）。
+   高さは .wrBtn の固定34pxを height:auto で外し、.rvBtn と同じ min-height:57px
+   に揃える ―― こちらも .rvBtn 側のコメントと同じ理由（2026-09-07）。 */
+.wrBtn.ghost{flex:1;width:auto;height:auto;min-height:57px;border-style:dashed;
+  background:none;color:var(--soft);
   font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cardActs .ttAddBtn{flex:none;width:auto;padding:7px var(--sp-3);
   border:1px solid var(--brand);border-radius:var(--r-pill);background:none;
@@ -747,13 +759,21 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,860px)}
 
   /* ── 空のとき（2列）はカードの高さを揃える ──────────────
-     揃わない原因は3つで、どれも「有る科目と無い科目がある」行:
-     口コミバッジ（+28px）／タグの行（+30px）／理由が2行に折り返す（+20px）。
-     いちばん背の高い組み合わせ（バッジ＋タグ1行＋理由2行＝224px）を下限にし、
-     align-items:stretch で同じ行の相方を必ず追従させる。
+     224px は口コミバッジ（+28px）／タグの行（+30px）／理由が2行に折り返す
+     （+20px）の組み合わせから出した値だったが、2026-09-06 に .cardActs
+     （一覧カードの操作バー）を全カード共通・常時表示で足したことと、
+     2026-09-07 にその中の .rvBtn/.wrBtn.ghost の高さを2行版（57px）へ
+     統一したことで、口コミバッジの枠は無くなり、代わりに .cardActs（82px）が
+     全カードに一律で乗る形になった。この状態で実際に踏み台を外して
+     （#inspector を埋めて stretch を止めた状態で）現行の1,112件を
+     renderPage(1..47) で全ページ描画し、.unscored を除く実測の最大値を
+     取ったところ 278.078125px（例：科目135705＝タイトル2行＋タグ1行＋
+     理由2行＋.cardActs 82px の組み合わせ、同率タイが複数件）。
+     端数を切り上げた 279px を下限にし、align-items:stretch で
+     同じ行の相方を必ず追従させる。
      height ではなく min-height なのは、想定外に伸びる科目が出たとき
      中身を切らずに行ごと伸びてほしいから（切ると事実が消える）。 */
-  .workbench:has(#inspector:empty) #list{--cardH:224px;align-items:stretch}
+  .workbench:has(#inspector:empty) #list{--cardH:279px;align-items:stretch}
   .workbench:has(#inspector:empty) #list > .card{min-height:var(--cardH)}
   /* meta を1行に詰める。425px 幅では教員名の長い科目が2行になり、
      その科目だけ背が高くなる（全文は右カラムの詳細に出る）。 */
