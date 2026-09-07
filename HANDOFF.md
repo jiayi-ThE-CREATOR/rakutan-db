@@ -17,6 +17,79 @@
 
 ---
 
+## 2026-09-07 ｜ 口コミモーダル（PR-1）の静的配信確認と数字の記録 ｜ Claude → 次の人
+
+Task 1〜4（口コミを科目詳細から出し、一覧カードに「読む・書く・時間割」の操作バーを
+足した変更）の直列最終タスク。**このタスクではコードは1行も変えていない。**
+`docs/version-pending.md` に3行足し、この記録を書いただけ。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8795 &            # 静的配信（＝本番相当・CAN_POST=false）
+    cd ..
+    node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8795   # OK
+    node tools/smoke.mjs http://127.0.0.1:8795                  # #fab 非表示を確認（既知エラー1件あり。踏んだ罠を参照）
+    node tools/test_index_gate.mjs http://127.0.0.1:8795        # OK 37件
+    curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8795/kuchikomi.html?c=135327"  # 200
+
+    python3 server.py --port 8794 &                     # API モード（CAN_POST=true・全テスト用）
+    node tools/smoke.mjs                 http://127.0.0.1:8794  # ✓ コンソールエラーなし
+    node tools/test_index_gate.mjs       http://127.0.0.1:8794  # OK 37件
+    node tools/test_kuchikomi_modal.mjs  http://127.0.0.1:8794  # OK
+    node tools/test_favorite.mjs         http://127.0.0.1:8794  # OK 38件
+    node tools/test_inspector_center.mjs http://127.0.0.1:8794  # ← URL必須（踏んだ罠）。通過20件
+    node tools/test_rail_toggle.mjs      http://127.0.0.1:8794  # 通過32件
+    node tools/test_kuchikomi_relay.mjs                         # 通過36件（内部で意図的にエラーを起こすテストなので、エラー文字列が出力に出るのが正常）
+    node tools/test_version.mjs                                 # 100件すべて通過
+    python3 tools/test_layout.py                                # 通過22件
+    python3 tools/test_tokens.py                                # 通過115件（LINE友だち追加ボタンのコントラスト例外は既知・対象外）
+    python3 tools/test_shell_inject.py                          # 通過47件
+
+全部 OK。実測値（Task 3・4 で測定。このタスクでは再測定していない）：
+
+- **詳細パネルの高さ：695px → 170px**（科目135327・幅390px）。これが今回のPRの目的そのもの
+- **一覧カードの高さ増加（`main` 比・幅390px）――数字が2つある。先に +82px を見ること**：
+  - 口コミ0件のカード（131221・全体の約7/8がこの型）：197px → 279px = **+82px**
+  - プレビュー行つきのカード（135312）：203px → 257px = +54px
+  - +54px だけを見ると実態を過小評価する。このベンチマークのカードはもともと2行の高い
+    バリアントだったため。0件カードは2段階で伸びた ―― ①操作バーが付いた分、②全カードの
+    高さを揃えるために操作バーの高さの床を上げた分
+
+### 2. 何をしていないか
+
+- **`/kuchikomi` の `?c=` 受け（PR-2）。** それまで ✎ は科目が選ばれていない状態で投稿
+  ページを開く ―― いまヘッダの CTA を押したときと同じ状態
+- **本番の Cloudflare Pages で `/kuchikomi?c=135327`（拡張子なし）が実際にクエリを保った
+  まま届くかは、ここからは確認できていない。** ローカルで確認したのは静的配信
+  （`python3 -m http.server`）で `kuchikomi.html?c=135327` が200で返り、クエリ文字列が
+  ページに届くことだけ。**次の人が本番URLで1回開いて確かめること**
+- コード自体は Task 1〜4 で完了済み。このタスクは確認と記録のみ
+
+### 3. 次の人が最初に打つコマンド
+
+    git log --oneline -5           # 直近のコミットを確認
+    cat docs/version-pending.md    # 次の水曜に出す一覧（このPRの3行が末尾に入っている）
+
+### 4. 踏んだ罠
+
+- `tools/test_inspector_center.mjs` はURL引数なしだと既定でポート8798を見に行く。
+  **別のポートでサーバーを立てているときは必ずURLを渡す** ―― 渡し忘れると死んだポートに
+  繋ぎに行ってタイムアウトし、コードが壊れたように見える（今回のPRで実際に見逃されかけた
+  回帰がこれ）
+- `.head` に `role="button"` が付いているので、一覧カードに新しい操作を足すときは
+  **`.head` の子ではなく兄弟に置くこと。** 子に置くとタップ判定が競合する
+- `server.py`（ローカル開発サーバ）は `CAN_POST=true` になる。**本番は静的配信で
+  `CAN_POST=false`** なので、投稿まわりの挙動は必ず `python3 -m http.server` で確かめる
+  こと。`server.py` だけで確認して満足すると、本番で消えているはずのフォームが残っている
+  ことに気付けない
+- **`smoke.mjs` を静的配信で走らせると、`POST /api/hit`（analytics.js のページビュー計測）
+  が501で1件エラーとして出る。** 今回のPRのせいではない ―― `main` ブランチでも同じ場所で
+  同じエラーが出ることを確認済み。Python の `http.server` がPOSTを実装していないだけで、
+  本番では `worker/index.js` が `/api/hit` を受けているので起きない。静的配信でsmokeが
+  この1件だけを出しても回帰ではない（analytics.js に変更が無いことだけ確認すれば無視してよい）
+
+---
+
 ## 2026-09-06 ｜ 科目を選ぶまでは一覧を中央に置く／詳細を ✕ で閉じられるようにした ｜ Claude → 次の人
 
 本人からの依頼。「開いた直後、右が大きく空いている」。右カラム（380/440px）は
