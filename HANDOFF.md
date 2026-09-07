@@ -17,6 +17,65 @@
 
 ---
 
+## 2026-09-06 ｜ ナビの隙間・マイページの強調・マイページのリード文削除 ｜ Claude → 次の人
+
+本人からの依頼（スマホの実機スクショ付き）。3点だけ。**CSS 2ファイルと mypage.html の
+1段落しか触っていない。** API・データ・スコア・JS は一切触っていない。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8798                          # 別窓で
+    python3 tools/test_layout.py && python3 tools/test_tokens.py
+    python3 tools/test_web_split.py && python3 tools/test_shell_inject.py
+    node tools/test_mypage.mjs http://127.0.0.1:8798        # OK 51 checks
+    node tools/smoke.mjs        http://127.0.0.1:8798       # コンソールエラーなし
+    node tools/test_inspector_center.mjs / test_rail_toggle.mjs / test_favorite.mjs / test_version.mjs
+
+入ったのは3つ:
+
+- **ナビ3項目の隙間を一段広げた**（app.css）。`--sp-3/--sp-4/6px` → `--sp-4/--sp-5/10px`。
+  ただし **400px 以下は 6px のまま**。ここを広げると「口コミを書く」が単独で次の行へ落ちる
+  （実測：3項目 243 + 口コミ 96 + 隙間3つ + 左右 32。隙間 10px は 401px から1行に収まる）。
+  そのため `@media (min-width:401px) and (max-width:479px)` を1つ足した。
+- **`.hdMy`（マイページ）を強調**（app.css）。`--on-dark-mid`→`--on-dark`、
+  `font-weight:600`、`font-size` を `calc(var(--fs-hdr-sub) + 1px)`、枠を
+  `--on-dark-line`(.34)→`--on-dark-strong`(.84)、現在地/ホバーは 1px のリング。
+  **塗り（--brand）にはしていない**――塗ってよいのは1画面に1つ（＝口コミ）の取り決めを守った。
+- **マイページのリード文を削除**（mypage.html / mypage.css）。「ここに残るものは、この端末の
+  ブラウザの中だけにあります。サーバーには送っていません。」の `<p class="mpLead">` と、
+  対応する `.mpLead` の CSS を消した。見出しが節に張り付くので `.mpTitle` の下余白を
+  4px→24px（消したリード文が持っていた余白の引き継ぎ）。
+
+### 2. 何をしていないか
+
+- **版（右下のバージョン＆最新機能）には載せていない**（本人判断 2026-09-06）。
+  判定は⑧（文言の微修正・ナビの隙間調整）と ④（見た目の改善＝9月の重要度の門で落ちる）。
+- **`<meta name="description">` と `og:description` からも同じ一文を外した**（本人判断）。
+  「この端末のブラウザにだけ保存できるページです。サーバーには送っていません。」→
+  「自分だけの時間割・お気に入り科目・プロフィールをまとめておけるページです。」
+  つまり **「端末内だけ・サーバーに送らない」という説明は、いまサイトのどこにも出ていない**。
+  About か口コミ側で言い直すかは未判断。
+- `tools/test_onboard.mjs` は落ちるが、**この変更の前（main の 04ef707）でも同じように落ちる**。
+  今回の担当範囲外なので触っていない。
+
+### 3. 次の人が最初に打つコマンド
+
+    cd ~/Developer/rakutan-db && git diff --stat
+    python3 server.py --port 8798    # 430px 幅（iPhone Pro Max 相当）で /about と /mypage を見る
+
+### 4. 踏んだ罠
+
+- **ナビの隙間は「好きな値」を置ける場所ではない**。`.navCta` が `margin-left:auto` で
+  右端に居るので、広げたぶんは空きから取るだけ――に見えるが、390px では空きが **1px しかない**。
+  実測せずに 6px→10px にすると、その幅だけ2行に落ちてヘッダが 100px→137px に伸びる。
+  ここを触るときは必ず 320/360/375/390/414/430 の6点で行数を数えること。
+- `app.css` / `mypage.css` に**裸の hex・rgba は書けない**（`tools/test_tokens.py` が落とす）。
+  色を強めたいときはトークンを選ぶ。`--on-dark-strong` は既に CONTRAST に登録済みなので通った。
+- app.css のコメントに書かれた実測値（「ロゴ360 + ナビ426 + マイページ93 ＝ 911px」など）は
+  **この変更で古くなる**。949px / 981px へ書き換えた。次に幅を触る人はここも一緒に直すこと。
+
+---
+
 ## 2026-09-06 ｜ 「口コミが3件そろうと出ます」を消し、※ の行に一本化した ｜ Claude → 次の人
 
 カードの `情報不足` の横に出ていた
