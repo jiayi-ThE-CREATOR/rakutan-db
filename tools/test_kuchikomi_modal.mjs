@@ -111,23 +111,58 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
   const rv = rvId ? await p.$(`.card[data-id="${rvId}"] .cardActs .rvBtn`) : null;
   check(rv, "口コミのある科目に .rvBtn が無い");
   if (rv){
-    /* 2行目のプレビュー。1行に収まっていること（省略記号が効くこと）。
-       scrollWidth と clientWidth の比較では判定できない ―― nowrap で
-       省略記号が効いているときこそ、切られた分だけ scrollWidth が
-       clientWidth を上回る（実測で確認ずみ）。nowrap が無くて2行に
-       折り返る壊れ方は、逆に scrollWidth と clientWidth が一致してしまう
-       （幅には収まるが縦に伸びるだけなので）。なので判定は computed style
-       の組み合わせ（nowrap・overflow:hidden・ellipsis）で見る。 */
-    const prev = await p.evaluate(id => {
+    /* 2行目のプレビュー。空行のまま出ていないこと（先頭カードが何であっても
+       ここは一般に成り立つべき最低限。長さまでは問わない）。 */
+    const prevGeneric = await p.evaluate(id => {
+      const s = document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn small`);
+      return s ? s.textContent.trim() : null;
+    }, rvId);
+    check(prevGeneric === null || prevGeneric.length > 0, "プレビューの2行目が空のまま出ている");
+
+    /* 1行に収まっていること（省略記号が効くこと）―― 実測で見る。
+       white-space:nowrap / overflow:hidden / text-overflow:ellipsis が
+       「宣言されている」だけでは足りない（max-width:100% が抜けても
+       宣言は生きたまま幅だけ無制限になり得るので、その回帰は検知できない。
+       2026-09-07 レビュー指摘）。実際に切れているかどうかは、切っていない
+       ときの本来の幅 scrollWidth と、見えている幅 clientWidth の差で見る
+       ―― nowrap で省略記号が効いているときこそ scrollWidth が clientWidth
+       を上回る（孤立した最小再現で実測確認ずみ：幅100pxの箱に長文を
+       流すと scrollWidth 467 / clientWidth 100）。逆に nowrap が無くて
+       2行に折り返る壊れ方だと、幅には収まって scrollWidth ≈ clientWidth
+       になる代わりに縦に伸びる ―― そちらは高さで見る。
+       このアサーションには十分な長さの一言が要るので、先頭カードに頼らず
+       口コミ 135312（実測49文字、390px 幅で scrollWidth 561px /
+       clientWidth 142〜168px と、確実に切れる長さ）を id 名指しで使う。 */
+    const LONG_NOTE_ID = "135312";
+    const trunc = await p.evaluate(id => {
       const s = document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn small`);
       if (!s) return { none: true };
       const cs = getComputedStyle(s);
-      return { none: false, text: s.textContent.trim(),
-               fits: cs.whiteSpace === "nowrap" && cs.overflow === "hidden"
-                     && cs.textOverflow === "ellipsis" };
-    }, rvId);
-    check(prev.none || prev.text.length > 0, "プレビューの2行目が空のまま出ている");
-    check(prev.none || prev.fits, "プレビューが1行に収まっていない（省略記号が効いていない）");
+      return {
+        none: false,
+        scrollWidth: s.scrollWidth, clientWidth: s.clientWidth,
+        height: s.getBoundingClientRect().height,
+        lineHeight: parseFloat(cs.lineHeight),
+        declaredOk: cs.whiteSpace === "nowrap" && cs.overflow === "hidden"
+                    && cs.textOverflow === "ellipsis",
+      };
+    }, LONG_NOTE_ID);
+    check(!trunc.none,
+          `検証用の科目 ${LONG_NOTE_ID} の .rvBtn プレビューが一覧に見当たらない`);
+    if (!trunc.none){
+      /* 宣言そのものは崩れていないことの補助チェック（十分条件ではない。
+         下の2つが本体）。 */
+      check(trunc.declaredOk,
+            "省略記号に必要なCSS（nowrap/overflow:hidden/ellipsis）が宣言されていない");
+      /* 切れている本体：省略していれば scrollWidth > clientWidth になる。 */
+      check(trunc.scrollWidth > trunc.clientWidth,
+            `プレビューが切れていない（省略記号が効いていない。scrollWidth=${trunc.scrollWidth} clientWidth=${trunc.clientWidth}）`);
+      /* 2行に折り返っていない：高さが1行ぶん（実測 line-height）の1.4倍以内
+         （test_rail_toggle.mjs の「窓が2行ぶんになっていないか」と同じ考え方 ―
+         1行と2行のあいだに閾値を置く）。 */
+      check(trunc.height <= trunc.lineHeight * 1.4,
+            `プレビューが2行に折り返っている（高さ ${Math.round(trunc.height)}px / 1行分 ${Math.round(trunc.lineHeight)}px）`);
+    }
 
     await rv.click();
     await p.waitForTimeout(400);

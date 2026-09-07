@@ -513,11 +513,11 @@ function insLabel(c){
    名前が無い科目では span ごと出さないと「・・」が残る。 */
 const insMetaSpan = c => insLabel(c) ? `<span>${esc(insLabel(c))}</span>` : "";
 
-/* 口コミの件数表示。採点に効いているかで見た目を分ける。
+/* 口コミが採点に効いているかどうかの注意帯だけを返す。
    ・効いていない（scored:false）… 幅いっぱいの注意帯。中身への導線つき
-   ・効いている（scored:true）  … 従来どおりのバッジ
-   1つの関数にまとめてあるのは、門を越える科目が出てきたときに
-   「両方出る」「どちらも出ない」を作らないため（松下さんの仕様書どおり）。
+   ・効いている（scored:true）／口コミ0件 … 何も返さない
+   件数そのものはここの仕事ではない ―― .cardActs の .rvBtn（読むボタン）が
+   常に持っている（2026-09-06、カードの操作バー新設で件数バッジ .rvb を統合・廃止）。
 
    導線の文言は PC とスマホで出し分ける。PC は詳細が右カラムに出る
    （決定A）ので「タップ」「↓」が指す先が無い。幅が変わったときは
@@ -527,9 +527,8 @@ function goText(){
 }
 
 function reviewMark(rv){
-  if (!rv?.n) return { badge:"", alert:"" };
-  if (rv.scored) return { badge:`<span class="rvb">口コミ ${rv.n}件</span>`, alert:"" };
-  return { badge:"", alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
+  if (!rv?.n || rv.scored) return { alert:"" };
+  return { alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
       まだ数字には入っていません。中身を確認してください<span class="go">${esc(goText())}</span></div></div>` };
 }
 
@@ -1237,7 +1236,6 @@ document.addEventListener("keydown", e => {
 $("#list").addEventListener("click", e => {
   const btn = e.target.closest(".rvBtn");
   if (!btn) return;
-  e.stopPropagation();            // .head の開閉まで走らせない
   openPanel(btn.dataset.id);
 });
 
@@ -1791,7 +1789,8 @@ for (const sel of ["#list", "#inspector"]) {
   });
 }
 
-/* 詳細パネルの「時間割に追加」。配置ロジック（コンフリクト確認＋一括配置）は
+/* 一覧カードと詳細パネル、両方の「時間割に追加」（2026-09-06、カードの
+   操作バー新設で .ttAddBtn の置き場所が増えた）。配置ロジック（コンフリクト確認＋一括配置）は
    rkStore.putCourse に1本化されている（mypage.jsのputCourseと共有。理由は
    web/assets/mypage.js の putCourse 直前コメントを参照）。曜限が無い科目は
    putCourse が何もしない（false を返す）ので、ここで addExtra に振り分ける。 */
