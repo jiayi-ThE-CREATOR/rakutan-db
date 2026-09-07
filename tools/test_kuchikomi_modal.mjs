@@ -64,12 +64,45 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
   /* 集計がモーダルの中にあること（詳細から移したので、こちらに無いと消えたことになる） */
   check(await p.$("#panelBody .rvf"), `[${label}] モーダルに集計（.rvf）が無い`);
 
-  /* 閉じる手段3つ。どれも ?c= が URL から消えること。 */
+  /* 閉じる手段。どれも ?c= が URL から消えること。 */
   await p.click("#panelClose");
   await p.waitForTimeout(300);
   check(!new URL(p.url()).searchParams.get("c"), `[${label}] ✕ で ?c= が消えない`);
   check(!(await p.evaluate(() => document.querySelector("#panel").classList.contains("open"))),
         `[${label}] ✕ でモーダルが閉じない`);
+
+  /* Esc。document 側のキーハンドラ1本で閉じる経路（2026-09-07 追加）。 */
+  await p.goto(`${base}/?c=${ID}`, { waitUntil: "networkidle" });
+  await p.waitForSelector("#panel.open", { timeout: 15000 });
+  await p.keyboard.press("Escape");
+  await p.waitForTimeout(300);
+  check(!(await p.evaluate(() => document.querySelector("#panel").classList.contains("open"))),
+        `[${label}] Esc でモーダルが閉じない`);
+  check(!new URL(p.url()).searchParams.get("c"), `[${label}] Esc で ?c= が消えない`);
+
+  /* 幕クリック。#panel 自身が幕（.kModal）で、e.target === $("#panel") が
+     ガードなので、.kBox の外（#panel の padding 分＝スマホでも確実に空いている
+     隅）を突く。2026-09-07 まで無テストだった。 */
+  await p.goto(`${base}/?c=${ID}`, { waitUntil: "networkidle" });
+  await p.waitForSelector("#panel.open", { timeout: 15000 });
+  await p.mouse.click(2, 2);
+  await p.waitForTimeout(300);
+  check(!(await p.evaluate(() => document.querySelector("#panel").classList.contains("open"))),
+        `[${label}] 幕クリックでモーダルが閉じない`);
+
+  /* .kBox の中は幕ではないので、押しても閉じないこと（同じガードの逆側）。 */
+  await p.goto(`${base}/?c=${ID}`, { waitUntil: "networkidle" });
+  await p.waitForSelector("#panel.open", { timeout: 15000 });
+  await p.click("#panelBody");
+  await p.waitForTimeout(300);
+  check(await p.evaluate(() => document.querySelector("#panel").classList.contains("open")),
+        `[${label}] .kBox の中を押すとモーダルが閉じてしまう`);
+
+  /* #panelWrite の href。PR-2 との継ぎ目で、いちばん重要な導線なのに
+     2026-09-07 までアサーションが無かった。 */
+  const writeHref = await p.evaluate(() => document.querySelector("#panelWrite")?.getAttribute("href") || "");
+  check(writeHref === `/kuchikomi?c=${ID}`,
+        `[${label}] #panelWrite の href が /kuchikomi?c=<id> でない（${writeHref}）`);
 
   await p.close();
 }
