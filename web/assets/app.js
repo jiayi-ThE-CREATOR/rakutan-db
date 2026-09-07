@@ -82,10 +82,6 @@ function buildGrid(slots){
       g.appendChild(b);
     });
   });
-  $("#slotHint").textContent = (state.day)
-    ? `${state.day}曜${state.period}限で絞り込み中 ―― もう一度押すと解除`
-    : "「火3が空いてる、何取ろう」から始められる。検索語は要らない。";
-
   $("#slotBar").hidden = !state.day;
   if (state.day) $("#slotBarText").textContent = `${state.day}曜${state.period}限で絞り込み中`;
 }
@@ -310,8 +306,7 @@ function buildFaculty(facets){
   const own = plan.need.filter(isOwnDivision);
   $("#facOwn").hidden = own.length === 0;
   if (own.length){
-    $("#facOwnH").innerHTML = `${esc(fac.label)}だけの区分`
-      + ` <span class="sub">学部の履修表の行に合わせています</span>`;
+    $("#facOwnH").textContent = `${fac.label}だけの区分`;
     $("#divsOwn").innerHTML = own.map(d => divisionChip(d, facets)).join("");
   } else {
     $("#divsOwn").innerHTML = "";
