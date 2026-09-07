@@ -1144,6 +1144,15 @@ async function findCourse(id){
   } catch { return null; }
 }
 
+/* index.html は #panel の .kBox に role="dialog" aria-modal="true" を持たせている。
+   aria-modal は支援技術に「これ以外は無視しろ」と告げるので、フォーカスが
+   背景に残ったままだと宣言だけが独り歩きする。ここで最低限のモーダル性を持たせる：
+   開くときに元のフォーカス位置を覚えて✕へ移し、閉じるときに戻す。
+   本格的なタブトラップ（Tab でモーダルの外に出さない）はやっていない ――
+   Esc がどこからでも閉じる（document 側のハンドラ）ので無くても迷子にはならない、
+   という判断（意図的な範囲外。見落としではない）。 */
+let panelReturnFocus = null;
+
 /* 実際に閉じる処理（クラス外し・中身の空っぽ化）はここ1箇所だけ。
    popstate から呼ばれるのが基本だが、共有リンクを直接閉じる経路
    （closePanel）は history.back() を経由せずここを直接呼ぶ（2026-09-07）。 */
@@ -1151,6 +1160,8 @@ function panelSetOpen(open){
   if (open) return;                       // 開くのは openPanel の仕事
   $("#panel").classList.remove("open");
   $("#panelBody").innerHTML = "";
+  if (panelReturnFocus && document.contains(panelReturnFocus)) panelReturnFocus.focus();
+  panelReturnFocus = null;
 }
 
 async function openPanel(id, push = true){
@@ -1170,6 +1181,8 @@ async function openPanel(id, push = true){
   $("#panelBody").innerHTML = reviewHtml(c) + await panelListHtml(id);
   $("#panel").classList.add("open");
   $("#panelBody").scrollTop = 0;
+  panelReturnFocus = document.activeElement;
+  $("#panelClose").focus();
 }
 
 function closePanel(){
