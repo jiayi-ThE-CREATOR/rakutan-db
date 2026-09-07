@@ -437,18 +437,45 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:.09em}
 .secH b{font-family:var(--data);font-size:12px;color:var(--scale-light-text);letter-spacing:0}
 
-/* ── 口コミの表示 ───────────────────────
-   絞り込めるのに中身が見えない状態だったので足した（2026-08-20）。
-   数字は KOAN から取れないものばかりで、ここだけが情報源。 */
-.rvb{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;
-  background:var(--scale-light-soft);color:var(--scale-light-text);border-radius:var(--r-sm);padding:2px 7px}
+/* ── カードの操作バー（2026-09-06）──────────────
+   .head（role="button"）の外に置く。中に入れると入れ子の押せる要素になる。 */
+.cardActs{display:flex;align-items:center;gap:var(--sp-2);
+  padding:var(--sp-3) 14px;border-top:1px solid var(--rule);background:var(--paper)}
+/* 「口コミ N件を読む」。2行目は先頭の一言。押す理由をここに置く。 */
+.rvBtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
+  gap:2px;padding:7px var(--sp-3);border:1px solid transparent;border-radius:var(--r-pill);
+  background:var(--scale-light-soft);color:var(--scale-light-text);
+  font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;text-align:left}
+.rvBtn small{max-width:100%;font-size:var(--fs-xs);font-weight:400;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rvBtn:hover{border-color:currentColor}
+/* 書く。読むの隣に置く（読み終わった直後が書きたい瞬間）。
+   ラベルは aria-label と title が持つ。 */
+.wrBtn{flex:none;display:flex;align-items:center;justify-content:center;
+  width:36px;height:34px;border:1px solid var(--rule);border-radius:var(--r-pill);
+  background:var(--card);color:var(--brand-text);text-decoration:none;
+  font-size:var(--fs-sm)}
+.wrBtn:hover{border-color:var(--brand)}
+/* 口コミ0件の科目。7,906件のほとんどがこれなので、一覧の既定の見た目になる。
+   面を張らず点線にして、口コミのある科目の緑より弱く見せる。 */
+/* 色は --soft。--muted は --card との組み合わせしか CONTRAST に無く、
+   ここの下地は .cardActs の --paper なので、登録済みの --soft を使う。
+   面を張らないよう background を明示的に none にする（.wrBtn の --card 地を打ち消す）。 */
+.wrBtn.ghost{flex:1;width:auto;border-style:dashed;background:none;color:var(--soft);
+  font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cardActs .ttAddBtn{flex:none;width:auto;padding:7px var(--sp-3);
+  border:1px solid var(--brand);border-radius:var(--r-pill);background:none;
+  color:var(--brand-text);font:inherit;font-size:var(--fs-sm);font-weight:700;
+  cursor:pointer;white-space:nowrap}
+.cardActs .ttAddBtn[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);}
 
 /* 口コミが「まだ数字に入っていない」ことの注意喚起（2026-08-24）。
    3件そろうまで採点に入れない方針にしたため、1人が「テストが難しい」と
    書いていても総合値は動かない。つまり「とにかく軽い」で並べ替えると
    その科目が上位に来る。バッジ1個では並べ替えの上位で見落とされるので、
    カードの枠色を変えたうえで幅いっぱいの帯にしている。
-   scored が true になったら .rvb（普通の件数バッジ）に戻る。
+   scored が true になったらこの帯は出ず、件数は .cardActs の .rvBtn に出る
+   （2026-09-06、旧・件数バッジ .rvb は操作バーに統合されて廃止）。
    2026-08-24 本番実測：scored:false は 87科目（全体の7.8%）。
    うち総合値が出て「軽い順」に並ぶのが 45科目。
 

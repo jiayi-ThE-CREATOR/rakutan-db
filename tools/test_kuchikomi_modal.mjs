@@ -74,6 +74,94 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
   await p.close();
 }
 
+/* ── カードの操作バー ───────────────────────── */
+{
+  const p = await page(390, 844);
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.waitForSelector(".card");
+
+  const bar = await p.evaluate(() => {
+    const card = document.querySelector(".card .cardActs")?.closest(".card");
+    if (!card) return null;
+    const acts = card.querySelector(".cardActs");
+    return {
+      /* .head の中に押せる要素を入れない（入れ子ボタンにしない） */
+      insideHead: !!card.querySelector(".head .cardActs, .head button, .head a"),
+      hasTt: !!acts.querySelector(".ttAddBtn"),
+      /* 口コミがある科目なら読むボタン、無ければ書くリンク */
+      hasEntry: !!acts.querySelector(".rvBtn, .wrBtn"),
+      writeHref: acts.querySelector(".wrBtn")?.getAttribute("href") || "",
+      id: card.dataset.id,
+    };
+  });
+  check(bar, "カードに .cardActs が無い");
+  if (bar){
+    check(!bar.insideHead, ".head の中に押せる要素がある（入れ子ボタン）");
+    check(bar.hasTt, "操作バーに .ttAddBtn が無い");
+    check(bar.hasEntry, "操作バーに口コミの入口が無い");
+    check(bar.writeHref.startsWith(`/kuchikomi?c=${bar.id}`),
+          `✎ の href が /kuchikomi?c=<id> でない（${bar.writeHref}）`);
+  }
+
+  /* 読むボタンでモーダルが開く。詳細を開かずに、が要件。
+     押すカードを id で名指しする ―― 先頭のカードが口コミ0件だと
+     .rvBtn がそこに無く、別のカードの状態を見て「通った」ことにしてしまう。 */
+  const rvId = await p.evaluate(() =>
+    document.querySelector(".card .cardActs .rvBtn")?.closest(".card")?.dataset.id || "");
+  const rv = rvId ? await p.$(`.card[data-id="${rvId}"] .cardActs .rvBtn`) : null;
+  check(rv, "口コミのある科目に .rvBtn が無い");
+  if (rv){
+    /* 2行目のプレビュー。1行に収まっていること（省略記号が効くこと）。
+       scrollWidth と clientWidth の比較では判定できない ―― nowrap で
+       省略記号が効いているときこそ、切られた分だけ scrollWidth が
+       clientWidth を上回る（実測で確認ずみ）。nowrap が無くて2行に
+       折り返る壊れ方は、逆に scrollWidth と clientWidth が一致してしまう
+       （幅には収まるが縦に伸びるだけなので）。なので判定は computed style
+       の組み合わせ（nowrap・overflow:hidden・ellipsis）で見る。 */
+    const prev = await p.evaluate(id => {
+      const s = document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn small`);
+      if (!s) return { none: true };
+      const cs = getComputedStyle(s);
+      return { none: false, text: s.textContent.trim(),
+               fits: cs.whiteSpace === "nowrap" && cs.overflow === "hidden"
+                     && cs.textOverflow === "ellipsis" };
+    }, rvId);
+    check(prev.none || prev.text.length > 0, "プレビューの2行目が空のまま出ている");
+    check(prev.none || prev.fits, "プレビューが1行に収まっていない（省略記号が効いていない）");
+
+    await rv.click();
+    await p.waitForTimeout(400);
+    check(await p.evaluate(() => document.querySelector("#panel").classList.contains("open")),
+          ".rvBtn を押してもモーダルが開かない");
+    check(!(await p.evaluate(id =>
+            document.querySelector(`.card[data-id="${id}"]`).classList.contains("open"), rvId)),
+          ".rvBtn を押すと詳細まで開いてしまう");
+
+    /* Task 1 の回帰確認は共有リンク（?c= 直開き＝push していない）の
+       閉じ方しか見ていなかった。ページ内から .rvBtn で開く方は push している側で、
+       history.back()/popstate の経路がこれまで未検証だった（2026-09-06）。 */
+    check(new URL(p.url()).searchParams.get("c") === rvId,
+          ".rvBtn を押しても URL に ?c=<id> が付かない");
+    await p.goBack();
+    await p.waitForTimeout(400);
+    check(!(await p.evaluate(() => document.querySelector("#panel").classList.contains("open"))),
+          "戻る（history.back）でモーダルが閉じない");
+    check(!new URL(p.url()).searchParams.get("c"),
+          "戻っても ?c= が消えない");
+  }
+
+  /* 時間割に追加が一覧から押せる */
+  await p.evaluate(() => document.querySelector("#panelClose")?.click());
+  await p.waitForTimeout(300);
+  await p.click(".card .cardActs .ttAddBtn");
+  await p.waitForTimeout(300);
+  check(await p.evaluate(() =>
+          document.querySelector(".card .cardActs .ttAddBtn").getAttribute("aria-pressed") === "true"),
+        "一覧の「時間割に追加」を押しても aria-pressed が true にならない");
+
+  await p.close();
+}
+
 await browser.close();
 console.log(fails.length ? "NG" : `OK ${new Date().toISOString().slice(0,10)}`);
 for (const f of fails) console.log("  -", f);

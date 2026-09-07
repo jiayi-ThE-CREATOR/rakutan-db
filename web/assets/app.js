@@ -544,6 +544,34 @@ function needsReviewNote(c){
     : "口コミはまだ誰も書いてないけど、最初の1人になりませんか？";
 }
 
+/* 一覧カードの下端の操作バー（2026-09-06）。
+ * 「読む・書く・時間割」をここに集める。詳細を開かないと押せなかった
+ * 「時間割に追加」と、2回押さないと届かなかった口コミが1回で届く。
+ *
+ * .head の**外**に置くこと。.head は role="button" なので、中に入れると
+ * 入れ子の押せる要素になる（.favBtn を .card > .favBtn にしてあるのと同じ理由）。
+ *
+ * プレビュー（2行目）は reviews.notes[0]。notes は publish:false を除いた
+ * ぶんしか入っていないので、n > 0 でも notes が空の科目がある
+ * ―― そのときは2行目を出さない（空行で 21px 増やさない）。 */
+function cardActsHtml(c){
+  const n = c.reviews?.n || 0;
+  const first = (c.reviews?.notes || [])[0] || "";
+  const write = `/kuchikomi?c=${encodeURIComponent(c.id)}`;
+  const read = n
+    ? `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
+         <span>💬 口コミ ${n}件を読む ›</span>${
+           first ? `<small>「${esc(first)}」ほか</small>` : ""}
+       </button>
+       <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
+          title="この科目の口コミを書く">✎</a>`
+    : `<a class="wrBtn ghost" href="${esc(write)}">✎ 最初の口コミを書く ›</a>`;
+  return `<div class="cardActs">${read}
+      <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.inTimetable(c)}">
+        ${rkStore.inTimetable(c) ? "✓ 時間割に入れた" : "＋ 時間割"}</button>
+    </div>`;
+}
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
@@ -555,7 +583,6 @@ function card(c){
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
-        ${rv.badge}
       </div>
       <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
@@ -563,6 +590,7 @@ function card(c){
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
+    ${cardActsHtml(c)}
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
             aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
     <div class="detail"></div>
@@ -1120,7 +1148,7 @@ mqDesktop.addEventListener("change", () => {
  * この履歴エントリを積む理由は今も変わらずこれ1つ（2026-09-07）。
  *
  * 今は幅によらず同じ中央モーダル1つ（#panel）。入口は ?c=<id> か
- * .panelBtn のどちらか、閉じ方は2通り：
+ * 一覧カードの .rvBtn のどちらか、閉じ方は2通り：
  *   - 自分で開いた（history.pushState 済み）→ ✕/Esc/幕クリックは
  *     history.back() を呼ぶだけ。実際に閉じるのは popstate 側。
  *   - 共有リンクで直接開いた（積んでいない）→ history.back() だと
@@ -1204,14 +1232,13 @@ document.addEventListener("keydown", e => {
   if (isDesktop() && $("#inspector").innerHTML) closeDetail();
 });
 
-["#list", "#inspector"].forEach(sel => {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".panelBtn");
-    if (!btn) return;
-    /* モーダルは幕の裏にボタンが隠れるので「もう一度押して閉じる」は成立しない。
-       閉じるのは ✕ / Esc / 幕クリック / 戻る の4つ（2026-09-07）。 */
-    openPanel(btn.dataset.id);
-  });
+/* 口コミの入口は一覧カードの操作バーだけ（詳細からは外した）。
+   カードは絞り込みのたびに作り直されるので、親で受ける。 */
+$("#list").addEventListener("click", e => {
+  const btn = e.target.closest(".rvBtn");
+  if (!btn) return;
+  e.stopPropagation();            // .head の開閉まで走らせない
+  openPanel(btn.dataset.id);
 });
 
 /* ── 一覧のページング ───────────────────
@@ -1751,7 +1778,7 @@ function applyPostMode() {
 })();
 
 /* お気に入りの星。カードは絞り込みのたびに作り直されるので、
-   1枚ずつに onclick を付けず、親で受ける（.panelBtn と同じ型）。 */
+   1枚ずつに onclick を付けず、親で受ける（.ttAddBtn と同じ型）。 */
 for (const sel of ["#list", "#inspector"]) {
   $(sel).addEventListener("click", e => {
     const btn = e.target.closest(".favBtn");
@@ -1787,7 +1814,7 @@ for (const sel of ["#list", "#inspector"]) {
     if (placed){
       document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`).forEach(b => {
         b.setAttribute("aria-pressed", "true");
-        b.textContent = "時間割に入っています";
+        b.textContent = "✓ 時間割に入れた";
       });
     }
   });
