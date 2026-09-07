@@ -447,33 +447,61 @@ function syncReviewSortOptions(){
 
 /* 成績評価の内訳（KOANシラバスの生の%）を積み上げバーで見せる（2026-09-05）。
  *
- * eval_ratio は 出席・試験・小テスト・レポート の4区分（2026-09-03 に小テストが
- * 出席から独立した。score.py の quiz 軸と同じデータを見ている）。
- * 内訳の合計が100%に届かない科目（分類しきれなかった項目が残る＝eval_unclassified）は、
- * 残りを「不明」として灰色で埋める。欠損を他区分の比率へ埋め戻すと、
- * 実際の内訳と違う数字を見せることになるため行わない。 */
-const EVAL_CATS = [["attendance","出席・平常点"], ["exam","期末テスト"], ["quiz","小テスト"], ["report","レポート"]];
+ * 出すのは **KOAN のシラバスの成績評価テーブルの行そのもの**（`eval_raw`）。
+ * 文言も数字も並び順もシラバスのまま。こちらで種類にまとめ直したり、
+ * 名前を付け替えたりしない（本人判断・2026-09-07）。
+ *
+ * なぜ eval_ratio（4区分に振り分けた値）を出さないか
+ * ──────────────────────────────────────────────
+ * 振り分けは採点のための都合であって、学生が見るべき事実ではない。
+ * 実害が出ていた：
+ *   ・`発表` は scrape/parse.py で report に入るので、
+ *     「学習への参加度20% ＋ 発表80%」の科目が「レポート 80%」と出ていた。
+ *     レポートは1本も無い。同じ形の科目が 1,363件（全7,906件で実測）
+ *   ・`期末レポート` `期末課題` は試験ルールの裸の「期末」に当たるので
+ *     「期末テスト」として出ていた（延べ172箇所）
+ *   ・振り分けられなかった項目（723箇所・507科目）は灰色の「不明」に消えていた。
+ *     中央値で35%の配点が名前ごと消えていたことになる
+ * シラバスの行をそのまま出せば、この3つは同時に起きなくなる。
+ *
+ * **採点・つまみ・条件チップは今までどおり eval_ratio（4区分）を見る。**
+ * 画面のこの部分だけがシラバス直写しになった。片方を直すときにもう片方が
+ * 一緒に動くことは無いので、食い違って見えたらまずここを疑うこと。
+ *
+ * 色は種類ではなく**並び順**（--comp-1〜5）。KOAN の表は最大5列なので5色で足りる。
+ * 同じ「レポート」でも科目によって色が違うが、凡例が隣にあるので困らない。 */
 
 function evalCompHtml(c){
-  const er = c.eval_ratio;
-  if (!er) return `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
-  const segs = EVAL_CATS.filter(([k]) => er[k] > 0).map(([k,l]) => ({k, l, v: er[k]}));
-  const known = segs.reduce((s, x) => s + x.v, 0);
-  const unknown = Math.max(0, Math.round((100 - known) * 10) / 10);
-  const hasUnknown = unknown >= 1;
-  // 本文に「毎回小テスト」の記載はあるが、配点が読み取れず quiz% が立っていない20件（2026-09-05実測）。
-  const quizNoPct = c.weekly_quiz && !(er.quiz > 0);
-  const dot = (k) => `<i class="compDot" style="background:var(--comp-${k || "unknown"})"></i>`;
+  const raw = c.eval_raw;
+  const rows = raw ? Object.entries(raw) : [];
+  if (!rows.length)
+    return `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
+
+  /* シラバスの表が100%に届いていない科目が18件ある（例：有機化学3は
+     中間試験30% ＋ 期末試験40% で70%）。残りを他の行へ按分すると
+     シラバスに無い数字を出すことになるので、「記載なし」として灰色で置く。 */
+  const known = rows.reduce((sum, [, v]) => sum + (v || 0), 0);
+  const gap = Math.max(0, Math.round((100 - known) * 10) / 10);
+  const hasGap = gap >= 1;
+
+  /* 本文に「毎回小テスト」とあるのに、成績評価の表には小テストの行が無い科目。
+     表に無いものを表へ足すことはしないので、注記として別に出す。 */
+  const quizNoRow = c.weekly_quiz &&
+    !rows.some(([k]) => /小テスト|クイズ|quiz/i.test(k));
+
+  const dot = v => `<i class="compDot" style="background:${v}"></i>`;
+  const color = i => `var(--comp-${(i % 5) + 1})`;
   return `<div class="compBar">
-      ${segs.map(s => `<div class="compSeg" style="width:${s.v}%;background:var(--comp-${s.k})"></div>`).join("")}
-      ${hasUnknown ? `<div class="compSeg" style="width:${unknown}%;background:var(--comp-unknown)"></div>` : ""}
+      ${rows.filter(([, v]) => v > 0).map(([, v], i) =>
+        `<div class="compSeg" style="width:${v}%;background:${color(i)}"></div>`).join("")}
+      ${hasGap ? `<div class="compSeg" style="width:${gap}%;background:var(--comp-gap)"></div>` : ""}
     </div>
     <div class="compLegend">
-      ${segs.map(s => `<span>${dot(s.k)}${esc(s.l)}<b>${s.v.toFixed(0)}%</b></span>`).join("")}
-      ${hasUnknown ? `<span>${dot()}不明<b>${unknown.toFixed(0)}%</b></span>` : ""}
+      ${rows.map(([k, v], i) => `<span>${dot(color(i))}${esc(k)}<b>${v}%</b></span>`).join("")}
+      ${hasGap ? `<span>${dot("var(--comp-gap)")}記載なし<b>${gap}%</b></span>` : ""}
     </div>
-    ${quizNoPct ? `<div class="compNote">毎回小テストがありますが、配点は取得できていません</div>` : ""}
-    ${hasUnknown ? `<div class="compNote">内訳の一部は分類できていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}`;
+    ${quizNoRow ? `<div class="compNote">シラバス本文に「毎回小テスト」の記載がありますが、成績評価の表には配点がありません</div>` : ""}
+    ${hasGap ? `<div class="compNote">シラバスの成績評価の表が${known}%ぶんしか埋まっていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}`;
 }
 
 /* ── 担当教員 ─────────────────────────────
