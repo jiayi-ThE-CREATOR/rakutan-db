@@ -194,6 +194,23 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
           document.querySelector(".card .cardActs .ttAddBtn").getAttribute("aria-pressed") === "true"),
         "一覧の「時間割に追加」を押しても aria-pressed が true にならない");
 
+  /* 詳細に口コミの入口や操作ボタンが残っていないこと（同じ操作を2箇所に置かない）。 */
+  await p.evaluate(() => document.querySelector(".card .head").click());
+  await p.waitForTimeout(400);
+  const dup = await p.evaluate(() => {
+    const d = document.querySelector(".card.open .detail") || document.querySelector(".card .detail");
+    return { panelBtn: !!d?.querySelector(".panelBtn"),
+             tt: !!d?.querySelector(".ttAddBtn"),
+             review: !!d?.querySelector(".reviewBtn"),
+             rv: !!d?.querySelector(".rv"),
+             koan: !!d?.querySelector(".koanLink") };
+  });
+  check(!dup.panelBtn, "詳細に .panelBtn が残っている");
+  check(!dup.tt, "詳細に .ttAddBtn が残っている（操作バーと重複）");
+  check(!dup.review, "詳細に .reviewBtn が残っている（本番では出せないフォームを開く）");
+  check(!dup.rv, "詳細に口コミの集計（.rv）が残っている");
+  check(dup.koan, "詳細から KOAN リンクまで消えている");
+
   await p.close();
 }
 

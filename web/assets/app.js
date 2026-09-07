@@ -513,23 +513,14 @@ function insLabel(c){
    名前が無い科目では span ごと出さないと「・・」が残る。 */
 const insMetaSpan = c => insLabel(c) ? `<span>${esc(insLabel(c))}</span>` : "";
 
-/* 口コミが採点に効いているかどうかの注意帯だけを返す。
-   ・効いていない（scored:false）… 幅いっぱいの注意帯。中身への導線つき
-   ・効いている（scored:true）／口コミ0件 … 何も返さない
-   件数そのものはここの仕事ではない ―― .cardActs の .rvBtn（読むボタン）が
-   常に持っている（2026-09-06、カードの操作バー新設で件数バッジ .rvb を統合・廃止）。
-
-   導線の文言は PC とスマホで出し分ける。PC は詳細が右カラムに出る
-   （決定A）ので「タップ」「↓」が指す先が無い。幅が変わったときは
-   mqDesktop の change で今のページを描き直して合わせる。 */
-function goText(){
-  return isDesktop() ? "詳細を開いて1件ずつ読む →" : "タップして中身を見る ↓";
-}
-
+/* 口コミの件数表示。件数そのものは操作バーの「口コミ N件を読む」が持つので、
+   ここが返すのは「まだ採点に入っていない」の注意帯だけ（2026-09-06）。
+   導線の文言（「タップして中身を見る ↓」）も外した ―― 読む先は
+   すぐ下の操作バーに在る。 */
 function reviewMark(rv){
   if (!rv?.n || rv.scored) return { alert:"" };
   return { alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
-      まだ数字には入っていません。中身を確認してください<span class="go">${esc(goText())}</span></div></div>` };
+      まだ数字には入っていません。下の「口コミを読む」で中身を確認してください</div></div>` };
 }
 
 /* テストの難しさが確認できていないときの一言。
@@ -671,38 +662,23 @@ function reviewHtml(c){
 }
 
 function detailHtml(c){
-  const r = c.rakutan;
-  const rn = c.reviews?.n || 0;
-  /* ── 詳細の並び（2026-09-05・成績評価の内訳バーに置き換え）───────────
-   * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
-   * 5つ縦積みで、最後の ☆ はラベルが無くカード右上の ☆ と重複していた。
+  /* ── 詳細の並び（2026-09-06・口コミをモーダルへ出した後）──────────
    *
    *   ── 成績評価の内訳  KOANの%を積み上げバーで
-   *   ── 口コミ N件   集計 ＋ 1件ずつへのリンク
-   *   ── 操作         時間割に追加（主）／口コミを書く・KOAN（副）
+   *   ── KOAN リンク
    *
-   * 元は score.py が計算した5軸（試験・レポート・出席・小テスト・規模）の「重さ」
-   * スコアをバーで見せていたが、松下さんの依頼で「KOANシラバスに書かれている
-   * 成績評価の生の%」を見せる形に置き換えた。相性スコアの根拠説明としての役目は
-   * ここでは持たない ―― band・相性の理由（good/bad）はカード上部の .reason に
-   * 残っており、そちらは5軸の値をそのまま使い続けている。
+   * 口コミ（読む・書く）と「時間割に追加」は一覧カードの操作バー（.cardActs）へ
+   * 移した。バーは詳細のすぐ上に常に出ているので、ここにも置くと同じ操作が
+   * 画面上に2つ並ぶ。☆ を詳細から外したときと同じ判断。
    *
-   * 担当教員の行と信頼度（「情報は一部のみ」等の注記）は wang の依頼で2026-09-06に
-   * 削除した（Discord）。教員名自体は一覧カードの .meta（insMetaSpan）に残っている
-   * ので、識別に必要な情報は消えていない。 */
+   * 元は score.py が計算した5軸の「重さ」スコアをバーで見せていたが、
+   * 松下さんの依頼で「KOANシラバスに書かれている成績評価の生の%」に置き換えた
+   * （2026-09-05）。担当教員の行と信頼度の注記は wang の依頼で削除（2026-09-06）。 */
   return `<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
       </div>
-      ${rn ? `<div class="dSec">
-        <div class="secH">口コミ <b>${rn}件</b></div>
-        ${reviewHtml(c)}
-        <button class="panelBtn" data-id="${esc(c.id)}">${rn}件すべてを1件ずつ読む →</button>
-      </div>` : ""}
       <div class="dActs">
-        <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.inTimetable(c)}">
-          ${rkStore.inTimetable(c) ? "時間割に入っています" : "時間割に追加"}</button>
-        <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       </div>`;
 }
@@ -1122,10 +1098,6 @@ function bindCardHandler(article, c){
 /* 画面幅が変わったとき（PC で窓を縮めた・スマホを回した）に、
    詳細がどちらにも出ていない状態にならないよう描き直す。 */
 mqDesktop.addEventListener("change", () => {
-  // 注意帯の導線（.go）は PC とスマホで文言が違う。幅が変わったら
-  // 今のページを描き直して合わせる ―― カードは load() のときにしか
-  // 作らないので、これが無いと「タップして…↓」が PC に残る。
-  if (courses.length) renderPage(page);
   if (!selectedCourseId) return;
   const c = courses.find(x => x.id === selectedCourseId);
   if (!c) return;
@@ -1582,14 +1554,6 @@ $("#rvWords").oninput = e => {
 };
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
 $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
-/* 口コミボタンは #list だけに委譲していたが、PC では詳細が
-   右カラムに出るので、そちらでも拾えるようにする。 */
-["#list", "#inspector"].forEach(sel => {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".reviewBtn");
-    if (btn) openReviewFor(btn.dataset.id);
-  });
-});
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
 /* 静的ホスティングには投稿を受ける先が無い。

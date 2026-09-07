@@ -54,6 +54,14 @@ check(js.count("function detailHtml(") == 1,
 check("matchMedia" in js, "app.js に matchMedia による分岐が無い")
 check("selectedCourseId" in js, "app.js に selectedCourseId が無い")
 
+# 口コミと操作ボタンは一覧カードの操作バーへ移した（2026-09-06）。
+# 詳細に戻すと同じ操作が画面上に2つ並ぶ。
+det = js[js.index("function detailHtml("):]
+det = det[:det.index("\n}\n")]
+for cls in ["panelBtn", "ttAddBtn", "reviewBtn", "reviewHtml"]:
+    check(cls not in det, f"detailHtml に {cls} が残っている（操作バーと重複する）")
+check("cardActs" in js, "app.js に .cardActs（一覧の操作バー）が無い")
+
 if fails:
     print("NG")
     for f in fails:

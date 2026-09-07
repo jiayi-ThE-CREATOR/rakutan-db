@@ -488,8 +488,6 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   border-radius:var(--r-sm);padding:var(--sp-2) var(--sp-3);
   font-size:var(--fs-sm);font-weight:700;line-height:1.5}
 .rvAlert i{font-style:normal;flex:none}
-.rvAlert .go{display:block;font-weight:400;text-decoration:underline;
-  text-underline-offset:2px;margin-top:2px}
 
 /* 「拘束は軽い」が「軽め」と言い切れない理由。band だけでは学生に伝わらない。
    2026-08-24 本番実測：502科目（全体の45%）に立つ。「軽い順」の上位40件では
@@ -512,16 +510,19 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .rvf span.w{grid-column:1/-1}
 /* ── 詳細の操作（2026-09-01・案A）───────────────
  * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
- * 5つ縦積みで、どれが主か分からず、最後の ☆ はラベルも無かった。5つ→3つにし、
- * 主（--brand の面）1つ・副（--brand-soft の面）2つ、の2段だけにする。
+ * 5つ縦積みで、どれが主か分からず、最後の ☆ はラベルも無かった。まず5つ→3つにし、
+ * 主（--brand の面）1つ・副（--brand-soft の面）2つ、の2段にした。
  *
  * 枠線ではなく面で差をつける理由：白地に --brand-line(#f0c9a8) の1px枠は
  * --card(#fff) に対して 1.54:1 しかなく、操作の境界に必要な 3.0:1 に届かない
- * （2026-09-01 実測）。既存の .reviewBtn と同じ「淡い面」なら
- * tools/test_tokens.py に登録ずみのペアだけで済む。
+ * （2026-09-01 実測）。「淡い面」の配色なら tools/test_tokens.py に
+ * 登録ずみのペアだけで済む。
  *
  * 高さは 44px を下回らせない（padding 12px + 13px×1.6 ≒ 45px）。
- */
+ *
+ * 2026-09-06、時間割と口コミは一覧カードの操作バー（.cardActs）へ移したので、
+ * 詳細の .dActs に残るのは副の KOAN リンク1つだけになった。下の .ttAddBtn（主）
+ * は見た目を .cardActs 側と共有するために同じクラス名のまま残している。 */
 .dActs{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule);
   display:grid;gap:var(--sp-2)}
 .dActs>*{display:block;width:100%;border:none;border-radius:var(--r-md);padding:12px;
@@ -533,9 +534,10 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    押した結果を表す状態なので、面を落として副より弱くする。 */
 .ttAddBtn[aria-pressed="true"]{background:var(--dim);color:var(--soft)}
 /* 副。ホバーの色替えは付けない ―― --brand-line の面に --brand-text を載せると
-   3.75:1 で通常文字の 4.5:1 に届かない（2026-09-01 実測）。
-   もともと .reviewBtn にホバーは無く、入口はスマホなので足す理由もない。 */
-.reviewBtn,.koanLink{background:var(--brand-soft);color:var(--brand-text)}
+   3.75:1 で通常文字の 4.5:1 に届かない（2026-09-01 実測）。入口はスマホなので
+   ホバーを足す理由もない。.reviewBtn は2026-09-06に詳細から外れて使われなく
+   なったので、セレクタからも外した ―― 使うのは .koanLink だけ。 */
+.koanLink{background:var(--brand-soft);color:var(--brand-text)}
 
 /* ── 口コミを1件ずつ読む ─────────────────
    カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」
@@ -558,34 +560,6 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   border-radius:var(--r-sm);padding:3px var(--sp-2)}
 .pEmpty{padding:var(--sp-6) 0;text-align:center;color:var(--muted);font-size:var(--fs-sm)}
 
-/* ── 1件ずつを「どこに出すか」 ─────────────
-   PC（1024px 以上）… 右カラムの詳細の下に展開して続ける。
-     もう一度押すと畳む。4軸バーを見ながら口コミを読める形にするため。
-     PR #24 にあった「右に380pxの固定パネル＋body の padding-right」は使わない。
-     3カラム化のあと 1280px で実測すると .inspector（幅380px・右端から31px）に
-     隙間なく重なり、「口コミを見る」ボタンごと覆ってしまう。
-   スマホ（<1024px）… 下から全画面のシート。投稿フォームと同じ .sheet を使い回す。
-     位置ぎめ・幕・最大高さ・スクロールは .sheet 側にもうあるので、
-     ここで書き直さない（2つ持つと片方だけ直る）。 */
-/* .ttAddBtn（詳細パネルの「時間割に追加」）も同じ見た目にする。クラス名を
-   panelBtn と共有しない理由は app.js の panelBtnFor 参照。あちらは
-   「.panelBtn[data-id=...]」で口コミ件数ボタンを一意に探しており、同じ
-   クラス名を足すと口コミ0件の科目でこのボタンが誤って引っかかる（2026-08-29）。 */
-/* 「N件すべてを1件ずつ読む →」。2026-09-01 に全幅の灰色ボタンからテキスト
-   リンクの見た目へ落とした。ボタンのままだと下の操作3つと同じ重さに見え、
-   「押すべきものが一目で分かる」が成り立たない。
-   要素は <button class="panelBtn"> のまま ―― <a> に変えると panelBtnFor()・
-   openPanel()・panelSetOpen() の3箇所が影響を受ける。
-   開いている間は文言が「閉じる」に差し替わる（openPanel）。 */
-.panelBtn{display:inline-block;margin-top:var(--sp-2);background:none;border:none;padding:var(--sp-1) 0;
-  font:inherit;font-size:var(--fs-sm);font-weight:400;color:var(--brand-text);
-  text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:left}
-.panelBtn:hover,.panelBtn:active{color:var(--ink)}
-/* PC の右カラムでは、集計（.rv）と同じ場所に入れ替わる（openPanel）。
-   見出し「口コミ N件」の直下に来るので、上に罫は要らない。
-   下の「集計に戻る」との間だけ空ける。
-   スマホのシートの中では .panelHead が区切りになるので、ここは効かせない。 */
-.detail .pList{margin-bottom:var(--sp-1)}
 /* ── 口コミの中央モーダル（2026-09-06）──────────
    PC・スマホで同じ形にする。以前は幅で2形態に分かれていた
    （スマホ＝下からの全画面シート／PC＝右カラムの集計と差し替え）。
