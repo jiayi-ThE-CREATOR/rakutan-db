@@ -449,21 +449,35 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    高さが62px と82pxの2種類に割れていた（2026-09-07、
    tools/test_inspector_center.mjs の「カードの高さが揃っていない」で検出。
    Task 3 の時点ではこのテストを実行していなかった）。
-   min-height の57pxは2行版（科目135312）の .rvBtn を実測した border-box
-   高さ。1行版はここに justify-content:center を足して中央へ寄せる
+   ここでの min-height:57px（2行版=科目135312の .rvBtn を実測した border-box
+   高さ）は PC の等高要求（#list > .card { min-height:var(--cardH) }、
+   .workbench:has(#inspector:empty) 内、1160px 以上）を満たすためのもの。
+   その要求自体がデスクトップ専用なので、床もデスクトップの @media 内で
+   足す（2026-09-07。以前はここに直書きしていたが、スマホは一度も
+   等高を求められておらず、床だけ持ち込むと0件カードが無駄に約20px
+   伸びていた）。1行版はここに justify-content:center を足して中央へ寄せる
    ―― 2行版は元から57pxをほぼ埋めているので影響しない。 */
 .rvBtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
-  justify-content:center;min-height:57px;gap:2px;padding:7px var(--sp-3);
+  justify-content:center;gap:2px;padding:7px var(--sp-3);
   border:1px solid transparent;border-radius:var(--r-pill);
   background:var(--scale-light-soft);color:var(--scale-light-text);
   font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;text-align:left}
+/* 1行目（「💬 口コミ N件を読む ›」）。.wrBtn.ghost や .cardActs .ttAddBtn と
+   同じ折り返し止め ―― 340px 未満で2行に割れると .rvBtn の高さが伸び、
+   等高の前提（このファイル上部の .cardActs コメント参照）が崩れる（2026-09-07）。 */
+.rvBtn > span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rvBtn small{max-width:100%;font-size:var(--fs-xs);font-weight:400;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rvBtn:hover{border-color:currentColor}
 /* 書く。読むの隣に置く（読み終わった直後が書きたい瞬間）。
-   ラベルは aria-label と title が持つ。 */
+   ラベルは aria-label と title が持つ。
+   36×34 は見た目の大きさで、タップ領域ではない ―― .dActs のコメントにある
+   プロジェクトの床「高さは 44px を下回らせない」に届いていなかった
+   （2026-09-07）。固定 height をやめ align-self:stretch にして、隣の
+   .rvBtn（2行のときで57px）の高さまで伸ばす。82pxの操作バーには
+   もともとその余白があるので、バー自体の高さは変わらない。 */
 .wrBtn{flex:none;display:flex;align-items:center;justify-content:center;
-  width:36px;height:34px;border:1px solid var(--rule);border-radius:var(--r-pill);
+  align-self:stretch;width:36px;border:1px solid var(--rule);border-radius:var(--r-pill);
   background:var(--card);color:var(--brand-text);text-decoration:none;
   font-size:var(--fs-sm)}
 .wrBtn:hover{border-color:var(--brand)}
@@ -472,12 +486,18 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 /* 色は --soft。--muted は --card との組み合わせしか CONTRAST に無く、
    ここの下地は .cardActs の --paper なので、登録済みの --soft を使う。
    面を張らないよう background を明示的に none にする（.wrBtn の --card 地を打ち消す）。
-   高さは .wrBtn の固定34pxを height:auto で外し、.rvBtn と同じ min-height:57px
-   に揃える ―― こちらも .rvBtn 側のコメントと同じ理由（2026-09-07）。 */
-.wrBtn.ghost{flex:1;width:auto;height:auto;min-height:57px;border-style:dashed;
+   高さは .wrBtn の固定34pxを height:auto で外す ―― min-height:57px による
+   .rvBtn との統一は PC 専用の @media 側に移した（上の .rvBtn のコメント参照）。 */
+.wrBtn.ghost{flex:1;width:auto;height:auto;border-style:dashed;
   background:none;color:var(--soft);
   font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cardActs .ttAddBtn{flex:none;width:auto;padding:7px var(--sp-3);
+/* padding + 1行ぶんの文字だけだと約37px ―― .wrBtn と同じ理由（上のコメント参照）
+   で 44px の床に届かないので、同じく align-self:stretch で伸ばす。
+   text-align:center は幅方向は元から中央寄せだったので変わらないが、
+   縦方向はブロックの上寄せのままになるため display:flex で中央に揃える。 */
+.cardActs .ttAddBtn{flex:none;width:auto;align-self:stretch;
+  display:flex;align-items:center;justify-content:center;
+  padding:7px var(--sp-3);
   border:1px solid var(--brand);border-radius:var(--r-pill);background:none;
   color:var(--brand-text);font:inherit;font-size:var(--fs-sm);font-weight:700;
   cursor:pointer;white-space:nowrap}
@@ -782,6 +802,14 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
      中身を切らずに行ごと伸びてほしいから（切ると事実が消える）。 */
   .workbench:has(#inspector:empty) #list{--cardH:279px;align-items:stretch}
   .workbench:has(#inspector:empty) #list > .card{min-height:var(--cardH)}
+  /* .rvBtn/.wrBtn.ghost の高さの床（57px）はここでだけ効かせる。
+     等高カードを求めているのはこの PC 専用ブロックだけなので
+     （align-items:stretch も --cardH もここにしかない）、床も同じ場所に
+     置く。スマホは一度も等高を求められていない ―― ここを外すと
+     0件カードの操作バーは自然な1行分の高さに戻り、約20px縮む
+     （2026-09-07、390px 実測。C章の実測値参照）。 */
+  .workbench:has(#inspector:empty) #list > .card .rvBtn,
+  .workbench:has(#inspector:empty) #list > .card .wrBtn.ghost{min-height:57px}
   /* meta を1行に詰める。425px 幅では教員名の長い科目が2行になり、
      その科目だけ背が高くなる（全文は右カラムの詳細に出る）。 */
   .workbench:has(#inspector:empty) #list > .card .meta{
