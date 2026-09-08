@@ -23,7 +23,8 @@
  * 見張っている回帰:
  *   1. 項目名がシラバスの文言と違う（言い換え・省略・付け替え）
  *   2. 数字がシラバスと違う（合算・按分・丸め）
- *   3. 項目の数が違う（まとめて減る／勝手に増える）
+ *   3. 項目の数が違う（まとめて減る／勝手に増える。4区分に振り分けられない
+ *      項目が「不明」に化けて名前ごと消える、が実際に起きていた形）
  *   4. 並び順がシラバスと違う
  *   5. 表が100%に届かない科目で、残りを他の項目へ按分してしまう
  */
@@ -58,6 +59,16 @@ const open = async browser => {
   await p.goto(BASE, { waitUntil: "domcontentloaded" });
   await p.waitForSelector("#list .card");
   return p;
+};
+
+/* 科目を1件開く。`?c=<id>` は共有リンクと同じ入口で、静的モードなら
+   DATA.courses に全件あるので一覧に出ていない科目でも開ける。
+   タイトル検索だと表記ゆれ（全角カッコなど）で当たらないことがある。 */
+const openById = async (p, id) => {
+  await p.goto(`${BASE}/index.html?c=${id}`, { waitUntil: "domcontentloaded" });
+  await p.waitForSelector("#list .card");
+  await p.waitForTimeout(400);
+  return (await p.$(".compLegend")) !== null;
 };
 
 /* 凡例を [名前, 数字] の並びで読む。DOM の構造ではなく**見えている文字**を
@@ -146,25 +157,36 @@ if (gapCard) {
    eval_ratio が null なので、2026-09-07 以前は内訳の欄そのものが
    「KOANから取得できていません」になり、**シラバスに書いてある4項目が
    1つも出ていなかった**。507科目がこの状態だった。 */
-let nullRatioChecked = false;
+let uncChecked = 0;
 if (STATIC) {
-  const victim = Object.values(STATIC).find(
-    c => !c.eval_ratio && c.eval_raw && Object.keys(c.eval_raw).length >= 2);
-  if (victim) {
-    nullRatioChecked = true;
-    await p.fill("#q", victim.title);
-    await p.waitForTimeout(700);
-    const card = await p.$(`.card[data-id="${victim.id}"]`);
-    check(card !== null, `${victim.id} ${victim.title} がカードに出てこない`);
-    if (card) {
-      await card.click();
-      await p.waitForTimeout(250);
-      const legend = await legendOf(p);
-      const want = Object.entries(victim.eval_raw).map(([k, v]) => [k, `${v}%`]);
-      check(JSON.stringify(legend) === JSON.stringify(want),
-            `${victim.id} 4区分に振り分けられない科目の内訳が出ていない\n` +
-            `      画面: ${JSON.stringify(legend)}\n` +
-            `      表  : ${JSON.stringify(want)}`);
+  /* 2種類とも踏む。数が多いのは後者（実測 93件 / 414件）。
+       全部落ちた   … eval_ratio が null。以前は内訳の欄そのものが出なかった
+       一部だけ落ちた … 落ちたぶんが灰色の「不明」に消えていた */
+  const all = Object.values(STATIC);
+  const cases = [
+    ["4区分に1つも入らない科目",
+     all.find(c => !c.eval_ratio && c.eval_unclassified &&
+                   Object.keys(c.eval_raw || {}).length >= 2)],
+    ["4区分に一部しか入らない科目",
+     all.find(c => c.eval_ratio && c.eval_unclassified &&
+                   Object.keys(c.eval_raw || {}).length >= 3)],
+  ];
+  for (const [label, victim] of cases) {
+    if (!victim) continue;
+    uncChecked++;
+    const ok = await openById(p, victim.id);
+    check(ok, `${victim.id} ${label}：${victim.title} の内訳の欄が出てこない`);
+    if (!ok) continue;
+    const legend = await legendOf(p);
+    const want = Object.entries(victim.eval_raw).map(([k, v]) => [k, `${v}%`]);
+    check(JSON.stringify(legend) === JSON.stringify(want),
+          `${victim.id} ${label}：内訳がシラバスと違う\n` +
+          `      画面: ${JSON.stringify(legend)}\n` +
+          `      表  : ${JSON.stringify(want)}`);
+    /* 落ちた項目が「不明」に化けていないこと ―― 名前で出ていること。 */
+    for (const k of Object.keys(victim.eval_unclassified)) {
+      check(legend.some(([name]) => name === k),
+            `${victim.id} ${label}：落ちた項目「${k}」が名前で出ていない`);
     }
   }
 }
@@ -173,6 +195,6 @@ await browser.close();
 console.log(`  通過 ${n - fails.length} 件 / ${n} 件` +
             `（内訳のある科目 ${withRaw}件を検査` +
             `／表が100%に届かない科目 ${gapChecked ? "検査した" : "★未検査"}` +
-            `／4区分に入らない科目 ${nullRatioChecked ? "検査した" : "★未検査（静的モードで流すこと）"}）`);
+            `／4区分に入らない科目 ${uncChecked ? uncChecked + "種類を検査" : "★未検査（静的モードで流すこと）"}）`);
 for (const f of fails) console.log("  NG  " + f);
 process.exit(fails.length ? 1 : 0);
