@@ -218,14 +218,44 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
           "戻っても ?c= が消えない");
   }
 
-  /* 時間割に追加が一覧から押せる */
+  /* 時間割に追加が一覧から押せる。2026-09-08：押すだけ（追加専用）だったのを
+     トグルにした。往復（追加→localStorageに入る→外す→消える）で確認する。 */
   await p.evaluate(() => document.querySelector("#panelClose")?.click());
   await p.waitForTimeout(300);
+  const ttId = await p.evaluate(() =>
+    document.querySelector(".card .cardActs .ttAddBtn")?.closest(".card")?.dataset.id);
   await p.click(".card .cardActs .ttAddBtn");
   await p.waitForTimeout(300);
   check(await p.evaluate(() =>
           document.querySelector(".card .cardActs .ttAddBtn").getAttribute("aria-pressed") === "true"),
         "一覧の「時間割に追加」を押しても aria-pressed が true にならない");
+
+  /* id が rk_timetable のどこか（コマ or 曜限なし枠）に実際に入っているか。 */
+  const inTT = (tt, id) => !!tt && ["aki", "haru"].some(t =>
+    (tt[t]?.extra || []).includes(id) || Object.values(tt[t]?.slots || {}).includes(id));
+  const afterAdd = await p.evaluate(() => {
+    try { return JSON.parse(localStorage.getItem("rk_timetable") || "{}"); } catch (e) { return null; }
+  });
+  check(inTT(afterAdd, ttId), "追加しても localStorage(rk_timetable) に入っていない");
+
+  /* もう一度押すと外れる。同じ id の全ボタン（推薦枠＋通常一覧の重複ぶんも
+     含む）が揃って戻ること。 */
+  await p.click(".card .cardActs .ttAddBtn");
+  await p.waitForTimeout(300);
+  const afterRemove = await p.evaluate(id => {
+    const btns = [...document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`)];
+    let tt = null;
+    try { tt = JSON.parse(localStorage.getItem("rk_timetable") || "{}"); } catch (e) {}
+    return {
+      allUnpressed: btns.length > 0 && btns.every(b => b.getAttribute("aria-pressed") === "false"),
+      allLabelReset: btns.every(b => b.textContent.trim() === "＋ 時間割"),
+      tt,
+    };
+  }, ttId);
+  check(afterRemove.allUnpressed, "もう一度押しても aria-pressed が false に戻らない");
+  check(afterRemove.allLabelReset, "もう一度押してもラベルが「＋ 時間割」に戻らない");
+  check(!inTT(afterRemove.tt, ttId),
+        "外した後も localStorage(rk_timetable) に id が残っている（空スロットやextraの掃除漏れ）");
 
   /* 詳細に口コミの入口や操作ボタンが残っていないこと（同じ操作を2箇所に置かない）。 */
   await p.evaluate(() => document.querySelector(".card .head").click());
@@ -244,6 +274,135 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
   check(!dup.rv, "詳細に口コミの集計（.rv）が残っている");
   check(dup.koan, "詳細から KOAN リンクまで消えている");
 
+  await p.close();
+}
+
+/* 口コミ＝本人が書いた一言（2026-09-08、オーナーの依頼で定義を揃えた）。
+   id ごとの実際の件数は data から読む（このファイル冒頭のコメントと同じ理由・
+   ビルドで口コミ件数が変わってもテストが落ちないように）。API モード
+   （/api/courses/<id>）と静的モード（/data/courses.built.json）の両方で
+   このファイルを走らせるので、両対応にする。 */
+async function readableCount(p, id){
+  return p.evaluate(async (id) => {
+    try {
+      const r = await fetch(`/api/courses/${encodeURIComponent(id)}`);
+      if (r.ok){
+        const c = await r.json();
+        if (c && c.id) return (c.reviews?.notes || []).length;
+      }
+    } catch (e) {}
+    const all = await (await fetch("/data/courses.built.json")).json();
+    const c = (all.courses || []).find(x => x.id === id);
+    return (c?.reviews?.notes || []).length;
+  }, id);
+}
+
+/* ── Change 1: 書かれた口コミが無い科目（回答はある）── */
+{
+  /* 135059：n=1・notes=[]（readable=0）。Change 1 の実測で
+     reviews.notes.length と reviews.built.json の non-empty note 行数が
+     全141件で一致することを確認したうえで採用（owner-round-report.md 参照）。 */
+  const ID = "135059";
+  const p = await page(390, 844);
+
+  await p.goto(`${base}/?c=${ID}`, { waitUntil: "networkidle" });
+  await p.waitForSelector("#panel.open", { timeout: 15000 });
+  const modal = await p.evaluate(() => ({
+    sub: document.querySelector("#panelSub")?.textContent || "",
+    hasAgg: !!document.querySelector("#panelBody .rvf"),
+    hasList: !!document.querySelector("#panelBody .pList"),
+    hasEmpty: !!document.querySelector("#panelBody .pEmpty"),
+  }));
+  check(!modal.sub.includes("実際に取った人が書いたもの"),
+        `[readable=0] #panelSub が本文の存在を約束したままになっている（${modal.sub}）`);
+  check(modal.sub.includes("回答") && modal.sub.includes("集計"),
+        `[readable=0] #panelSub が集計であることを説明していない（${modal.sub}）`);
+  check(modal.hasAgg, "[readable=0] モーダルに集計（.rvf）が無い");
+  check(!modal.hasList, "[readable=0] モーダルに1件ずつの一覧（.pList）が出ている（書かれた一言が無いのに）");
+  check(!modal.hasEmpty,
+        "[readable=0] モーダルに「まだ誰も書いていない」が出ている（回答自体はあるので嘘になる）");
+
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.fill("#q", "考古学基礎");
+  await p.waitForTimeout(500);
+  const cardBtn = await p.evaluate(id =>
+    document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn`)?.textContent.trim() || null,
+    ID);
+  check(cardBtn === "📊 みんなの回答を見る",
+        `[readable=0] カードのボタン文言が違う（${cardBtn}）`);
+  await p.close();
+}
+
+/* ── Change 1: 書かれた口コミがある科目 ── 件数はwritten commentの数と一致 */
+{
+  const ID = "135327"; // 冒頭の口コミ4件の科目（このファイル既存の定番ID）
+  const p = await page(390, 844);
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  const expected = await readableCount(p, ID);
+  check(expected > 0, `検証用科目 ${ID} に書かれた口コミが無い（データが変わった？）`);
+
+  await p.fill("#q", "カーボンニュートラル");
+  await p.waitForTimeout(500);
+  const label = await p.evaluate(id =>
+    document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn span`)?.textContent.trim() || null,
+    ID);
+  check(label === `💬 口コミ ${expected}件を読む ›`,
+        `[readable>0] カードの件数がwritten commentの数(${expected})と違う（${label}）`);
+  await p.close();
+}
+
+/* ── Change 3: 「1限（体感コスト大）」チップが消えていること ── */
+{
+  const p = await page(390, 844);
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.fill("#q", "考古学基礎"); // 135059＝day_period が「1」で終わる1限の科目
+  await p.waitForTimeout(500);
+  const tags1 = await p.evaluate(() =>
+    [...document.querySelectorAll(".card .tags .tag")].map(t => t.textContent));
+  check(!tags1.some(t => t.includes("1限")),
+        `1限の科目のカードに「1限」チップが残っている（${JSON.stringify(tags1)}）`);
+
+  // 未フィルタの一覧（複数枚）でも、rakutan.notes 由来のチップが1件も出ないこと。
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.waitForSelector(".card");
+  const tagsAll = await p.evaluate(() =>
+    [...document.querySelectorAll(".card .tags .tag")].map(t => t.textContent));
+  check(!tagsAll.some(t => t.includes("1限（体感コスト大）")),
+        `一覧のどこかに「1限（体感コスト大）」チップが残っている（${JSON.stringify(tagsAll)}）`);
+  check(!tagsAll.some(t => t.includes("キャンパス（移動あり）")),
+        `一覧のどこかに「<キャンパス>キャンパス（移動あり）」チップが残っている（${JSON.stringify(tagsAll)}）`);
+  await p.close();
+}
+
+/* ── Change 4: 同じ行のカードは操作バーの上端が揃う ──
+   #list が等高になる（align-items:stretch）のは
+   .workbench:has(#inspector:empty) の中・1160px以上だけ（app.css の
+   #list{--cardH:279px;align-items:stretch} ブロック参照）。
+   768〜1159px は #list { align-items:start } のままなので、2列になっていても
+   揃う保証が無い（実測ずみ・owner-round-report.md 参照）。ここでは
+   保証されている PC 幅（1280px、このファイル冒頭の PC 幅と同じ）で検証する。 */
+{
+  const p = await page(1280, 900);
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.waitForSelector(".card");
+  const rows = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll("#list > .card")];
+    const groups = {};
+    for (const c of cards){
+      const top = Math.round(c.getBoundingClientRect().top);
+      (groups[top] ||= []).push(c);
+    }
+    return Object.values(groups)
+      .filter(g => g.length >= 2)
+      .map(g => g.map(c => c.querySelector(".cardActs")?.getBoundingClientRect().top ?? null));
+  });
+  check(rows.length > 0, "同じ行に複数枚のカードが無い（等高の検証ができない・幅かデータを見直すこと）");
+  for (const tops of rows){
+    const valid = tops.filter(t => t !== null);
+    const spread = valid.length ? Math.max(...valid) - Math.min(...valid) : 0;
+    check(spread <= 1,
+          `同じ行の .cardActs の上端が揃っていない（差 ${spread.toFixed(2)}px、tops=${JSON.stringify(valid)}）`);
+  }
   await p.close();
 }
 

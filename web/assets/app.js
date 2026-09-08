@@ -541,21 +541,38 @@ function needsReviewNote(c){
  * .head の**外**に置くこと。.head は role="button" なので、中に入れると
  * 入れ子の押せる要素になる（.favBtn を .card > .favBtn にしてあるのと同じ理由）。
  *
- * プレビュー（2行目）は reviews.notes[0]。notes は publish:false を除いた
- * ぶんしか入っていないので、n > 0 でも notes が空の科目がある
- * ―― そのときは2行目を出さない（空行で 21px 増やさない）。 */
+ * 2026-09-08：口コミ＝本人が書いた一言、という定義に揃えた（wangの依頼）。
+ * 選択式だけ答えて一言を書かなかった回答は「一覧に並ぶ1件」には数えない
+ * （集計・スコアには変わらず入る）。だから3通りに分かれる：
+ *   readable > 0        … 今までどおり「口コミ N件を読む」＋一言のプレビュー。
+ *                          N は readable（= reviews.notes.length）で、
+ *                          n（回答の総数）ではない。
+ *   readable===0, n>0    … 読める一言が無いが回答はある。「読む」ではなく
+ *                          「見る」に言い換え、プレビューは出さない
+ *                          （notes が空なので出す一言そのものが無い）。
+ *   n===0                … 従来どおり最初の1人を誘う破線ボタン。 */
 function cardActsHtml(c){
   const n = c.reviews?.n || 0;
+  const readable = c.reviews?.notes?.length || 0;
   const first = (c.reviews?.notes || [])[0] || "";
   const write = `/kuchikomi?c=${encodeURIComponent(c.id)}`;
-  const read = n
-    ? `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
-         <span>💬 口コミ ${n}件を読む ›</span>${
+  let read;
+  if (readable){
+    read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
+         <span>💬 口コミ ${readable}件を読む ›</span>${
            first ? `<small>「${esc(first)}」ほか</small>` : ""}
        </button>
        <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
-          title="この科目の口コミを書く">✎</a>`
-    : `<a class="wrBtn ghost" href="${esc(write)}">✎ 最初の口コミを書く ›</a>`;
+          title="この科目の口コミを書く">✎</a>`;
+  } else if (n){
+    read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
+         <span>📊 みんなの回答を見る</span>
+       </button>
+       <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
+          title="この科目の口コミを書く">✎</a>`;
+  } else {
+    read = `<a class="wrBtn ghost" href="${esc(write)}">✎ 最初の口コミを書く ›</a>`;
+  }
   /* inTimetable は termsFor→getTimetable→readTT→localStorage.getItem+JSON.parse
      を学期ごとに歩く。1回に抑える ―― 1ページ24枚で毎回2回呼ぶと、
      絞り込みを変えるたびに同期ストレージ読み取りが最大96回走っていた。 */
@@ -569,7 +586,13 @@ function cardActsHtml(c){
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
-  const tags = [...r.tags, ...r.notes];
+  /* r.notes（score.py の _schedule_note()）は「1限（体感コスト大）」と
+     「<キャンパス>キャンパス（移動あり）」の2つだけを出す。wangの依頼で
+     チップとしては消す（2026-09-08）。rakutan.notes 自体は score.py が
+     引き続き計算していて courses.built.json にも入っているが、
+     web/line/worker/tools のどこからも他に参照されていない（確認済み）
+     ―― 表示だけをやめる。条件チップ（r.tags）はそのまま残す。 */
+  const tags = [...r.tags];
   const rv = reviewMark(c.reviews);
   const fav = rkStore.isFavorite(c.id);
   return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
@@ -582,7 +605,7 @@ function card(c){
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
         ${r.needs_review ? `<span class="bandNote">${esc(needsReviewNote(c))}</span>` : ""}</div>
       ${rv.alert}
-      ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
+      ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
             aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
@@ -734,9 +757,17 @@ function panelEntry(row){
     </div>`;
 }
 
+/* 口コミ＝本人が書いた一言、という定義（2026-09-08）。選択式だけ答えて
+   一言を書かなかった回答は一覧に並べない ―― 見せるものが無いのに枠だけ
+   出すと「本文が消えた」ように見える。呼び出し元（openPanel）が
+   readable===0 のときはそもそもこれを呼ばないので、ここで rows が
+   空になるのは実データ上は起きない想定（reviews.notes.length と
+   ここで数える件数は全141件で一致すると確認ずみ）。呼ばないほうを
+   選んだ理由も同じ ―― 空リストを描いて「まだ誰も書いていない」を
+   出すと、回答自体はあるのに嘘になる。 */
 async function panelListHtml(id){
   const all = await fetchReviewsData();
-  const rows = all[id] || [];
+  const rows = (all[id] || []).filter(row => (row.note || "").trim());
   if (!rows.length) return `<p class="pEmpty">まだ誰も書いていない</p>`;
   return `<div class="pList">${rows.map(panelEntry).join("")}</div>`;
 }
@@ -1179,10 +1210,19 @@ async function openPanel(id, push = true){
   }
 
   const n = c.reviews?.n || 0;
+  const readable = c.reviews?.notes?.length || 0;
   $("#panelTitle").textContent = c.title;
-  $("#panelSub").textContent = `口コミ ${n}件 ― 実際に取った人が書いたもの`;
+  /* readable===0 のとき「口コミ」を名乗らない ―― 一言を書いた人が
+     1人もいないので、「実際に取った人が書いたもの」は嘘になる。
+     選択式の回答はあるので、その集計であることだけを伝える。 */
+  $("#panelSub").textContent = readable
+    ? `口コミ ${readable}件 ― 実際に取った人が書いたもの`
+    : `回答 ${n}件の集計 ― 書かれた口コミはまだありません`;
   $("#panelWrite").href = `/kuchikomi?c=${encodeURIComponent(id)}`;
-  $("#panelBody").innerHTML = reviewHtml(c) + await panelListHtml(id);
+  /* readable===0 のときは panelListHtml を呼ばない。呼ぶと
+     「1件ずつ」の区切りの下に「まだ誰も書いていない」が出るが、
+     回答自体はある（数字には入っている）ので、これは嘘になる。 */
+  $("#panelBody").innerHTML = reviewHtml(c) + (readable ? await panelListHtml(id) : "");
   $("#panel").classList.add("open");
   $("#panelBody").scrollTop = 0;
   panelReturnFocus = document.activeElement;
@@ -1778,7 +1818,12 @@ $("#list").addEventListener("click", e => {
    .ttAddBtn を出さない）。配置ロジック（コンフリクト確認＋一括配置）は
    rkStore.putCourse に1本化されている（mypage.jsのputCourseと共有。理由は
    web/assets/mypage.js の putCourse 直前コメントを参照）。曜限が無い科目は
-   putCourse が何もしない（false を返す）ので、ここで addExtra に振り分ける。 */
+   putCourse が何もしない（false を返す）ので、ここで addExtra に振り分ける。
+   2026-09-08：押すだけで外せなかった（追加のみ）のをトグルにした。
+   外す側は rkStore.removeCourse に1本化（store.js のコメント参照・
+   putCourse と対称の置き場所）。同じ id のボタンは「あなたに合う」枠と
+   通常の一覧に重複しうるので、押した後は data-id が一致する全ボタンを
+   まとめて直す（.favBtn の委譲コメントと同じ理由）。 */
 $("#list").addEventListener("click", e => {
   const btn = e.target.closest(".ttAddBtn");
   if (!btn) return;
@@ -1786,18 +1831,22 @@ $("#list").addEventListener("click", e => {
   const c = courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id);
   if (!c) return;
   const terms = rkStore.termsFor(c);
-  let placed;
-  if (rkStore.slotsOf(c).length){
-    placed = rkStore.putCourse(terms, c, null, tid =>
+  const pressed = btn.getAttribute("aria-pressed") === "true";
+  let nowPressed;
+  if (pressed){
+    rkStore.removeCourse(terms, c);
+    nowPressed = false;
+  } else if (rkStore.slotsOf(c).length){
+    nowPressed = rkStore.putCourse(terms, c, null, tid =>
       (courses.find(x => x.id === tid) || DATA.courses.find(x => x.id === tid) || {}).title);
   } else {
     for (const t of terms) rkStore.addExtra(t, c.id);
-    placed = true;
+    nowPressed = true;
   }
-  if (placed){
+  if (nowPressed !== pressed){
     document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`).forEach(b => {
-      b.setAttribute("aria-pressed", "true");
-      b.textContent = "✓ 時間割に入れた";
+      b.setAttribute("aria-pressed", String(nowPressed));
+      b.textContent = nowPressed ? "✓ 時間割に入れた" : "＋ 時間割";
     });
   }
 });

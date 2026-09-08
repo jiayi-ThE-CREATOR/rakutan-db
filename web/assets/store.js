@@ -201,6 +201,25 @@
       return true;
     },
 
+    /* 時間割から外す（2026-09-08、.ttAddBtn をトグルにするために新設）。
+       追加（putCourse）は course.slots／day_period から算出した「置くべき
+       コマ」だけに書き込むが、外すときはそれに頼らず、対象の学期で
+       「いまその科目 id が実際に入っているコマ」を全部スキャンして消す。
+       確認したところ mypage.js に同種の共通ヘルパーは無かった
+       （onCell はクリックした1コマぶんの確認ダイアログ付きフローで、
+       「この科目を置けるすべての学期から一括で外す」形ではない）。
+       putCourse と対称の場所（store.js）に置き、app.js・mypage.js の
+       両方から呼べるようにする。 */
+    removeCourse(terms, course) {
+      for (const t of terms) {
+        const tt = this.getTimetable(t);
+        for (const [slot, id] of Object.entries(tt.slots)) {
+          if (id === course.id) this.clearSlot(t, slot);
+        }
+        this.removeExtra(t, course.id);
+      }
+    },
+
     // course が、置けるべき学期すべてで既に時間割（コマ or 曜限なし枠）に入っているか。
     inTimetable(course) {
       const terms = this.termsFor(course);

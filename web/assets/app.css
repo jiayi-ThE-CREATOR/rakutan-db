@@ -372,8 +372,15 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   .bar input[type=search]{grid-column:1 / -1;grid-row:2}
 }
 
+/* display:flex + flex-direction:column（2026-09-08）。カードごとに
+   タグの行の有無・タイトルの折り返し行数が違うので、上の中身の高さが
+   カードごとにばらつく。操作バー（.cardActs）を flex の下端へ margin-top:auto
+   で押しつけることで、同じ行に並ぶカードの操作バーの高さを揃える
+   （wangの依頼・スクリーンショット指摘）。.card > .favBtn は
+   position:absolute（下の .card > .favBtn 参照）なので flex の並びに
+   加わらず影響を受けない ―― 実測で確認ずみ。 */
 .card{background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);
-  margin-bottom:10px;overflow:hidden}
+  margin-bottom:10px;overflow:hidden;display:flex;flex-direction:column}
 /* 右パディングだけ広げて、星（.card > .favBtn／右上に絶対配置・
    6px 空けて 44px 四方）の専有領域ぶんを空けておく。6+44=50px に
    余白8pxを足した58px。値がずれると次に .head の右上に何か足した人が
@@ -407,7 +414,10 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .band.b3{background:var(--band-heavy-bg);color:var(--band-heavy-ink)}
 .tags{grid-column:1/3;display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .tag{font-size:var(--fs-xs);background:var(--scale-light-soft);color:var(--scale-light-text);border-radius:var(--r-sm);padding:2px 7px}
-.tag.g{background:var(--dim);color:var(--muted)}
+/* .tag.g（rakutan.notes 用の淡い配色）は2026-09-08、card() が
+   ...r.notes をタグ配列から外したのに伴い削除。.tag を打つ
+   呼び出し元は card() のここ1箇所だけで、.g を付ける側が無くなったので
+   死んだセレクタになっていた（app.js の card() 冒頭コメント参照）。 */
 
 .detail{display:none;border-top:1px solid var(--rule);padding:13px 14px;background:var(--paper)}
 .card.open .detail{display:block}
@@ -439,8 +449,17 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:.09em}
 
 /* ── カードの操作バー（2026-09-06）──────────────
-   .head（role="button"）の外に置く。中に入れると入れ子の押せる要素になる。 */
-.cardActs{display:flex;align-items:center;gap:var(--sp-2);
+   .head（role="button"）の外に置く。中に入れると入れ子の押せる要素になる。
+   margin-top:auto（2026-09-08）で .card（flex column）の下端に張り付ける ――
+   .card の高さが自分の中身より高いとき（等高カードの min-height／
+   隣のカードに引っ張られた行の高さなど）、上の中身がどれだけ違っても
+   操作バーの上端が同じ高さに揃う。中身が.cardの自然な高さちょうどのとき
+   （伸ばす余地が無いとき）は何もしない ―― その場合の揃え方は
+   #list 側の align-items:stretch の責任範囲（この下の
+   .workbench:has(#inspector:empty) #list ブロックのコメント参照。
+   768〜1159px は #list{align-items:start} のままなので、2列でも揃わない
+   ―― 1100px 幅で実測、差42px。owner-round-report.md 参照）。 */
+.cardActs{display:flex;align-items:center;gap:var(--sp-2);margin-top:auto;
   padding:var(--sp-3) 14px;border-top:1px solid var(--rule);background:var(--paper)}
 /* 「口コミ N件を読む」。2行目は先頭の一言。押す理由をここに置く。
    2行目が無い科目（口コミはあるが notes が空、または口コミ0件で
