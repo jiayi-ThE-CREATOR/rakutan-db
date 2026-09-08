@@ -471,6 +471,22 @@ function syncReviewSortOptions(){
  * 色は種類ではなく**並び順**（--comp-1〜5）。KOAN の表は最大5列なので5色で足りる。
  * 同じ「レポート」でも科目によって色が違うが、凡例が隣にあるので困らない。 */
 
+/* シラバスの表に「ここには書いていない」とだけ書かれている行（実測15種類・60箇所）。
+ * 例：`補足情報を参照 100%`、`下記評価基準 100%`、`英文シラバスをご参照ください。100%`。
+ *
+ * **文言と数字はシラバスのまま出す**（この欄の原則）が、色だけ灰色にする。
+ * 評価の成分と同じ色で塗ると「補足情報を参照という科目が成績の100%」に見えるため。
+ * 灰色は「記載なし」と同じ役割の色 ―― 中身が分かっていない、の意味。
+ *
+ * 🚨 「その他（レポート、課題提出、…）」のような**中身を並べている行は成分**なので
+ *    ここに入れない。実データで似た21種類（`その他の課題`『出席カードへのふり返り記入』
+ *    など）を目視で分けた。増やすときは全1,134種類に当てて誤爆を見ること。
+ *
+ * 本当の配点はシラバス本文の「成績評価に関する補足情報」に書かれていることが多い。
+ * KOAN の生HTMLを取り込めば埋められる（HANDOFF 参照）。それまでは灰色で出す。 */
+const EVAL_POINTER =
+  /^(下記|以下)|補足情報|ご参照ください|^各担当教員が判定$|^総合的に判断$|^講義と合わせて成績評価を行う$|^（その他の場合ここに記入）$/;
+
 function evalCompHtml(c){
   const raw = c.eval_raw;
   const rows = raw ? Object.entries(raw) : [];
@@ -489,17 +505,25 @@ function evalCompHtml(c){
   const quizNoRow = c.weekly_quiz &&
     !rows.some(([k]) => /小テスト|クイズ|quiz/i.test(k));
 
+  /* 案内文の行は灰色。色の順番（--comp-1〜5）は成分の行だけで数えるので、
+     案内文が混ざっても成分どうしの色がずれない。 */
+  const pointers = rows.filter(([k]) => EVAL_POINTER.test(k));
+  let seq = 0;
+  const colorOf = k => EVAL_POINTER.test(k) ? "var(--comp-gap)"
+                                            : `var(--comp-${(seq++ % 5) + 1})`;
+  const colors = new Map(rows.map(([k]) => [k, colorOf(k)]));
+
   const dot = v => `<i class="compDot" style="background:${v}"></i>`;
-  const color = i => `var(--comp-${(i % 5) + 1})`;
   return `<div class="compBar">
-      ${rows.filter(([, v]) => v > 0).map(([, v], i) =>
-        `<div class="compSeg" style="width:${v}%;background:${color(i)}"></div>`).join("")}
+      ${rows.filter(([, v]) => v > 0).map(([k, v]) =>
+        `<div class="compSeg" style="width:${v}%;background:${colors.get(k)}"></div>`).join("")}
       ${hasGap ? `<div class="compSeg" style="width:${gap}%;background:var(--comp-gap)"></div>` : ""}
     </div>
     <div class="compLegend">
-      ${rows.map(([k, v], i) => `<span>${dot(color(i))}${esc(k)}<b>${v}%</b></span>`).join("")}
+      ${rows.map(([k, v]) => `<span>${dot(colors.get(k))}${esc(k)}<b>${v}%</b></span>`).join("")}
       ${hasGap ? `<span>${dot("var(--comp-gap)")}記載なし<b>${gap}%</b></span>` : ""}
     </div>
+    ${pointers.length ? `<div class="compNote">シラバスの成績評価の表には「${esc(pointers[0][0])}」とだけ書かれていて、内訳が分かりません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}
     ${quizNoRow ? `<div class="compNote">シラバス本文に「毎回小テスト」の記載がありますが、成績評価の表には配点がありません</div>` : ""}
     ${hasGap ? `<div class="compNote">シラバスの成績評価の表が${known}%ぶんしか埋まっていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}`;
 }

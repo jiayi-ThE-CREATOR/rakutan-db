@@ -27,6 +27,7 @@
  *      項目が「不明」に化けて名前ごと消える、が実際に起きていた形）
  *   4. 並び順がシラバスと違う
  *   5. 表が100%に届かない科目で、残りを他の項目へ按分してしまう
+ *   6. 「補足情報を参照」だけの行が、評価の成分と同じ色で塗られる
  */
 import { chromium } from "playwright";
 
@@ -191,10 +192,48 @@ if (STATIC) {
   }
 }
 
+/* ── ⑤ 「ここには書いていない」とだけ書かれている行（実測15種類・60箇所）──
+   文言と数字はシラバスのまま出すが、**色は灰色**にする。成分と同じ色で塗ると
+   「補足情報を参照という科目が成績の100%」に見えるため。 */
+let ptrChecked = false;
+if (STATIC) {
+  const PTR = /^(下記|以下)|補足情報|ご参照ください|^各担当教員が判定$|^総合的に判断$/;
+  const victim = Object.values(STATIC).find(
+    c => c.eval_raw && Object.keys(c.eval_raw).length &&
+         Object.keys(c.eval_raw).every(k => PTR.test(k)));
+  if (victim) {
+    ptrChecked = true;
+    const ok = await openById(p, victim.id);
+    check(ok, `${victim.id} 案内文だけの科目：内訳の欄が出てこない`);
+    if (ok) {
+      /* 照らし合わせは他と同じ ―― 灰色にするのは色だけで、文言も数字も変えない。 */
+      const legend = await legendOf(p);
+      const want = Object.entries(victim.eval_raw).map(([k, v]) => [k, `${v}%`]);
+      check(JSON.stringify(legend) === JSON.stringify(want),
+            `${victim.id} 案内文だけの科目：文言か数字が変わっている\n` +
+            `      画面: ${JSON.stringify(legend)}\n      表  : ${JSON.stringify(want)}`);
+      const grey = await p.evaluate(() =>
+        getComputedStyle(document.documentElement).getPropertyValue("--comp-gap").trim());
+      const segs = await p.$$eval(".compSeg", els =>
+        els.map(e => getComputedStyle(e).backgroundColor));
+      const greyRgb = await p.evaluate(g => {
+        const d = document.createElement("div");
+        d.style.background = g; document.body.appendChild(d);
+        const v = getComputedStyle(d).backgroundColor; d.remove(); return v;
+      }, grey);
+      check(segs.length > 0 && segs.every(v => v === greyRgb),
+            `${victim.id} 案内文の帯が灰色になっていない: ${JSON.stringify(segs)}（灰=${greyRgb}）`);
+      check(await p.$(".compNote") !== null,
+            `${victim.id} 内訳が分からない旨の注記が出ていない`);
+    }
+  }
+}
+
 await browser.close();
 console.log(`  通過 ${n - fails.length} 件 / ${n} 件` +
             `（内訳のある科目 ${withRaw}件を検査` +
             `／表が100%に届かない科目 ${gapChecked ? "検査した" : "★未検査"}` +
-            `／4区分に入らない科目 ${uncChecked ? uncChecked + "種類を検査" : "★未検査（静的モードで流すこと）"}）`);
+            `／4区分に入らない科目 ${uncChecked ? uncChecked + "種類を検査" : "★未検査（静的モードで流すこと）"}` +
+            `／案内文だけの科目 ${ptrChecked ? "検査した" : "★未検査"}）`);
 for (const f of fails) console.log("  NG  " + f);
 process.exit(fails.length ? 1 : 0);
