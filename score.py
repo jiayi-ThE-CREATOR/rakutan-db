@@ -603,13 +603,37 @@ def _unjudged_reason(course_score: dict) -> str:
     口コミが何件入っても軸は埋まらない。5軸化で出席軸が「不明」を返すように
     なり、この152件の band が 情報不足→判定不可 に変わって画面で目立つように
     なったため直した。
+
+    2026-09-06: 「口コミが N件そろうと出ます」は**文を返さない**（空文字）。
+    待っているのが口コミなら、カードの ※ の行が投稿への誘いとして同じことを
+    言う。2か所で言うと、同じカードに口コミの話が二段で並ぶ。
+    ここで待っても出ない2つ（内訳が無い／読み取れた%が足りない）は、
+    ※ の行が出ない科目なので今までどおり文を返す。
+
+    2026-09-07: 「シラバスに載っていない」と「こちらが読み分けられない」を
+    **言い分ける**ようにした。内訳の欄をシラバス直写しに変えた（#127）ので、
+    科目の詳細には内訳が4項目・合計100%で出ているのに、一覧のカードで
+    「シラバスに内訳が載っていない」と言う状態になっていた（507科目）。
+    例：総合英語（Content-based English）は
+    `Learning engagnement 35% / mini news presetations 5% / short speeches 30%
+     / reading and listening comprehension 30%` と**シラバスには書いてある**。
+    載っていないのではなく、METHOD_RULES がこの4つをどの区分にも
+    振り分けられていない。見分けは eval_unclassified が空かどうかで付く。
+
+    **スコアは1点も変わらない。ここで変えたのは文だけ。**
     """
     captured = course_score.get("eval_captured")
+    unclassified = course_score.get("eval_unclassified")
     if captured is None:
+        if unclassified:
+            return ("シラバスの成績評価の内訳を、こちらで種類に読み分けられなかったため、"
+                    "判定を出していません。内訳そのものは科目の詳細に出しています。")
         return "シラバスに成績評価の内訳が載っていないため、判定を出していません。"
     if captured >= EVAL_TOTAL_MIN:
-        return (f"判定に必要な情報が足りていません。"
-                f"口コミが{_min_for_scoring()}件そろうと出ます。")
+        return ""
+    if unclassified:
+        return (f"シラバスの成績評価の内訳のうち{captured:.0f}%分しか種類に読み分けられなかったため、"
+                "判定を出していません。内訳そのものは科目の詳細に出しています。")
     return (f"シラバスの成績評価の内訳が{captured:.0f}%分しか読み取れないため、"
             "判定を出していません。")
 

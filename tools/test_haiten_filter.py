@@ -243,10 +243,12 @@ no_breakdown = scoring.match({"overall": None, "eval_captured": None,
                               "axes": {}, "coverage": 0.0})
 check("口コミ" not in no_breakdown["reason"],
       f"内訳が無い科目に口コミ待ちと言っている: {no_breakdown['reason']}")
+# 口コミで埋まる科目は、ここでは何も言わない（2026-09-06）。
+# 同じことをカードの ※ の行が投稿への誘いとして言うので、両方出すと二段になる。
 partial = scoring.match({"overall": None, "eval_captured": 100.0,
                          "axes": {}, "coverage": 0.5})
-check("口コミ" in partial["reason"],
-      f"口コミで埋まる科目に口コミの話が無い: {partial['reason']}")
+check(partial["reason"] == "",
+      f"口コミ待ちの科目に文が残っている（※の行と二重になる）: {partial['reason']}")
 
 
 print(f"{n - len(fails)}/{n} 件が通過")

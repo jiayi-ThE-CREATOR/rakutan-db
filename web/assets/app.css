@@ -53,7 +53,10 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
  * ページを分けた以上、いまどこにいるか分からないのは事故なので、
  * 現在地に下線を出す（aria-current は app.js が付ける）。
  */
-.nav{display:flex;gap:var(--sp-4);align-items:center}
+/* 隙間は --sp-5。--sp-4（16px）では「科目をさがす／今後のステップ／About ラクハン」が
+   1つの長い文字列に見え、どこで項目が切れているか読み取れなかった（本人指摘 2026-09-06）。
+   .navCta が margin-left:auto で右端に居るので、広げたぶんは空きから取るだけ。 */
+.nav{display:flex;gap:var(--sp-5);align-items:center}
 .nav a{color:var(--on-dark-mid);text-decoration:none;
   font-size:var(--fs-hdr-sub);padding:var(--sp-1) 0;
   border-bottom:2px solid transparent;
@@ -80,23 +83,34 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   box-shadow:0 0 0 2px var(--on-dark-strong)}
 
 /* マイページ。ナビの一項目ではなく、ヘッダの隅に常駐する「自分のもの」への入口。
-   塗らないのは、塗ってよいのは1画面に1つ（＝口コミ）という取り決めのため。 */
+   塗らないのは、塗ってよいのは1画面に1つ（＝口コミ）という取り決めのため。
+
+   塗れない代わりに、文字と枠で目立たせる（2026-09-06。本人指摘「弱すぎて気づかない」）。
+   ナビ（--on-dark-mid・400）より一段上げて 白・600・+1px、枠も罫（.34）から
+   --on-dark-strong（.84）へ。これで「ナビの4項目のうちの1つ」には見えなくなる。
+   ここを塗り（--brand）にしないのは上の取り決めのため。 */
 .hdMy{display:inline-flex;align-items:center;flex:0 0 auto;
-  color:var(--on-dark-mid);text-decoration:none;font-size:var(--fs-hdr-sub);
-  padding:var(--sp-1) var(--sp-3);border:1px solid var(--on-dark-line);
+  color:var(--on-dark);text-decoration:none;
+  font-size:calc(var(--fs-hdr-sub) + 1px);font-weight:600;
+  padding:var(--sp-1) var(--sp-3);border:1px solid var(--on-dark-strong);
   border-radius:var(--r-pill);white-space:nowrap;
   transition:color var(--dur) var(--ease-out),
-             border-color var(--dur) var(--ease-out)}
-.hdMy:hover{color:var(--on-dark);border-color:var(--on-dark)}
-.hdMy[aria-current="page"]{color:var(--on-dark);border-color:var(--brand)}
+             border-color var(--dur) var(--ease-out),
+             box-shadow var(--dur) var(--ease-out)}
+.hdMy:hover{color:var(--on-dark);border-color:var(--on-dark);
+  box-shadow:0 0 0 1px var(--on-dark)}
+.hdMy[aria-current="page"]{color:var(--on-dark);border-color:var(--brand);
+  box-shadow:0 0 0 1px var(--brand)}
 
 /* PC ではロゴを左端に置いたまま、ナビとマイページを右へ寄せる。
    DOM の順（ロゴ→マイページ→ナビ）は狭い画面の見た目に合わせてあるので、
    ここだけ order で入れ替える。
 
    ヘッダが1行になる幅について。
-   1行に必要なのは ロゴ360 + ナビ426 + マイページ93 + 隙間32 ＝ 911px、
-   左右の余白を足して 943px（実測）。以前ここは 640px で、
+   1行に必要なのは ロゴ355 + ナビ464 + マイページ98 + 隙間32 ＝ 949px、
+   左右の余白を足して 981px（実測 2026-09-06。ナビの隙間を --sp-5 へ、
+   マイページを +1px/600 へ広げたぶん、以前の 943px から 38px 増えた。
+   境目 1024px まではまだ 43px ある）。以前ここは 640px で、
    640〜942px ではロゴの GUILD が折れ、口コミの塗りが2行に割れていた
    （実測 768px でヘッダ 124px）。入らない幅では2段のままの方が低く収まるので、
    境目を 1024px（＝いちばん近い既存のブレークポイント）へ上げる。 */
@@ -146,7 +160,7 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
      どこからが押せるものか分からない。負のマージンで header の左右 padding を
      打ち消し、画面幅いっぱいの一段下の帯にする（下端も同様に打ち消す）。 */
   .nav{grid-column:1 / -1;grid-row:2;
-    gap:var(--sp-2) var(--sp-3);flex-wrap:wrap;
+    gap:var(--sp-2) var(--sp-4);flex-wrap:wrap;
     margin:11px calc(-1 * var(--pad)) -12px;
     padding:8px var(--pad) 9px;
     background:var(--on-dark-band);
@@ -169,9 +183,11 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   .by{padding-left:var(--sp-2)}
   .byMain{font-size:11px}
   .bySub{font-size:9.5px;letter-spacing:.08em}
-  /* ロゴ＋GUILD と同じ行に居るので、ここも一緒に落とす。
-     実測：320px 幅で 上段 = ロゴ 77 + GUILD 102 + これ 78 ＝ 端まで約 30px 残る。 */
-  .hdMy{font-size:12px;padding:3px var(--sp-2)}
+  /* ロゴ＋GUILD と同じ行に居るので、ここも一緒に落とす。ナビ（12px）より
+     1px 大きいままなのは、ここだけは埋もれさせないため。
+     実測 2026-09-06：320px 幅で 上段 = ロゴ＋GUILD が 211px まで、
+     これが 223〜304px。間に 12px 残る（触るならこの 12px が持ち代）。 */
+  .hdMy{font-size:13px;padding:3px var(--sp-2)}
 }
 
 /* 320px（実在する最小の端末幅）を切ると、ロゴ・添え書き・GUILD は
@@ -200,6 +216,15 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   .nav a{font-size:12px}
 }
 
+/* ただし 6px は「390px でも4項目を1行に収める」ための下限であって、
+   読みやすい隙間ではない。入る幅では 10px まで戻す。
+   実測（12px・4項目）：3項目 243 + 口コミ 96 + 隙間3つ + 左右余白 32。
+   隙間 10px なら 401px から1行に収まる（6px なら 390px から）。
+   401 未満は 6px のまま――ここを広げると口コミが単独で次の行へ落ちる。 */
+@media (min-width:401px) and (max-width:479px){
+  .nav{column-gap:10px}
+}
+
 input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-md);
   background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-base)}
 input:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
@@ -219,7 +244,6 @@ option:hover, option:focus{ background:var(--brand-soft); }
 
 section{margin-top:22px}
 h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-weight:700}
-h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 
 /* ── 空きコマグリッド ─────────────────── */
 .grid{display:grid;grid-template-columns:20px repeat(5,1fr);gap:4px}
@@ -230,7 +254,6 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   cursor:pointer;font-variant-numeric:tabular-nums}
 .grid button.zero{color:var(--rule);background:transparent}
 .grid button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:700}
-.hint{font-size:var(--fs-xs);color:var(--muted);margin-top:6px}
 
 /* ── 選択中コマの貼り付きバー ─────────── */
 .slotBar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;
@@ -581,7 +604,12 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    2026-08-24 本番実測：502科目（全体の45%）に立つ。「軽い順」の上位40件では
    40件すべてに出る。だから口コミの帯と同じ強さにはしない
    ―― 100%に出る警告は壁紙になり、10%しかない帯の方を埋もれさせる。 */
-.bandNote{display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:var(--sp-1)}
+/* ※ の行。カードでは .head の grid に直接ぶら下げる（.reason の中ではない）。
+   768px 以上で .reason は -webkit-line-clamp:2 で切られるので、中に入れると
+   13px にしたぶん折り返した2行目が 2列レイアウトで消える（2026-09-07 本人指摘。
+   実測：24枚中19枚で .reason が 46px 表示／66px 実寸＝1行ぶん欠けていた）。
+   詳細パネルでも同じクラスを使うが、あちらは grid ではないので指定は無視される。 */
+.bandNote{display:block;grid-column:1/3;font-size:var(--fs-sm);color:var(--muted);margin-top:var(--sp-1)}
 .bandNote::before{content:"※ "}
 /* 元は detailHtml() の .dSec の中で使われ、見出し（口コミ N件）は .secH、
    区切りは .dSec+.dSec が引いていたので、ここでは罫も上余白も持たない

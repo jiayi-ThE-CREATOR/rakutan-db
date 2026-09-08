@@ -82,10 +82,6 @@ function buildGrid(slots){
       g.appendChild(b);
     });
   });
-  $("#slotHint").textContent = (state.day)
-    ? `${state.day}曜${state.period}限で絞り込み中 ―― もう一度押すと解除`
-    : "「火3が空いてる、何取ろう」から始められる。検索語は要らない。";
-
   $("#slotBar").hidden = !state.day;
   if (state.day) $("#slotBarText").textContent = `${state.day}曜${state.period}限で絞り込み中`;
 }
@@ -310,8 +306,7 @@ function buildFaculty(facets){
   const own = plan.need.filter(isOwnDivision);
   $("#facOwn").hidden = own.length === 0;
   if (own.length){
-    $("#facOwnH").innerHTML = `${esc(fac.label)}だけの区分`
-      + ` <span class="sub">学部の履修表の行に合わせています</span>`;
+    $("#facOwnH").textContent = `${fac.label}だけの区分`;
     $("#divsOwn").innerHTML = own.map(d => divisionChip(d, facets)).join("");
   } else {
     $("#divsOwn").innerHTML = "";
@@ -452,33 +447,85 @@ function syncReviewSortOptions(){
 
 /* 成績評価の内訳（KOANシラバスの生の%）を積み上げバーで見せる（2026-09-05）。
  *
- * eval_ratio は 出席・試験・小テスト・レポート の4区分（2026-09-03 に小テストが
- * 出席から独立した。score.py の quiz 軸と同じデータを見ている）。
- * 内訳の合計が100%に届かない科目（分類しきれなかった項目が残る＝eval_unclassified）は、
- * 残りを「不明」として灰色で埋める。欠損を他区分の比率へ埋め戻すと、
- * 実際の内訳と違う数字を見せることになるため行わない。 */
-const EVAL_CATS = [["attendance","出席・平常点"], ["exam","期末テスト"], ["quiz","小テスト"], ["report","レポート"]];
+ * 出すのは **KOAN のシラバスの成績評価テーブルの行そのもの**（`eval_raw`）。
+ * 文言も数字も並び順もシラバスのまま。こちらで種類にまとめ直したり、
+ * 名前を付け替えたりしない（本人判断・2026-09-07）。
+ *
+ * なぜ eval_ratio（4区分に振り分けた値）を出さないか
+ * ──────────────────────────────────────────────
+ * 振り分けは採点のための都合であって、学生が見るべき事実ではない。
+ * 実害が出ていた：
+ *   ・`発表` は scrape/parse.py で report に入るので、
+ *     「学習への参加度20% ＋ 発表80%」の科目が「レポート 80%」と出ていた。
+ *     レポートは1本も無い。同じ形の科目が 1,363件（全7,906件で実測）
+ *   ・`期末レポート` `期末課題` は試験ルールの裸の「期末」に当たるので
+ *     「期末テスト」として出ていた（延べ172箇所）
+ *   ・振り分けられなかった項目（723箇所・507科目）は灰色の「不明」に消えていた。
+ *     中央値で35%の配点が名前ごと消えていたことになる
+ * シラバスの行をそのまま出せば、この3つは同時に起きなくなる。
+ *
+ * **採点・つまみ・条件チップは今までどおり eval_ratio（4区分）を見る。**
+ * 画面のこの部分だけがシラバス直写しになった。片方を直すときにもう片方が
+ * 一緒に動くことは無いので、食い違って見えたらまずここを疑うこと。
+ *
+ * 色は種類ではなく**並び順**（--comp-1〜5）。KOAN の表は最大5列なので5色で足りる。
+ * 同じ「レポート」でも科目によって色が違うが、凡例が隣にあるので困らない。 */
+
+/* シラバスの表に「ここには書いていない」とだけ書かれている行（実測15種類・60箇所）。
+ * 例：`補足情報を参照 100%`、`下記評価基準 100%`、`英文シラバスをご参照ください。100%`。
+ *
+ * **文言と数字はシラバスのまま出す**（この欄の原則）が、色だけ灰色にする。
+ * 評価の成分と同じ色で塗ると「補足情報を参照という科目が成績の100%」に見えるため。
+ * 灰色は「記載なし」と同じ役割の色 ―― 中身が分かっていない、の意味。
+ *
+ * 🚨 「その他（レポート、課題提出、…）」のような**中身を並べている行は成分**なので
+ *    ここに入れない。実データで似た21種類（`その他の課題`『出席カードへのふり返り記入』
+ *    など）を目視で分けた。増やすときは全1,134種類に当てて誤爆を見ること。
+ *
+ * 本当の配点はシラバス本文の「成績評価に関する補足情報」に書かれていることが多い。
+ * KOAN の生HTMLを取り込めば埋められる（HANDOFF 参照）。それまでは灰色で出す。 */
+const EVAL_POINTER =
+  /^(下記|以下)|補足情報|ご参照ください|^各担当教員が判定$|^総合的に判断$|^講義と合わせて成績評価を行う$|^（その他の場合ここに記入）$/;
 
 function evalCompHtml(c){
-  const er = c.eval_ratio;
-  if (!er) return `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
-  const segs = EVAL_CATS.filter(([k]) => er[k] > 0).map(([k,l]) => ({k, l, v: er[k]}));
-  const known = segs.reduce((s, x) => s + x.v, 0);
-  const unknown = Math.max(0, Math.round((100 - known) * 10) / 10);
-  const hasUnknown = unknown >= 1;
-  // 本文に「毎回小テスト」の記載はあるが、配点が読み取れず quiz% が立っていない20件（2026-09-05実測）。
-  const quizNoPct = c.weekly_quiz && !(er.quiz > 0);
-  const dot = (k) => `<i class="compDot" style="background:var(--comp-${k || "unknown"})"></i>`;
+  const raw = c.eval_raw;
+  const rows = raw ? Object.entries(raw) : [];
+  if (!rows.length)
+    return `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
+
+  /* シラバスの表が100%に届いていない科目が18件ある（例：有機化学3は
+     中間試験30% ＋ 期末試験40% で70%）。残りを他の行へ按分すると
+     シラバスに無い数字を出すことになるので、「記載なし」として灰色で置く。 */
+  const known = rows.reduce((sum, [, v]) => sum + (v || 0), 0);
+  const gap = Math.max(0, Math.round((100 - known) * 10) / 10);
+  const hasGap = gap >= 1;
+
+  /* 本文に「毎回小テスト」とあるのに、成績評価の表には小テストの行が無い科目。
+     表に無いものを表へ足すことはしないので、注記として別に出す。 */
+  const quizNoRow = c.weekly_quiz &&
+    !rows.some(([k]) => /小テスト|クイズ|quiz/i.test(k));
+
+  /* 案内文の行は灰色。色の順番（--comp-1〜5）は成分の行だけで数えるので、
+     案内文が混ざっても成分どうしの色がずれない。 */
+  const pointers = rows.filter(([k]) => EVAL_POINTER.test(k));
+  let seq = 0;
+  const colorOf = k => EVAL_POINTER.test(k) ? "var(--comp-gap)"
+                                            : `var(--comp-${(seq++ % 5) + 1})`;
+  const colors = new Map(rows.map(([k]) => [k, colorOf(k)]));
+
+  const dot = v => `<i class="compDot" style="background:${v}"></i>`;
   return `<div class="compBar">
-      ${segs.map(s => `<div class="compSeg" style="width:${s.v}%;background:var(--comp-${s.k})"></div>`).join("")}
-      ${hasUnknown ? `<div class="compSeg" style="width:${unknown}%;background:var(--comp-unknown)"></div>` : ""}
+      ${rows.filter(([, v]) => v > 0).map(([k, v]) =>
+        `<div class="compSeg" style="width:${v}%;background:${colors.get(k)}"></div>`).join("")}
+      ${hasGap ? `<div class="compSeg" style="width:${gap}%;background:var(--comp-gap)"></div>` : ""}
     </div>
     <div class="compLegend">
-      ${segs.map(s => `<span>${dot(s.k)}${esc(s.l)}<b>${s.v.toFixed(0)}%</b></span>`).join("")}
-      ${hasUnknown ? `<span>${dot()}不明<b>${unknown.toFixed(0)}%</b></span>` : ""}
+      ${rows.map(([k, v]) => `<span>${dot(colors.get(k))}${esc(k)}<b>${v}%</b></span>`).join("")}
+      ${hasGap ? `<span>${dot("var(--comp-gap)")}記載なし<b>${gap}%</b></span>` : ""}
     </div>
-    ${quizNoPct ? `<div class="compNote">毎回小テストがありますが、配点は取得できていません</div>` : ""}
-    ${hasUnknown ? `<div class="compNote">内訳の一部は分類できていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}`;
+    ${pointers.length ? `<div class="compNote">シラバスの成績評価の表には「${esc(pointers[0][0])}」とだけ書かれていて、内訳が分かりません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}
+    ${quizNoRow ? `<div class="compNote">シラバス本文に「毎回小テスト」の記載がありますが、成績評価の表には配点がありません</div>` : ""}
+    ${hasGap ? `<div class="compNote">シラバスの成績評価の表が${known}%ぶんしか埋まっていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}`;
 }
 
 /* ── 担当教員 ─────────────────────────────
@@ -523,15 +570,25 @@ function reviewMark(rv){
       まだ数字には入っていません。下の「口コミを読む」で中身を確認してください</div></div>` };
 }
 
-/* テストの難しさが確認できていないときの一言。
-   口コミが1件も無い科目は「最初の1人」に誘う ―― 出るのは誰も書いていない科目なので、
-   ここが投稿への入口になる。
-   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、
-   すぐ下の注意帯（口コミ N件）と矛盾するので、そのときは書きぶりを変える。 */
-function needsReviewNote(c){
-  return c.reviews?.n
-    ? "テストの難しさは、まだ誰も書いてない"
-    : "口コミはまだ誰も書いてないけど、最初の1人になりませんか？";
+/* band の下の ※ の行。「口コミが集まれば数字が出る」科目にだけ出す。
+   出す条件は2つ ―― テストの難しさ待ち（needs_review）と、総合値がまだ出せず
+   その穴が口コミで埋まる科目（内訳は読めている）。後者は 2026-09-06 まで
+   .reason 側が「口コミが3件そろうと出ます」と言っていたぶんで、同じことを
+   2か所で言うのをやめ、投稿への誘い1本に寄せた（score.py の _unjudged_reason）。
+
+   口コミが1件も無いなら「最初の1人」に誘う ―― ここが投稿への入口になる。
+   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、すぐ下の
+   注意帯（口コミ N件 ― まだ数字には入っていません）と矛盾するので、
+   足りない話（テストの難しさ）だけを書く。それも無いなら注意帯に任せて黙る。 */
+function bandNoteText(c){
+  const r = c.rakutan;
+  const cap = r.eval_captured;
+  const min = (META && META.eval_total_min) || 80;
+  const unjudged = (r.overall === null || r.overall === undefined)
+    && cap !== null && cap !== undefined && cap >= min;
+  if (!r.needs_review && !unjudged) return "";
+  if (!c.reviews?.n) return "口コミはまだ誰も書いてないけど、最初の1人になりませんか？";
+  return r.needs_review ? "テストの難しさは、まだ誰も書いてない" : "";
 }
 
 /* 一覧カードの下端の操作バー（2026-09-06）。
@@ -594,6 +651,7 @@ function card(c){
      ―― 表示だけをやめる。条件チップ（r.tags）はそのまま残す。 */
   const tags = [...r.tags];
   const rv = reviewMark(c.reviews);
+  const note = bandNoteText(c);
   const fav = rkStore.isFavorite(c.id);
   return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
@@ -602,8 +660,8 @@ function card(c){
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
       </div>
       <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
-        ${r.needs_review ? `<span class="bandNote">${esc(needsReviewNote(c))}</span>` : ""}</div>
+      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
+      ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
@@ -890,14 +948,24 @@ const CONDITIONS = {
 function matchLocal(r){
   if (r.overall === null || r.overall === undefined){
     /* 「口コミが集まれば出ます」と言えるのは、口コミで埋まる穴のときだけ。
-       内訳そのものが載っていない科目は待っても出ない（score.py と同文）。 */
+       内訳そのものが載っていない科目は待っても出ない（score.py と同文）。
+
+       2026-09-07: 「シラバスに載っていない」と「こちらが読み分けられない」を
+       言い分ける。内訳をシラバス直写しにしたので、詳細に内訳が100%出ているのに
+       一覧のカードで「載っていない」と言う状態になっていた（507科目）。
+       score.py の _unjudged_reason と同文。片方だけ直さないこと。 */
     const cap = r.eval_captured;
+    const unc = r.eval_unclassified;
     const min = (META && META.eval_total_min) || 80;
     let reason;
     if (cap === null || cap === undefined)
-      reason = "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
+      reason = unc
+        ? "シラバスの成績評価の内訳を、こちらで種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。"
+        : "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
     else if (cap >= min)
-      reason = `判定に必要な情報が足りていません。口コミが${minForScoring()}件そろうと出ます。`;
+      reason = "";          // 口コミ待ちは band の下の ※ の行が言う（bandNoteText）
+    else if (unc)
+      reason = `シラバスの成績評価の内訳のうち${Math.round(cap)}%分しか種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。`;
     else
       reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
     return { fit:null, reason, labels:META.axis_labels };
