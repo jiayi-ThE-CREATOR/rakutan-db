@@ -11,12 +11,20 @@ const check = (cond, msg) => { if (!cond) fails.push(msg); };
 
 const browser = await chromium.launch();
 
-async function page(w, h){
+/* railOff: 絞り込みを畳んだ状態で開く。#list の実効幅は
+   「viewport - 絞り込み(260px) - gap」なので、同じ viewport 幅でも
+   畳む／畳まないで列数が変わる（cardMin:380px、2列には760px前後が要る）。
+   Change 4 の等高検証で「◯◯px幅で2列」を再現するのに必要になる
+   （2026-09-08）。 */
+async function page(w, h, railOff = false){
   const p = await browser.newPage({ viewport: { width: w, height: h } });
-  await p.addInitScript(() => {
+  await p.addInitScript((railOff) => {
     try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
     try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
-  });
+    if (railOff){
+      try { localStorage.setItem("rk_ui", JSON.stringify({ v: 1, railOpen: false })); } catch (e) {}
+    }
+  }, railOff);
   return p;
 }
 
@@ -374,34 +382,111 @@ async function readableCount(p, id){
   await p.close();
 }
 
-/* ── Change 4: 同じ行のカードは操作バーの上端が揃う ──
-   #list が等高になる（align-items:stretch）のは
-   .workbench:has(#inspector:empty) の中・1160px以上だけ（app.css の
-   #list{--cardH:279px;align-items:stretch} ブロック参照）。
-   768〜1159px は #list { align-items:start } のままなので、2列になっていても
-   揃う保証が無い（実測ずみ・owner-round-report.md 参照）。ここでは
-   保証されている PC 幅（1280px、このファイル冒頭の PC 幅と同じ）で検証する。 */
+/* ── Change 4: 同じ行のカードは高さが揃い、操作バーの下端が揃う ──
+   2026-09-08、オーナー裁定で #list{align-items:stretch} を
+   min-width:1024px（#inspector の状態を問わず）に広げた。1024px は
+   mqDesktop（app.js）が「詳細をカード内展開」→「右カラム #inspector」に
+   切り替える境目そのもの ―― この線より上はカードを開いても自分の高さが
+   変わらないので stretch させても損が無く、下はアコーディオンなので
+   stretch すると開いた1枚に行の相方まで引きずられる。だから
+   768〜1023px は #list{align-items:start} のまま（意図的、直さない）。
+   検証するのは「カードの高さ」と「.cardActs の下端」──「.cardActs の
+   上端」ではない。.cardActs は margin-top:auto でカードの下端に
+   張り付くので、カードの高さが揃っていれば下端は必ず揃う。だが
+   .cardActs 自身の高さ（プレビュー2行＝82px／1行・0件＝69px）は
+   カードの中身（口コミプレビューの有無）で変わるので、それが row内で
+   異なると上端はずれる ―― これはバグではなく「下端で揃える」設計の
+   当然の帰結（実測で確認：デフォルト一覧1280pxで同じ行の2枚が
+   カード高214.06pxで完全一致していても、プレビュー行の有無で
+   actsHeight が82.19px/69pxと違えば actsTop は13.19px ずれた）。
+   タグの有無だけが違って中身の型（プレビュー行の有無）が揃っている
+   行（オーナーの元の指摘・owner-round-report.md の手動実測）では
+   上端も一致するが、それは「バーの高さ自体が同じ」という追加条件が
+   たまたま満たされているからで、一般には保証されない。 */
+function rowMetrics(){
+  const cards = [...document.querySelectorAll("#list > .card")];
+  const groups = {};
+  for (const c of cards){
+    const top = Math.round(c.getBoundingClientRect().top);
+    (groups[top] ||= []).push(c);
+  }
+  return Object.values(groups).filter(g => g.length >= 2).map(g => g.map(c => {
+    const r = c.getBoundingClientRect();
+    const acts = c.querySelector(".cardActs");
+    const ar = acts ? acts.getBoundingClientRect() : null;
+    return { cardHeight: r.height, actsBottom: ar ? ar.bottom : null };
+  }));
+}
+function assertRowsAligned(rows, label){
+  check(rows.length > 0, `[${label}] 同じ行に複数枚のカードが無い（検証ができない）`);
+  for (const row of rows){
+    const heights = row.map(r => r.cardHeight);
+    const heightSpread = Math.max(...heights) - Math.min(...heights);
+    check(heightSpread <= 1,
+          `[${label}] 同じ行のカードの高さが揃っていない（差 ${heightSpread.toFixed(2)}px）`);
+    const bottoms = row.map(r => r.actsBottom).filter(b => b !== null);
+    const bottomSpread = bottoms.length ? Math.max(...bottoms) - Math.min(...bottoms) : 0;
+    check(bottomSpread <= 1,
+          `[${label}] 同じ行の .cardActs の下端が揃っていない（差 ${bottomSpread.toFixed(2)}px）`);
+  }
+}
+
+/* 1280px・何も選んでいない状態（以前から保証されていたケース）。 */
 {
   const p = await page(1280, 900);
   await p.goto(base + "/", { waitUntil: "networkidle" });
   await p.waitForSelector(".card");
-  const rows = await p.evaluate(() => {
+  assertRowsAligned(await p.evaluate(rowMetrics), "1280px・未選択");
+  await p.close();
+}
+
+/* 1280px・科目を選んでいる状態（#inspector が空でなくなる）。
+   これが今回オーナー裁定で新しく直った側 ―― 以前は
+   .workbench:has(#inspector:empty) の中だけに stretch を付けていたので、
+   ここでは揃わなくなっていた。
+   絞り込みを畳む（railOff）のは、#list の実効幅を稼ぐため ――
+   科目選択中は #inspector が固定380px・.wrap の上限が1400pxなので、
+   絞り込み(260px)が開いたままだと1280pxでは1列にしかならず、
+   「同じ行」の検証ができない（実測ずみ）。 */
+{
+  const p = await page(1280, 900, true);
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.waitForSelector(".card");
+  await p.click(".card .head");
+  await p.waitForTimeout(400);
+  check(await p.evaluate(() => document.getElementById("inspector").innerHTML.trim().length > 0),
+        "[1280px・選択中] #inspector が埋まっていない（前提が崩れている）");
+  assertRowsAligned(await p.evaluate(rowMetrics), "1280px・選択中");
+  await p.close();
+}
+
+/* 900px（1024px未満・2列）。ここは揃わなくて正しい（オーナー裁定）―― かつ、
+   カードを開いても同じ行の相方の高さが変わらない（アコーディオンが
+   隣を巻き込まない）ことを確認する。揃わない前提を固定するアサーションは
+   置かない（データが変われば揃うことも揃わないこともあり得るため）。
+   railOff にするのは、絞り込みが開いたままの900pxでは #list が1列
+   （実効幅760px未満）にしかならず、「同じ行の相方」を作れないため。 */
+{
+  const p = await page(900, 900, true);
+  await p.goto(base + "/", { waitUntil: "networkidle" });
+  await p.waitForSelector(".card");
+  const before = await p.evaluate(() => {
     const cards = [...document.querySelectorAll("#list > .card")];
-    const groups = {};
-    for (const c of cards){
-      const top = Math.round(c.getBoundingClientRect().top);
-      (groups[top] ||= []).push(c);
-    }
-    return Object.values(groups)
-      .filter(g => g.length >= 2)
-      .map(g => g.map(c => c.querySelector(".cardActs")?.getBoundingClientRect().top ?? null));
+    const top0 = Math.round(cards[0].getBoundingClientRect().top);
+    const row = cards.filter(c => Math.round(c.getBoundingClientRect().top) === top0);
+    return row.length >= 2
+      ? { neighborId: row[1].dataset.id, neighborHeight: row[1].getBoundingClientRect().height }
+      : null;
   });
-  check(rows.length > 0, "同じ行に複数枚のカードが無い（等高の検証ができない・幅かデータを見直すこと）");
-  for (const tops of rows){
-    const valid = tops.filter(t => t !== null);
-    const spread = valid.length ? Math.max(...valid) - Math.min(...valid) : 0;
-    check(spread <= 1,
-          `同じ行の .cardActs の上端が揃っていない（差 ${spread.toFixed(2)}px、tops=${JSON.stringify(valid)}）`);
+  check(before, "[900px] 先頭行に相方のカードが無い（検証できない）");
+  if (before){
+    await p.click(".card .head");
+    await p.waitForTimeout(400);
+    const after = await p.evaluate(id =>
+      document.querySelector(`.card[data-id="${id}"]`)?.getBoundingClientRect().height ?? null,
+      before.neighborId);
+    check(Math.abs(after - before.neighborHeight) <= 1,
+          `[900px] 1枚開くと同じ行の相方まで伸びている（開く前 ${before.neighborHeight.toFixed(1)}px → 開いた後 ${after?.toFixed(1)}px）`);
   }
   await p.close();
 }

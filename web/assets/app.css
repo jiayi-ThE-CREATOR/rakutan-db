@@ -455,10 +455,12 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    隣のカードに引っ張られた行の高さなど）、上の中身がどれだけ違っても
    操作バーの上端が同じ高さに揃う。中身が.cardの自然な高さちょうどのとき
    （伸ばす余地が無いとき）は何もしない ―― その場合の揃え方は
-   #list 側の align-items:stretch の責任範囲（この下の
-   .workbench:has(#inspector:empty) #list ブロックのコメント参照。
-   768〜1159px は #list{align-items:start} のままなので、2列でも揃わない
-   ―― 1100px 幅で実測、差42px。owner-round-report.md 参照）。 */
+   #list 側の align-items:stretch の責任範囲（min-width:1024px の #list
+   ルールのコメント参照。768〜1023px は #list{align-items:start} のままで、
+   ここは意図的 ―― 詳細がカードの中に展開する幅なので、stretch すると
+   開いたカードに行の相方まで引きずられる。2026-09-08、オーナー裁定。
+   1100px 幅で「揃わない」のを実測したのは変更前の話（差42px）で、
+   1024px 以上へ広げた今は揃う。owner-round-report.md 参照）。 */
 .cardActs{display:flex;align-items:center;gap:var(--sp-2);margin-top:auto;
   padding:var(--sp-3) 14px;border-top:1px solid var(--rule);background:var(--paper)}
 /* 「口コミ N件を読む」。2行目は先頭の一言。押す理由をここに置く。
@@ -792,6 +794,23 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 @media (min-width:1024px){
   .wrap{max-width:1400px}
   .hd{max-width:1400px}
+  /* 一覧のカードを行ごとに等高にする（2026-09-08、オーナー裁定）。
+   *
+   * 1024px は mqDesktop（app.js）が「詳細をカード内に展開する」から
+   * 「右カラム #inspector に出す」へ切り替える境目そのもの。この線より
+   * 上ではカードを開いても自分の高さが変わらないので、行の全員を
+   * stretch しても損が無い（開いていないカードが引っ張られない）。
+   * この線より下は詳細がカードの中に展開する（アコーディオン）ので、
+   * stretch すると開いた1枚に行の相方まで引きずられて伸びてしまう
+   * ―― だから 768px 側の #list{align-items:start} はここでは変えない。
+   *
+   * #inspector が空かどうかに関係なく効かせる。以前は
+   * .workbench:has(#inspector:empty) の中だけ（1160px以上）に付けていたため、
+   * 揃わない幅が2つ残っていた：①1024〜1159px の2列（オーナーの
+   * スクリーンショット・実測で42px差）、②1160px以上で科目を選んでいる
+   * とき（#inspector が空でなくなり、この委譲が外れて揃わなくなっていた）。
+   * どちらも owner-round-report.md 参照。 */
+  #list{align-items:stretch}
 }
 
 @media (min-width:1160px){
@@ -831,7 +850,7 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
      一覧が中央へ寄り直す」ことで画面に出る。 */
   .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,860px)}
 
-  /* ── 空のとき（2列）はカードの高さを揃える ──────────────
+  /* ── 空のとき（2列）はカードに 279px の床を敷く ──────────────
      224px は口コミバッジ（+28px）／タグの行（+30px）／理由が2行に折り返す
      （+20px）の組み合わせから出した値だったが、2026-09-06 に .cardActs
      （一覧カードの操作バー）を全カード共通・常時表示で足したことと、
@@ -842,16 +861,23 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
      renderPage(1..47) で全ページ描画し、.unscored を除く実測の最大値を
      取ったところ 278.078125px（例：科目135705＝タイトル2行＋タグ1行＋
      理由2行＋.cardActs 82px の組み合わせ、同率タイが複数件）。
-     端数を切り上げた 279px を下限にし、align-items:stretch で
-     同じ行の相方を必ず追従させる。
+     端数を切り上げた 279px を下限にする。
      height ではなく min-height なのは、想定外に伸びる科目が出たとき
-     中身を切らずに行ごと伸びてほしいから（切ると事実が消える）。 */
-  .workbench:has(#inspector:empty) #list{--cardH:279px;align-items:stretch}
+     中身を切らずに行ごと伸びてほしいから（切ると事実が消える）。
+     2026-09-08：align-items:stretch はここから上（min-width:1024px の
+     #list ルール）へ引っ越した ―― #inspector が空かどうかを問わず
+     効かせるため（オーナー裁定・上のコメント参照）。ここに残っているのは
+     「空のときだけ欲しい 279px という具体的な床」の分だけで、stretch
+     そのものはもう無い。 */
+  .workbench:has(#inspector:empty) #list{--cardH:279px}
   .workbench:has(#inspector:empty) #list > .card{min-height:var(--cardH)}
   /* .rvBtn/.wrBtn.ghost の高さの床（57px）はここでだけ効かせる。
-     等高カードを求めているのはこの PC 専用ブロックだけなので
-     （align-items:stretch も --cardH もここにしかない）、床も同じ場所に
-     置く。スマホは一度も等高を求められていない ―― ここを外すと
+     この 57px の床が要る等高カードは「空のとき（--cardH:279px）」の
+     場面だけなので、床も同じ場所に置く。stretch 自体は2026-09-08から
+     1024px 以上で常時効くが、そのぶんの56px級の余白吸収は各要素の
+     自然な高さ（.rvBtn は min-height:44px 止まり）に任せていて、
+     ここで57pxまで踏み台を上げる必要があるのは279pxの床と組み合わさる
+     ここだけ。スマホは一度も等高を求められていない ―― ここを外すと
      0件カードの操作バーは自然な1行分の高さに戻り、約20px縮む
      （2026-09-07、390px 実測。C章の実測値参照）。 */
   .workbench:has(#inspector:empty) #list > .card .rvBtn,
