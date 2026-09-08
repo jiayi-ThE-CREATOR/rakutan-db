@@ -1,8 +1,13 @@
 /* 「成績評価の内訳」が、シラバスの成績評価テーブルと**一字一句・一数字**
  * 一致していることを実ブラウザで見る。
  *
- *   python3 server.py --port 8149 &
+ *   python3 server.py --port 8149 &                 # API モード
  *   node tools/test_eval_raw.mjs http://127.0.0.1:8149
+ *
+ *   (cd web && python3 -m http.server 8150) &        # 静的モード（Cloudflare相当）
+ *   node tools/test_eval_raw.mjs http://127.0.0.1:8150
+ *
+ * **両方で流すこと。** 静的モードでしか踏めない科目がある（下の ③）。
  *
  * なぜこのテストが要るか
  * ──────────────────────
@@ -29,7 +34,20 @@ const fails = [];
 let n = 0;
 const check = (cond, msg) => { n++; if (!cond) fails.push(msg); };
 
-const api = async path => (await fetch(BASE + path)).json();
+/* API モード（server.py）と静的モード（Cloudflare相当）の両方で動かせるようにする。
+   **静的モードでないと検査できない科目がある** ―― server.py が配る
+   data/courses.json は取得した人以外の手元では共通教育1,112件ぶんしか無く、
+   そこには未分類の科目が1件も入っていない。内訳をシラバス直写しにした動機の
+   ど真ん中（eval_ratio が null の科目）が、API モードでは1件も踏めない。 */
+const isApi = await fetch(BASE + "/api/health").then(r => r.ok).catch(() => false);
+let STATIC = null;
+if (!isApi) {
+  STATIC = {};
+  const d = await (await fetch(BASE + "/data/courses.built.json")).json();
+  for (const c of d.courses) STATIC[c.id] = c;
+}
+const courseOf = async id =>
+  isApi ? (await fetch(`${BASE}/api/courses/${id}`)).json() : STATIC[id];
 
 const open = async browser => {
   const p = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
@@ -60,7 +78,7 @@ check(ids.length >= 10, `一覧のカードが少なすぎて検査にならな�
 
 let withRaw = 0;
 for (const id of ids.slice(0, 40)) {
-  const c = await api(`/api/courses/${id}`);
+  const c = await courseOf(id);
   const raw = c.eval_raw || {};
   const rows = Object.entries(raw);
 
@@ -105,7 +123,7 @@ let gapChecked = false;
 const gapCard = await p.$("#list .card");
 if (gapCard) {
   const id = await gapCard.getAttribute("data-id");
-  const c = await api(`/api/courses/${id}`);
+  const c = await courseOf(id);
   const sum = Object.values(c.eval_raw || {}).reduce((s, v) => s + v, 0);
   if (sum < 100) {
     gapChecked = true;
@@ -124,9 +142,37 @@ if (gapCard) {
   }
 }
 
+/* ── ③ 「4区分に1つも振り分けられなかった」科目 ──
+   eval_ratio が null なので、2026-09-07 以前は内訳の欄そのものが
+   「KOANから取得できていません」になり、**シラバスに書いてある4項目が
+   1つも出ていなかった**。507科目がこの状態だった。 */
+let nullRatioChecked = false;
+if (STATIC) {
+  const victim = Object.values(STATIC).find(
+    c => !c.eval_ratio && c.eval_raw && Object.keys(c.eval_raw).length >= 2);
+  if (victim) {
+    nullRatioChecked = true;
+    await p.fill("#q", victim.title);
+    await p.waitForTimeout(700);
+    const card = await p.$(`.card[data-id="${victim.id}"]`);
+    check(card !== null, `${victim.id} ${victim.title} がカードに出てこない`);
+    if (card) {
+      await card.click();
+      await p.waitForTimeout(250);
+      const legend = await legendOf(p);
+      const want = Object.entries(victim.eval_raw).map(([k, v]) => [k, `${v}%`]);
+      check(JSON.stringify(legend) === JSON.stringify(want),
+            `${victim.id} 4区分に振り分けられない科目の内訳が出ていない\n` +
+            `      画面: ${JSON.stringify(legend)}\n` +
+            `      表  : ${JSON.stringify(want)}`);
+    }
+  }
+}
+
 await browser.close();
 console.log(`  通過 ${n - fails.length} 件 / ${n} 件` +
             `（内訳のある科目 ${withRaw}件を検査` +
-            `／表が100%に届かない科目 ${gapChecked ? "検査した" : "★見つからず未検査"}）`);
+            `／表が100%に届かない科目 ${gapChecked ? "検査した" : "★未検査"}` +
+            `／4区分に入らない科目 ${nullRatioChecked ? "検査した" : "★未検査（静的モードで流すこと）"}）`);
 for (const f of fails) console.log("  NG  " + f);
 process.exit(fails.length ? 1 : 0);

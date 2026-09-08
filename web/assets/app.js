@@ -872,14 +872,24 @@ const CONDITIONS = {
 function matchLocal(r){
   if (r.overall === null || r.overall === undefined){
     /* 「口コミが集まれば出ます」と言えるのは、口コミで埋まる穴のときだけ。
-       内訳そのものが載っていない科目は待っても出ない（score.py と同文）。 */
+       内訳そのものが載っていない科目は待っても出ない（score.py と同文）。
+
+       2026-09-07: 「シラバスに載っていない」と「こちらが読み分けられない」を
+       言い分ける。内訳をシラバス直写しにしたので、詳細に内訳が100%出ているのに
+       一覧のカードで「載っていない」と言う状態になっていた（507科目）。
+       score.py の _unjudged_reason と同文。片方だけ直さないこと。 */
     const cap = r.eval_captured;
+    const unc = r.eval_unclassified;
     const min = (META && META.eval_total_min) || 80;
     let reason;
     if (cap === null || cap === undefined)
-      reason = "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
+      reason = unc
+        ? "シラバスの成績評価の内訳を、こちらで種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。"
+        : "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
     else if (cap >= min)
       reason = "";          // 口コミ待ちは band の下の ※ の行が言う（bandNoteText）
+    else if (unc)
+      reason = `シラバスの成績評価の内訳のうち${Math.round(cap)}%分しか種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。`;
     else
       reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
     return { fit:null, reason, labels:META.axis_labels };
