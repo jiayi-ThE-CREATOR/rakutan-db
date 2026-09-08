@@ -487,11 +487,26 @@ function syncReviewSortOptions(){
 const EVAL_POINTER =
   /^(下記|以下)|補足情報|ご参照ください|^各担当教員が判定$|^総合的に判断$|^講義と合わせて成績評価を行う$|^（その他の場合ここに記入）$/;
 
+/* シラバス本文の「成績評価に関する補足情報」。表が使いものにならないときだけ出す。
+ *
+ * KOAN の成績評価テーブルは教員が埋めないことがある。実測（全7,906件）で
+ * 表が空59件・「補足情報を参照」等だけ50件・合計が100%に届かない18件。
+ * この137件の生HTMLを取り直したところ、**107件はこの欄に配点が書かれていた**
+ * （うち63件は数字入り）。例：人文地理学演習は表が空で、補足情報に
+ * 「授業で指示する課題類（80％）と授業での議論への貢献度（20％）で評価します。」
+ *
+ * **文章のまま出す。** ％を機械で拾って帯に足すことはしない ――
+ * 「小課題3回（各20点）」のような書き方が混ざっていて、拾い方を決めた時点で
+ * シラバスに無い解釈を足すことになる。帯はあくまで表の写し。 */
+const evalNoteHtml = c => c.eval_note
+  ? `<div class="compNote">シラバスの補足情報：${esc(c.eval_note)}</div>` : "";
+
 function evalCompHtml(c){
   const raw = c.eval_raw;
   const rows = raw ? Object.entries(raw) : [];
   if (!rows.length)
-    return `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
+    return evalNoteHtml(c) ||
+      `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
 
   /* シラバスの表が100%に届いていない科目が18件ある（例：有機化学3は
      中間試験30% ＋ 期末試験40% で70%）。残りを他の行へ按分すると
@@ -523,9 +538,11 @@ function evalCompHtml(c){
       ${rows.map(([k, v]) => `<span>${dot(colors.get(k))}${esc(k)}<b>${v}%</b></span>`).join("")}
       ${hasGap ? `<span>${dot("var(--comp-gap)")}記載なし<b>${gap}%</b></span>` : ""}
     </div>
-    ${pointers.length ? `<div class="compNote">シラバスの成績評価の表には「${esc(pointers[0][0])}」とだけ書かれていて、内訳が分かりません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}
+    ${pointers.length ? (evalNoteHtml(c) ||
+        `<div class="compNote">シラバスの成績評価の表には「${esc(pointers[0][0])}」とだけ書かれていて、内訳が分かりません。下の「KOAN公式シラバスを見る」で確認してください</div>`) : ""}
     ${quizNoRow ? `<div class="compNote">シラバス本文に「毎回小テスト」の記載がありますが、成績評価の表には配点がありません</div>` : ""}
-    ${hasGap ? `<div class="compNote">シラバスの成績評価の表が${known}%ぶんしか埋まっていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}`;
+    ${hasGap ? `<div class="compNote">シラバスの成績評価の表が${known}%ぶんしか埋まっていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}
+    ${hasGap && !pointers.length ? evalNoteHtml(c) : ""}`;
 }
 
 /* ── 担当教員 ─────────────────────────────
@@ -1270,6 +1287,18 @@ function panelSetOpen(open){
 async function openPanel(id, push = true){
   const c = await findCourse(id);
   if (!c) return;
+
+  /* PC では、モーダルの後ろに科目の詳細も出しておく。
+     共有リンク（?c=）で入ってきた人はここでしか科目を選んでいないので、
+     出しておかないとモーダルを閉じた瞬間に既定の一覧へ放り出される。
+     tools/test_eval_raw.mjs（2026-09-08・main 側）も ?c= で開いた先に
+     詳細（.compNote）が在ることを前提にしている。
+     スマホは詳細がカードの中に開く＝モーダルの裏で勝手にカードが伸びるので、
+     ここでは出さない。 */
+  if (isDesktop() && selectedCourseId !== id){
+    const article = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+    showDetail(c, article);
+  }
 
   if (push){
     const url = new URL(location.href);

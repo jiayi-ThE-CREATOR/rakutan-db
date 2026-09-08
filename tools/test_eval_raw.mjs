@@ -28,6 +28,7 @@
  *   4. 並び順がシラバスと違う
  *   5. 表が100%に届かない科目で、残りを他の項目へ按分してしまう
  *   6. 「補足情報を参照」だけの行が、評価の成分と同じ色で塗られる
+ *   7. シラバス本文の補足情報を、要約したり、表が足りている科目にまで出したりする
  */
 import { chromium } from "playwright";
 
@@ -229,11 +230,52 @@ if (STATIC) {
   }
 }
 
+/* ── ⑥ シラバス本文の「成績評価に関する補足情報」──
+   表が使いものにならない科目でだけ出す。表が足りている科目には出さない
+   （出すと、帯と文章で配点が二重に見えて、どちらが正なのか分からなくなる）。 */
+let noteChecked = 0;
+if (STATIC) {
+  const PTR = /^(下記|以下)|補足情報|ご参照ください|^各担当教員が判定$|^総合的に判断$/;
+  const insufficient = c => {
+    const r = Object.entries(c.eval_raw || {});
+    return !r.length || r.some(([k]) => PTR.test(k)) ||
+           r.reduce((s, [, v]) => s + v, 0) < 100;
+  };
+  const cases = [
+    ["表が空", Object.values(STATIC).find(
+      c => c.eval_note && !Object.keys(c.eval_raw || {}).length)],
+    ["案内文だけ", Object.values(STATIC).find(
+      c => c.eval_note && Object.keys(c.eval_raw || {}).length &&
+           Object.keys(c.eval_raw).every(k => PTR.test(k)))],
+    ["表が足りている（出さない側）", Object.values(STATIC).find(
+      c => c.eval_raw && Object.keys(c.eval_raw).length >= 2 && !insufficient(c))],
+  ];
+  for (const [label, victim] of cases) {
+    if (!victim) continue;
+    noteChecked++;
+    await openById(p, victim.id);
+    const notes = await p.$$eval(".compNote", els => els.map(e => e.innerText));
+    const shown = notes.find(t => t.startsWith("シラバスの補足情報："));
+    if (label.includes("出さない側")) {
+      check(!shown, `${victim.id} 表が足りているのに補足情報を出している: ${shown}`);
+      continue;
+    }
+    check(!!shown, `${victim.id} ${label}：補足情報が出ていない（notes=${JSON.stringify(notes)}）`);
+    if (shown) {
+      /* 文章はシラバスのまま。要約も省略もしない。 */
+      check(shown === `シラバスの補足情報：${victim.eval_note}`,
+            `${victim.id} ${label}：補足情報の文章が原文と違う\n` +
+            `      画面: ${shown}\n      原文: シラバスの補足情報：${victim.eval_note}`);
+    }
+  }
+}
+
 await browser.close();
 console.log(`  通過 ${n - fails.length} 件 / ${n} 件` +
             `（内訳のある科目 ${withRaw}件を検査` +
             `／表が100%に届かない科目 ${gapChecked ? "検査した" : "★未検査"}` +
             `／4区分に入らない科目 ${uncChecked ? uncChecked + "種類を検査" : "★未検査（静的モードで流すこと）"}` +
-            `／案内文だけの科目 ${ptrChecked ? "検査した" : "★未検査"}）`);
+            `／案内文だけの科目 ${ptrChecked ? "検査した" : "★未検査"}` +
+            `／補足情報 ${noteChecked ? noteChecked + "種類を検査" : "★未検査"}）`);
 for (const f of fails) console.log("  NG  " + f);
 process.exit(fails.length ? 1 : 0);
