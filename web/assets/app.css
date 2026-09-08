@@ -448,16 +448,29 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    高さが62px と82pxの2種類に割れていた（2026-09-07、
    tools/test_inspector_center.mjs の「カードの高さが揃っていない」で検出。
    Task 3 の時点ではこのテストを実行していなかった）。
-   ここでの min-height:57px（2行版=科目135312の .rvBtn を実測した border-box
-   高さ）は PC の等高要求（#list > .card { min-height:var(--cardH) }、
-   .workbench:has(#inspector:empty) 内、1160px 以上）を満たすためのもの。
-   その要求自体がデスクトップ専用なので、床もデスクトップの @media 内で
-   足す（2026-09-07。以前はここに直書きしていたが、スマホは一度も
-   等高を求められておらず、床だけ持ち込むと0件カードが無駄に約20px
-   伸びていた）。1行版はここに justify-content:center を足して中央へ寄せる
-   ―― 2行版は元から57pxをほぼ埋めているので影響しない。 */
+
+   ここには役割の違う床が2つ重なっている。混同しないこと：
+   ・min-height:44px（このルール。幅を問わず常時効く）―― .dActs の
+     コメントにある「高さは44pxを下回らせない」というタップ領域の床。
+     上で名指しした「1行だけになる」形（口コミはあるが notes が空、
+     または publish:false で本文が全滅）がこの床を割っていた
+     ―― 2026-09-07のレビュー2巡目で発覚：口コミがある141件中58件（41%）
+     がこの形で、科目135059ほかで実測すると .rvBtn/.wrBtn/.ttAddBtn が
+     揃って36.8pxしかなかった。.wrBtn と .cardActs .ttAddBtn は
+     align-self:stretch で .rvBtn の高さに従うだけなので、.rvBtn 自身が
+     44pxを割れば道連れで割る（それぞれのコメント参照）。ここに
+     min-height:44px を足すだけで3つとも直る。
+   ・min-height:57px（デスクトップの @media 側、下記コメント参照）――
+     PC の等高要求（#list > .card { min-height:var(--cardH) }、
+     .workbench:has(#inspector:empty) 内、1160px 以上）を満たすための、
+     より狭い場面にしか効かない床。以前はここに直書きしていたが、
+     スマホは一度も等高を求められておらず、床だけ持ち込むと0件カードが
+     無駄に約20px伸びていたので、こちらだけデスクトップの @media 内へ
+     移した（2026-09-07）。1行版はここに justify-content:center を
+     足して中央へ寄せる ―― 2行版は元から57pxをほぼ埋めているので
+     影響しない。 */
 .rvBtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
-  justify-content:center;gap:2px;padding:7px var(--sp-3);
+  justify-content:center;min-height:44px;gap:2px;padding:7px var(--sp-3);
   border:1px solid transparent;border-radius:var(--r-pill);
   background:var(--scale-light-soft);color:var(--scale-light-text);
   font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;text-align:left}
@@ -473,8 +486,10 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    36×34 は見た目の大きさで、タップ領域ではない ―― .dActs のコメントにある
    プロジェクトの床「高さは 44px を下回らせない」に届いていなかった
    （2026-09-07）。固定 height をやめ align-self:stretch にして、隣の
-   .rvBtn（2行のときで57px）の高さまで伸ばす。82pxの操作バーには
-   もともとその余白があるので、バー自体の高さは変わらない。 */
+   .rvBtn の高さまで伸ばす。.rvBtn 自身が min-height:44px を持つので
+   （上のコメント参照。1行版でも2行版でも最低44px、2行版は自然に57px）、
+   ここは常に44px以上に届く。82pxの操作バーにはもともとその余白が
+   あるので、バー自体の高さは変わらない。 */
 .wrBtn{flex:none;display:flex;align-items:center;justify-content:center;
   align-self:stretch;width:36px;border:1px solid var(--rule);border-radius:var(--r-pill);
   background:var(--card);color:var(--brand-text);text-decoration:none;
@@ -498,9 +513,13 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* padding + 1行ぶんの文字だけだと約37px ―― .wrBtn と同じ理由（上のコメント参照）
    で 44px の床に届かないので、同じく align-self:stretch で伸ばす。
-   82pxバー側（.rvBtn 隣）では .rvBtn の57pxまで伸びる。62pxバー側
-   （.wrBtn.ghost 隣、口コミ0件）では .wrBtn.ghost の min-height:44px が
-   行の高さを決めるので、ここも44pxまで伸びる。
+   隣に来る要素は3つの形があり、いずれも自分の分の床を持っている：
+   ・口コミ2行（notesにプレビューあり）―― .rvBtn が自然に57pxを埋める
+   ・口コミ1行（n>0だがnotesが空／publish:false）―― .rvBtn の
+     min-height:44px（2026-09-07追加。上の.rvBtnコメント参照）
+   ・口コミ0件 ―― .wrBtn.ghost の min-height:44px
+   どの形でも隣が44px以上を確保しているので、.ttAddBtn はそこへ
+   stretch するだけで44px以上に届く。
    text-align:center は幅方向は元から中央寄せだったので変わらないが、
    縦方向はブロックの上寄せのままになるため display:flex で中央に揃える。 */
 .cardActs .ttAddBtn{flex:none;width:auto;align-self:stretch;
