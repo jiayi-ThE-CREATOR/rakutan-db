@@ -453,14 +453,19 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    margin-top:auto（2026-09-08）で .card（flex column）の下端に張り付ける ――
    .card の高さが自分の中身より高いとき（等高カードの min-height／
    隣のカードに引っ張られた行の高さなど）、上の中身がどれだけ違っても
-   操作バーの上端が同じ高さに揃う。中身が.cardの自然な高さちょうどのとき
-   （伸ばす余地が無いとき）は何もしない ―― その場合の揃え方は
-   #list 側の align-items:stretch の責任範囲（min-width:1024px の #list
-   ルールのコメント参照。768〜1023px は #list{align-items:start} のままで、
-   ここは意図的 ―― 詳細がカードの中に展開する幅なので、stretch すると
+   操作バーの**下端**が同じ高さに揃う。だが下端だけでは足りない ――
+   .cardActs 自身の高さ（プレビュー2行なら自然に57px前後、口コミ0件や
+   プレビュー無しなら .rvBtn の min-height:44px 止まりで37〜44px）が
+   カードごとに違うと、カード高が同じでもバーの**上端**（オーナーが
+   写真で指摘した、まさにその境界線）はズレたままになる。だから
+   「カードの高さを揃える」（#list の align-items:stretch）と
+   「バー自身の高さを揃える」（.rvBtn/.wrBtn.ghost の min-height:57px）は
+   1組で効かせる必要がある ―― どちらも min-width:1024px の #list
+   ルール（#inspector の状態を問わない）に置いてあり、この2つが揃って
+   初めて上端と下端の両方が揃う。768〜1023px は #list{align-items:start}
+   のまま（意図的 ―― 詳細がカードの中に展開する幅なので、stretch すると
    開いたカードに行の相方まで引きずられる。2026-09-08、オーナー裁定。
-   1100px 幅で「揃わない」のを実測したのは変更前の話（差42px）で、
-   1024px 以上へ広げた今は揃う。owner-round-report.md 参照）。 */
+   owner-round-report.md 参照）。 */
 .cardActs{display:flex;align-items:center;gap:var(--sp-2);margin-top:auto;
   padding:var(--sp-3) 14px;border-top:1px solid var(--rule);background:var(--paper)}
 /* 「口コミ N件を読む」。2行目は先頭の一言。押す理由をここに置く。
@@ -481,15 +486,16 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
      align-self:stretch で .rvBtn の高さに従うだけなので、.rvBtn 自身が
      44pxを割れば道連れで割る（それぞれのコメント参照）。ここに
      min-height:44px を足すだけで3つとも直る。
-   ・min-height:57px（デスクトップの @media 側、下記コメント参照）――
-     PC の等高要求（#list > .card { min-height:var(--cardH) }、
-     .workbench:has(#inspector:empty) 内、1160px 以上）を満たすための、
-     より狭い場面にしか効かない床。以前はここに直書きしていたが、
-     スマホは一度も等高を求められておらず、床だけ持ち込むと0件カードが
-     無駄に約20px伸びていたので、こちらだけデスクトップの @media 内へ
-     移した（2026-09-07）。1行版はここに justify-content:center を
-     足して中央へ寄せる ―― 2行版は元から57pxをほぼ埋めているので
-     影響しない。 */
+   ・min-height:57px（min-width:1024px の #list ルール内、下記コメント参照）――
+     バー自身の高さを揃える床。#list の align-items:stretch と1組
+     （2026-09-08、オーナー裁定・上の .cardActs コメント参照）で、
+     #inspector の状態を問わず1024px以上で効く。以前はここに直書きして
+     いたが、スマホは一度も等高を求められておらず、床だけ持ち込むと
+     0件カードが無駄に約20px伸びていたので、こちらだけデスクトップの
+     @media 内へ移した（2026-09-07。2026-09-08にスコープを1160px+
+     #inspector:empty から1024px+状態非依存へ拡張）。1行版はここに
+     justify-content:center を足して中央へ寄せる ―― 2行版は元から
+     57pxをほぼ埋めているので影響しない。 */
 .rvBtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
   justify-content:center;min-height:44px;gap:2px;padding:7px var(--sp-3);
   border:1px solid transparent;border-radius:var(--r-pill);
@@ -811,6 +817,26 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
    * とき（#inspector が空でなくなり、この委譲が外れて揃わなくなっていた）。
    * どちらも owner-round-report.md 参照。 */
   #list{align-items:stretch}
+  /* .rvBtn/.wrBtn.ghost の高さの床（57px）は、すぐ上の #list の
+   * align-items:stretch と理由もブレークポイントも同じ1組（2026-09-08、
+   * オーナー裁定）。stretch だけでは「カードの高さ」は揃っても
+   * 「.cardActs 自身の高さ」までは揃わない ―― プレビュー2行の科目は
+   * バーが自然に57px前後まで伸びるが、口コミ0件やプレビュー無しの科目は
+   * .rvBtn/.wrBtn.ghost が min-height:44px（タップ領域の床）止まりで
+   * 37〜44pxしかない。カード自体の高さが同じでも、バーの高さが違えば
+   * margin-top:auto は「下端」しか揃えられず、.cardActs の上端（バーの
+   * 境界線＝オーナーが指摘したまさにその線）はズレたままになる。
+   * この床を足して全カードのバー自身の高さを57pxに固定して初めて、
+   * 「カード高が同じ」＋「バーの高さが同じ」の両方が揃い、上端と下端の
+   * 両方が揃う。
+   * だから stretch を動かすときはこの2行も一緒に動かすこと ――
+   * 片方だけ広げると「カードは等高なのにバーの上端だけズレる」という、
+   * 今回まさに指摘された壊れ方に戻る。1024px未満（スマホのアコーディオン
+   * 幅）では今までどおり効かせない ―― 隣り合うカードが無い1列では
+   * 57pxへ底上げする理由が無く、0件カードの操作バーは自然な高さ
+   * （約20px低い）のままにする、という2026-09-07の判断を維持する。 */
+  #list > .card .rvBtn,
+  #list > .card .wrBtn.ghost{min-height:57px}
 }
 
 @media (min-width:1160px){
@@ -864,24 +890,13 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
      端数を切り上げた 279px を下限にする。
      height ではなく min-height なのは、想定外に伸びる科目が出たとき
      中身を切らずに行ごと伸びてほしいから（切ると事実が消える）。
-     2026-09-08：align-items:stretch はここから上（min-width:1024px の
-     #list ルール）へ引っ越した ―― #inspector が空かどうかを問わず
-     効かせるため（オーナー裁定・上のコメント参照）。ここに残っているのは
-     「空のときだけ欲しい 279px という具体的な床」の分だけで、stretch
-     そのものはもう無い。 */
+     2026-09-08：align-items:stretch と .rvBtn/.wrBtn.ghost の
+     min-height:57px（バーの高さ自体を揃える床）は、どちらもここから
+     上の min-width:1024px の #list ルール（#inspector の状態を問わず
+     効く）へ引っ越した。ここに残っているのは「空のときだけ欲しい
+     279px という具体的な床」の分だけ。 */
   .workbench:has(#inspector:empty) #list{--cardH:279px}
   .workbench:has(#inspector:empty) #list > .card{min-height:var(--cardH)}
-  /* .rvBtn/.wrBtn.ghost の高さの床（57px）はここでだけ効かせる。
-     この 57px の床が要る等高カードは「空のとき（--cardH:279px）」の
-     場面だけなので、床も同じ場所に置く。stretch 自体は2026-09-08から
-     1024px 以上で常時効くが、そのぶんの56px級の余白吸収は各要素の
-     自然な高さ（.rvBtn は min-height:44px 止まり）に任せていて、
-     ここで57pxまで踏み台を上げる必要があるのは279pxの床と組み合わさる
-     ここだけ。スマホは一度も等高を求められていない ―― ここを外すと
-     0件カードの操作バーは自然な1行分の高さに戻り、約20px縮む
-     （2026-09-07、390px 実測。C章の実測値参照）。 */
-  .workbench:has(#inspector:empty) #list > .card .rvBtn,
-  .workbench:has(#inspector:empty) #list > .card .wrBtn.ghost{min-height:57px}
   /* meta を1行に詰める。425px 幅では教員名の長い科目が2行になり、
      その科目だけ背が高くなる（全文は右カラムの詳細に出る）。 */
   .workbench:has(#inspector:empty) #list > .card .meta{

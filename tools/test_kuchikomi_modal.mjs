@@ -382,27 +382,29 @@ async function readableCount(p, id){
   await p.close();
 }
 
-/* ── Change 4: 同じ行のカードは高さが揃い、操作バーの下端が揃う ──
-   2026-09-08、オーナー裁定で #list{align-items:stretch} を
-   min-width:1024px（#inspector の状態を問わず）に広げた。1024px は
-   mqDesktop（app.js）が「詳細をカード内展開」→「右カラム #inspector」に
-   切り替える境目そのもの ―― この線より上はカードを開いても自分の高さが
-   変わらないので stretch させても損が無く、下はアコーディオンなので
-   stretch すると開いた1枚に行の相方まで引きずられる。だから
-   768〜1023px は #list{align-items:start} のまま（意図的、直さない）。
-   検証するのは「カードの高さ」と「.cardActs の下端」──「.cardActs の
-   上端」ではない。.cardActs は margin-top:auto でカードの下端に
-   張り付くので、カードの高さが揃っていれば下端は必ず揃う。だが
-   .cardActs 自身の高さ（プレビュー2行＝82px／1行・0件＝69px）は
-   カードの中身（口コミプレビューの有無）で変わるので、それが row内で
-   異なると上端はずれる ―― これはバグではなく「下端で揃える」設計の
-   当然の帰結（実測で確認：デフォルト一覧1280pxで同じ行の2枚が
-   カード高214.06pxで完全一致していても、プレビュー行の有無で
-   actsHeight が82.19px/69pxと違えば actsTop は13.19px ずれた）。
-   タグの有無だけが違って中身の型（プレビュー行の有無）が揃っている
-   行（オーナーの元の指摘・owner-round-report.md の手動実測）では
-   上端も一致するが、それは「バーの高さ自体が同じ」という追加条件が
-   たまたま満たされているからで、一般には保証されない。 */
+/* ── Change 4: 同じ行のカードは高さが揃い、操作バーの上端・下端が揃う ──
+   2026-09-08、オーナー裁定で #list{align-items:stretch} と
+   .rvBtn/.wrBtn.ghost{min-height:57px} の両方を min-width:1024px
+   （#inspector の状態を問わず）に広げた。1024px は mqDesktop（app.js）が
+   「詳細をカード内展開」→「右カラム #inspector」に切り替える境目
+   そのもの ―― この線より上はカードを開いても自分の高さが変わらないので
+   stretch させても損が無く、下はアコーディオンなので stretch すると
+   開いた1枚に行の相方まで引きずられる。だから 768〜1023px は
+   #list{align-items:start} のまま（意図的、直さない）。
+
+   このラウンドの前は「カードの高さ」と「.cardActs の下端」しか検証して
+   いなかった。理由：margin-top:auto はカードの下端にしか揃えないので、
+   .cardActs 自身の高さ（プレビュー2行なら自然に57px前後、口コミ0件や
+   プレビュー無しなら .rvBtn の min-height:44px 止まりで37〜44px）が
+   row内で違うと上端はズレる ―― 実測で見つけた例：デフォルト一覧で
+   カード高214.06pxが完全一致する行でも、.cardActs自身の高さが
+   82.19px/69pxと違えば上端は13.19pxズレた。だがこれこそオーナーが
+   写真で指摘した境界線そのものだったので、「下端さえ揃えばよい」を
+   やめ、min-height:57px を .rvBtn/.wrBtn.ghost の両方・
+   #inspector状態非依存・1024px以上に敷いてバー自身の高さも揃えた
+   （app.css の #list ルール内コメント参照）。これで上端も下端も
+   揃う（実測・生データ：135349＝プレビュー2行 と 040040＝口コミ0件の
+   ghost が同じ行に来た例で actsTop 差 0.18px。owner-round-report.md 参照）。 */
 function rowMetrics(){
   const cards = [...document.querySelectorAll("#list > .card")];
   const groups = {};
@@ -414,7 +416,7 @@ function rowMetrics(){
     const r = c.getBoundingClientRect();
     const acts = c.querySelector(".cardActs");
     const ar = acts ? acts.getBoundingClientRect() : null;
-    return { cardHeight: r.height, actsBottom: ar ? ar.bottom : null };
+    return { cardHeight: r.height, actsTop: ar ? ar.top : null, actsBottom: ar ? ar.bottom : null };
   }));
 }
 function assertRowsAligned(rows, label){
@@ -424,6 +426,10 @@ function assertRowsAligned(rows, label){
     const heightSpread = Math.max(...heights) - Math.min(...heights);
     check(heightSpread <= 1,
           `[${label}] 同じ行のカードの高さが揃っていない（差 ${heightSpread.toFixed(2)}px）`);
+    const tops = row.map(r => r.actsTop).filter(t => t !== null);
+    const topSpread = tops.length ? Math.max(...tops) - Math.min(...tops) : 0;
+    check(topSpread <= 1,
+          `[${label}] 同じ行の .cardActs の上端が揃っていない（差 ${topSpread.toFixed(2)}px）`);
     const bottoms = row.map(r => r.actsBottom).filter(b => b !== null);
     const bottomSpread = bottoms.length ? Math.max(...bottoms) - Math.min(...bottoms) : 0;
     check(bottomSpread <= 1,
