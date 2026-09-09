@@ -78,6 +78,7 @@ const els = {
   facultySelect: document.getElementById('faculty-select'),
   departmentSelect: document.getElementById('department-select'),
   departmentLabel: document.getElementById('department-label'),
+  courseParamNote: document.getElementById('course-param-note'),
   timetableSection: document.getElementById('timetable-section'),
   timetableGrid: document.getElementById('timetable-grid'),
   submitBtn: document.getElementById('submit-survey'),
@@ -124,6 +125,14 @@ let currentTarget = null;   // { kind:'slot'|'extra', key, day?, period?, id? }
 
 /* いまモーダルで選べる科目の全件（検索前）。openEditor が入れる。 */
 let modalSubjects = [];
+
+/* /kuchikomi?c=<id> で指定された、まだ選択できていない科目。
+   学期・学部が両方そろうまで（＝この値が null になるまで）は
+   handleSemesterChange / handleFacultyChange から毎回開こうと試みる。
+   一度でも開けたら（成功しても失敗しても、ではなく成功したときだけ）null に戻し、
+   以後は触らない ―― 選び終えたあとに学期・学部を変えるたびモーダルが
+   勝手に開き直す事故を防ぐための一方通行。 */
+let pendingCourseId = null;
 
 /* ══ 起動 ══════════════════════════════════════════ */
 
@@ -256,6 +265,11 @@ function init() {
   els.examDifficulty.addEventListener('input', (e) => {
     els.examDifficultyDisplay.textContent = e.target.value;
   });
+
+  /* 一覧・詳細の「✎ この科目の口コミを書く」（/kuchikomi?c=<id>）を受ける。
+     savedSettings の復元はこの関数の前半で済んでいるので、
+     state.faculty / state.semester が定まったあとの init() の最後に置く。 */
+  applyCourseParam();
 }
 
 /* ══ 学部・学科 ═════════════════════════════════════ */
@@ -314,6 +328,7 @@ function handleSemesterChange(e) {
   showPickers();
   checkSubmitReady();
   saveSettingsToLocal();
+  tryOpenPendingCourse();   // ?c= 待ちがあれば、これで学期・学部が揃ったかもしれない
 }
 
 function handleFacultyChange(e) {
@@ -327,6 +342,7 @@ function handleFacultyChange(e) {
   showPickers();
   checkSubmitReady();
   saveSettingsToLocal();
+  tryOpenPendingCourse();   // ?c= 待ちがあれば、これで学期・学部が揃ったかもしれない
 }
 
 function handleDepartmentChange(e) {
@@ -739,6 +755,93 @@ function checkModalFormReady() {
 function closeModal() {
   els.modal.classList.add('hidden');
   currentTarget = null;
+}
+
+/* ══ ?c=<id>（一覧・詳細の「口コミを書く」から） ═══════ */
+
+/* openEditor の「時間割外」分岐は id が一致する行を EXTRA からそのまま拾うだけで、
+   学部・学期を見ない（呼び出し元の #extra-select が extraCandidates() で
+   既に絞り込んだ id しか渡さないので、それで足りている）。
+   ?c=<id> はその絞り込みを経ずに来るので、ここで extraCandidates() と
+   同じ条件をもう一度掛ける。検索欄（#extra-search）の中身には
+   依存しない形で判定する ―― たまたま検索語が入っていて候補から外れて
+   見える、という事故を避けるため。 */
+function isExtraCandidateForState(row) {
+  if (row.faculty !== 'common' && row.faculty !== state.faculty) return false;
+  const terms = TERM_GROUPS[state.semester] || [];
+  return terms.includes(row.term_group) || row.term_group === 'unknown';
+}
+
+/* row を選択済みの状態でモーダルを開く。呼び出し前提として state.faculty と
+   state.semester が両方入っていること（getSubjects/extraCandidates と同じ前提）。
+   戻り値は「選べたか」―― false なら呼び出し元が5（案内文）へ落とす。 */
+function openCourseFromParam(row) {
+  if (!row.slots.length) {
+    if (!isExtraCandidateForState(row)) return false;
+    openEditor({ kind: 'extra', id: row.id });
+    // openEditor の中で els.modalSubjectSelect.value = target.id 済み。
+    // 万一 EXTRA に無ければ（起こらないはずだが）ここで検知する。
+    return els.modalSubjectSelect.value === row.id;
+  }
+
+  /* 複数コマの科目（例:「金3,金4,金5」）でも、モーダルの科目選択欄が指す先は
+     曜限に関わらず同じ科目ID1つ ―― 送信時は handleSaveReview が
+     subject.slots を全部見てまとめて埋める。だから先頭のコマだけで
+     開けば選べる科目に違いは出ない。 */
+  const key = slotToKey(row.slots[0]);
+  if (!key) return false;   // 曜限の形式がここで解釈できない場合の保険（通常は来ない）
+  const [day, period] = key.split('-').map(Number);
+  openEditor({ kind: 'slot', day, period });
+  els.modalSubjectSelect.value = row.id;
+  if (els.modalSubjectSelect.value !== row.id) {
+    // その枠の候補（getSubjects）に無かった＝学部や学期が合わない。
+    closeModal();
+    return false;
+  }
+  checkModalFormReady();   // openEditor 内の呼び出しは value を上書きする前のもの
+  return true;
+}
+
+/* 案内文の出し入れ。pendingCourseId が無ければ隠すだけ。 */
+function updateCourseParamNote() {
+  if (!pendingCourseId) {
+    els.courseParamNote.classList.add('hidden');
+    return;
+  }
+  const row = ROWS.find(r => r.id === pendingCourseId);
+  if (!row) {
+    pendingCourseId = null;
+    els.courseParamNote.classList.add('hidden');
+    return;
+  }
+  // row.title はデータ由来 ―― innerHTML ではなく textContent で入れる。
+  els.courseParamNote.textContent = `${row.title} の口コミを書きます。まず学期と学部を選んでください`;
+  els.courseParamNote.classList.remove('hidden');
+}
+
+/* 学期・学部が両方そろうたび（handleSemesterChange / handleFacultyChange から）
+   呼ばれる。まだ揃っていなければ案内文を出したまま待つ。開けたら
+   pendingCourseId を空にして以後は何もしない（一発勝負）。 */
+function tryOpenPendingCourse() {
+  if (!pendingCourseId) return;
+  if (!(state.faculty && state.semester)) {
+    updateCourseParamNote();
+    return;
+  }
+  const row = ROWS.find(r => r.id === pendingCourseId);
+  if (row && openCourseFromParam(row)) {
+    pendingCourseId = null;
+  }
+  updateCourseParamNote();
+}
+
+/* init() の末尾から呼ぶ。?c= が無い／ROWS に無ければ何もしない（従来どおり）。 */
+function applyCourseParam() {
+  const id = new URLSearchParams(location.search).get('c');
+  if (!id) return;
+  if (!ROWS.some(r => r.id === id)) return;
+  pendingCourseId = id;
+  tryOpenPendingCourse();
 }
 
 /* ══ 保存 ══════════════════════════════════════════ */
