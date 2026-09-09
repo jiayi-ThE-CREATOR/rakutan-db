@@ -8,21 +8,25 @@
  * あって clean URL 解決そのものではないので、.html を直接指定して同じ
  * ファイルを開く。
  *
- * 使う科目は timetable.json から faculty:"common"（学部を問わず出る）で
- * 固定した2件 ―― 135327 のような口コミ件数に依存する科目を避けている:
- *   138531 GIS（地理情報システム）入門  水2 に乗る科目（slot 経路）
- *   138537 “見る”を神経科学するⅠ       曜限なし（extra 経路）
- * どちらも term_group:"haru" なので学期は spring で開く。学部は letters
+ * 使う科目は timetable.json から固定した3件 ―― 135327 のような口コミ件数に
+ * 依存する科目を避けている:
+ *   138531 GIS（地理情報システム）入門  水2 に乗る科目・faculty:common（slot 経路）
+ *   138537 “見る”を神経科学するⅠ       曜限なし・faculty:common（extra 経路）
+ *   083280 アセットマネジメント         水2・faculty:engineering（学部不一致用）
+ * 前2件は term_group:"haru" なので学期は spring で開く。学部は letters
  * （学科・トラックが無い＝ department は自動で "all" になり、テスト側で
- * 学科まで気にしなくていい）。
+ * 学科まで気にしなくていい）。083280 は engineering 専用科目なので、
+ * letters を選んだ状態では候補に絶対に乗らない（学部不一致を固定して作れる）。
  */
 import { chromium } from "playwright";
 
 const base = process.argv[2] || "http://127.0.0.1:8795";
 const SLOT_ID = "138531";
 const EXTRA_ID = "138537";
+const MISMATCH_ID = "083280";     // engineering 専用。letters では候補に乗らない
 const BAD_ID = "not-a-real-course-id";
 const FACULTY = "letters";
+const OTHER_FACULTY = "engineering";
 const SEMESTER = "spring";
 
 const fails = [];
@@ -94,7 +98,30 @@ const waitOpen = (p) => p.waitForFunction(
   await p.close();
 }
 
-// ── 3. 未設定 → 開かず案内文。学期・学部を選ぶと開く ──────────────
+// ── 3. 設定済みだが候補に無い科目（学部不一致） → 開かず案内文。
+//      そのあとの無関係な学部変更でもモーダルは開かない（一発勝負の確認） ──
+{
+  const p = await newPage({ semester: SEMESTER, faculty: FACULTY, department: "all" });
+  const errors = collectErrors(p);
+  await p.goto(`${base}/kuchikomi.html?c=${MISMATCH_ID}`, { waitUntil: "networkidle" });
+
+  check(!(await modalOpen(p)), "[学部不一致] モーダルが開いてしまっている");
+  check(await noteVisible(p), "[学部不一致] 案内文が出ていない");
+  const text = await noteText(p);
+  check(text.includes("アセットマネジメント"), `[学部不一致] 案内文に科目名が入っていない: ${text}`);
+
+  // 学期・学部は既に揃っている状態で開始しているので、この1回で
+  // pendingCourseId は使い切られているはず。ここから無関係に学部を
+  // 変えても、もう開こうとしてはいけない（1発勝負の確認）。
+  await p.selectOption("#faculty-select", OTHER_FACULTY);
+
+  check(!(await modalOpen(p)),
+    "[学部不一致→別学部へ変更] 使い切ったはずの ?c= でモーダルが開いてしまっている");
+  check(errors.length === 0, `[学部不一致] コンソールエラー: ${errors.join(" / ")}`);
+  await p.close();
+}
+
+// ── 4. 未設定 → 開かず案内文。学期・学部を選ぶと開く ──────────────
 {
   const p = await newPage(null); // osaka_u_settings を仕込まない
   await p.goto(`${base}/kuchikomi.html?c=${SLOT_ID}`, { waitUntil: "networkidle" });
@@ -115,7 +142,7 @@ const waitOpen = (p) => p.waitForFunction(
   await p.close();
 }
 
-// ── 4. 存在しない ?c= → パラメータが無いのと同じ扱い ──────────────
+// ── 5. 存在しない ?c= → パラメータが無いのと同じ扱い ──────────────
 {
   const p = await newPage(null);
   const errors = collectErrors(p);
@@ -127,7 +154,7 @@ const waitOpen = (p) => p.waitForFunction(
   await p.close();
 }
 
-// ── 5. ?c= 無し → 従来どおり ──────────────────────────────
+// ── 6. ?c= 無し → 従来どおり ──────────────────────────────
 {
   const p = await newPage(null);
   const errors = collectErrors(p);

@@ -126,12 +126,20 @@ let currentTarget = null;   // { kind:'slot'|'extra', key, day?, period?, id? }
 /* いまモーダルで選べる科目の全件（検索前）。openEditor が入れる。 */
 let modalSubjects = [];
 
-/* /kuchikomi?c=<id> で指定された、まだ選択できていない科目。
-   学期・学部が両方そろうまで（＝この値が null になるまで）は
-   handleSemesterChange / handleFacultyChange から毎回開こうと試みる。
-   一度でも開けたら（成功しても失敗しても、ではなく成功したときだけ）null に戻し、
-   以後は触らない ―― 選び終えたあとに学期・学部を変えるたびモーダルが
-   勝手に開き直す事故を防ぐための一方通行。 */
+/* /kuchikomi?c=<id> で指定された、まだ「学期・学部が両方そろった状態での
+   1回きりの試行」をしていない科目。学期・学部が両方そろうまでは
+   handleSemesterChange / handleFacultyChange から毎回呼ばれ、案内文を
+   出したまま待つ（このあいだ何度呼ばれても副作用は無い）。
+   両方そろった最初の1回で開こうと試み、結果に関わらず（開けても・候補に
+   無くて開けなくても）この値を null に戻し、以後は二度と自動で開こうと
+   しない ―― 候補に無かった場合に残しておいて後の変更で再挑戦させる案も
+   あったが、それだと handleDepartmentChange を見ていない分だけ学科起因の
+   不一致は一生拾えない上、期限も無い。ユーザーがこの id を諦めて他の作業に
+   移った後、たまたま条件を満たした瞬間にモーダルが割り込んで開く事故に
+   なるので、外れたら1回で諦める。
+   案内文（#course-param-note）の出し入れはこの変数と独立にしている ――
+   候補に無くて開けなかった場合も、待っている間と同じ文言をそのまま
+   出し続ける（showCourseParamNote/hideCourseParamNote 参照）。 */
 let pendingCourseId = null;
 
 /* ══ 起動 ══════════════════════════════════════════ */
@@ -802,37 +810,42 @@ function openCourseFromParam(row) {
   return true;
 }
 
-/* 案内文の出し入れ。pendingCourseId が無ければ隠すだけ。 */
-function updateCourseParamNote() {
-  if (!pendingCourseId) {
-    els.courseParamNote.classList.add('hidden');
-    return;
-  }
-  const row = ROWS.find(r => r.id === pendingCourseId);
-  if (!row) {
-    pendingCourseId = null;
-    els.courseParamNote.classList.add('hidden');
-    return;
-  }
+/* 案内文の出し入れ。pendingCourseId とは独立 ―― 1回きりの試行に外れた
+   あとも（pendingCourseId は null に戻っていても）同じ文言を出し続けるため、
+   「今どの id を指しているか」をこの2関数の外に持たせない作りにしている。 */
+function showCourseParamNote(row) {
   // row.title はデータ由来 ―― innerHTML ではなく textContent で入れる。
   els.courseParamNote.textContent = `${row.title} の口コミを書きます。まず学期と学部を選んでください`;
   els.courseParamNote.classList.remove('hidden');
 }
+function hideCourseParamNote() {
+  els.courseParamNote.classList.add('hidden');
+}
 
-/* 学期・学部が両方そろうたび（handleSemesterChange / handleFacultyChange から）
-   呼ばれる。まだ揃っていなければ案内文を出したまま待つ。開けたら
-   pendingCourseId を空にして以後は何もしない（一発勝負）。 */
+/* 学期・学部が変わるたび（handleSemesterChange / handleFacultyChange から）
+   呼ばれる。まだ両方そろっていなければ、待っているあいだの案内文を出すだけで
+   pendingCourseId には触らない（何度呼ばれても良い）。両方そろった最初の
+   1回だけ実際に開こうと試み、そこで pendingCourseId を使い切る
+   ―― 開けても候補に無くて開けなくても、この呼び出しが最後（宣言部の
+   コメント参照）。開けなかった場合は5の案内文をそのまま出し続ける。 */
 function tryOpenPendingCourse() {
   if (!pendingCourseId) return;
+  const row = ROWS.find(r => r.id === pendingCourseId);
+
   if (!(state.faculty && state.semester)) {
-    updateCourseParamNote();
+    if (row) showCourseParamNote(row); else hideCourseParamNote();
     return;
   }
-  const row = ROWS.find(r => r.id === pendingCourseId);
-  if (row && openCourseFromParam(row)) {
-    pendingCourseId = null;
+
+  const opened = row && openCourseFromParam(row);
+  pendingCourseId = null;   // 一発勝負：結果に関わらずここで使い切る
+  if (opened) {
+    hideCourseParamNote();
+  } else if (row) {
+    showCourseParamNote(row);   // 4 の失敗 → 5 の案内文のまま置いておく
+  } else {
+    hideCourseParamNote();
   }
-  updateCourseParamNote();
 }
 
 /* init() の末尾から呼ぶ。?c= が無い／ROWS に無ければ何もしない（従来どおり）。 */
