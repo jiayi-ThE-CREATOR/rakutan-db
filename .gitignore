@@ -38,3 +38,6 @@ shots/
 .wrangler/
 .dev.vars
 data/raw_hosoku/
+
+# Claude Code の作業用（superpowers/sdd の台帳・ブリーフ）。成果物ではない。
+.superpowers/
