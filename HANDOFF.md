@@ -17,6 +17,91 @@
 
 ---
 
+## 2026-09-09 ｜ 毎朝のアクセス速報が6日間死んでいた（原因と、二度と黙らせない手当て）｜ Claude → 次の人
+
+本人から「ここ数日、毎朝の自動速報が来ない」。調べたら**一度も届いていなかった**
+（9/3 16:28 の「8/26公開〜9/3のまとめ」は手で投げた1通で、日次速報ではない）。
+
+### 1. 何が動く状態か
+
+**復旧ずみ。** 9/9 09:35 に速報が実際に届いた。次は 9/10 08:00 JST。
+
+原因は **`STATS_DISCORD_WEBHOOK` に失効した URL が入っていたこと**。それだけ。
+cron もコードも最初から正しかった ―― Cloudflare の invocation 記録がそれを示す:
+
+    09-05 23:00:29Z success / 09-06 23:00:27Z success
+    09-07 23:00:24Z success / 09-08 23:00:26Z success
+
+23:00 UTC ＝ JST 08:00。4日とも触発の24〜29秒後にきっちり1回起きて、`success` で終わっている。
+**毎朝ちゃんと働いて、死んだ URL へ投げて、黙って終わっていた。**
+
+黙れた理由は `runDailyTraffic` の最後の1行だった:
+
+    if (!res.ok) console.error("stats webhook failed", res.status);   // ← 投げっぱなし
+
+throw しないので invocation は `success` のまま。しかもこの Worker には
+`[observability]` が無く、`console.error` はどこにも残らない。
+**「0件でも黙らない」と書いてある同じファイルの、最後の一行に沈黙の穴が空いていた。**
+
+このコミットで塞いだもの:
+
+- `worker/traffic.js` … `!res.ok` で **throw**。waitUntil が reject し、Cloudflare 側に exception として残る
+- `wrangler.toml` … `[observability] enabled = true`。**この Worker は今まで1行もログが読めなかった**
+- `tools/test_traffic_report.mjs` … 「Discord が 404 を返した日に黙って成功しない」を固定（通過 69 件）
+
+### 2. 何をしていないか
+
+- **9/4〜9/7 ぶんの速報は再送していない。** 数字は消えていない（Analytics Engine に残っている）ので、
+  必要なら `node tools/traffic_preview.mjs` で日付を変えて手で出せる
+- 9/9 は速報が **2通** 出ている（09:35 と 09:40）。下の「罠」の一時 cron を消す前に2回鳴っただけで、
+  中身は同じ 9/8 ぶん。片方は消してよい
+- `[observability]` の無料枠の上限は確認していない。デプロイ後、Workers Logs が
+  実際に読めるか一度見てほしい（このコミットが本番に出るまでは確認しようがない）
+- webhook の URL そのものは secret なので**読み出せない**。「入っている値が正しいか」を
+  後から検証する手段は今も無い。疑ったら入れ直すのが早い
+
+### 3. 次の人が最初に打つコマンド
+
+    node tools/test_traffic_report.mjs      # 通過 69 件
+    node tools/traffic_preview.mjs          # けさ届くはずの本文（Discord へは送らない）
+    node tools/stats.mjs                    # 生の数字（速報と一致するはず）
+
+「けさ本当に cron が起きたか」を見る（このコミットが出たあとは Workers Logs のほうが早い）:
+
+    ACC=f19094bcb2f9e95f95fc2b3eff1d01f0
+    TOK=$(python3 -c "import re,pathlib;print(re.search(r'oauth_token\s*=\s*"([^"]+)"',(pathlib.Path.home()/'Library/Preferences/.wrangler/config/default.toml').read_text()).group(1))")
+    curl -s -H "Authorization: Bearer $TOK" -H "content-type: application/json" \
+      -d "{\"query\":\"{viewer{accounts(filter:{accountTag:\\\"$ACC\\\"}){workersInvocationsAdaptive(limit:100,filter:{datetime_geq:\\\"2026-09-09T22:59:30Z\\\",datetime_leq:\\\"2026-09-09T23:01:30Z\\\",scriptName:\\\"rakutan-db\\\"}){sum{requests}dimensions{status datetime}}}}}\"}" \
+      https://api.cloudflare.com/client/v4/graphql
+
+### 4. 踏んだ罠
+
+- 🚨 **`wrangler secret put` は「最新バージョンが未デプロイ」だと必ず落ちる**
+  （`Secret edit failed. You attempted to modify a secret, but the latest version of
+  your Worker isn't currently deployed.`）。Workers Builds が PR のたびに未デプロイ版を作るので、
+  **PR が動いている日はこの窓がほぼ常に閉じている**。今回も2回連続で弾かれた。
+  → **secret は Cloudflare ダッシュボードの「変数と機密」から入れる。**
+  あちらは現在デプロイされている版を基準に更新するので、バージョン競合の影響を受けない。
+  ターミナルでやるなら「PR をマージ → 自動デプロイ完了を待つ → すぐ打つ」の順で走るしかない
+- 🚨 **ダッシュボードに「cron を手で1回実行する」ボタンは無い。**
+  2026-09-03 のメモ（このファイル内）にそう書いてあるが、今の UI には存在しない。
+  今すぐ試したいなら **トリガー → ＋追加 で一時的に `*/5 * * * *` を足し、確認できたら消す**。
+  **消し忘れると1日288通**チャンネルに流れる（今回2通で止めた）
+- **`wrangler tail` は pty が無いと1行も出さずに黙る。** ファイルへリダイレクトすると
+  「接続した」ことすら出ない。`script -q /dev/null npx wrangler tail --format pretty` で動く
+- **疎通確認に `/` を叩いても tail に出ない。** サイトは
+  `rakuhan.nocode-sol.co.jp` → **nginx** → `rakutan-db.wjy20050815.workers.dev` という経路で、
+  nginx がトップページをキャッシュしていて Worker まで届かない。
+  Worker が生きているかは `/line/health`（キャッシュされない）で確かめる
+- **`wrangler dev --remote` はこの Worker では 403 を返して使えなかった。**
+  代わりに `.dev.vars` に3つの値を書いて **ローカルの** `wrangler dev --test-scheduled` を起こし、
+  webhook を `http://127.0.0.1:<port>` に向けると、本番と同じ経路（実データの SQL 込み）を
+  Discord に投げずに丸ごと再現できる。今回の切り分けはこれで決まった
+- **`~/.zshrc` の `CF_API_TOKEN` は Account Analytics 読み取り専用。** wrangler はこれを勝手に拾うので、
+  デプロイ系・secret 系は全部 `Authentication error [code: 10000]` で落ちる。
+  `env -u CF_API_TOKEN npx wrangler …` か、新しいシェルで `wrangler login`（OAuth）を使う
+- **zsh の対話シェルは `#` をコメントとして扱わない**（`interactivecomments` が既定でオフ）。
+  行末にコメントを付けたコマンドを人に渡すと `Unknown arguments: #, …` で落ちる
 ## 2026-09-07 ｜ 口コミモーダル（PR-1）最終レビューの修正波 ｜ Claude → 次の人
 
 whole-branch final review が拾った指摘（虚偽化したコメント4件・未実装の
@@ -1418,6 +1503,12 @@ wangさんの依頼。「右の 4本スライダー（出席の緩さ 4 …）�
 
     # ④ 翌朝 08:00 を待たずに確かめたいなら、Cloudflare のダッシュボード
     #    （Workers → rakutan-db → 設定 → トリガー）から cron を手で1回実行する
+
+> 🚨 **2026-09-09 追記 ―― ③ と ④ はどちらもこの通りには動かない。**
+> ③ `wrangler secret put` は「最新バージョンが未デプロイ」だと落ちる（PR が動いている日はほぼ常にそう）。
+> ④ の「手で1回実行する」ボタンは今の UI に無い。
+> 正しい手順は先頭の 2026-09-09 の項を読むこと。この誤案内のせいで、
+> 速報は6日間 secret が入らないまま放置された。
 
 ### 4. 踏んだ罠
 
