@@ -17,6 +17,214 @@
 
 ---
 
+## 2026-09-07 ｜ 口コミモーダル（PR-1）最終レビューの修正波 ｜ Claude → 次の人
+
+whole-branch final review が拾った指摘（虚偽化したコメント4件・未実装の
+`aria-modal`・スコープが広すぎる高さの床・軽微ないくつか・テスト欠落・ドキュメント2件）
+をまとめて直したタスク。PR-2（`/kuchikomi` の `?c=` 受け）はまだ手つかず。
+
+### 1. 何が動く状態か
+
+    python3 server.py --port 8794 &
+    node tools/smoke.mjs http://127.0.0.1:8794
+    node tools/test_index_gate.mjs http://127.0.0.1:8794
+    node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8794
+    node tools/test_favorite.mjs http://127.0.0.1:8794
+    node tools/test_inspector_center.mjs http://127.0.0.1:8794
+    node tools/test_rail_toggle.mjs http://127.0.0.1:8794
+    node tools/test_kuchikomi_relay.mjs
+    node tools/test_version.mjs
+    python3 tools/test_layout.py
+    python3 tools/test_tokens.py                # 113件（口コミ件数の1組を削除。下記参照）
+    python3 tools/test_shell_inject.py
+    cd web && python3 -m http.server 8795 &
+    node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8795
+    node tools/smoke.mjs http://127.0.0.1:8795   # 既知の POST /api/hit 501 のみ
+
+全部 OK。主な変更：
+
+- **虚偽化した4コメントを修正**（`reviewHtml`／`.ttAddBtn`委譲／`.pEntry`／Android戻る）
+- **`.ttAddBtn`・`.favBtn` の委譲ループから `#inspector` を除去。** どちらも詳細
+  （`#inspector`）にはもう出ないので、そちらへの委譲は死んでいた
+- **`aria-modal="true"` に見合う最低限のフォーカス管理を実装。** `openPanel` で
+  開く前のフォーカスを覚えて✕へ移し、`panelSetOpen(false)` で戻す。タブトラップは
+  意図的に未実装（Esc がどこからでも閉じるので無くても迷子にならない、という判断）
+- **`.rvBtn`/`.wrBtn.ghost` の `min-height:57px` をデスクトップ専用 `@media` に移動。**
+  この床はデスクトップの等高要求（`--cardH`、`.workbench:has(#inspector:empty)`、
+  1160px以上）のためだけのものだった。スマホは一度も等高を求められていない。
+  **実測（390px）**：0件カード（131221）279.45px→259.25px（-20.2px）、
+  プレビュー行つきカード（135312）257.375px→257.375px（不変）。
+  **実測（1440px）**：両方とも279pxで不変（等高テスト20/20は変わらず通過）
+- Esc の死んだ `.pList` 分岐を削除／`cardActsHtml` の `rkStore.inTimetable(c)` を
+  1回にホイスト／`.cardActs` を `.favBtn` の後ろへ移動（タブ順修正、`.favBtn` は
+  `position:absolute` なので見た目は無変化。実測で確認ずみ）
+- `.rvBtn` 1行目に折り返し止め（`white-space:nowrap`等）を追加
+- **44px のタップ領域の床（`.dActs` が定めるプロジェクトの床「44px を
+  下回らせない」）は、`.cardActs` の3つの形すべてに敷き終わっている**
+  （このタスクの中で3ラウンドかけて直した。経緯を残す）：
+  1. まず `.wrBtn`（36×34）と `.cardActs .ttAddBtn`（約37px）に
+     `align-self:stretch` を追加 ―― 隣の `.rvBtn` に床が無い形（下記3）を
+     見落としたまま「82pxバー（口コミ2行）」だけ直して終えていた
+  2. レビューの指摘で「口コミ0件（`.wrBtn.ghost`、バー約62px）」も
+     44px未満のまま残っていたと判明し、`.wrBtn.ghost` に
+     `min-height:44px` を追加（コミット `3209974`）
+  3. さらに2巡目のレビューで「口コミがある（n>0）のに `notes` が空
+     （本文が `publish:false` で全滅、または無投稿）」という**3つ目の形**が
+     残っていたと判明。口コミがある141件中58件（41%）がこれで、PRの
+     主要CTAである「読む」ボタンがまさに390px幅で44px未満だった。
+     `.rvBtn`（幅を問わず常時効く）に `min-height:44px` を追加すると、
+     `.wrBtn`/`.cardActs .ttAddBtn` は既存の `align-self:stretch` で
+     自動的にこれへ従うので、直すのは `.rvBtn` の1行だけで済んだ
+     （コミット `b3ba784`）
+  **最終実測（390px）**：
+  - 口コミ2行（135327/135312）：バー82.19px・3要素とも57.19px（不変）
+  - 口コミ0件（131221）：バー61.8px→**69px**・`.wrBtn.ghost`/`.ttAddBtn`
+    とも**44px**
+  - 口コミ1行・notes空（135059）：バー61.8px→**69px**・`.rvBtn`/`.wrBtn`/
+    `.ttAddBtn` とも**44px**
+  **1440px は無変化**（`node tools/test_inspector_center.mjs` は一貫して20/20）
+- `tools/test_tokens.py` の CONTRAST から「口コミ件数」行を削除（`.rvb` は
+  既に廃止済みで、`--scale-light-text` on `--card` は現行 app.css のどこにも
+  対応する組み合わせが無いと確認した）。あわせて、その調査で見つけた
+  死んだセレクタ `.secH b`（旧「口コミ N件」見出しの `<b>` 用だったが、
+  その `<b>` を持つ呼び出し元が2026-09-06に detailHtml から消えていた）を
+  コミット `cebe4a3` で削除。ついでに `.detail`/`.secH`/`.dSec`/`.dActs`/
+  `.compBar` 系/`.koanLink` を全件洗って、同じ条件（唯一の呼び出し元が
+  消えたのに残っている）に当てはまるものが他に無いことも確認した
+- `detailHtml` の `.dSec` に、`tools/test_favorite.mjs` が「詳細が描画された」の
+  目印として待っていることのコメントを追加（固有スタイルが無く消されやすいため）
+- `tools/test_kuchikomi_modal.mjs` に Esc／幕クリック／`.kBox` 内クリック非伝播／
+  `#panelWrite` href の4アサーションを追加（390px・PC 両方）
+- ドキュメント2件：設計書§5に共有リンク（PC）を閉じたときの挙動変化を追記、
+  HANDOFF の矛盾（「既知エラー1件」と直後の「全部OK」）を解消、カード高さの数字を
+  上の床スコープ変更に合わせて更新
+- **`renderPage` 描画時間の実測（設計書のリスク表が約束していたが未実施だった分）**：
+  `card()` の innerHTML 構築（50件・390px・main比較・25試行の中央値、1試行=20回反復の平均）：
+  `main` 0.050ms → このブランチ 0.080ms（ノード数 883→1041、+158）。
+  **意味のある変化ではない**（絶対値で+0.03ms、24枚/ページ描画1回あたり体感不能）
+
+### 2. 何をしていないか
+
+- **PR-2（`/kuchikomi` の `?c=` 受け）は未着手**（従来通り）
+- 本番 Cloudflare Pages での `?c=` クエリ到達確認は前回から引き続き未確認
+- 44pxのタップ領域の床は `.cardActs` の3形とも敷き終わっている（上記参照）。
+  他に同種の穴（「2分類したつもりが実は3分類だった」）が残っていないか、
+  `.cardActs` 以外の場所は今回は洗っていない
+
+### 3. 次の人が最初に打つコマンド
+
+    git log --oneline -11
+    cat .superpowers/sdd/2026-09-06-kuchikomi-modal-plan-pr1/final-fix-report.md
+
+### 4. 踏んだ罠
+
+- `#inspector` に `.favBtn`/`.ttAddBtn`/`.cardActs` が本当に一度も出ないことは
+  `showDetail`/`renderPage`/`appendCards` の呼び出し経路を全部追って確認した。
+  見た目やコメントだけで「委譲先を消して大丈夫」と判断すると壊す
+- 高さの実測は search ボックス（`#q`）で科目名にフィルタして1件に絞ると、
+  その科目が「あなたに合う」推薦枠にも同時に載っていた場合 `.card[data-id=...]`
+  が2つヒットする（推薦枠＋通常一覧）。`#list` の**直接の子**の方だけを見ないと
+  誤った高さ（等高スタイルが効いていない推薦枠側）を拾う
+- **「口コミあり／なし」の2分類で44pxの床を考えると1形見落とす。** 実際は
+  「口コミ2行（notesあり）／口コミ1行（n>0だがnotesが空）／口コミ0件」の
+  **3分類**。「口コミあり＝2行のはず」という思い込みで82pxバーだけ直して
+  終えたのが1周目、「口コミなし」も直したので終わったと思ったのが2周目、
+  実際は「口コミはあるが1行になる」形が残っていた。`.cardActs` に限らず、
+  `notes` の有無で分岐するコードを触るときは「n>0 かつ notes 空」を
+  必ず別枠で考えること
+
+---
+
+## 2026-09-07 ｜ 口コミモーダル（PR-1）の静的配信確認と数字の記録 ｜ Claude → 次の人
+
+Task 1〜4（口コミを科目詳細から出し、一覧カードに「読む・書く・時間割」の操作バーを
+足した変更）の直列最終タスク。**このタスクではコードは1行も変えていない。**
+`docs/version-pending.md` に3行足し、この記録を書いただけ。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8795 &            # 静的配信（＝本番相当・CAN_POST=false）
+    cd ..
+    node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8795   # OK
+    node tools/smoke.mjs http://127.0.0.1:8795                  # #fab 非表示を確認（既知エラー1件あり。踏んだ罠を参照）
+    node tools/test_index_gate.mjs http://127.0.0.1:8795        # OK 37件
+    curl -s -o /dev/null -w "%{http_code}\n" "http://127.0.0.1:8795/kuchikomi.html?c=135327"  # 200
+
+    python3 server.py --port 8794 &                     # API モード（CAN_POST=true・全テスト用）
+    node tools/smoke.mjs                 http://127.0.0.1:8794  # ✓ コンソールエラーなし
+    node tools/test_index_gate.mjs       http://127.0.0.1:8794  # OK 37件
+    node tools/test_kuchikomi_modal.mjs  http://127.0.0.1:8794  # OK
+    node tools/test_favorite.mjs         http://127.0.0.1:8794  # OK 38件
+    node tools/test_inspector_center.mjs http://127.0.0.1:8794  # ← URL必須（踏んだ罠）。通過20件
+    node tools/test_rail_toggle.mjs      http://127.0.0.1:8794  # 通過32件
+    node tools/test_kuchikomi_relay.mjs                         # 通過36件（内部で意図的にエラーを起こすテストなので、エラー文字列が出力に出るのが正常）
+    node tools/test_version.mjs                                 # 100件すべて通過
+    python3 tools/test_layout.py                                # 通過22件
+    python3 tools/test_tokens.py                                # 通過115件（LINE友だち追加ボタンのコントラスト例外は既知・対象外）
+    python3 tools/test_shell_inject.py                          # 通過47件
+
+全部 OK（静的配信の smoke.mjs だけ既知エラー1件を出すが、これは
+`POST /api/hit` が 501 になる `python3 -m http.server` 側の制約で、`main` でも
+同じ場所で同じエラーが出る ―― 回帰ではない。踏んだ罠の項を参照）。
+実測値（Task 3・4 で測定。このタスクでは再測定していない）：
+
+- **詳細パネルの高さ：695px → 170px**（科目135327・幅390px）。これが今回のPRの目的そのもの
+- **一覧カードの高さ増加（`main` 比・幅390px）――数字が2つある。先に +82px を見ること**：
+  - 口コミ0件のカード（131221・全体の約7/8がこの型）：197px → 279px = **+82px**
+  - プレビュー行つきのカード（135312）：203px → 257px = +54px
+  - +54px だけを見ると実態を過小評価する。このベンチマークのカードはもともと2行の高い
+    バリアントだったため。0件カードは2段階で伸びた ―― ①操作バーが付いた分、②全カードの
+    高さを揃えるために操作バーの高さの床を上げた分
+
+  **【2026-09-08 最終レビュー修正波で確定】** ここから2段階の追加修正が入った
+  （詳細と経緯は上の「口コミモーダル（PR-1）最終レビューの修正波」を参照。
+  この節は最終確定した数字だけを記録する。過去に「+62px」と書いていたのは
+  下記②のうち44pxの床を敷く前の中間値で、すでに古い）：
+  ②の `min-height:57px` はデスクトップの等高要求（`--cardH`・
+  `.workbench:has(#inspector:empty)`、1160px以上）専用と判明したので
+  `@media` 内へ移し、さらに0件カードの `.wrBtn.ghost`／`.ttAddBtn` に
+  改めて `min-height:44px`（プロジェクトの44pxタップ床）を足した。
+  この結果、0件カードの高さは**197px → 266px = +69px**（②を1160px専用に
+  したことで一旦-20px、44pxの床を敷き直したことで+7px戻る）。
+  プレビュー行つきのカード（135312）は元から2行分の内容で床を実質
+  使っていなかったので**+54pxのまま不変**。
+
+### 2. 何をしていないか
+
+- **`/kuchikomi` の `?c=` 受け（PR-2）。** それまで ✎ は科目が選ばれていない状態で投稿
+  ページを開く ―― いまヘッダの CTA を押したときと同じ状態
+- **本番の Cloudflare Pages で `/kuchikomi?c=135327`（拡張子なし）が実際にクエリを保った
+  まま届くかは、ここからは確認できていない。** ローカルで確認したのは静的配信
+  （`python3 -m http.server`）で `kuchikomi.html?c=135327` が200で返り、クエリ文字列が
+  ページに届くことだけ。**次の人が本番URLで1回開いて確かめること**
+- コード自体は Task 1〜4 で完了済み。このタスクは確認と記録のみ
+
+### 3. 次の人が最初に打つコマンド
+
+    git log --oneline -5           # 直近のコミットを確認
+    cat docs/version-pending.md    # 次の水曜に出す一覧（このPRの3行が末尾に入っている）
+
+### 4. 踏んだ罠
+
+- `tools/test_inspector_center.mjs` はURL引数なしだと既定でポート8798を見に行く。
+  **別のポートでサーバーを立てているときは必ずURLを渡す** ―― 渡し忘れると死んだポートに
+  繋ぎに行ってタイムアウトし、コードが壊れたように見える（今回のPRで実際に見逃されかけた
+  回帰がこれ）
+- `.head` に `role="button"` が付いているので、一覧カードに新しい操作を足すときは
+  **`.head` の子ではなく兄弟に置くこと。** 子に置くとタップ判定が競合する
+- `server.py`（ローカル開発サーバ）は `CAN_POST=true` になる。**本番は静的配信で
+  `CAN_POST=false`** なので、投稿まわりの挙動は必ず `python3 -m http.server` で確かめる
+  こと。`server.py` だけで確認して満足すると、本番で消えているはずのフォームが残っている
+  ことに気付けない
+- **`smoke.mjs` を静的配信で走らせると、`POST /api/hit`（analytics.js のページビュー計測）
+  が501で1件エラーとして出る。** 今回のPRのせいではない ―― `main` ブランチでも同じ場所で
+  同じエラーが出ることを確認済み。Python の `http.server` がPOSTを実装していないだけで、
+  本番では `worker/index.js` が `/api/hit` を受けているので起きない。静的配信でsmokeが
+  この1件だけを出しても回帰ではない（analytics.js に変更が無いことだけ確認すれば無視してよい）
+---
+
+---
+
 ## 2026-09-08 ｜ 表が空の科目に、シラバス本文の配点を出す ｜ Claude → 次の人
 
 「政岡さんの HTML 待ち」になっていた3件を、**待たずに片付けた。**
