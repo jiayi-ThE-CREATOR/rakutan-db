@@ -54,11 +54,14 @@ check(js.count("function detailHtml(") == 1,
 check("matchMedia" in js, "app.js に matchMedia による分岐が無い")
 check("selectedCourseId" in js, "app.js に selectedCourseId が無い")
 
-# 口コミと操作ボタンは一覧カードの操作バーへ移した（2026-09-06）。
-# 詳細に戻すと同じ操作が画面上に2つ並ぶ。
+# 「読む・書く」「時間割に追加」ボタンは一覧カードの操作バーへ移した
+# （2026-09-06）。詳細に戻すと同じボタンが画面上に2つ並ぶ。
+# reviewHtml（口コミの集計数字）はボタンではなく、対応するボタンが
+# .cardActs に無いので重複しない。wang の依頼で 2026-09-10 に
+# detailHtml へ戻した（モーダルを開かなくても数字が見えるように）。
 det = js[js.index("function detailHtml("):]
 det = det[:det.index("\n}\n")]
-for cls in ["panelBtn", "ttAddBtn", "reviewBtn", "reviewHtml"]:
+for cls in ["panelBtn", "ttAddBtn", "reviewBtn"]:
     check(cls not in det, f"detailHtml に {cls} が残っている（操作バーと重複する）")
 check("cardActs" in js, "app.js に .cardActs（一覧の操作バー）が無い")
 
