@@ -797,7 +797,7 @@ function detailHtml(c){
       ${rn ? `<div class="dSec">
         <div class="secH">口コミ <b>${rn}件</b></div>
         ${reviewHtml(c)}
-        ${first ? `<p class="dQuote">「${esc(first)}」</p>` : ""}
+        ${first ? `<p class="dQuote">${esc(first)}</p>` : ""}
       </div>` : ""}
       <div class="dActs">
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
