@@ -762,14 +762,23 @@ function reviewHtml(c){
 }
 
 function detailHtml(c){
-  /* ── 詳細の並び（2026-09-06・口コミをモーダルへ出した後）──────────
+  /* ── 詳細の並び（2026-09-10・口コミの集計を詳細にも出す）──────────
    *
    *   ── 成績評価の内訳  KOANの%を積み上げバーで
+   *   ── 口コミ         集計（reviewHtml）＋本人の一言を1件だけ
    *   ── KOAN リンク
    *
-   * 口コミ（読む・書く）と「時間割に追加」は一覧カードの操作バー（.cardActs）へ
-   * 移した。バーは詳細のすぐ上に常に出ているので、ここにも置くと同じ操作が
-   * 画面上に2つ並ぶ。☆ を詳細から外したときと同じ判断。
+   * 「読む・書く」ボタンと「時間割に追加」は一覧カードの操作バー（.cardActs）に
+   * 残したまま ―― 2026-09-07 の判断（同じ操作を画面に2つ並べない）は変えない。
+   * ただし wang から、モーダルを開かなくても集計数字（出席・課題・テストの
+   * 難易度など）がここで見えてほしいと依頼があった（Discord 2026-09-10）。
+   * reviewHtml() はモーダル（#panelBody）用に作った関数をそのまま再利用 ――
+   * 集計の中身を二重に持たないため。一言は「一部だけでいい」との依頼どおり
+   * 1件のみ、cardActsHtml と同じ notes[0] を出す（全件は N件を読む→で）。
+   * 一言は .pNote ではなく専用の .dQuote で出す ―― .pNote はモーダルの
+   * 1件ずつ表示（panelEntry）と共有のクラスなので、ここだけ吹き出し風に
+   * 変えると影響範囲がモーダル側にも及んでしまう（2026-09-10、Claude Design
+   * で4案作り松下さんが「そっと囲む」案を選定）。
    *
    * 元は score.py が計算した5軸の「重さ」スコアをバーで見せていたが、
    * 松下さんの依頼で「KOANシラバスに書かれている成績評価の生の%」に置き換えた
@@ -779,10 +788,17 @@ function detailHtml(c){
    * .secH/.compBar 側が持つ）が、クラス名として消さないこと ――
    * tools/test_favorite.mjs が `.detail .dSec` を「詳細が描画された」の
    * 目印として待っている（2026-09-07）。 */
+  const rn = c.reviews?.n || 0;
+  const first = (c.reviews?.notes || [])[0] || "";
   return `<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
       </div>
+      ${rn ? `<div class="dSec">
+        <div class="secH">口コミ <b>${rn}件</b></div>
+        ${reviewHtml(c)}
+        ${first ? `<p class="dQuote">${esc(first)}</p>` : ""}
+      </div>` : ""}
       <div class="dActs">
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       </div>`;
