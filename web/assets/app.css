@@ -630,6 +630,21 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 .rvf b{font-family:var(--data);font-size:var(--fs-base);color:var(--ink)}
 /* 値が長いもの（レポートの字数など）は2列に割らない。 */
 .rvf span.w{grid-column:1/-1}
+
+/* ── 口コミの一言（2026-09-10）─────────────────
+ * 集計の下に灰色の地で軽く囲み、引用符を添えて「本人の言葉」だと
+ * 分かるようにする。Claude Design で4案（尻尾つき／チャット風／
+ * ブランド地の強調カード／これ）を並べ、松下さんが「そっと囲む」案を選んだ
+ * ―― 集計（.rvf）と同じ --dim の地を使うので浮かない、尻尾が無い分だけ
+ * 縦のスペースも取らない、という理由。
+ * .pNote（モーダルの1件ずつ表示・panelEntry）とはクラスを分けている。
+ * 共有すると、ここだけの見た目変更のつもりがモーダル側にも及ぶ。 */
+.dQuote{position:relative;margin:var(--sp-4) 0 0;padding:var(--sp-3) var(--sp-3) var(--sp-3) 34px;
+  background:var(--dim);border-radius:var(--r-md);font-size:var(--fs-base);line-height:1.8;color:var(--ink)}
+/* 引用符は装飾。本文側（app.js）が「」で囲んでいるので、読み上げの意味は
+   そちらが持つ ―― ここは目で見て気づくための飾りでよい。 */
+.dQuote::before{content:"\201C";position:absolute;left:10px;top:-2px;font-size:30px;
+  font-family:Georgia,"Times New Roman",serif;color:var(--muted);line-height:1}
 /* ── 詳細の操作（2026-09-01・案A）───────────────
  * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
  * 5つ縦積みで、どれが主か分からず、最後の ☆ はラベルも無かった。まず5つ→3つにし、

@@ -775,6 +775,10 @@ function detailHtml(c){
    * reviewHtml() はモーダル（#panelBody）用に作った関数をそのまま再利用 ――
    * 集計の中身を二重に持たないため。一言は「一部だけでいい」との依頼どおり
    * 1件のみ、cardActsHtml と同じ notes[0] を出す（全件は N件を読む→で）。
+   * 一言は .pNote ではなく専用の .dQuote で出す ―― .pNote はモーダルの
+   * 1件ずつ表示（panelEntry）と共有のクラスなので、ここだけ吹き出し風に
+   * 変えると影響範囲がモーダル側にも及んでしまう（2026-09-10、Claude Design
+   * で4案作り松下さんが「そっと囲む」案を選定）。
    *
    * 元は score.py が計算した5軸の「重さ」スコアをバーで見せていたが、
    * 松下さんの依頼で「KOANシラバスに書かれている成績評価の生の%」に置き換えた
@@ -793,7 +797,7 @@ function detailHtml(c){
       ${rn ? `<div class="dSec">
         <div class="secH">口コミ <b>${rn}件</b></div>
         ${reviewHtml(c)}
-        ${first ? `<p class="pNote">「${esc(first)}」</p>` : ""}
+        ${first ? `<p class="dQuote">「${esc(first)}」</p>` : ""}
       </div>` : ""}
       <div class="dActs">
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
