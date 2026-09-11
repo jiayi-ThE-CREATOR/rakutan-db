@@ -389,13 +389,33 @@ const TRUST_CONDS = ["口コミあり"];
 
 /* 配点系チップが点いているか＝そのチップの軸がすべて 0% か。
    state.cond には入れない（入れると同じことを2か所で持つことになる）。 */
-const chipOn = c => c in CHIP_CAPS
-  ? Object.keys(CHIP_CAPS[c]).every(k => state.caps[k] === 0)
-  : state.cond.has(c);
+const capsZero = c => Object.keys(CHIP_CAPS[c]).every(k => state.caps[k] === 0);
+const chipOn = c => c in CHIP_CAPS ? capsZero(c) : state.cond.has(c);
+
+/* 2026-09-11: 「レポートのみ」は試験・出席・小テストの3軸を 0% にするので、
+   1軸だけ見る「出席なし」「小テストなし」も同時に条件を満たし、3つとも光る。
+   同じ濃さで光ると、自分が押した1つがどれか画面から読めない（本人指摘）。
+
+   **絞り込みの中身は変えない。** 実際に出席0%で絞れている以上、「出席なし」を
+   消灯させるのは画面が嘘をつくことになる。見分けたいだけなので、
+   広いチップに含まれて点いている側を淡い地（--brand-soft）で出す。
+   広い＝自分の軸を全部含み、かつ軸の数が多いチップ。
+   返すのは「どれに含まれているか」の名前（title に出して理由を言う）。 */
+const chipImpliedBy = c => {
+  if (!(c in CHIP_CAPS) || !capsZero(c)) return "";
+  const mine = Object.keys(CHIP_CAPS[c]);
+  return Object.keys(CHIP_CAPS).find(d => d !== c && capsZero(d)
+    && mine.every(k => k in CHIP_CAPS[d])
+    && Object.keys(CHIP_CAPS[d]).length > mine.length) || "";
+};
 
 function chipRow(el, names, facets){
-  el.innerHTML = names.map(c =>
-    `<button class="chip${chipOn(c)?" on":""}" data-c="${esc(c)}">${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`).join("");
+  el.innerHTML = names.map(c => {
+    const by = chipImpliedBy(c);
+    return `<button class="chip${chipOn(c)?" on":""}${by?" imp":""}" data-c="${esc(c)}"` +
+      (by ? ` title="「${esc(by)}」に含まれています"` : "") +
+      `>${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`;
+  }).join("");
   el.querySelectorAll("button").forEach(b => b.onclick = () => {
     const c = b.dataset.c;
     if (c in CHIP_CAPS){
@@ -1391,6 +1411,11 @@ $("#list").addEventListener("click", e => {
  * このサービスの価値は、絞ったことのほうにある。
  */
 let page = 1;
+/* 下の一覧に実際に並べる分（「あなたに合う」枠に出したぶんを抜いたもの）と、
+   抜いた件数。renderPager は resize からも引数なしで呼ばれるので、
+   ページ送りの計算に要るこの2つはここに置いて共有する。 */
+let listed = [];
+let picked = 0;
 
 /* 1ページ目の先頭に出す推薦枠。人が確認ずみの科目からだけ選ぶ。
    ⚠️ 本一覧の並び順そのものは変えない。
@@ -1434,25 +1459,33 @@ function appendCards(parent, list){
    初回描画で動かすと、まだ何もしていないのに
    ヘッダが画面外へ流れていってしまう。 */
 function renderPage(n, scroll = false){
-  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  /* 2026-09-11：「あなたに合う」枠に出した科目が、すぐ下の一覧にも
+     そのまま並んでいた（本人指摘・実測3件）。枠に出したものは一覧から外す。
+
+     外すのは1ページ目だけでは足りない。**全ページから外す** ―― 1ページ目の
+     一覧だけから抜くと、抜いたぶんが後ろへ押し出されて2ページ目に現れ、
+     同じ重複が戻るだけになる。 */
+  const picks = topPicks();
+  const pickIds = new Set(picks.map(c => c.id));
+  listed = picks.length ? courses.filter(c => !pickIds.has(c.id)) : courses;
+  picked = picks.length;
+
+  const total = Math.ceil(listed.length / PAGE_SIZE) || 1;
   page = Math.max(1, Math.min(n, total));
   const list = $("#list");
   list.innerHTML = "";
 
-  if (page === 1){
-    const picks = topPicks();
-    if (picks.length){
-      const box = document.createElement("section");
-      box.className = "picks";
-      box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
-        `<span class="sub">人が確認ずみの科目から</span></h2>`;
-      appendCards(box, picks);
-      list.appendChild(box);
-    }
+  if (page === 1 && picks.length){
+    const box = document.createElement("section");
+    box.className = "picks";
+    box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
+      `<span class="sub">人が確認ずみの科目から</span></h2>`;
+    appendCards(box, picks);
+    list.appendChild(box);
   }
 
   const start = (page - 1) * PAGE_SIZE;
-  appendCards(list, courses.slice(start, start + PAGE_SIZE));
+  appendCards(list, listed.slice(start, start + PAGE_SIZE));
   renderPager();
 
   /* 左の絞り込みと右の詳細は sticky なので画面に残る。
@@ -1464,10 +1497,13 @@ function renderPage(n, scroll = false){
 function renderPager(){
   const el = $("#pager");
   if (!el) return;
-  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  const total = Math.ceil(listed.length / PAGE_SIZE) || 1;
   if (!courses.length || total <= 1){ el.innerHTML = ""; return; }
 
-  const shownTo = Math.min(page * PAGE_SIZE, courses.length);
+  /* 分母は courses.length（＝上の帯に出ている件数）のままにする。
+     「あなたに合う」枠に出したぶんも利用者はもう見ているので、分子に足す。
+     ここを listed.length にすると、帯の件数とページ送りの件数が食い違う。 */
+  const shownTo = Math.min(page * PAGE_SIZE, listed.length) + picked;
 
   /* 1,015件だと43ページになるので、番号を全部は出せない。
      先頭・末尾・現在の前後だけ出して、あいだは「…」で畳む。
@@ -1527,6 +1563,7 @@ async function load(retry){
   } else {
     $("#list").innerHTML =
       `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
+    listed = []; picked = 0;   // 前回の結果を残したままページ送りを描かせない
     renderPager();
   }
 }
