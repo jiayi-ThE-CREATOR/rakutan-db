@@ -27,7 +27,12 @@ const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), 
                 caps:{ attendance:100, exam:100, quiz:100, report:100 },
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
-                faculty:"", track:"", division:new Set() };
+                /* track2＝専攻語が「日本語」の学生が実際に履修するもう一つの専攻語。
+                   外国語学部の日本語専攻は、自分の専攻語（日本語）とは別に
+                   もう一つの言語を履修し、その言語の専攻語科目をそのまま取る
+                   （中国語を選べば中国語専攻の学生と同じ科目）。絞り込みでは
+                   track の代わりに track2 を使う。 */
+                faculty:"", track:"", track2:"", division:new Set() };
 const SEMS = [["aki","秋・冬学期"],["haru","春・夏学期"],["all","すべて"]];
 const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
                ["5","5年"],["6","6年"],["all","すべて"]];
@@ -56,6 +61,7 @@ function qs(){
   state.cond.forEach(c => p.append("cond", c));
   if (state.faculty) p.set("faculty", state.faculty);
   if (state.track) p.set("track", state.track);
+  if (state.track2) p.set("track2", state.track2);
   state.division.forEach(d => p.append("division", d));
   for (const k of CAP_AXES) if (state.caps[k] < NO_CAP) p.set("cap_" + k, state.caps[k]);
   return p;
@@ -117,6 +123,15 @@ function buildYears(){
    （設計 1章① を読むこと）。 */
 
 const DIV_OTHER = "other";   // 「まだ判定していない」科目の置き場。データには書かない
+// 外国語学部の専攻語のうち「日本語」だけは、もう一つ言語を選ばせる特別枠。
+// requirements.json の外国語学部 tracks に出てくる固定のキー。
+const FS_JAPANESE_TRACK = "fs_lang:R";
+
+// 絞り込みに実際に使うトラック。日本語専攻で言語を選んでいれば、その言語の
+// 専攻語科目をそのまま取る＝その言語のキーで絞る（自分の専攻語＝日本語では絞らない）。
+function effectiveTrack(){
+  return (state.track === FS_JAPANESE_TRACK && state.track2) ? state.track2 : state.track;
+}
 
 /* チップにする区分だけを返す。chip:false の区分（第1外国語）は、内訳の
    総合英語・実践英語が実在する区分なので、親はチップにしない
@@ -232,7 +247,10 @@ function buildFaculty(facets){
 
        <h2 class="facH">学部からさがす</h2>
        <select id="facSel"></select>
-       <select id="trackSel" hidden></select>
+       <div class="trackRow" id="trackRow">
+         <select id="trackSel" hidden></select>
+         <select id="trackSel2" hidden></select>
+       </div>
 
        <div id="facOwn" hidden>
          <h2 class="facH" id="facOwnH"></h2>
@@ -251,11 +269,15 @@ function buildFaculty(facets){
     // 学部をまたいで残すと「ドイツ語専攻のまま工学部」のような、
     // 存在しない絞り込みになる。
     $("#facSel").onchange = e => {
-      state.faculty = e.target.value; state.track = "";
+      state.faculty = e.target.value; state.track = ""; state.track2 = "";
       dropForeignDivisions();
       load();
     };
-    $("#trackSel").onchange = e => { state.track = e.target.value; load(); };
+    $("#trackSel").onchange = e => {
+      state.track = e.target.value; state.track2 = "";
+      load();
+    };
+    $("#trackSel2").onchange = e => { state.track2 = e.target.value; load(); };
     // 既定は閉じる。すでに区分を選んでいる状態（URL復元など）なら、
     // 選択が見えなくならないよう開いたままにする。
     const startOpen = state.division.size > 0;
@@ -300,6 +322,23 @@ function buildFaculty(facets){
     // 実際に「文学部なのに専攻語を選ぶ」が見えていた）。
     tsel.innerHTML = "";
     if (state.track) state.track = "";
+  }
+
+  /* 日本語専攻だけの追加枠。専攻語＝日本語の学生は、卒業要件上もう一つ言語を
+     履修し、その言語の専攻語科目をそのまま取る（例：中国語を選べば中国語専攻の
+     学生と同じ科目）。選ばせるのは専攻語の一覧から日本語自身を除いたもの。 */
+  const t2sel = $("#trackSel2");
+  const showLang2 = tracks.length > 0 && state.track === FS_JAPANESE_TRACK;
+  t2sel.hidden = !showLang2;
+  $("#trackRow").classList.toggle("split", showLang2);
+  if (showLang2){
+    t2sel.innerHTML = `<option value="">${esc(fac.tracks_label || "専攻語を選ぶ")}</option>`
+      + tracks.filter(t => t.key !== FS_JAPANESE_TRACK)
+              .map(t => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join("");
+    t2sel.value = state.track2;
+  } else {
+    t2sel.innerHTML = "";
+    if (state.track2) state.track2 = "";
   }
 
   // 下段＝その学部だけの区分。
@@ -1051,7 +1090,8 @@ function matchLocal(r){
    そうしないとコマを押した瞬間に他のコマが全部0件になり、次の一手が打てない。 */
 function queryLocal(){
   const conds = [...state.cond].filter(k => k in CONDITIONS);
-  const trackAxis = state.track ? state.track.split(":")[0] + ":" : "";
+  const track = effectiveTrack();
+  const trackAxis = track ? track.split(":")[0] + ":" : "";
 
   const base = [];
   for (const c of DATA.courses){
@@ -1066,7 +1106,7 @@ function queryLocal(){
     // トラック（専攻語・学科）は同じ軸の中でだけ効かせる。トラックを持たない
     // 科目（共通教育・学部共通など）は通す ―― 落とすと上段の共通区分が
     // まるごと0件になる。
-    if (trackAxis && c.track && c.track.startsWith(trackAxis) && c.track !== state.track) continue;
+    if (trackAxis && c.track && c.track.startsWith(trackAxis) && c.track !== track) continue;
     base.push({ ...c, match: matchLocal(c.rakutan) });
   }
 

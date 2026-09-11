@@ -198,8 +198,11 @@ def search(params: dict) -> dict:
     # トラック（外国語学部＝専攻語、工学部＝学科）。区分とは別の軸で、
     # 同じ軸を持つ科目の中でだけ効く。トラックを持たない科目は通す
     # ―― 落とすと共通教育がまるごと消える。
-    trk = get("track")
-    trk_axis = trk.split(":")[0] + ":" if trk else ""
+    # track2＝専攻語が日本語の学生が実際に履修する言語（例：中国語を選べば
+    # 中国語専攻と同じ科目）。web/assets/app.js の effectiveTrack() と同じ手順。
+    trk, trk2 = get("track"), get("track2")
+    eff_trk = trk2 if (trk == "fs_lang:R" and trk2) else trk
+    trk_axis = eff_trk.split(":")[0] + ":" if eff_trk else ""
     # 配点の上限（?cap_attendance=30 …）。既定は全部100%＝制限なし。
     caps = {k: scoring.NO_CAP for k in scoring.CAP_AXES} | scoring.parse_caps(params)
 
@@ -223,7 +226,7 @@ def search(params: dict) -> dict:
         if any(not CONDITIONS[k](c) for k in conds):
             continue
         if trk_axis and (c.get("track") or "").startswith(trk_axis) \
-                and c.get("track") != trk:
+                and c.get("track") != eff_trk:
             continue
         e = scoring.enrich(c)
         if min_conf and e["rakutan"]["confidence"]["level"] not in _conf_ok(min_conf):
@@ -349,6 +352,9 @@ def openapi() -> dict:
                         {"name": "track", "in": "query",
                          "schema": {"type": "string"},
                          "description": "専攻語・学科（例 fs_lang:K／eng_dept:denshi）"},
+                        {"name": "track2", "in": "query",
+                         "schema": {"type": "string"},
+                         "description": "track=fs_lang:R（日本語専攻）のときだけ効く、実際に履修する言語"},
                         {"name": "division", "in": "query",
                          "schema": {"type": "array", "items": {"type": "string"}},
                          "description": "科目区分。複数指定で OR。other は未判定"},
