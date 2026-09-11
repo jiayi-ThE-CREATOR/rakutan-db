@@ -1411,6 +1411,11 @@ $("#list").addEventListener("click", e => {
  * このサービスの価値は、絞ったことのほうにある。
  */
 let page = 1;
+/* 下の一覧に実際に並べる分（「あなたに合う」枠に出したぶんを抜いたもの）と、
+   抜いた件数。renderPager は resize からも引数なしで呼ばれるので、
+   ページ送りの計算に要るこの2つはここに置いて共有する。 */
+let listed = [];
+let picked = 0;
 
 /* 1ページ目の先頭に出す推薦枠。人が確認ずみの科目からだけ選ぶ。
    ⚠️ 本一覧の並び順そのものは変えない。
@@ -1454,25 +1459,33 @@ function appendCards(parent, list){
    初回描画で動かすと、まだ何もしていないのに
    ヘッダが画面外へ流れていってしまう。 */
 function renderPage(n, scroll = false){
-  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  /* 2026-09-11：「あなたに合う」枠に出した科目が、すぐ下の一覧にも
+     そのまま並んでいた（本人指摘・実測3件）。枠に出したものは一覧から外す。
+
+     外すのは1ページ目だけでは足りない。**全ページから外す** ―― 1ページ目の
+     一覧だけから抜くと、抜いたぶんが後ろへ押し出されて2ページ目に現れ、
+     同じ重複が戻るだけになる。 */
+  const picks = topPicks();
+  const pickIds = new Set(picks.map(c => c.id));
+  listed = picks.length ? courses.filter(c => !pickIds.has(c.id)) : courses;
+  picked = picks.length;
+
+  const total = Math.ceil(listed.length / PAGE_SIZE) || 1;
   page = Math.max(1, Math.min(n, total));
   const list = $("#list");
   list.innerHTML = "";
 
-  if (page === 1){
-    const picks = topPicks();
-    if (picks.length){
-      const box = document.createElement("section");
-      box.className = "picks";
-      box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
-        `<span class="sub">人が確認ずみの科目から</span></h2>`;
-      appendCards(box, picks);
-      list.appendChild(box);
-    }
+  if (page === 1 && picks.length){
+    const box = document.createElement("section");
+    box.className = "picks";
+    box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
+      `<span class="sub">人が確認ずみの科目から</span></h2>`;
+    appendCards(box, picks);
+    list.appendChild(box);
   }
 
   const start = (page - 1) * PAGE_SIZE;
-  appendCards(list, courses.slice(start, start + PAGE_SIZE));
+  appendCards(list, listed.slice(start, start + PAGE_SIZE));
   renderPager();
 
   /* 左の絞り込みと右の詳細は sticky なので画面に残る。
@@ -1484,10 +1497,13 @@ function renderPage(n, scroll = false){
 function renderPager(){
   const el = $("#pager");
   if (!el) return;
-  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  const total = Math.ceil(listed.length / PAGE_SIZE) || 1;
   if (!courses.length || total <= 1){ el.innerHTML = ""; return; }
 
-  const shownTo = Math.min(page * PAGE_SIZE, courses.length);
+  /* 分母は courses.length（＝上の帯に出ている件数）のままにする。
+     「あなたに合う」枠に出したぶんも利用者はもう見ているので、分子に足す。
+     ここを listed.length にすると、帯の件数とページ送りの件数が食い違う。 */
+  const shownTo = Math.min(page * PAGE_SIZE, listed.length) + picked;
 
   /* 1,015件だと43ページになるので、番号を全部は出せない。
      先頭・末尾・現在の前後だけ出して、あいだは「…」で畳む。
@@ -1547,6 +1563,7 @@ async function load(retry){
   } else {
     $("#list").innerHTML =
       `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
+    listed = []; picked = 0;   // 前回の結果を残したままページ送りを描かせない
     renderPager();
   }
 }
