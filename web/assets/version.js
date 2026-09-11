@@ -42,6 +42,7 @@
       items: [
         { tag: "improve", text: "KOAN の時間割が更新されていたので取り直しました。科目は 7,877件 → 7,906件。外国語学部が 24件、マルチリンガルが 5件、理学部が 2件、文学部が 1件ふえています" },
         { tag: "fix", text: "大学側で取り下げられた 3件を外しました。お気に入りや「私の時間割」に入れていた場合は、その科目だけ表示されなくなります" },
+        { tag: "improve", text: "開いたときの演出に「履修登録、どれくらい手間がかかるか。」を出すようにしました" },
       ],
     },
     {
@@ -88,6 +89,15 @@
   if (!fab || !dlg || !list || RELEASES.length === 0) return;
 
   const latest = RELEASES[0];
+
+  /* 開屏の左下にも同じ番号を出す。版の正本はこの RELEASES ひとつなので、
+     index.html 側は空の入れ物だけを置き、数字はここから流し込む。
+     splash.js は同期スクリプトで先に走り、version.js は defer で後から走るが、
+     覆いは 1400ms 出ているので入れ替わりは間に合う。
+     入れ物が無いページ（about など）と、version.js が落ちた場合は
+     空のまま ―― CSS の :empty で消える。 */
+  const splashVer = $("splashVer");
+  if (splashVer) splashVer.textContent = "v" + latest.version;
 
   /* 2026-08-26 → 2026.8.26。0埋めしないのは、リリース告知の書き方に合わせるため。 */
   const fmt = (iso) => {

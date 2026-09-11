@@ -32,6 +32,9 @@
   const K_TT  = "rk_timetable";
   const K_CAL = "rk_cal_added";
   const K_LINE = "rk_line_linked";
+  /* 画面の見た目の好み。絞り込みを畳んだかどうか等、
+     「データではないが次に来たときも同じであってほしいもの」を入れる。 */
+  const K_UI  = "rk_ui";
   const TERMS = ["haru", "aki"];
   /* localStorage への書き込みが失敗したキーだけを持つメモリ内フォールバック
      （プライベートモードの全滅・quota 枯渇のどちらでも使う）。
@@ -105,6 +108,16 @@
 
     isOnboarded()  { return read(K_ON) === "1"; },
     markOnboarded(){ write(K_ON, "1"); },
+
+    /* 左の絞り込みが開いているか。既定は「開いている」―― 初めて来た人には
+       何で絞れるのかが見えていないと始められない。畳むのは、一度使って
+       中身を把握した人が自分で選ぶこと。 */
+    getRailOpen()  { return readObj(K_UI).railOpen !== false; },
+    setRailOpen(v) {
+      const o = readObj(K_UI);
+      o.railOpen = !!v;
+      write(K_UI, JSON.stringify({ v: 1, ...o }));
+    },
 
     getFavorites() {
       const ids = readObj(K_FAV).ids;
@@ -186,6 +199,25 @@
       if (lines.length && !confirm(`次のコマを上書きします。\n\n${lines.join("\n")}\n\nよろしいですか？`)) return false;
       for (const t of terms) for (const s of slots) this.setSlot(t, s, course.id);
       return true;
+    },
+
+    /* 時間割から外す（2026-09-08、.ttAddBtn をトグルにするために新設）。
+       追加（putCourse）は course.slots／day_period から算出した「置くべき
+       コマ」だけに書き込むが、外すときはそれに頼らず、対象の学期で
+       「いまその科目 id が実際に入っているコマ」を全部スキャンして消す。
+       確認したところ mypage.js に同種の共通ヘルパーは無かった
+       （onCell はクリックした1コマぶんの確認ダイアログ付きフローで、
+       「この科目を置けるすべての学期から一括で外す」形ではない）。
+       putCourse と対称の場所（store.js）に置き、app.js・mypage.js の
+       両方から呼べるようにする。 */
+    removeCourse(terms, course) {
+      for (const t of terms) {
+        const tt = this.getTimetable(t);
+        for (const [slot, id] of Object.entries(tt.slots)) {
+          if (id === course.id) this.clearSlot(t, slot);
+        }
+        this.removeExtra(t, course.id);
+      }
     },
 
     // course が、置けるべき学期すべてで既に時間割（コマ or 曜限なし枠）に入っているか。

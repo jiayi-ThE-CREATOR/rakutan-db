@@ -53,7 +53,10 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
  * ページを分けた以上、いまどこにいるか分からないのは事故なので、
  * 現在地に下線を出す（aria-current は app.js が付ける）。
  */
-.nav{display:flex;gap:var(--sp-4);align-items:center}
+/* 隙間は --sp-5。--sp-4（16px）では「科目をさがす／今後のステップ／About ラクハン」が
+   1つの長い文字列に見え、どこで項目が切れているか読み取れなかった（本人指摘 2026-09-06）。
+   .navCta が margin-left:auto で右端に居るので、広げたぶんは空きから取るだけ。 */
+.nav{display:flex;gap:var(--sp-5);align-items:center}
 .nav a{color:var(--on-dark-mid);text-decoration:none;
   font-size:var(--fs-hdr-sub);padding:var(--sp-1) 0;
   border-bottom:2px solid transparent;
@@ -80,23 +83,34 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   box-shadow:0 0 0 2px var(--on-dark-strong)}
 
 /* マイページ。ナビの一項目ではなく、ヘッダの隅に常駐する「自分のもの」への入口。
-   塗らないのは、塗ってよいのは1画面に1つ（＝口コミ）という取り決めのため。 */
+   塗らないのは、塗ってよいのは1画面に1つ（＝口コミ）という取り決めのため。
+
+   塗れない代わりに、文字と枠で目立たせる（2026-09-06。本人指摘「弱すぎて気づかない」）。
+   ナビ（--on-dark-mid・400）より一段上げて 白・600・+1px、枠も罫（.34）から
+   --on-dark-strong（.84）へ。これで「ナビの4項目のうちの1つ」には見えなくなる。
+   ここを塗り（--brand）にしないのは上の取り決めのため。 */
 .hdMy{display:inline-flex;align-items:center;flex:0 0 auto;
-  color:var(--on-dark-mid);text-decoration:none;font-size:var(--fs-hdr-sub);
-  padding:var(--sp-1) var(--sp-3);border:1px solid var(--on-dark-line);
+  color:var(--on-dark);text-decoration:none;
+  font-size:calc(var(--fs-hdr-sub) + 1px);font-weight:600;
+  padding:var(--sp-1) var(--sp-3);border:1px solid var(--on-dark-strong);
   border-radius:var(--r-pill);white-space:nowrap;
   transition:color var(--dur) var(--ease-out),
-             border-color var(--dur) var(--ease-out)}
-.hdMy:hover{color:var(--on-dark);border-color:var(--on-dark)}
-.hdMy[aria-current="page"]{color:var(--on-dark);border-color:var(--brand)}
+             border-color var(--dur) var(--ease-out),
+             box-shadow var(--dur) var(--ease-out)}
+.hdMy:hover{color:var(--on-dark);border-color:var(--on-dark);
+  box-shadow:0 0 0 1px var(--on-dark)}
+.hdMy[aria-current="page"]{color:var(--on-dark);border-color:var(--brand);
+  box-shadow:0 0 0 1px var(--brand)}
 
 /* PC ではロゴを左端に置いたまま、ナビとマイページを右へ寄せる。
    DOM の順（ロゴ→マイページ→ナビ）は狭い画面の見た目に合わせてあるので、
    ここだけ order で入れ替える。
 
    ヘッダが1行になる幅について。
-   1行に必要なのは ロゴ360 + ナビ426 + マイページ93 + 隙間32 ＝ 911px、
-   左右の余白を足して 943px（実測）。以前ここは 640px で、
+   1行に必要なのは ロゴ355 + ナビ464 + マイページ98 + 隙間32 ＝ 949px、
+   左右の余白を足して 981px（実測 2026-09-06。ナビの隙間を --sp-5 へ、
+   マイページを +1px/600 へ広げたぶん、以前の 943px から 38px 増えた。
+   境目 1024px まではまだ 43px ある）。以前ここは 640px で、
    640〜942px ではロゴの GUILD が折れ、口コミの塗りが2行に割れていた
    （実測 768px でヘッダ 124px）。入らない幅では2段のままの方が低く収まるので、
    境目を 1024px（＝いちばん近い既存のブレークポイント）へ上げる。 */
@@ -146,7 +160,7 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
      どこからが押せるものか分からない。負のマージンで header の左右 padding を
      打ち消し、画面幅いっぱいの一段下の帯にする（下端も同様に打ち消す）。 */
   .nav{grid-column:1 / -1;grid-row:2;
-    gap:var(--sp-2) var(--sp-3);flex-wrap:wrap;
+    gap:var(--sp-2) var(--sp-4);flex-wrap:wrap;
     margin:11px calc(-1 * var(--pad)) -12px;
     padding:8px var(--pad) 9px;
     background:var(--on-dark-band);
@@ -169,9 +183,11 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   .by{padding-left:var(--sp-2)}
   .byMain{font-size:11px}
   .bySub{font-size:9.5px;letter-spacing:.08em}
-  /* ロゴ＋GUILD と同じ行に居るので、ここも一緒に落とす。
-     実測：320px 幅で 上段 = ロゴ 77 + GUILD 102 + これ 78 ＝ 端まで約 30px 残る。 */
-  .hdMy{font-size:12px;padding:3px var(--sp-2)}
+  /* ロゴ＋GUILD と同じ行に居るので、ここも一緒に落とす。ナビ（12px）より
+     1px 大きいままなのは、ここだけは埋もれさせないため。
+     実測 2026-09-06：320px 幅で 上段 = ロゴ＋GUILD が 211px まで、
+     これが 223〜304px。間に 12px 残る（触るならこの 12px が持ち代）。 */
+  .hdMy{font-size:13px;padding:3px var(--sp-2)}
 }
 
 /* 320px（実在する最小の端末幅）を切ると、ロゴ・添え書き・GUILD は
@@ -200,6 +216,15 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
   .nav a{font-size:12px}
 }
 
+/* ただし 6px は「390px でも4項目を1行に収める」ための下限であって、
+   読みやすい隙間ではない。入る幅では 10px まで戻す。
+   実測（12px・4項目）：3項目 243 + 口コミ 96 + 隙間3つ + 左右余白 32。
+   隙間 10px なら 401px から1行に収まる（6px なら 390px から）。
+   401 未満は 6px のまま――ここを広げると口コミが単独で次の行へ落ちる。 */
+@media (min-width:401px) and (max-width:479px){
+  .nav{column-gap:10px}
+}
+
 input[type=search]{width:100%;padding:11px 13px;border:1px solid var(--rule);border-radius:var(--r-md);
   background:var(--card);color:var(--ink);font:inherit;font-size:var(--fs-base)}
 input:focus-visible,button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
@@ -219,7 +244,6 @@ option:hover, option:focus{ background:var(--brand-soft); }
 
 section{margin-top:22px}
 h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-weight:700}
-h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 
 /* ── 空きコマグリッド ─────────────────── */
 .grid{display:grid;grid-template-columns:20px repeat(5,1fr);gap:4px}
@@ -230,7 +254,6 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   cursor:pointer;font-variant-numeric:tabular-nums}
 .grid button.zero{color:var(--rule);background:transparent}
 .grid button.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink);font-weight:700}
-.hint{font-size:var(--fs-xs);color:var(--muted);margin-top:6px}
 
 /* ── 選択中コマの貼り付きバー ─────────── */
 .slotBar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;
@@ -283,6 +306,80 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .bar{display:grid;grid-template-columns:auto 1fr auto;align-items:center;
   gap:var(--sp-2);margin:var(--sp-5) 0 var(--sp-2);padding-bottom:var(--sp-2);
   border-bottom:1px solid var(--rule)}
+/* 条件欄の見出し行。768px 未満では出さない ―― その幅では .rail は
+   ただの縦積みで、畳む相手としての「列」が無い。 */
+.railHead{display:none}
+@media (min-width:768px){
+  /* 高さを決め打ちにしてあるのは、下の .slotBar（「◯曜◯限で絞り込み中」）も
+     sticky で、同じ器の天井に貼り付くから。値がずれると2つが重なる。
+     tools/test_rail_toggle.mjs が重なりを見張っている。 */
+  /* 高さ 51px と上の余白 24px は、右の .bar（件数・検索・並び順）と
+     下の罫線をそろえるための値。2本の罫線が同じ高さで揃うと、左右が
+     「同じ段の見出し」に見える。.bar の中身（検索窓の padding）を変えると
+     ずれるので、tools/test_rail_toggle.mjs が2本の底辺を突き合わせている。 */
+  .rail{--railHeadH:51px}
+  .railHead{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);
+    height:var(--railHeadH);margin-top:var(--sp-5);position:sticky;top:0;z-index:16;
+    background:var(--paper);border-bottom:1px solid var(--rule);margin-bottom:var(--sp-3)}
+  .slotBar{top:var(--railHeadH)}
+}
+.railHeadT{font-size:var(--fs-sm);font-weight:700;color:var(--soft);letter-spacing:.04em}
+
+/* ── 継ぎ目の取っ手 ─────────────────────
+ * 条件欄と一覧のあいだの gap（--sp-5＝24px）に立てる。開閉の操作子はこれだけ。
+ * .gripRail は一覧と同じ高さの帯で、位置を決めるためだけに在る
+ * （pointer-events:none ―― 継ぎ目を通りすがりに押してしまうのを防ぐ。
+ *  押せるのは中の .grip だけ）。その .grip が sticky で画面の高さの真ん中に
+ * 貼り付くので、どこまでスクロールしても視界から出ない。これが要件そのもので、
+ * .bar に置いていた頃は下へスクロールすると消えていた。
+ * 768px 未満では出さない（その幅に継ぎ目は無い）。 */
+.gripRail{display:none}
+@media (min-width:768px){
+  .results{position:relative}
+  /* z-index が要る。カードは .card{position:relative}（app.css の913行あたり、
+     星を右上に置くため）で、DOM 上は .gripRail より後ろに来る。どちらも
+     z-index:auto のままだと、後から来るカードが上に描かれ、取っ手そのものは
+     継ぎ目に在るので見えるのに、乗せたときの名札（.grip::after）だけが
+     カードの下に隠れる。実際にそうなっていた（2026-09-05）。 */
+  .gripRail{display:flex;flex-direction:column;align-items:center;
+    position:absolute;top:0;bottom:0;left:calc(-1 * var(--sp-5));width:var(--sp-5);
+    z-index:5;pointer-events:none}
+  /* 40px は .grip の高さ 80px の半分。画面のちょうど真ん中に来る。
+     地は --card ＋ 罫、矢印は --brand-text。--dim の地に灰色の矢印だと
+     背景の一部に見えて「押せるもの」と読まれない ―― 見つけてもらうのが
+     この取っ手の役目なので、静止状態から操作色を出す。 */
+  .grip{position:sticky;top:calc(50vh - 40px);pointer-events:auto;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+    width:22px;height:80px;padding:0;cursor:pointer;
+    border:1px solid var(--rule);border-radius:var(--r-pill);
+    background:var(--card);color:var(--brand-text)}
+  .grip:hover{background:var(--brand-soft);border-color:var(--brand-line)}
+
+  /* 畳むと列が消えて継ぎ目も消えるので、一覧の左に 28px の余白を作って
+     そこへ立てる ―― 同じ縦線の上から動かさないため（位置の記憶が切れない）。
+     28px 使っても、畳んで広がるぶん（284〜304px）のほうがずっと大きい。
+     1280px の画面で一覧は 816px 使えるので、2列は保たれる。 */
+  .workbench.railOff .results{padding-left:28px}
+  .workbench.railOff .gripRail{left:0;width:28px}
+}
+/* 山形。文字の «‹» はフォント任せで太さも位置も揃わないので線で描く。
+   線を 2.5px と太くしてあるのは「押せる」と名指しするため。 */
+.gripIcon{width:9px;height:9px;margin-left:3px;transform:rotate(45deg);
+  border-left:2.5px solid currentColor;border-bottom:2.5px solid currentColor}
+.workbench.railOff .gripIcon{margin:0 3px 0 0;transform:rotate(-135deg)}
+/* 効いている条件の数。畳んでいるときだけ出す ―― 開いていれば条件そのものが
+   左に見えている。[hidden] は上の display 指定に特異度で負けるので打ち消す。 */
+.gripCount{display:block;min-width:16px;padding:0 3px;border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);font-size:var(--fs-xs);font-weight:700;
+  font-family:var(--data);text-align:center;line-height:16px}
+.gripCount[hidden]{display:none}
+/* 何のための取っ手かを、乗せたときに名指しする。矢印だけでは伝わらない。 */
+.grip::after{content:attr(data-label);position:absolute;left:calc(100% + 8px);
+  white-space:nowrap;font-size:var(--fs-xs);padding:4px 8px;border-radius:var(--r-sm);
+  background:var(--brand-ground);color:var(--on-dark);
+  opacity:0;pointer-events:none;transition:opacity var(--dur-fast)}
+.grip:hover::after,.grip:focus-visible::after{opacity:1}
+@media (prefers-reduced-motion:reduce){.grip::after{transition:none}}
 .barCount{white-space:nowrap}
 .bar b{font-size:19px;font-family:var(--data);font-variant-numeric:tabular-nums}
 .barCount span{font-size:var(--fs-sm);color:var(--muted)}
@@ -298,8 +395,15 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   .bar input[type=search]{grid-column:1 / -1;grid-row:2}
 }
 
+/* display:flex + flex-direction:column（2026-09-08）。カードごとに
+   タグの行の有無・タイトルの折り返し行数が違うので、上の中身の高さが
+   カードごとにばらつく。操作バー（.cardActs）を flex の下端へ margin-top:auto
+   で押しつけることで、同じ行に並ぶカードの操作バーの高さを揃える
+   （wangの依頼・スクリーンショット指摘）。.card > .favBtn は
+   position:absolute（下の .card > .favBtn 参照）なので flex の並びに
+   加わらず影響を受けない ―― 実測で確認ずみ。 */
 .card{background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);
-  margin-bottom:10px;overflow:hidden}
+  margin-bottom:10px;overflow:hidden;display:flex;flex-direction:column}
 /* 右パディングだけ広げて、星（.card > .favBtn／右上に絶対配置・
    6px 空けて 44px 四方）の専有領域ぶんを空けておく。6+44=50px に
    余白8pxを足した58px。値がずれると次に .head の右上に何か足した人が
@@ -307,6 +411,17 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
    width/height/right とセットで見直すこと（2026-08-26 修正）。 */
 .head{padding:13px 58px 13px 14px;cursor:pointer;display:grid;grid-template-columns:1fr 58px;gap:12px}
 .title{font-size:16.5px;font-weight:700;margin:0 0 3px;line-height:1.35}
+/* .title が「窓」、.titleT が「本文」。2枚に分けてあるのは、切り取り
+   （overflow:hidden）と移動（transform）を同じ要素では兼ねられないから。
+   768px 未満では窓に高さを与えていないので、本文はこれまでどおり
+   何行でも折り返す ―― スマホの見た目は変えない。 */
+.titleT{transition:transform .2s linear}
+/* 動きを減らす設定の人には流さない。代わりに app.js が title 属性を付け、
+   ブラウザ標準のツールチップで全文が読めるようにする。 */
+@media (prefers-reduced-motion:reduce){
+  .titleT{transition:none}
+  .title.mqRun .titleT{transform:none}
+}
 .meta{font-size:12px;color:var(--muted);font-family:var(--data)}
 .meta span+span::before{content:"・";margin:0 3px}
 .fit{text-align:right}
@@ -322,50 +437,158 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
 .band.b3{background:var(--band-heavy-bg);color:var(--band-heavy-ink)}
 .tags{grid-column:1/3;display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
 .tag{font-size:var(--fs-xs);background:var(--scale-light-soft);color:var(--scale-light-text);border-radius:var(--r-sm);padding:2px 7px}
-.tag.g{background:var(--dim);color:var(--muted)}
+/* .tag.g（rakutan.notes 用の淡い配色）は2026-09-08、card() が
+   ...r.notes をタグ配列から外したのに伴い削除。.tag を打つ
+   呼び出し元は card() のここ1箇所だけで、.g を付ける側が無くなったので
+   死んだセレクタになっていた（app.js の card() 冒頭コメント参照）。 */
 
 .detail{display:none;border-top:1px solid var(--rule);padding:13px 14px;background:var(--paper)}
 .card.open .detail{display:block}
-.ax{display:grid;grid-template-columns:70px 1fr 30px;gap:9px;align-items:center;margin-bottom:9px}
-.ax .l{font-size:12.5px;color:var(--soft)}
-.track{height:7px;background:var(--dim);border-radius:var(--r-pill);overflow:hidden}
-.fill{height:100%;border-radius:var(--r-pill);background:var(--scale-light)}
-.fill.m{background:var(--scale-mid)} .fill.w{background:var(--scale-heavy)}
-.ax .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right;
-  font-variant-numeric:tabular-nums}
-.why{grid-column:2/4;font-size:var(--fs-xs);color:var(--muted);margin-top:-3px;line-height:1.5}
-/* 値の取れていない軸をまとめた1行（2026-09-01・案A）。
-   地は --dim（中立）。--scale-heavy-soft を敷くと「この科目は重い」に見えて、
-   データ目盛り色の意味が壊れる。「情報が無い」は重さではない。 */
-.axMiss{font-size:var(--fs-xs);color:var(--soft);background:var(--dim);
-  border-radius:var(--r-sm);padding:5px 8px;margin-bottom:var(--sp-2)}
-.conf{font-size:var(--fs-xs);color:var(--muted);margin-top:4px;padding-top:9px;
-  border-top:1px dashed var(--rule);line-height:1.6}
-.conf b{color:var(--scale-heavy)}
+/* 成績評価の内訳バー（KOANシラバスの生の%を積み上げ表示。2026-09-05）。
+   旧・4/5軸バー（.ax/.track/.fill/.why/.axMiss）はここから置き換え、未使用になったので削除した。
+   区分の色分けは tokens.css の --comp-*（--scale-* とは別トークン）を使う。 */
+.compBar{display:flex;height:16px;border-radius:var(--r-pill);overflow:hidden;background:var(--dim)}
+.compSeg{height:100%}
+.compLegend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px}
+.compLegend span{display:flex;align-items:center;gap:5px;font-size:var(--fs-xs);color:var(--soft)}
+.compLegend b{font-family:var(--data);color:var(--muted);font-weight:400}
+.compDot{width:9px;height:9px;border-radius:50%;flex:none}
+/* 「情報なし」「一部未分類」の注記。地は --dim（中立）。
+   axMiss と同じ考え方 ―― 「情報が無い」は重さではないので警告色を敷かない。 */
+.compNote{font-size:var(--fs-xs);color:var(--soft);background:var(--dim);
+  border-radius:var(--r-sm);padding:5px 8px;margin-top:8px}
 
-/* ── 詳細の区切り（2026-09-01・案A）─────────────
+/* ── 詳細の見出し（2026-09-01・案A）─────────────
    作り直し前は点線1本しか無く、担当教員・4軸・信頼度・口コミ・操作が
    ぜんぶ同じ灰色の小さい文字で続いていて、一かたまりの範囲が読めなかった。
    見出しは 11.5px・--muted・字間広めで、中身より弱くする
-   ―― ここで強くすると band や相性の数字と見出しが競合する。 */
-.insLine{margin-bottom:var(--sp-3)}
+   ―― ここで強くすると band や相性の数字と見出しが競合する。
+   .insLine（担当教員の行）と .conf（信頼度の注記）は wang の依頼で
+   2026-09-06 に detailHtml() から消えたので、対応するこのCSSも削除した。
+   .dSec+.dSec（2つ目以降の .dSec の上に罫を引く隣接セレクタ）は同じ日に
+   口コミ節が detailHtml() から外れて .dSec が1つだけになり、いったん
+   2026-09-07に削除したが、2026-09-10 に口コミの集計を詳細へ戻したことで
+   .dSec が再び2つになったので、罫を引く相手ができて復活させた。 */
 .dSec+.dSec{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule)}
 .secH{display:flex;align-items:baseline;gap:6px;margin:0 0 var(--sp-2);
   font-size:var(--fs-xs);font-weight:700;color:var(--muted);letter-spacing:.09em}
-.secH b{font-family:var(--data);font-size:12px;color:var(--scale-light-text);letter-spacing:0}
 
-/* ── 口コミの表示 ───────────────────────
-   絞り込めるのに中身が見えない状態だったので足した（2026-08-20）。
-   数字は KOAN から取れないものばかりで、ここだけが情報源。 */
-.rvb{display:inline-block;margin-top:6px;font-size:11px;font-weight:700;
-  background:var(--scale-light-soft);color:var(--scale-light-text);border-radius:var(--r-sm);padding:2px 7px}
+/* ── カードの操作バー（2026-09-06）──────────────
+   .head（role="button"）の外に置く。中に入れると入れ子の押せる要素になる。
+   margin-top:auto（2026-09-08）で .card（flex column）の下端に張り付ける ――
+   .card の高さが自分の中身より高いとき（等高カードの min-height／
+   隣のカードに引っ張られた行の高さなど）、上の中身がどれだけ違っても
+   操作バーの**下端**が同じ高さに揃う。だが下端だけでは足りない ――
+   .cardActs 自身の高さ（プレビュー2行なら自然に57px前後、口コミ0件や
+   プレビュー無しなら .rvBtn の min-height:44px 止まりで37〜44px）が
+   カードごとに違うと、カード高が同じでもバーの**上端**（オーナーが
+   写真で指摘した、まさにその境界線）はズレたままになる。だから
+   「カードの高さを揃える」（#list の align-items:stretch）と
+   「バー自身の高さを揃える」（.rvBtn/.wrBtn.ghost の min-height:57px）は
+   1組で効かせる必要がある ―― どちらも min-width:1024px の #list
+   ルール（#inspector の状態を問わない）に置いてあり、この2つが揃って
+   初めて上端と下端の両方が揃う。768〜1023px は #list{align-items:start}
+   のまま（意図的 ―― 詳細がカードの中に展開する幅なので、stretch すると
+   開いたカードに行の相方まで引きずられる。2026-09-08、オーナー裁定。
+   owner-round-report.md 参照）。 */
+.cardActs{display:flex;align-items:center;gap:var(--sp-2);margin-top:auto;
+  padding:var(--sp-3) 14px;border-top:1px solid var(--rule);background:var(--paper)}
+/* 「口コミ N件を読む」。2行目は先頭の一言。押す理由をここに置く。
+   2行目が無い科目（口コミはあるが notes が空、または口コミ0件で
+   .wrBtn.ghost に差し替わる）は1行だけになり、.rvBtn が縮んで .cardActs の
+   高さが62px と82pxの2種類に割れていた（2026-09-07、
+   tools/test_inspector_center.mjs の「カードの高さが揃っていない」で検出。
+   Task 3 の時点ではこのテストを実行していなかった）。
+
+   ここには役割の違う床が2つ重なっている。混同しないこと：
+   ・min-height:44px（このルール。幅を問わず常時効く）―― .dActs の
+     コメントにある「高さは44pxを下回らせない」というタップ領域の床。
+     上で名指しした「1行だけになる」形（口コミはあるが notes が空、
+     または publish:false で本文が全滅）がこの床を割っていた
+     ―― 2026-09-07のレビュー2巡目で発覚：口コミがある141件中58件（41%）
+     がこの形で、科目135059ほかで実測すると .rvBtn/.wrBtn/.ttAddBtn が
+     揃って36.8pxしかなかった。.wrBtn と .cardActs .ttAddBtn は
+     align-self:stretch で .rvBtn の高さに従うだけなので、.rvBtn 自身が
+     44pxを割れば道連れで割る（それぞれのコメント参照）。ここに
+     min-height:44px を足すだけで3つとも直る。
+   ・min-height:57px（min-width:1024px の #list ルール内、下記コメント参照）――
+     バー自身の高さを揃える床。#list の align-items:stretch と1組
+     （2026-09-08、オーナー裁定・上の .cardActs コメント参照）で、
+     #inspector の状態を問わず1024px以上で効く。以前はここに直書きして
+     いたが、スマホは一度も等高を求められておらず、床だけ持ち込むと
+     0件カードが無駄に約20px伸びていたので、こちらだけデスクトップの
+     @media 内へ移した（2026-09-07。2026-09-08にスコープを1160px+
+     #inspector:empty から1024px+状態非依存へ拡張）。1行版はここに
+     justify-content:center を足して中央へ寄せる ―― 2行版は元から
+     57pxをほぼ埋めているので影響しない。 */
+.rvBtn{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
+  justify-content:center;min-height:44px;gap:2px;padding:7px var(--sp-3);
+  border:1px solid transparent;border-radius:var(--r-pill);
+  background:var(--scale-light-soft);color:var(--scale-light-text);
+  font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;text-align:left}
+/* 1行目（「💬 口コミ N件を読む ›」）。.wrBtn.ghost や .cardActs .ttAddBtn と
+   同じ折り返し止め ―― 340px 未満で2行に割れると .rvBtn の高さが伸び、
+   等高の前提（このファイル上部の .cardActs コメント参照）が崩れる（2026-09-07）。 */
+.rvBtn > span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rvBtn small{max-width:100%;font-size:var(--fs-xs);font-weight:400;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rvBtn:hover{border-color:currentColor}
+/* 書く。読むの隣に置く（読み終わった直後が書きたい瞬間）。
+   ラベルは aria-label と title が持つ。
+   36×34 は見た目の大きさで、タップ領域ではない ―― .dActs のコメントにある
+   プロジェクトの床「高さは 44px を下回らせない」に届いていなかった
+   （2026-09-07）。固定 height をやめ align-self:stretch にして、隣の
+   .rvBtn の高さまで伸ばす。.rvBtn 自身が min-height:44px を持つので
+   （上のコメント参照。1行版でも2行版でも最低44px、2行版は自然に57px）、
+   ここは常に44px以上に届く。82pxの操作バーにはもともとその余白が
+   あるので、バー自体の高さは変わらない。 */
+.wrBtn{flex:none;display:flex;align-items:center;justify-content:center;
+  align-self:stretch;width:36px;border:1px solid var(--rule);border-radius:var(--r-pill);
+  background:var(--card);color:var(--brand-text);text-decoration:none;
+  font-size:var(--fs-sm)}
+.wrBtn:hover{border-color:var(--brand)}
+/* 口コミ0件の科目。7,906件のほとんどがこれなので、一覧の既定の見た目になる。
+   面を張らず点線にして、口コミのある科目の緑より弱く見せる。 */
+/* 色は --soft。--muted は --card との組み合わせしか CONTRAST に無く、
+   ここの下地は .cardActs の --paper なので、登録済みの --soft を使う。
+   面を張らないよう background を明示的に none にする（.wrBtn の --card 地を打ち消す）。
+   高さは .wrBtn の固定34pxを height:auto で外す ―― min-height:57px による
+   .rvBtn との統一は PC 専用の @media 側に移した（上の .rvBtn のコメント参照）。
+   min-height:44px は44pxの床そのもの（2026-09-07）。口コミ0件のカードは
+   全体の7/8を占め、ここの「最初の口コミを書く」と隣の「＋時間割」は
+   このPRが押しやすくしたい操作そのものなので、82pxバー側（.wrBtn／
+   .cardActs .ttAddBtn 側のコメント参照）と同じ床を、遠慮せずここにも敷く。
+   バーはこの分だけ伸びる（約62px→約69px、+7px）。C章で0件カードの高さを
+   縮めた分（約-20px）を一部だけ使う判断（意図的・オーナー確認済み）。 */
+.wrBtn.ghost{flex:1;width:auto;height:auto;min-height:44px;border-style:dashed;
+  background:none;color:var(--soft);
+  font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* padding + 1行ぶんの文字だけだと約37px ―― .wrBtn と同じ理由（上のコメント参照）
+   で 44px の床に届かないので、同じく align-self:stretch で伸ばす。
+   隣に来る要素は3つの形があり、いずれも自分の分の床を持っている：
+   ・口コミ2行（notesにプレビューあり）―― .rvBtn が自然に57pxを埋める
+   ・口コミ1行（n>0だがnotesが空／publish:false）―― .rvBtn の
+     min-height:44px（2026-09-07追加。上の.rvBtnコメント参照）
+   ・口コミ0件 ―― .wrBtn.ghost の min-height:44px
+   どの形でも隣が44px以上を確保しているので、.ttAddBtn はそこへ
+   stretch するだけで44px以上に届く。
+   text-align:center は幅方向は元から中央寄せだったので変わらないが、
+   縦方向はブロックの上寄せのままになるため display:flex で中央に揃える。 */
+.cardActs .ttAddBtn{flex:none;width:auto;align-self:stretch;
+  display:flex;align-items:center;justify-content:center;
+  padding:7px var(--sp-3);
+  border:1px solid var(--brand);border-radius:var(--r-pill);background:none;
+  color:var(--brand-text);font:inherit;font-size:var(--fs-sm);font-weight:700;
+  cursor:pointer;white-space:nowrap}
+.cardActs .ttAddBtn[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);}
 
 /* 口コミが「まだ数字に入っていない」ことの注意喚起（2026-08-24）。
    3件そろうまで採点に入れない方針にしたため、1人が「テストが難しい」と
    書いていても総合値は動かない。つまり「とにかく軽い」で並べ替えると
    その科目が上位に来る。バッジ1個では並べ替えの上位で見落とされるので、
    カードの枠色を変えたうえで幅いっぱいの帯にしている。
-   scored が true になったら .rvb（普通の件数バッジ）に戻る。
+   scored が true になったらこの帯は出ず、件数は .cardActs の .rvBtn に出る
+   （2026-09-06、旧・件数バッジ .rvb は操作バーに統合されて廃止）。
    2026-08-24 本番実測：scored:false は 87科目（全体の7.8%）。
    うち総合値が出て「軽い順」に並ぶのが 45科目。
 
@@ -378,120 +601,131 @@ h2 .sub{font-weight:400;letter-spacing:0;font-size:var(--fs-xs)}
   border-radius:var(--r-sm);padding:var(--sp-2) var(--sp-3);
   font-size:var(--fs-sm);font-weight:700;line-height:1.5}
 .rvAlert i{font-style:normal;flex:none}
-.rvAlert .go{display:block;font-weight:400;text-decoration:underline;
-  text-underline-offset:2px;margin-top:2px}
 
 /* 「拘束は軽い」が「軽め」と言い切れない理由。band だけでは学生に伝わらない。
    2026-08-24 本番実測：502科目（全体の45%）に立つ。「軽い順」の上位40件では
    40件すべてに出る。だから口コミの帯と同じ強さにはしない
    ―― 100%に出る警告は壁紙になり、10%しかない帯の方を埋もれさせる。 */
-.bandNote{display:block;font-size:var(--fs-xs);color:var(--muted);margin-top:var(--sp-1)}
+/* ※ の行。カードでは .head の grid に直接ぶら下げる（.reason の中ではない）。
+   768px 以上で .reason は -webkit-line-clamp:2 で切られるので、中に入れると
+   13px にしたぶん折り返した2行目が 2列レイアウトで消える（2026-09-07 本人指摘。
+   実測：24枚中19枚で .reason が 46px 表示／66px 実寸＝1行ぶん欠けていた）。
+   詳細パネルでも同じクラスを使うが、あちらは grid ではないので指定は無視される。 */
+.bandNote{display:block;grid-column:1/3;font-size:var(--fs-sm);color:var(--muted);margin-top:var(--sp-1)}
 .bandNote::before{content:"※ "}
-/* 見出し（口コミ N件）は .secH へ移した。区切りも .dSec が引くので、
-   ここでは罫も上余白も持たない（2026-09-01）。 */
+/* 元は detailHtml() の .dSec の中で使われ、見出し（口コミ N件）は .secH、
+   区切りは .dSec+.dSec が引いていたので、ここでは罫も上余白も持たない
+   （2026-09-01）。2026-09-06 に口コミ節が detailHtml() から外れたので、
+   いまは .rv はモーダル（#panelBody = .kBody）の直下でしか使われない。
+   .kBody は上側の padding を持たないので、margin-top:0 のままでよい
+   ―― 見出しは .secH ではなく panelTitle/panelSub（.kHead 側）が持つ。 */
 .rv{margin-top:0}
-.rvf{display:flex;flex-wrap:wrap;gap:5px}
-.rvf span{font-size:var(--fs-xs);background:var(--dim);border-radius:var(--r-sm);padding:3px 8px;color:var(--soft)}
-.rvf i{font-style:normal;color:var(--muted);margin-right:5px}
-/* 口コミの一言。しゅんやさんの指摘④：
-   いちばん重要な情報なのに、ただの箇条書きで埋もれていた。
-   吹き出しにして、数値の内訳より前に置く（順番も app.js 側で入れ替えた）。
+/* 集計。モーダルの先頭に置くので、詰めたチップではなく2列の表にする。
+   数字（<b>）を --fs-base まで上げる ―― ここが「字が小さい」の
+   いちばん強い訴えどころだった（旧 --fs-xs = 11.5px）。 */
+.rvf{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);margin:var(--sp-3) 0 var(--sp-2)}
+.rvf span{display:flex;align-items:baseline;justify-content:space-between;gap:var(--sp-2);
+  background:var(--dim);border-radius:var(--r-sm);padding:var(--sp-2) var(--sp-3)}
+.rvf i{font-style:normal;font-size:var(--fs-sm);color:var(--soft)}
+.rvf b{font-family:var(--data);font-size:var(--fs-base);color:var(--ink)}
+/* 値が長いもの（レポートの字数など）は2列に割らない。 */
+.rvf span.w{grid-column:1/-1}
 
-   地に --brand-soft を使うのは、詳細の下地が2種類あるため。
-   スマホはカード内（--paper）、PC は右カラム（--card）で、
-   --card の吹き出しは右カラムだと同色で消える。 */
-.rvn{margin:var(--sp-2) 0 var(--sp-3);padding:0;list-style:none;
-  display:grid;gap:var(--sp-3)}
-.rvn li{position:relative;font-size:var(--fs-sm);color:var(--ink);line-height:1.7;
-  background:var(--brand-soft);border:1px solid var(--brand-line);
-  border-radius:var(--r-md);padding:var(--sp-3) var(--sp-3) var(--sp-3) 32px}
-/* 引用符。人の声だと分かるようにする。 */
-.rvn li::before{content:"\201D";position:absolute;left:11px;top:9px;
-  font-size:24px;line-height:1;color:var(--brand);font-family:var(--data)}
-/* しっぽ。左下に出して「誰かが言ったこと」に見せる。 */
-.rvn li::after{content:"";position:absolute;left:20px;bottom:-5px;
-  width:9px;height:9px;background:var(--brand-soft);
-  border-right:1px solid var(--brand-line);
-  border-bottom:1px solid var(--brand-line);
-  transform:rotate(45deg)}
+/* ── 口コミの一言（2026-09-10）─────────────────
+ * 集計の下に灰色の地で軽く囲み、引用符を添えて「本人の言葉」だと
+ * 分かるようにする。Claude Design で4案（尻尾つき／チャット風／
+ * ブランド地の強調カード／これ）を並べ、松下さんが「そっと囲む」案を選んだ
+ * ―― 集計（.rvf）と同じ --dim の地を使うので浮かない、尻尾が無い分だけ
+ * 縦のスペースも取らない、という理由。
+ * .pNote（モーダルの1件ずつ表示・panelEntry）とはクラスを分けている。
+ * 共有すると、ここだけの見た目変更のつもりがモーダル側にも及ぶ。 */
+.dQuote{position:relative;margin:var(--sp-4) 0 0;padding:var(--sp-3) var(--sp-3) var(--sp-3) 34px;
+  background:var(--dim);border-radius:var(--r-md);font-size:var(--fs-base);line-height:1.8;color:var(--ink)}
+/* 引用符は装飾。本文側（app.js）が「」で囲んでいるので、読み上げの意味は
+   そちらが持つ ―― ここは目で見て気づくための飾りでよい。 */
+.dQuote::before{content:"\201C";position:absolute;left:10px;top:-2px;font-size:30px;
+  font-family:Georgia,"Times New Roman",serif;color:var(--muted);line-height:1}
 /* ── 詳細の操作（2026-09-01・案A）───────────────
  * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
- * 5つ縦積みで、どれが主か分からず、最後の ☆ はラベルも無かった。5つ→3つにし、
- * 主（--brand の面）1つ・副（--brand-soft の面）2つ、の2段だけにする。
+ * 5つ縦積みで、どれが主か分からず、最後の ☆ はラベルも無かった。まず5つ→3つにし、
+ * 主（--brand の面）1つ・副（--brand-soft の面）2つ、の2段にした。
  *
  * 枠線ではなく面で差をつける理由：白地に --brand-line(#f0c9a8) の1px枠は
  * --card(#fff) に対して 1.54:1 しかなく、操作の境界に必要な 3.0:1 に届かない
- * （2026-09-01 実測）。既存の .reviewBtn と同じ「淡い面」なら
- * tools/test_tokens.py に登録ずみのペアだけで済む。
+ * （2026-09-01 実測）。「淡い面」の配色なら tools/test_tokens.py に
+ * 登録ずみのペアだけで済む。
  *
  * 高さは 44px を下回らせない（padding 12px + 13px×1.6 ≒ 45px）。
- */
+ *
+ * 2026-09-06、時間割と口コミは一覧カードの操作バー（.cardActs）へ移したので、
+ * 詳細の .dActs に残るのは副の KOAN リンク1つだけになった。.dActs 直下の
+ * .ttAddBtn（主）はそれと一緒に外れたので、対応する裸の .ttAddBtn /
+ * .ttAddBtn[aria-pressed="true"] ルールも2026-09-07に削除した ――
+ * どちらも .cardActs の中にしか無い .ttAddBtn とマッチはするが、
+ * .cardActs .ttAddBtn 側が同じプロパティ（background・color）を
+ * より高い詳細度で定義しており、しかも中身が逆（未押下で面を張るか
+ * 枠線だけにするか）なので、共有ではなく単なる死んだルールだった。 */
 .dActs{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule);
   display:grid;gap:var(--sp-2)}
 .dActs>*{display:block;width:100%;border:none;border-radius:var(--r-md);padding:12px;
   font:inherit;font-size:var(--fs-sm);font-weight:700;text-align:center;
   text-decoration:none;cursor:pointer}
-/* 主。時間割に入れるのがこの画面のいちばん先の行き先。 */
-.ttAddBtn{background:var(--brand);color:var(--brand-ink)}
-/* 入っている科目で主ボタンのままだと「まだ押していない」に見える。
-   押した結果を表す状態なので、面を落として副より弱くする。 */
-.ttAddBtn[aria-pressed="true"]{background:var(--dim);color:var(--soft)}
 /* 副。ホバーの色替えは付けない ―― --brand-line の面に --brand-text を載せると
-   3.75:1 で通常文字の 4.5:1 に届かない（2026-09-01 実測）。
-   もともと .reviewBtn にホバーは無く、入口はスマホなので足す理由もない。 */
-.reviewBtn,.koanLink{background:var(--brand-soft);color:var(--brand-text)}
+   3.75:1 で通常文字の 4.5:1 に届かない（2026-09-01 実測）。入口はスマホなので
+   ホバーを足す理由もない。.reviewBtn は2026-09-06に詳細から外れて使われなく
+   なったので、セレクタからも外した ―― 使うのは .koanLink だけ。 */
+.koanLink{background:var(--brand-soft);color:var(--brand-text)}
 
 /* ── 口コミを1件ずつ読む ─────────────────
    カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」
    のような、誰も言っていない値になりうる。1人ずつの回答をそのまま読める
    場所を別に用意する。値の出どころは web/data/reviews.built.json。
-   置き場所は画面幅で変える（PC は右カラムの詳細の下、スマホは全画面のシート）が、
-   1件ぶんの見た目はどちらでも同じなので、ここでまとめて持つ。 */
-.pEntry{padding:var(--sp-3) 0;border-bottom:1px dashed var(--rule)}
+   2026-09-06 に口コミ節が detailHtml() から外れたので、いまは .pEntry も
+   .rv と同じくモーダル（#panelBody = .kBody）の直下でしか使われない。
+   PC・スマホで形を分けない、1つの中央モーダルの中身。 */
+.pEntry{padding:var(--sp-4) 0;border-bottom:1px solid var(--rule)}
 .pEntry:last-child{border-bottom:none}
 .pYear{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data);margin-bottom:5px}
 /* 古い回答であることの但し書き。年そのものと同じ強さにはしない。 */
 .pOld{margin-left:var(--sp-2);color:var(--muted)}
-.pLine{font-size:var(--fs-sm);color:var(--soft);line-height:1.6;margin-bottom:3px}
-/* 本人が書いた一言。上の選択式の行より強くする ―― ここだけが自由記述で、
-   KOAN にも集計にも出てこない情報。 */
-.pNote{font-size:var(--fs-sm);color:var(--ink);line-height:1.6;margin-top:var(--sp-2);
-  padding:var(--sp-2) var(--sp-3);background:var(--paper);border-radius:var(--r-sm)}
+/* 本人が書いた一言。ここだけが自由記述で、KOAN にも集計にも出てこない情報。
+   モーダルの主役なので、いちばん大きくする（旧 --fs-sm = 13px）。 */
+.pNote{font-size:var(--fs-base);line-height:1.8;color:var(--ink);
+  margin:var(--sp-2) 0 var(--sp-3)}
+/* 選択式の答え。一言の添え書きなので、一言より弱くする。 */
+.pFacts{display:flex;flex-wrap:wrap;gap:var(--sp-1)}
+.pFacts span{font-size:var(--fs-sm);color:var(--soft);background:var(--dim);
+  border-radius:var(--r-sm);padding:3px var(--sp-2)}
 .pEmpty{padding:var(--sp-6) 0;text-align:center;color:var(--muted);font-size:var(--fs-sm)}
 
-/* ── 1件ずつを「どこに出すか」 ─────────────
-   PC（1024px 以上）… 右カラムの詳細の下に展開して続ける。
-     もう一度押すと畳む。4軸バーを見ながら口コミを読める形にするため。
-     PR #24 にあった「右に380pxの固定パネル＋body の padding-right」は使わない。
-     3カラム化のあと 1280px で実測すると .inspector（幅380px・右端から31px）に
-     隙間なく重なり、「口コミを見る」ボタンごと覆ってしまう。
-   スマホ（<1024px）… 下から全画面のシート。投稿フォームと同じ .sheet を使い回す。
-     位置ぎめ・幕・最大高さ・スクロールは .sheet 側にもうあるので、
-     ここで書き直さない（2つ持つと片方だけ直る）。 */
-/* .ttAddBtn（詳細パネルの「時間割に追加」）も同じ見た目にする。クラス名を
-   panelBtn と共有しない理由は app.js の panelBtnFor 参照。あちらは
-   「.panelBtn[data-id=...]」で口コミ件数ボタンを一意に探しており、同じ
-   クラス名を足すと口コミ0件の科目でこのボタンが誤って引っかかる（2026-08-29）。 */
-/* 「N件すべてを1件ずつ読む →」。2026-09-01 に全幅の灰色ボタンからテキスト
-   リンクの見た目へ落とした。ボタンのままだと下の操作3つと同じ重さに見え、
-   「押すべきものが一目で分かる」が成り立たない。
-   要素は <button class="panelBtn"> のまま ―― <a> に変えると panelBtnFor()・
-   openPanel()・panelSetOpen() の3箇所が影響を受ける。
-   開いている間は文言が「閉じる」に差し替わる（openPanel）。 */
-.panelBtn{display:inline-block;margin-top:var(--sp-2);background:none;border:none;padding:var(--sp-1) 0;
-  font:inherit;font-size:var(--fs-sm);font-weight:400;color:var(--brand-text);
-  text-decoration:underline;text-underline-offset:2px;cursor:pointer;text-align:left}
-.panelBtn:hover,.panelBtn:active{color:var(--ink)}
-/* PC の右カラムでは、集計（.rv）と同じ場所に入れ替わる（openPanel）。
-   見出し「口コミ N件」の直下に来るので、上に罫は要らない。
-   下の「集計に戻る」との間だけ空ける。
-   スマホのシートの中では .panelHead が区切りになるので、ここは効かせない。 */
-.detail .pList{margin-bottom:var(--sp-1)}
-.panelHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;
-  padding-bottom:10px;margin-bottom:var(--sp-1);border-bottom:1px solid var(--rule)}
-.panelHead h3{margin:0;font-size:var(--fs-lg);line-height:1.4}
-.panelClose{background:none;border:none;color:var(--muted);font:inherit;font-size:var(--fs-lg);
-  line-height:1;padding:var(--sp-1);cursor:pointer;flex:none}
+/* ── 口コミの中央モーダル（2026-09-06）──────────
+   PC・スマホで同じ形にする。以前は幅で2形態に分かれていた
+   （スマホ＝下からの全画面シート／PC＝右カラムの集計と差し替え）。
+   PC の差し替えは「右カラムが 926px → 1,376px になって
+   『時間割に追加』が枠の外へ出る」ことへの対処だったが、
+   その操作をカードの操作バーへ移したので前提ごと無くなった。 */
+.kModal{position:fixed;inset:0;background:var(--scrim);z-index:30;display:none;
+  place-items:center;padding:var(--sp-4)}
+.kModal.open{display:grid}
+.kBox{display:flex;flex-direction:column;width:min(560px,100%);
+  max-height:min(82vh,680px);background:var(--card);border-radius:var(--r-lg);
+  box-shadow:0 18px 48px var(--shadow-modal);overflow:hidden}
+.kHead{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3);
+  padding:var(--sp-4) var(--sp-4) var(--sp-3);border-bottom:1px solid var(--rule);flex:none}
+.kHeadT{flex:1;min-width:0}
+.kHeadT h3{margin:0;font-size:var(--fs-lg);line-height:1.4}
+.kHeadT p{margin:var(--sp-1) 0 0;font-size:var(--fs-sm);color:var(--muted)}
+.kClose{flex:none;width:34px;height:34px;border:none;border-radius:var(--r-pill);
+  background:var(--dim);color:var(--soft);font:inherit;font-size:var(--fs-base);
+  line-height:1;cursor:pointer}
+/* 本文だけが伸びる。見出しと下のボタンは常に見える。 */
+.kBody{flex:1;overflow-y:auto;padding:0 var(--sp-4);-webkit-overflow-scrolling:touch}
+.kFoot{flex:none;padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--rule)}
+/* 読み終わった直後がいちばん書きたい瞬間なので、ここに置く。
+   <a> なのは別タブで開けるようにするため（投稿は別ページ）。 */
+.kWrite{display:block;text-align:center;padding:var(--sp-3);border-radius:var(--r-md);
+  background:var(--brand);color:var(--brand-ink);text-decoration:none;
+  font-size:var(--fs-sm);font-weight:700}
 .empty{padding:40px 14px;text-align:center;color:var(--muted);font-size:14px}
 
 /* ── 口コミ投稿（4タップ） ─────────────── */
@@ -552,6 +786,57 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
     padding-right:var(--sp-2)}
   .rail section:first-child{margin-top:0}
   .results{min-width:0}
+
+  /* 畳んだ状態。列そのものを消す（幅0にしない）ので gap も消え、
+     中カラムが 260+24=284px ぶん広がる。1440px 以上では 280+24=304px。 */
+  .workbench.railOff{grid-template-columns:minmax(0,1fr)}
+  .workbench.railOff .rail{display:none}
+
+  /* ── 一覧を容器の幅で自動的に多列にする ──────────────
+     しきい値 380px は元々「絞り込みを畳んだときだけ2列になる」ように
+     選んだ値。2026-09-06、空のときの一覧を 860px 固定にした時点で
+     この約束は退役した（空なら畳む前から2列）。いま 380px が効くのは
+     **科目を選んでいるとき**で、そこでは「畳む → 中カラムが広がって2列」
+     という因果がそのまま残っている。
+     視口幅ではなく容器幅で決まる（auto-fill）ことが肝 ―― 右の詳細カラムが
+     出入りしても列数が正しく追従する。表示密度を人が選ぶ仕組みを足すときは、
+     この --cardMin を差し替える形にすれば済む。 */
+  .results{--cardMin:380px}
+  #list{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cardMin),1fr));
+    gap:10px;align-items:start}
+  #list > .card{margin-bottom:0}
+  /* 0件のときの案内は全列ぶち抜き（1列目だけに細く出ると読み落とす）。 */
+  #list > .empty{grid-column:1/-1}
+  /* 推薦枠は全列ぶち抜き。ただし**中は1枚ずつの縦積みのまま**にしてある。
+     ここは3件しか入らないので、多列にすると2列目の下が大きく空いて
+     「まだ続きがあるのに切れている」ように見える。並べ替えて詰めるのは
+     一覧の仕事で、推薦枠は「人が確認ずみの数件」を読ませる場所。
+     中のカードは .card の margin-bottom:10px をそのまま使う。 */
+  .picks{grid-column:1/-1}
+
+  /* ── 2列に収めるためのカード圧縮 ──────────────
+     縮めたのは字号でも余白でもなく「行数」。科目名は実測で最長 122 半角幅
+     （「学問への扉（ものづくりサイエンス「…」）」の類）あり、380px 幅では
+     4行になってカード高が倍近くまで伸びる。字号や padding を削っても
+     1枚あたり数pxしか減らないので触らない。
+     右の 58px は .card > .favBtn の位置と対になっているので動かさない
+     （.head のコメント参照）。 */
+  .head{padding:11px 58px 11px 14px}
+  .reason{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+
+  /* 科目名は2行で頭打ち。2行に満たない科目名でも窓は2行ぶんの高さで固定する
+     ―― 多列に並べたとき、高さが揃っているほうが目が流れる。
+     2行あれば 80 半角幅まで入り、実データの p99（54 半角幅）を超える。
+     はみ出すのは 1% 未満で、それはホバーで流して読ませる。 */
+  .title{height:calc(2 * 1.35em);overflow:hidden}
+  .titleT{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+  /* mqOn でクランプを外し、次のフレームで mqRun を足して動かす。2段階なのは
+     transform の開始位置を 0 にするため（クランプ解除と translate が同じ
+     フレームで当たると、途中から始まって見える）。距離と時間は app.js が
+     --mqShift / --mqDur に入れる。 */
+  .title.mqOn .titleT{-webkit-line-clamp:unset;overflow:visible}
+  .title.mqRun .titleT{transform:translateY(calc(-1 * var(--mqShift,0px)));
+    transition:transform var(--mqDur,1s) linear .35s}
 }
 
 /* 3カラムは 260 + 420 + 380 + 隙間48 = 1108px 無いと入らない。
@@ -560,14 +845,116 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 @media (min-width:1024px){
   .wrap{max-width:1400px}
   .hd{max-width:1400px}
+  /* 一覧のカードを行ごとに等高にする（2026-09-08、オーナー裁定）。
+   *
+   * 1024px は mqDesktop（app.js）が「詳細をカード内に展開する」から
+   * 「右カラム #inspector に出す」へ切り替える境目そのもの。この線より
+   * 上ではカードを開いても自分の高さが変わらないので、行の全員を
+   * stretch しても損が無い（開いていないカードが引っ張られない）。
+   * この線より下は詳細がカードの中に展開する（アコーディオン）ので、
+   * stretch すると開いた1枚に行の相方まで引きずられて伸びてしまう
+   * ―― だから 768px 側の #list{align-items:start} はここでは変えない。
+   *
+   * #inspector が空かどうかに関係なく効かせる。以前は
+   * .workbench:has(#inspector:empty) の中だけ（1160px以上）に付けていたため、
+   * 揃わない幅が2つ残っていた：①1024〜1159px の2列（オーナーの
+   * スクリーンショット・実測で42px差）、②1160px以上で科目を選んでいる
+   * とき（#inspector が空でなくなり、この委譲が外れて揃わなくなっていた）。
+   * どちらも owner-round-report.md 参照。 */
+  #list{align-items:stretch}
+  /* .rvBtn/.wrBtn.ghost の高さの床（57px）は、すぐ上の #list の
+   * align-items:stretch と理由もブレークポイントも同じ1組（2026-09-08、
+   * オーナー裁定）。stretch だけでは「カードの高さ」は揃っても
+   * 「.cardActs 自身の高さ」までは揃わない ―― プレビュー2行の科目は
+   * バーが自然に57px前後まで伸びるが、口コミ0件やプレビュー無しの科目は
+   * .rvBtn/.wrBtn.ghost が min-height:44px（タップ領域の床）止まりで
+   * 37〜44pxしかない。カード自体の高さが同じでも、バーの高さが違えば
+   * margin-top:auto は「下端」しか揃えられず、.cardActs の上端（バーの
+   * 境界線＝オーナーが指摘したまさにその線）はズレたままになる。
+   * この床を足して全カードのバー自身の高さを57pxに固定して初めて、
+   * 「カード高が同じ」＋「バーの高さが同じ」の両方が揃い、上端と下端の
+   * 両方が揃う。
+   * だから stretch を動かすときはこの2行も一緒に動かすこと ――
+   * 片方だけ広げると「カードは等高なのにバーの上端だけズレる」という、
+   * 今回まさに指摘された壊れ方に戻る。1024px未満（スマホのアコーディオン
+   * 幅）では今までどおり効かせない ―― 隣り合うカードが無い1列では
+   * 57pxへ底上げする理由が無く、0件カードの操作バーは自然な高さ
+   * （約20px低い）のままにする、という2026-09-07の判断を維持する。 */
+  #list > .card .rvBtn,
+  #list > .card .wrBtn.ghost{min-height:57px}
 }
 
 @media (min-width:1160px){
   .workbench{grid-template-columns:260px minmax(420px,1fr) 380px}
+  .workbench.railOff{grid-template-columns:minmax(0,1fr) 380px}
   .inspector{display:block;position:sticky;top:var(--sp-3);
     max-height:calc(100vh - var(--sp-6));overflow-y:auto;
     background:var(--card);border:1px solid var(--rule);
     border-radius:var(--r-lg);padding:var(--sp-4)}
+  /* 何も選んでいないときは中身が空。カードの枠だけが残ると
+     「壊れた空箱」に見えるので、枠ごと消す。 */
+  .inspector:empty{display:none}
+
+  /* ── 空のときは残りの2カラムを中央に寄せる（2026-09-05 / 幅は 09-06 改訂）──
+     枠を消しても列そのものは grid-template-columns が確保していたので、
+     開いた直後の画面は右が丸ごと空いて見えていた（1440px で 440px ぶん）。
+     空の列を畳み、残った2カラムを視口の中央に置く。
+
+     一覧の幅 860px は本人の決定（2026-09-06）。380*2+gap10=770 を越えるので
+     **空のときは2列**になり、科目を選ぶと 420〜640px の1列へ組み直る。
+     この一度きりの組み直しを承知のうえで開屏の空白を優先する、という判断。
+     これに伴い「畳んだときだけ2列」という約束は退役した（下の --cardMin の
+     コメントと tools/test_rail_toggle.mjs を併せて直してある）。
+
+     min(860px, calc(100% - 284px)) の 284 は 260(絞り込み)+24(gap)。
+     1160〜1176px では 860 が入りきらず横にはみ出すので、そこだけ縮める。
+     幅を 1fr ではなく固定値で置いているのは、1fr が余りを食ってしまい
+     justify-content:center が効かなくなるため。
+     :has() を解さないブラウザは、これまでどおり右を空けた3カラムに
+     落ちる（壊れずに古い見た目になるだけ）。 */
+  .workbench:has(#inspector:empty){
+    grid-template-columns:260px minmax(0,min(860px,calc(100% - 284px)));
+    justify-content:center}
+  /* 畳んでも一覧の幅は変えない。空のときの一覧は「中央に置いた860px」で、
+     絞り込みの在る無しで動かさない ―― 畳む操作で列数まで変わると、
+     いま何を見ているのか分からなくなる。畳んだ結果は「絞り込みが消えて
+     一覧が中央へ寄り直す」ことで画面に出る。 */
+  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,860px)}
+
+  /* ── 空のとき（2列）はカードに 279px の床を敷く ──────────────
+     224px は口コミバッジ（+28px）／タグの行（+30px）／理由が2行に折り返す
+     （+20px）の組み合わせから出した値だったが、2026-09-06 に .cardActs
+     （一覧カードの操作バー）を全カード共通・常時表示で足したことと、
+     2026-09-07 にその中の .rvBtn/.wrBtn.ghost の高さを2行版（57px）へ
+     統一したことで、口コミバッジの枠は無くなり、代わりに .cardActs（82px）が
+     全カードに一律で乗る形になった。この状態で実際に踏み台を外して
+     （#inspector を埋めて stretch を止めた状態で）現行の1,112件を
+     renderPage(1..47) で全ページ描画し、.unscored を除く実測の最大値を
+     取ったところ 278.078125px（例：科目135705＝タイトル2行＋タグ1行＋
+     理由2行＋.cardActs 82px の組み合わせ、同率タイが複数件）。
+     端数を切り上げた 279px を下限にする。
+     height ではなく min-height なのは、想定外に伸びる科目が出たとき
+     中身を切らずに行ごと伸びてほしいから（切ると事実が消える）。
+     2026-09-08：align-items:stretch と .rvBtn/.wrBtn.ghost の
+     min-height:57px（バーの高さ自体を揃える床）は、どちらもここから
+     上の min-width:1024px の #list ルール（#inspector の状態を問わず
+     効く）へ引っ越した。ここに残っているのは「空のときだけ欲しい
+     279px という具体的な床」の分だけ。 */
+  .workbench:has(#inspector:empty) #list{--cardH:279px}
+  .workbench:has(#inspector:empty) #list > .card{min-height:var(--cardH)}
+  /* meta を1行に詰める。425px 幅では教員名の長い科目が2行になり、
+     その科目だけ背が高くなる（全文は右カラムの詳細に出る）。 */
+  .workbench:has(#inspector:empty) #list > .card .meta{
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* nowrap にすると、.head の 1fr 列の自動最小幅（min-content）が
+     meta の行の長さまで膨らみ、右の 58px 列（楽単スコア）を
+     星（.card > .favBtn）の上まで押し出す。grid のこの既定を切って、
+     はみ出しは ellipsis 側に受けさせる（tools/test_favorite.mjs が
+     この重なりを見張っている）。 */
+  .workbench:has(#inspector:empty) #list > .card .head > div:first-child{min-width:0}
+  /* タグは4個までに絞ってあるので通常は1行。溢れた2行目は出さない。 */
+  .workbench:has(#inspector:empty) #list > .card .tags{max-height:22px;overflow:hidden}
+
   /* PC では詳細が右カラムに出るので、カード内の折りたたみは使わない。 */
   .card.open .detail{display:none}
   .card.sel{border-color:var(--brand);box-shadow:inset 3px 0 0 var(--brand)}
@@ -580,25 +967,29 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
   .wrap{max-width:1560px}
   .hd{max-width:1560px}
   .workbench{grid-template-columns:280px minmax(0,1fr) 440px}
+  .workbench.railOff{grid-template-columns:minmax(0,1fr) 440px}
+  /* 空のとき。一覧の 860px は据え置きで、絞り込みだけ 280px に広がる。 */
+  .workbench:has(#inspector:empty){
+    grid-template-columns:280px minmax(0,min(860px,calc(100% - 304px)))}
+  /* 畳んだときも一覧は 860px のまま中央に置く（1160px 側と同じ考え）。
+     広い画面ほど左右の余白は増えるが、それは中央に置いた結果であって
+     「空いている右カラム」ではない。 */
+  .workbench.railOff:has(#inspector:empty){grid-template-columns:minmax(0,860px)}
 }
-
-/* 右カラムの空状態。数字を読む直前の人に、いちばん必要な説明を出す。
-   「何も選んでいません」とだけ書くより、この場所を使い切れる。 */
-.inspectorEmpty h3{margin:0 0 var(--sp-2);font-size:var(--fs-lg)}
-.inspectorEmpty p{font-size:var(--fs-sm);color:var(--soft);margin:0 0 var(--sp-3)}
-.inspectorEmpty .legend{list-style:none;padding:0;margin:var(--sp-3) 0}
-.inspectorEmpty .legend li{display:flex;align-items:center;gap:var(--sp-2);
-  margin-bottom:var(--sp-1);font-size:var(--fs-sm);color:var(--soft)}
-.inspectorEmpty .sw{width:14px;height:14px;border-radius:var(--r-xs);flex:none}
-.inspectorEmpty .sw.light{background:var(--scale-light)}
-.inspectorEmpty .sw.mid{background:var(--scale-mid)}
-.inspectorEmpty .sw.heavy{background:var(--scale-heavy)}
-.inspectorEmpty .fine{font-size:var(--fs-xs);color:var(--muted)}
 
 /* 右カラムに出す詳細の見出し。カード内に出すときは不要なので、
    inspector の中にあるときだけ効かせる。 */
-.inspector .inspectorHead{margin:0 0 var(--sp-3);padding-bottom:var(--sp-3);
+.inspector .inspectorHead{position:relative;margin:0 0 var(--sp-3);
+  padding-bottom:var(--sp-3);padding-right:34px;
   border-bottom:1px solid var(--rule)}
+/* 閉じる ✕。右カラムの右上に置く（カードの星と同じ「右上＝その枠の操作子」）。
+   44px 四方の当たりを確保しつつ、見た目は文字だけ。 */
+.insClose{position:absolute;top:-10px;right:-10px;width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  border:none;background:none;color:var(--muted);font-size:15px;line-height:1;
+  border-radius:var(--r-sm);cursor:pointer}
+.insClose:hover{background:var(--scale-light-soft);color:var(--ink)}
+.insClose:focus-visible{outline:2px solid var(--brand);outline-offset:-2px}
 .inspector .inspectorHead h3{margin:0 0 var(--sp-1);font-size:var(--fs-lg);line-height:1.35}
 .inspector .inspectorHead .meta{font-size:var(--fs-xs);color:var(--muted);font-family:var(--data)}
 .inspector .detail{display:block;border:none;padding:0;background:none}
@@ -683,7 +1074,8 @@ code{font-family:var(--data);background:var(--dim);padding:1px 4px;border-radius
 /* 覆いが出ているあいだは背後をスクロールさせない。 */
 html.splash-on{overflow:hidden}
 
-.splashInner{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3)}
+.splashInner{display:flex;flex-direction:column;align-items:center;gap:var(--sp-3);
+  padding:0 var(--sp-4)}
 /* ヘッダのロックアップと同じく、マーク＋「クハン」で1語に見せる。
    縦に積むと「ラ」がただの絵になってしまい、書き出す意味が消える。 */
 .splashWord{display:flex;align-items:center}
@@ -704,11 +1096,38 @@ html.splash-on{overflow:hidden}
 .splash.run .splashWm span:nth-child(3){animation-delay:500ms}
 @keyframes rkRise{to{opacity:1;transform:translateY(0)}}
 
-/* ③ 縦線が伸びて GUILD の2行が出る。 */
+/* ③ 標語。ヒーローの見出しと同じ一文なので、覆いが消えたあとも
+   同じ言葉がその場に残る ―― 演出と中身が地続きに見える。
+   ロゴより先に読まれないよう、名前が出そろってから。 */
+.splashTag{margin:0;font-size:var(--fs-base);font-weight:700;line-height:1.5;
+  color:var(--on-dark-strong);text-align:center;text-wrap:balance;
+  opacity:0}
+.splash.run .splashTag{animation:rkRise 300ms var(--ease-out) 560ms forwards}
+
+/* ④ 縦線が伸びて GUILD の2行が出る。
+   標語を挟んだぶん 700ms → 820ms。覆いは 1400ms で閉じ始めるので、
+   ここを後ろへずらすほど標語を読む時間が減る。合計の尺は伸ばさない
+   （splash.js の「待ちを増やさない」という約束）。 */
 .splashBy{display:flex;flex-direction:column;align-items:flex-start;
   padding-left:var(--sp-2);border-left:1px solid var(--on-dark-line);
   opacity:0;margin-top:var(--sp-2)}
-.splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 700ms forwards}
+.splash.run .splashBy{animation:rkRise 300ms var(--ease-out) 820ms forwards}
+
+/* ⑤ 版番号。ロックアップの中（クレジットの下）に置く。
+   2026-09-05：最初は画面の下端に貼り付けていたが、**iPhone の Safari では
+   下端 24px はアドレスバーの下に潜り込んで見えなかった**。
+   `position:fixed` の覆いはツールバーの裏まで広がるので、下端からの距離では
+   守れない（`env(safe-area-inset-bottom)` はホームインジケータぶんしか見ない）。
+   ロックアップに寄せてしまえば、どのブラウザのどのツールバーにも隠れない。
+   中身は version.js が RELEASES から入れる。落ちたときや入れ物だけの
+   ページでは空になるので、:empty で消して隙間を残さない。 */
+.splashVer{margin-top:var(--sp-2);font-size:var(--fs-xs);letter-spacing:.06em;
+  color:var(--on-dark-weak);font-variant-numeric:tabular-nums;
+  opacity:0}
+.splashVer:empty{display:none}
+.splash.run .splashVer{animation:rkRise 300ms var(--ease-out) 900ms forwards}
+/* 演出を流さない人（再訪・reduced motion）には覆いごと出ないので、
+   ここで表示を戻す必要は無い。 */
 
 /* ── ヒーロー ───────────────────────────
  * 「登録・ログイン不要」は最大の強みなので、
@@ -722,9 +1141,9 @@ html.splash-on{overflow:hidden}
 /* 句点のところで折り返す。span ごとに inline-block にしておくと、
    狭い画面でも「登録もログインもしなくていい。」が途中で割れない。
    （割れると「登録」「もログインも…」の2行になって読みにくい）
-   62ch は1文目（586px）が1行に収まる最小幅＋余白。54ch だと
+   64ch は1文目（600px）が1行に収まる幅＋余白。足りないと
    「でカバー」だけが2行目に落ちる。文言を伸ばすときはここも見る。 */
-.heroP{margin:0 0 var(--sp-5);max-width:62ch;color:var(--soft)}
+.heroP{margin:0 0 var(--sp-5);max-width:64ch;color:var(--soft)}
 .heroP span{display:inline-block;text-wrap:balance}
 .heroActions{display:flex;align-items:center;gap:var(--sp-5);flex-wrap:wrap}
 .heroCta{display:inline-block;padding:var(--sp-3) var(--sp-6);
@@ -847,8 +1266,8 @@ html{scroll-behavior:smooth}
 .capWarn {
   margin: .5rem 0 0;
   padding: .5rem .6rem;
-  border-left: 3px solid var(--brand, #DB6209);
-  background: rgba(219, 98, 9, .08);
+  border-left: 3px solid var(--brand);
+  background: var(--brand-hover);
   font-size: .82rem;
   line-height: 1.5;
 }

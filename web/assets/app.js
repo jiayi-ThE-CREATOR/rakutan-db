@@ -82,10 +82,6 @@ function buildGrid(slots){
       g.appendChild(b);
     });
   });
-  $("#slotHint").textContent = (state.day)
-    ? `${state.day}曜${state.period}限で絞り込み中 ―― もう一度押すと解除`
-    : "「火3が空いてる、何取ろう」から始められる。検索語は要らない。";
-
   $("#slotBar").hidden = !state.day;
   if (state.day) $("#slotBarText").textContent = `${state.day}曜${state.period}限で絞り込み中`;
 }
@@ -310,8 +306,7 @@ function buildFaculty(facets){
   const own = plan.need.filter(isOwnDivision);
   $("#facOwn").hidden = own.length === 0;
   if (own.length){
-    $("#facOwnH").innerHTML = `${esc(fac.label)}だけの区分`
-      + ` <span class="sub">学部の履修表の行に合わせています</span>`;
+    $("#facOwnH").textContent = `${fac.label}だけの区分`;
     $("#divsOwn").innerHTML = own.map(d => divisionChip(d, facets)).join("");
   } else {
     $("#divsOwn").innerHTML = "";
@@ -449,20 +444,105 @@ function syncReviewSortOptions(){
 }
 
 /* ── カード ───────────────────────────── */
-const CONF = {high:"情報は揃っている", mid:"情報は一部のみ", low:"情報がほとんど無い"};
-const FIELD_JA = {eval_ratio:"成績評価の内訳", report_count:"レポート本数",
-  out_of_class_hours:"時間外学習", capacity:"定員", class_format:"授業形態", day_period:"曜限"};
 
-/* 値の取れていない軸はここでは出さない。detailHtml がラベルだけ集めて1行にする。
-   1軸1行のままだと、4軸中2軸が欠測の科目（実データでは多数）で
-   「データなし」だけが詳細の上半分を占める（2026-09-01）。 */
-function axRow(key, a, label){
-  if (a.value === null) return "";
-  const cls = a.value >= 66 ? "" : a.value >= 45 ? "m" : "w";
-  return `<div class="ax"><div class="l">${esc(label)}</div>
-      <div class="track"><div class="fill ${cls}" style="width:${a.value}%"></div></div>
-      <div class="v">${a.value.toFixed(0)}</div>
-      ${a.evidence.length ? `<div class="why">${a.evidence.map(esc).join(" ／ ")}</div>` : ""}</div>`;
+/* 成績評価の内訳（KOANシラバスの生の%）を積み上げバーで見せる（2026-09-05）。
+ *
+ * 出すのは **KOAN のシラバスの成績評価テーブルの行そのもの**（`eval_raw`）。
+ * 文言も数字も並び順もシラバスのまま。こちらで種類にまとめ直したり、
+ * 名前を付け替えたりしない（本人判断・2026-09-07）。
+ *
+ * なぜ eval_ratio（4区分に振り分けた値）を出さないか
+ * ──────────────────────────────────────────────
+ * 振り分けは採点のための都合であって、学生が見るべき事実ではない。
+ * 実害が出ていた：
+ *   ・`発表` は scrape/parse.py で report に入るので、
+ *     「学習への参加度20% ＋ 発表80%」の科目が「レポート 80%」と出ていた。
+ *     レポートは1本も無い。同じ形の科目が 1,363件（全7,906件で実測）
+ *   ・`期末レポート` `期末課題` は試験ルールの裸の「期末」に当たるので
+ *     「期末テスト」として出ていた（延べ172箇所）
+ *   ・振り分けられなかった項目（723箇所・507科目）は灰色の「不明」に消えていた。
+ *     中央値で35%の配点が名前ごと消えていたことになる
+ * シラバスの行をそのまま出せば、この3つは同時に起きなくなる。
+ *
+ * **採点・つまみ・条件チップは今までどおり eval_ratio（4区分）を見る。**
+ * 画面のこの部分だけがシラバス直写しになった。片方を直すときにもう片方が
+ * 一緒に動くことは無いので、食い違って見えたらまずここを疑うこと。
+ *
+ * 色は種類ではなく**並び順**（--comp-1〜5）。KOAN の表は最大5列なので5色で足りる。
+ * 同じ「レポート」でも科目によって色が違うが、凡例が隣にあるので困らない。 */
+
+/* シラバスの表に「ここには書いていない」とだけ書かれている行（実測15種類・60箇所）。
+ * 例：`補足情報を参照 100%`、`下記評価基準 100%`、`英文シラバスをご参照ください。100%`。
+ *
+ * **文言と数字はシラバスのまま出す**（この欄の原則）が、色だけ灰色にする。
+ * 評価の成分と同じ色で塗ると「補足情報を参照という科目が成績の100%」に見えるため。
+ * 灰色は「記載なし」と同じ役割の色 ―― 中身が分かっていない、の意味。
+ *
+ * 🚨 「その他（レポート、課題提出、…）」のような**中身を並べている行は成分**なので
+ *    ここに入れない。実データで似た21種類（`その他の課題`『出席カードへのふり返り記入』
+ *    など）を目視で分けた。増やすときは全1,134種類に当てて誤爆を見ること。
+ *
+ * 本当の配点はシラバス本文の「成績評価に関する補足情報」に書かれていることが多い。
+ * KOAN の生HTMLを取り込めば埋められる（HANDOFF 参照）。それまでは灰色で出す。 */
+const EVAL_POINTER =
+  /^(下記|以下)|補足情報|ご参照ください|^各担当教員が判定$|^総合的に判断$|^講義と合わせて成績評価を行う$|^（その他の場合ここに記入）$/;
+
+/* シラバス本文の「成績評価に関する補足情報」。表が使いものにならないときだけ出す。
+ *
+ * KOAN の成績評価テーブルは教員が埋めないことがある。実測（全7,906件）で
+ * 表が空59件・「補足情報を参照」等だけ50件・合計が100%に届かない18件。
+ * この137件の生HTMLを取り直したところ、**107件はこの欄に配点が書かれていた**
+ * （うち63件は数字入り）。例：人文地理学演習は表が空で、補足情報に
+ * 「授業で指示する課題類（80％）と授業での議論への貢献度（20％）で評価します。」
+ *
+ * **文章のまま出す。** ％を機械で拾って帯に足すことはしない ――
+ * 「小課題3回（各20点）」のような書き方が混ざっていて、拾い方を決めた時点で
+ * シラバスに無い解釈を足すことになる。帯はあくまで表の写し。 */
+const evalNoteHtml = c => c.eval_note
+  ? `<div class="compNote">シラバスの補足情報：${esc(c.eval_note)}</div>` : "";
+
+function evalCompHtml(c){
+  const raw = c.eval_raw;
+  const rows = raw ? Object.entries(raw) : [];
+  if (!rows.length)
+    return evalNoteHtml(c) ||
+      `<div class="compNote">評価方法の内訳はKOANから取得できていません。下の「KOAN公式シラバスを見る」で確認してください。</div>`;
+
+  /* シラバスの表が100%に届いていない科目が18件ある（例：有機化学3は
+     中間試験30% ＋ 期末試験40% で70%）。残りを他の行へ按分すると
+     シラバスに無い数字を出すことになるので、「記載なし」として灰色で置く。 */
+  const known = rows.reduce((sum, [, v]) => sum + (v || 0), 0);
+  const gap = Math.max(0, Math.round((100 - known) * 10) / 10);
+  const hasGap = gap >= 1;
+
+  /* 本文に「毎回小テスト」とあるのに、成績評価の表には小テストの行が無い科目。
+     表に無いものを表へ足すことはしないので、注記として別に出す。 */
+  const quizNoRow = c.weekly_quiz &&
+    !rows.some(([k]) => /小テスト|クイズ|quiz/i.test(k));
+
+  /* 案内文の行は灰色。色の順番（--comp-1〜5）は成分の行だけで数えるので、
+     案内文が混ざっても成分どうしの色がずれない。 */
+  const pointers = rows.filter(([k]) => EVAL_POINTER.test(k));
+  let seq = 0;
+  const colorOf = k => EVAL_POINTER.test(k) ? "var(--comp-gap)"
+                                            : `var(--comp-${(seq++ % 5) + 1})`;
+  const colors = new Map(rows.map(([k]) => [k, colorOf(k)]));
+
+  const dot = v => `<i class="compDot" style="background:${v}"></i>`;
+  return `<div class="compBar">
+      ${rows.filter(([, v]) => v > 0).map(([k, v]) =>
+        `<div class="compSeg" style="width:${v}%;background:${colors.get(k)}"></div>`).join("")}
+      ${hasGap ? `<div class="compSeg" style="width:${gap}%;background:var(--comp-gap)"></div>` : ""}
+    </div>
+    <div class="compLegend">
+      ${rows.map(([k, v]) => `<span>${dot(colors.get(k))}${esc(k)}<b>${v}%</b></span>`).join("")}
+      ${hasGap ? `<span>${dot("var(--comp-gap)")}記載なし<b>${gap}%</b></span>` : ""}
+    </div>
+    ${pointers.length ? (evalNoteHtml(c) ||
+        `<div class="compNote">シラバスの成績評価の表には「${esc(pointers[0][0])}」とだけ書かれていて、内訳が分かりません。下の「KOAN公式シラバスを見る」で確認してください</div>`) : ""}
+    ${quizNoRow ? `<div class="compNote">シラバス本文に「毎回小テスト」の記載がありますが、成績評価の表には配点がありません</div>` : ""}
+    ${hasGap ? `<div class="compNote">シラバスの成績評価の表が${known}%ぶんしか埋まっていません。下の「KOAN公式シラバスを見る」で確認してください</div>` : ""}
+    ${hasGap && !pointers.length ? evalNoteHtml(c) : ""}`;
 }
 
 /* ── 担当教員 ─────────────────────────────
@@ -497,47 +577,114 @@ function insLabel(c){
    名前が無い科目では span ごと出さないと「・・」が残る。 */
 const insMetaSpan = c => insLabel(c) ? `<span>${esc(insLabel(c))}</span>` : "";
 
-/* 口コミの件数表示。採点に効いているかで見た目を分ける。
-   ・効いていない（scored:false）… 幅いっぱいの注意帯。中身への導線つき
-   ・効いている（scored:true）  … 従来どおりのバッジ
-   1つの関数にまとめてあるのは、門を越える科目が出てきたときに
-   「両方出る」「どちらも出ない」を作らないため（松下さんの仕様書どおり）。
-
-   導線の文言は PC とスマホで出し分ける。PC は詳細が右カラムに出る
-   （決定A）ので「タップ」「↓」が指す先が無い。幅が変わったときは
-   mqDesktop の change で今のページを描き直して合わせる。 */
-function goText(){
-  return isDesktop() ? "詳細を開いて1件ずつ読む →" : "タップして中身を見る ↓";
+/* 口コミの件数表示。件数そのものは操作バーの「口コミ N件を読む」が持つので、
+   ここが返すのは「まだ採点に入っていない」の注意帯だけ（2026-09-06）。
+   導線の文言（「タップして中身を見る ↓」）も外した ―― 読む先は
+   すぐ下の操作バーに在る。 */
+function reviewMark(rv){
+  if (!rv?.n || rv.scored) return { alert:"" };
+  return { alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
+      まだ数字には入っていません。下の「口コミを読む」で中身を確認してください</div></div>` };
 }
 
-function reviewMark(rv){
-  if (!rv?.n) return { badge:"", alert:"" };
-  if (rv.scored) return { badge:`<span class="rvb">口コミ ${rv.n}件</span>`, alert:"" };
-  return { badge:"", alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
-      まだ数字には入っていません。中身を確認してください<span class="go">${esc(goText())}</span></div></div>` };
+/* band の下の ※ の行。「口コミが集まれば数字が出る」科目にだけ出す。
+   出す条件は2つ ―― テストの難しさ待ち（needs_review）と、総合値がまだ出せず
+   その穴が口コミで埋まる科目（内訳は読めている）。後者は 2026-09-06 まで
+   .reason 側が「口コミが3件そろうと出ます」と言っていたぶんで、同じことを
+   2か所で言うのをやめ、投稿への誘い1本に寄せた（score.py の _unjudged_reason）。
+
+   口コミが1件も無いなら「最初の1人」に誘う ―― ここが投稿への入口になる。
+   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、すぐ下の
+   注意帯（口コミ N件 ― まだ数字には入っていません）と矛盾するので、
+   足りない話（テストの難しさ）だけを書く。それも無いなら注意帯に任せて黙る。 */
+function bandNoteText(c){
+  const r = c.rakutan;
+  const cap = r.eval_captured;
+  const min = (META && META.eval_total_min) || 80;
+  const unjudged = (r.overall === null || r.overall === undefined)
+    && cap !== null && cap !== undefined && cap >= min;
+  if (!r.needs_review && !unjudged) return "";
+  if (!c.reviews?.n) return "口コミはまだ誰も書いてないけど、最初の1人になりませんか？";
+  return r.needs_review ? "テストの難しさは、まだ誰も書いてない" : "";
+}
+
+/* 一覧カードの下端の操作バー（2026-09-06）。
+ * 「読む・書く・時間割」をここに集める。詳細を開かないと押せなかった
+ * 「時間割に追加」と、2回押さないと届かなかった口コミが1回で届く。
+ *
+ * .head の**外**に置くこと。.head は role="button" なので、中に入れると
+ * 入れ子の押せる要素になる（.favBtn を .card > .favBtn にしてあるのと同じ理由）。
+ *
+ * 2026-09-08：口コミ＝本人が書いた一言、という定義に揃えた（wangの依頼）。
+ * 選択式だけ答えて一言を書かなかった回答は「一覧に並ぶ1件」には数えない
+ * （集計・スコアには変わらず入る）。だから3通りに分かれる：
+ *   readable > 0        … 今までどおり「口コミ N件を読む」＋一言のプレビュー。
+ *                          N は readable（= reviews.notes.length）で、
+ *                          n（回答の総数）ではない。
+ *   readable===0, n>0    … 読める一言が無いが回答はある。「読む」ではなく
+ *                          「見る」に言い換え、プレビューは出さない
+ *                          （notes が空なので出す一言そのものが無い）。
+ *   n===0                … 従来どおり最初の1人を誘う破線ボタン。 */
+function cardActsHtml(c){
+  const n = c.reviews?.n || 0;
+  const readable = c.reviews?.notes?.length || 0;
+  const first = (c.reviews?.notes || [])[0] || "";
+  const write = `/kuchikomi?c=${encodeURIComponent(c.id)}`;
+  let read;
+  if (readable){
+    read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
+         <span>💬 口コミ ${readable}件を読む ›</span>${
+           first ? `<small>「${esc(first)}」ほか</small>` : ""}
+       </button>
+       <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
+          title="この科目の口コミを書く">✎</a>`;
+  } else if (n){
+    read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
+         <span>📊 みんなの回答を見る</span>
+       </button>
+       <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
+          title="この科目の口コミを書く">✎</a>`;
+  } else {
+    read = `<a class="wrBtn ghost" href="${esc(write)}">✎ 最初の口コミを書く ›</a>`;
+  }
+  /* inTimetable は termsFor→getTimetable→readTT→localStorage.getItem+JSON.parse
+     を学期ごとに歩く。1回に抑える ―― 1ページ24枚で毎回2回呼ぶと、
+     絞り込みを変えるたびに同期ストレージ読み取りが最大96回走っていた。 */
+  const inTT = rkStore.inTimetable(c);
+  return `<div class="cardActs">${read}
+      <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${inTT}">
+        ${inTT ? "✓ 時間割に入れた" : "＋ 時間割"}</button>
+    </div>`;
 }
 
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
-  const tags = [...r.tags, ...r.notes];
+  /* r.notes（score.py の _schedule_note()）は「1限（体感コスト大）」と
+     「<キャンパス>キャンパス（移動あり）」の2つだけを出す。wangの依頼で
+     チップとしては消す（2026-09-08）。rakutan.notes 自体は score.py が
+     引き続き計算していて courses.built.json にも入っているが、
+     web/line/worker/tools のどこからも他に参照されていない（確認済み）
+     ―― 表示だけをやめる。条件チップ（r.tags）はそのまま残す。 */
+  const tags = [...r.tags];
   const rv = reviewMark(c.reviews);
+  const note = bandNoteText(c);
   const fav = rkStore.isFavorite(c.id);
   return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
-        <h3 class="title">${esc(c.title)}</h3>
+        <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
-        ${rv.badge}
       </div>
       <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}
-        ${r.needs_review ? `<span class="bandNote">テストの難しさは誰も確認していません</span>` : ""}</div>
+      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
+      ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
       ${rv.alert}
-      ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag${r.notes.includes(t)?" g":""}">${esc(t)}</span>`).join("")}</div>` : ""}
+      ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
             aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
+    ${cardActsHtml(c)}
     <div class="detail"></div>
   </article>`;
 }
@@ -581,6 +728,9 @@ const rvLv = v => (v === null || v === undefined) ? "―" : RV_LV[Math.round(v)]
  */
 const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 2`;
 
+/* 口コミの集計。モーダルの先頭に出す。
+   一言3件（.rvn）は廃止した ―― モーダルに全件が1件ずつ出るので重複になる。
+   値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。 */
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
@@ -595,66 +745,61 @@ function reviewHtml(c){
     f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
   }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  /* 一言は先頭3件まで（2026-09-01）。全件出すと口コミが増えた科目ほど詳細が伸び続ける。
-     残りは下の「N件すべてを1件ずつ読む →」から読める。
-     見出し（口コミ N件）は detailHtml の .secH へ移した。 */
-  const notes = (r.notes || []).slice(0, 3);
+  /* 全幅にする条件は2つ。どちらも実データ・実測から引いた（2026-09-07）。
+     ・値が長い ―― 数値側の最長「2.0 / 2」＝7文字と、持ち込みの括弧つき最短
+       「可（オンライン）」＝8文字のあいだに境界を置く。
+     ・ラベルが長い ―― 390px では半幅セルが 159px しかなく、ラベルは6文字までしか
+       1行に収まらない（「授業中の課題」＝6文字は 21px の1行、
+       「テストの難易度」＝7文字は 42px の2行になる。実測）。
+       ラベルは固定文字列なので、値の長さでは拾えない。 */
+  const cell = ([k, v]) =>
+    `<span${(String(v).length > 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
   return `<div class="rv">
-      ${notes.length ? `<ul class="rvn">${notes.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}
-      <div class="rvf">${f.map(([k, v]) => `<span><i>${esc(k)}</i>${esc(v)}</span>`).join("")}</div>
+      <div class="rvf">${f.map(cell).join("")}</div>
       <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
         r.conflicts?.length ? "。<b>答えが割れている項目があります</b>ので、下の1件ずつを読んでください" : ""}</span>
     </div>`;
 }
 
 function detailHtml(c){
-  const r = c.rakutan;
-  const names = instructors(c);   // showDetail の ins（#inspector）とは別物
-  /* 全員をここに出す。見出しは「ほかN名」で畳んであるので、
-     複数担当のコマは詳細を開かないと誰が出るのか分からない。
-     氏名ごとに nowrap を掛けるのは、姓と名の間が全角空白で、
-     そこで折り返されると「モ／ハーチ ゲルゲイ」のように人名が割れるため。
-
-     入れ物が <span> でないのは、app.css の .meta span+span::before が
-     「・」を自動で足してしまい、その「・」が nowrap の内側に入るから。
-     「・」は行頭に来られない文字（行頭禁則）なので、直前でも改行できず、
-     16名の科目で一行が右へ突き抜ける（実測 2026-08-25）。
-     区切りを自分で書ける <bdi> にしたうえで、「・」の後ろに <wbr> を置く
-     （nowrap の外に改行機会を作らないと、Chromium は要素の境目でも折り返さない）。 */
-  const insHtml = names.map(n => `<bdi style="white-space:nowrap">${esc(n)}</bdi>`).join("・<wbr>");
-  /* 値の取れていない軸はラベルだけ集めて1行にまとめる（axRow のコメント参照）。 */
-  const miss = Object.entries(META.axis_labels)
-    .filter(([k]) => r.axes[k].value === null).map(([, l]) => l);
+  /* ── 詳細の並び（2026-09-10・口コミの集計を詳細にも出す）──────────
+   *
+   *   ── 成績評価の内訳  KOANの%を積み上げバーで
+   *   ── 口コミ         集計（reviewHtml）＋本人の一言を1件だけ
+   *   ── KOAN リンク
+   *
+   * 「読む・書く」ボタンと「時間割に追加」は一覧カードの操作バー（.cardActs）に
+   * 残したまま ―― 2026-09-07 の判断（同じ操作を画面に2つ並べない）は変えない。
+   * ただし wang から、モーダルを開かなくても集計数字（出席・課題・テストの
+   * 難易度など）がここで見えてほしいと依頼があった（Discord 2026-09-10）。
+   * reviewHtml() はモーダル（#panelBody）用に作った関数をそのまま再利用 ――
+   * 集計の中身を二重に持たないため。一言は「一部だけでいい」との依頼どおり
+   * 1件のみ、cardActsHtml と同じ notes[0] を出す（全件は N件を読む→で）。
+   * 一言は .pNote ではなく専用の .dQuote で出す ―― .pNote はモーダルの
+   * 1件ずつ表示（panelEntry）と共有のクラスなので、ここだけ吹き出し風に
+   * 変えると影響範囲がモーダル側にも及んでしまう（2026-09-10、Claude Design
+   * で4案作り松下さんが「そっと囲む」案を選定）。
+   *
+   * 元は score.py が計算した5軸の「重さ」スコアをバーで見せていたが、
+   * 松下さんの依頼で「KOANシラバスに書かれている成績評価の生の%」に置き換えた
+   * （2026-09-05）。担当教員の行と信頼度の注記は wang の依頼で削除（2026-09-06）。
+   *
+   * .dSec 自体は app.css に固有のスタイルを持たない（レイアウトは中の
+   * .secH/.compBar 側が持つ）が、クラス名として消さないこと ――
+   * tools/test_favorite.mjs が `.detail .dSec` を「詳細が描画された」の
+   * 目印として待っている（2026-09-07）。 */
   const rn = c.reviews?.n || 0;
-  /* ── 詳細の並び（2026-09-01・案A）───────────────
-   * 合格条件は「押すべきボタンが一目で分かる」。作り直し前は全幅の灰色ボタンが
-   * 5つ縦積みで、最後の ☆ はラベルが無くカード右上の ☆ と重複していた。
-   *
-   *   担当教員        （識別のための添え書き。見出しは付けない）
-   *   ── 重さの根拠   4軸バー ＋ 欠測1行 ＋ 信頼度
-   *   ── 口コミ N件   一言3件 ＋ 集計 ＋ 1件ずつへのリンク
-   *   ── 操作         時間割に追加（主）／口コミを書く・KOAN（副）
-   *
-   * ☆ は詳細から外した。カード右上の ☆ が残り、クリックの同期は data-id で
-   * まとめて行っている（下の .favBtn のハンドラ）ので機能は落ちない。 */
-  return `${names.length ? `<div class="meta insLine">担当教員：${insHtml}</div>` : ""}
-      <div class="dSec">
-        <div class="secH">重さの根拠</div>
-        ${Object.entries(META.axis_labels).map(([k,l]) => axRow(k, r.axes[k], l)).join("")}
-        ${miss.length ? `<div class="axMiss">${miss.map(esc).join("・")} ― データなし（相性の計算から除外）</div>` : ""}
-        <div class="conf">${esc(CONF[r.confidence.level])}（6項目中${r.confidence.known}項目）
-          ${r.confidence.missing.length ? `／ 未取得：<b>${r.confidence.missing.map(f=>esc(FIELD_JA[f]||f)).join("、")}</b>` : ""}
-        </div>
+  const first = (c.reviews?.notes || [])[0] || "";
+  return `<div class="dSec">
+        <div class="secH">成績評価の内訳</div>
+        ${evalCompHtml(c)}
       </div>
       ${rn ? `<div class="dSec">
         <div class="secH">口コミ <b>${rn}件</b></div>
         ${reviewHtml(c)}
-        <button class="panelBtn" data-id="${esc(c.id)}">${rn}件すべてを1件ずつ読む →</button>
+        ${first ? `<p class="dQuote">${esc(first)}</p>` : ""}
       </div>` : ""}
       <div class="dActs">
-        <button class="ttAddBtn" data-id="${esc(c.id)}" aria-pressed="${rkStore.inTimetable(c)}">
-          ${rkStore.inTimetable(c) ? "時間割に入っています" : "時間割に追加"}</button>
-        <button class="reviewBtn" data-id="${esc(c.id)}">この科目の口コミを書く</button>
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       </div>`;
 }
@@ -678,6 +823,9 @@ async function fetchReviewsData(){
 const attFull = v => (v === null || v === undefined) ? "―" : RV_ATT[Math.round(v)];
 
 /* null は「―」のまま出す。埋めると「無回答だった」という情報が消える。
+   並びは 受講年 → 本人が書いた一言 → 選択式の答え（2026-09-06）。
+   以前は選択式が先だったので、読みたい一言に届く前に
+   「出席 毎回 ／ 授業中の課題 ― ／ 授業外の課題 ―」を読まされていた。
    .pReport（通報リンク）は入れていない ―― 通報フォームの URL がまだ無い。 */
 function panelEntry(row){
   const curYear = new Date().getFullYear();
@@ -686,24 +834,31 @@ function panelEntry(row){
   const age = row.taken_year == null ? 0 : curYear - row.taken_year;
   const old = row.taken_year != null && age >= 3;
 
-  const examBits = [];
-  if (row.exam_hard10 != null) examBits.push(`テスト ${row.exam_hard10}/10`);
-  if (row.exam_bring)          examBits.push(`持ち込み ${row.exam_bring}`);
-
-  const lines = [`出席 ${attFull(row.attendance)} ／ 授業中の課題 ${rvLv(row.in_class)} ／ 授業外の課題 ${rvLv(row.out_class)}`];
-  if (examBits.length) lines.push(examBits.join(" ・ "));
-  if (row.report_words != null) lines.push(`レポート 1本あたり約${row.report_words.toLocaleString()}字`);
+  const facts = [`出席 ${attFull(row.attendance)}`,
+                 `授業中の課題 ${rvLv(row.in_class)}`,
+                 `授業外の課題 ${rvLv(row.out_class)}`];
+  if (row.exam_hard10 != null) facts.push(`テスト ${row.exam_hard10}/10`);
+  if (row.exam_bring)          facts.push(`持ち込み ${row.exam_bring}`);
+  if (row.report_words != null) facts.push(`レポート 約${row.report_words.toLocaleString()}字`);
 
   return `<div class="pEntry">
       <div class="pYear">${esc(yearLabel)}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
-      ${lines.map(l => `<div class="pLine">${esc(l)}</div>`).join("")}
       ${row.note ? `<div class="pNote">${esc(row.note)}</div>` : ""}
+      <div class="pFacts">${facts.map(t => `<span>${esc(t)}</span>`).join("")}</div>
     </div>`;
 }
 
+/* 口コミ＝本人が書いた一言、という定義（2026-09-08）。選択式だけ答えて
+   一言を書かなかった回答は一覧に並べない ―― 見せるものが無いのに枠だけ
+   出すと「本文が消えた」ように見える。呼び出し元（openPanel）が
+   readable===0 のときはそもそもこれを呼ばないので、ここで rows が
+   空になるのは実データ上は起きない想定（reviews.notes.length と
+   ここで数える件数は全141件で一致すると確認ずみ）。呼ばないほうを
+   選んだ理由も同じ ―― 空リストを描いて「まだ誰も書いていない」を
+   出すと、回答自体はあるのに嘘になる。 */
 async function panelListHtml(id){
   const all = await fetchReviewsData();
-  const rows = all[id] || [];
+  const rows = (all[id] || []).filter(row => (row.note || "").trim());
   if (!rows.length) return `<p class="pEmpty">まだ誰も書いていない</p>`;
   return `<div class="pList">${rows.map(panelEntry).join("")}</div>`;
 }
@@ -826,14 +981,24 @@ const CONDITIONS = {
 function matchLocal(r){
   if (r.overall === null || r.overall === undefined){
     /* 「口コミが集まれば出ます」と言えるのは、口コミで埋まる穴のときだけ。
-       内訳そのものが載っていない科目は待っても出ない（score.py と同文）。 */
+       内訳そのものが載っていない科目は待っても出ない（score.py と同文）。
+
+       2026-09-07: 「シラバスに載っていない」と「こちらが読み分けられない」を
+       言い分ける。内訳をシラバス直写しにしたので、詳細に内訳が100%出ているのに
+       一覧のカードで「載っていない」と言う状態になっていた（507科目）。
+       score.py の _unjudged_reason と同文。片方だけ直さないこと。 */
     const cap = r.eval_captured;
+    const unc = r.eval_unclassified;
     const min = (META && META.eval_total_min) || 80;
     let reason;
     if (cap === null || cap === undefined)
-      reason = "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
+      reason = unc
+        ? "シラバスの成績評価の内訳を、こちらで種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。"
+        : "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
     else if (cap >= min)
-      reason = `判定に必要な情報が足りていません。口コミが${minForScoring()}件そろうと出ます。`;
+      reason = "";          // 口コミ待ちは band の下の ※ の行が言う（bandNoteText）
+    else if (unc)
+      reason = `シラバスの成績評価の内訳のうち${Math.round(cap)}%分しか種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。`;
     else
       reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
     return { fit:null, reason, labels:META.axis_labels };
@@ -1018,9 +1183,11 @@ function showDetail(c, article){
     const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
     const ins = $("#inspector");
     ins.innerHTML = `<div class="inspectorHead">
+        <button type="button" class="insClose" aria-label="この科目を閉じる">✕</button>
         <h3>${esc(c.title)}</h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
       </div><div class="detail">${detailHtml(c)}</div>`;
+    ins.querySelector(".insClose").onclick = closeDetail;
     ins.scrollTop = 0;
     lastOpenedCourseId = c.id;
     return;
@@ -1035,6 +1202,18 @@ function showDetail(c, article){
   const opening = !article.classList.contains("open");
   article.classList.toggle("open");
   if (opening) lastOpenedCourseId = c.id;
+}
+
+/* 右カラムを閉じて「何も選んでいない」状態へ戻す（2026-09-06 追加）。
+   これが無いと、いちど科目を押した人は再読込するまで開いた直後の
+   画面（2カラムを中央に寄せた状態）に戻れなかった。閉じる手段は
+   ✕ と Esc の2つで、どちらもここを呼ぶ。
+   lastOpenedCourseId は消さない ―― 下の「口コミを書く」の初期選択に
+   使うもので、閉じたあとも直前に見ていた科目のままでよい。 */
+function closeDetail(){
+  selectedCourseId = null;
+  document.querySelectorAll(".card.sel").forEach(el => el.classList.remove("sel"));
+  $("#inspector").innerHTML = "";
 }
 
 /* 増えた分のカードだけにクリック判定を付ける。以前は呼ばれるたびに
@@ -1058,10 +1237,6 @@ function bindCardHandler(article, c){
 /* 画面幅が変わったとき（PC で窓を縮めた・スマホを回した）に、
    詳細がどちらにも出ていない状態にならないよう描き直す。 */
 mqDesktop.addEventListener("change", () => {
-  // 注意帯の導線（.go）は PC とスマホで文言が違う。幅が変わったら
-  // 今のページを描き直して合わせる ―― カードは load() のときにしか
-  // 作らないので、これが無いと「タップして…↓」が PC に残る。
-  if (courses.length) renderPage(page);
   if (!selectedCourseId) return;
   const c = courses.find(x => x.id === selectedCourseId);
   if (!c) return;
@@ -1077,18 +1252,18 @@ mqDesktop.addEventListener("change", () => {
 });
 
 /* ── 口コミパネル（1件ずつ）─────────────
- * 何のためか: **Android の戻るボタン**。全画面のシートが開いた状態で
+ * 何のためか: **Android の戻るボタン**。中央モーダルが開いた状態で
  * 戻るを押すと、履歴に何も積んでいなければページごと離脱する。
  * 口コミを読みに来た人が一覧を失う。おまけで ?c=<id> の共有もできる。
+ * この履歴エントリを積む理由は今も変わらずこれ1つ（2026-09-07）。
  *
- * 勘所は「閉じる手段を全部 history.back() 経由にまとめ、実際に閉じる処理は
- * popstate の1箇所だけにする」こと。バラバラに書くと「✕では消えるが
- * 戻るボタンでは消えない」のような手段ごとの食い違いが必ず出る。
- *
- * 置き場所は決定A ―― PC は右カラムの詳細の下に展開、スマホは全画面シート。
- * 組み立てる関数（panelListHtml）は1本のまま、差し込み先だけ変える。
- * PC でも履歴に積む（2026-08-24 決定）。戻るの意味が両方で
- * 「1つ前の状態に戻る」に揃い、共有リンクも両方で効く。
+ * 今は幅によらず同じ中央モーダル1つ（#panel）。入口は ?c=<id> か
+ * 一覧カードの .rvBtn のどちらか、閉じ方は2通り：
+ *   - 自分で開いた（history.pushState 済み）→ ✕/Esc/幕クリックは
+ *     history.back() を呼ぶだけ。実際に閉じるのは popstate 側。
+ *   - 共有リンクで直接開いた（積んでいない）→ history.back() だと
+ *     サイトの外へ出てしまうので、その場で ?c= を剥がして直接閉じる
+ *     （closePanel、2026-09-07）。
  */
 
 /* 絞り込みで一覧から外れている科目や、まだ読んでいないページの科目も
@@ -1105,33 +1280,41 @@ async function findCourse(id){
   } catch { return null; }
 }
 
-/* PC の .panelBtn は右カラム（#inspector）の中。スマホはカードの .detail の中。
-   両方に同じ data-id のボタンが居ることは無いが、探す順を決めておく。 */
-const panelBtnFor = id =>
-  $(`#inspector .panelBtn[data-id="${CSS.escape(id)}"]`)
-  || document.querySelector(`.panelBtn[data-id="${CSS.escape(id)}"]`);
+/* index.html は #panel の .kBox に role="dialog" aria-modal="true" を持たせている。
+   aria-modal は支援技術に「これ以外は無視しろ」と告げるので、フォーカスが
+   背景に残ったままだと宣言だけが独り歩きする。ここで最低限のモーダル性を持たせる：
+   開くときに元のフォーカス位置を覚えて✕へ移し、閉じるときに戻す。
+   本格的なタブトラップ（Tab でモーダルの外に出さない）はやっていない ――
+   Esc がどこからでも閉じる（document 側のハンドラ）ので無くても迷子にはならない、
+   という判断（意図的な範囲外。見落としではない）。 */
+let panelReturnFocus = null;
 
-/* 閉じるのはここ1箇所だけ。popstate から呼ばれる。
-   PC/スマホのどちらで開いていたか覚えずに、両方の跡地を片付ける
-   ―― 開いたあとに幅が変わっていることがあるため。 */
+/* 実際に閉じる処理（クラス外し・中身の空っぽ化）はここ1箇所だけ。
+   popstate から呼ばれるのが基本だが、共有リンクを直接閉じる経路
+   （closePanel）は history.back() を経由せずここを直接呼ぶ（2026-09-07）。 */
 function panelSetOpen(open){
   if (open) return;                       // 開くのは openPanel の仕事
   $("#panel").classList.remove("open");
   $("#panelBody").innerHTML = "";
-  document.querySelectorAll(".pList").forEach(el => el.remove());
-  // PC で差し替えていた集計を戻す（openPanel の hidden とセット）。
-  document.querySelectorAll(".rv[hidden]").forEach(el => el.removeAttribute("hidden"));
-  document.querySelectorAll(".panelBtn").forEach(b => {
-    const c = courses.find(x => x.id === b.dataset.id);
-    // detailHtml の同じ文言と揃えること（片方だけ直すと閉じた瞬間に文字が変わる）。
-    if (c?.reviews?.n) b.textContent = `${c.reviews.n}件すべてを1件ずつ読む →`;
-    b.setAttribute("aria-expanded", "false");
-  });
+  if (panelReturnFocus && document.contains(panelReturnFocus)) panelReturnFocus.focus();
+  panelReturnFocus = null;
 }
 
 async function openPanel(id, push = true){
   const c = await findCourse(id);
   if (!c) return;
+
+  /* PC では、モーダルの後ろに科目の詳細も出しておく。
+     共有リンク（?c=）で入ってきた人はここでしか科目を選んでいないので、
+     出しておかないとモーダルを閉じた瞬間に既定の一覧へ放り出される。
+     tools/test_eval_raw.mjs（2026-09-08・main 側）も ?c= で開いた先に
+     詳細（.compNote）が在ることを前提にしている。
+     スマホは詳細がカードの中に開く＝モーダルの裏で勝手にカードが伸びるので、
+     ここでは出さない。 */
+  if (isDesktop() && selectedCourseId !== id){
+    const article = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+    showDetail(c, article);
+  }
 
   if (push){
     const url = new URL(location.href);
@@ -1139,40 +1322,39 @@ async function openPanel(id, push = true){
     history.pushState({ panelCourse: id }, "", url);
   }
 
-  const html = await panelListHtml(id);
-
-  if (isDesktop()){
-    // 共有リンクで入ってきた人の右カラムは空。リストを挿す前に詳細を出す。
-    // article は見つからなくて構わない（showDetail は undefined でも動く。
-    // カードの選択ハイライトが付かないだけ）。
-    if (selectedCourseId !== id){
-      const article = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
-      showDetail(c, article);
-    }
-    const btn = panelBtnFor(id);
-    if (!btn) return;
-    /* 集計を「差し替える」。下に足し続けない（2026-09-01）。
-       足す形だと、生ログ4件（約450px）が集計と操作のあいだに割り込み、
-       右カラムの中身が 926px → 1,376px になって「時間割に追加」が
-       枠（1280×1000 で 968px）の外へ出る（実測）。
-       集計と1件ずつは同じデータの粒度違いなので、同じ場所で入れ替える。
-       4軸バーと操作は動かないので、見ながら読める形も残る。 */
-    btn.closest(".dSec")?.querySelector(".rv")?.setAttribute("hidden", "");
-    btn.insertAdjacentHTML("beforebegin", html);
-    btn.textContent = "集計に戻る";
-    btn.setAttribute("aria-expanded", "true");
-    return;
-  }
-
+  const n = c.reviews?.n || 0;
+  const readable = c.reviews?.notes?.length || 0;
   $("#panelTitle").textContent = c.title;
-  $("#panelBody").innerHTML = html;
+  /* readable===0 のとき「口コミ」を名乗らない ―― 一言を書いた人が
+     1人もいないので、「実際に取った人が書いたもの」は嘘になる。
+     選択式の回答はあるので、その集計であることだけを伝える。 */
+  $("#panelSub").textContent = readable
+    ? `口コミ ${readable}件 ― 実際に取った人が書いたもの`
+    : `回答 ${n}件の集計 ― 書かれた口コミはまだありません`;
+  $("#panelWrite").href = `/kuchikomi?c=${encodeURIComponent(id)}`;
+  /* readable===0 のときは panelListHtml を呼ばない。呼ぶと
+     「1件ずつ」の区切りの下に「まだ誰も書いていない」が出るが、
+     回答自体はある（数字には入っている）ので、これは嘘になる。 */
+  $("#panelBody").innerHTML = reviewHtml(c) + (readable ? await panelListHtml(id) : "");
   $("#panel").classList.add("open");
+  $("#panelBody").scrollTop = 0;
+  panelReturnFocus = document.activeElement;
+  $("#panelClose").focus();
 }
 
 function closePanel(){
-  // 開いたときに積んだ履歴を1つ戻すだけ。閉じる本体は popstate 側。
-  if (new URL(location.href).searchParams.get("c")) history.back();
-  else panelSetOpen(false);
+  /* 開くときに積んだぶんだけ戻す。閉じる本体は popstate 側。
+     ?c= が URL に在ることは「自分で積んだ」の証拠にならない ―― 共有リンクで
+     直接入ってきた人は openPanel(id, false) で積んでいないので、history.back()
+     はこの画面ではなく直前のページ（新規タブなら about:blank）へ飛び、
+     サイトから出てしまう（2026-09-07 実測）。積んだかどうかは history.state で見る。 */
+  if (history.state?.panelCourse){ history.back(); return; }
+  const url = new URL(location.href);
+  if (url.searchParams.has("c")){
+    url.searchParams.delete("c");
+    history.replaceState(null, "", url);
+  }
+  panelSetOpen(false);
 }
 
 window.addEventListener("popstate", () => {
@@ -1180,25 +1362,25 @@ window.addEventListener("popstate", () => {
   if (id) openPanel(id, false); else panelSetOpen(false);
 });
 
-/* 幕は #panel 自身（投稿フォームと同じ .sheet を使い回しているので
-   別の .panelOv は無い）。#panel のクリックには2つの役割が乗るため、
-   e.target の判定を入れないとリストの中を触るだけで閉じる。 */
+/* 幕は #panel 自身（.kModal が幕を描くので、別の .panelOv は無い）。
+   #panel のクリックには2つの役割が乗るため、e.target の判定を
+   入れないと箱（.kBox）の中を触るだけで閉じる（クリックが #panel まで
+   バブリングするため）。 */
 $("#panelClose").onclick = closePanel;
 $("#panel").onclick = e => { if (e.target === $("#panel")) closePanel(); };
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
-  if ($("#panel").classList.contains("open")
-      || document.querySelector(".pList")) closePanel();
+  if ($("#panel").classList.contains("open")){ closePanel(); return; }
+  // パネルが無いときの Esc は、右カラムの詳細を閉じる（✕ と同じ動き）。
+  if (isDesktop() && $("#inspector").innerHTML) closeDetail();
 });
 
-["#list", "#inspector"].forEach(sel => {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".panelBtn");
-    if (!btn) return;
-    // 開いているものをもう一度押したら閉じる
-    if (btn.getAttribute("aria-expanded") === "true") closePanel();
-    else openPanel(btn.dataset.id);
-  });
+/* 口コミの入口は一覧カードの操作バーだけ（詳細からは外した）。
+   カードは絞り込みのたびに作り直されるので、親で受ける。 */
+$("#list").addEventListener("click", e => {
+  const btn = e.target.closest(".rvBtn");
+  if (!btn) return;
+  openPanel(btn.dataset.id);
 });
 
 /* ── 一覧のページング ───────────────────
@@ -1339,6 +1521,7 @@ async function load(retry){
   courses = d.results;
   buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
   $("#count").textContent = d.count;
+  syncRailTog();   // 条件が変われば畳んでいるときのバッジも変わる
   if (d.count){
     renderPage(1);
   } else {
@@ -1346,6 +1529,86 @@ async function load(retry){
       `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
     renderPager();
   }
+}
+
+/* ── 左の絞り込みの開閉 ─────────────────
+ * 畳むと中カラムが 284〜304px 広がり、#list が自動で2列になる
+ * （列数を決めているのは app.css の auto-fill。ここでは幅を変えるだけ）。
+ * 768px 未満ではボタンを出していない（.rail が横に並んでいないので意味が無い）。
+ */
+const mqWide = window.matchMedia("(min-width:768px)");
+
+/* 畳んでいるあいだ、効いている条件が画面から消える。数だけでもバッジに
+   出さないと「なぜ12件しか出ないのか」がどこにも書かれていない状態になる。
+   数え方は「左カラムで押せるもの」に揃える ―― 検索語と並び順は .bar 側に
+   見えたままなので数えない。学部（state.faculty / track）も、絞り込みには
+   効かず区分の並べ替えにしか使っていないので数えない（state の宣言参照）。
+   配点は軸ごとに1つと数える。チップ「出席なし」等は state.cond ではなく
+   state.caps を 0 にするので（chipOn 参照）、二重には数えていない。 */
+function activeFilterCount(){
+  let n = 0;
+  if (state.day) n++;                                   // 空きコマ（曜日と限は対）
+  n += state.cond.size;                                 // 条件チップ＋口コミあり
+  n += CAP_AXES.filter(k => state.caps[k] < NO_CAP).length;
+  if (state.year !== "all") n++;
+  if (state.sem  !== "all") n++;
+  n += state.division.size;                             // 卒業要件の区分
+  return n;
+}
+
+/* 開閉の操作子は継ぎ目の取っ手（#grip）1つだけ。矢印の向きは CSS が
+   .railOff から出し分けるので、ここでは名前と条件数だけを面倒みる。 */
+function syncRailTog(){
+  const btn = $("#grip");
+  if (!btn) return;
+  const off = $("#workbench").classList.contains("railOff");
+  const label = off ? "絞り込みを表示" : "絞り込みを隠す";
+  btn.setAttribute("aria-expanded", String(!off));
+  btn.setAttribute("aria-label", label);
+  btn.dataset.label = label;   // 乗せたときに出る名札（app.css の .grip::after）
+  /* 条件の数は畳んでいるときだけ出す。開いていれば条件そのものが左に見えている。 */
+  const n = activeFilterCount();
+  const b = $("#gripCount");
+  b.textContent = n;
+  b.hidden = !(off && n > 0);
+}
+
+function setRail(open){
+  $("#workbench").classList.toggle("railOff", !open);
+  rkStore.setRailOpen(open);
+  syncRailTog();
+}
+
+/* ── 長い科目名をホバーで流し読みさせる ─────────
+ * 科目名は2行で切ってある（app.css）。実データで2行に収まらないのは
+ * 1% 未満だが、そこは「学問への扉（…）」のように前半が共通で、
+ * 括弧の中だけが違う。切ったままだと見分けが付かないので、乗せたときだけ
+ * はみ出したぶんを上へ流す。
+ *
+ * 距離は測るしかない（幅もフォントも実行時にしか決まらない）。
+ * mqOn でクランプを外して全高を測り、次のフレームで mqRun を足して動かす。
+ */
+const MQ_SPEED = 45;      // px/秒。100px はみ出して約2.2秒
+function mqStart(t){
+  if (!t || !mqWide.matches || t.classList.contains("mqOn")) return;
+  clearTimeout(t._mqT);
+  t.classList.add("mqOn");
+  const inner = t.firstElementChild;
+  const shift = inner ? inner.offsetHeight - t.clientHeight : 0;
+  if (shift <= 1){ t.classList.remove("mqOn"); return; }   // 2行に収まっている
+  t.style.setProperty("--mqShift", shift + "px");
+  t.style.setProperty("--mqDur", Math.max(0.6, shift / MQ_SPEED).toFixed(2) + "s");
+  /* 動きを止めている人には流れないので、標準のツールチップで全文を読ませる。 */
+  if (window.matchMedia("(prefers-reduced-motion:reduce)").matches && !t.title){
+    t.title = inner.textContent;
+  }
+  requestAnimationFrame(() => { if (t.classList.contains("mqOn")) t.classList.add("mqRun"); });
+}
+function mqStop(t){
+  if (!t || !t.classList.contains("mqOn")) return;
+  t.classList.remove("mqRun");        // 戻りは .titleT の .2s で速く戻る
+  clearTimeout(t._mqT);
+  t._mqT = setTimeout(() => t.classList.remove("mqOn"), 250);
 }
 
 /* 口コミ選択肢は「口コミを書く」を押した時だけ作る。
@@ -1463,14 +1726,6 @@ $("#rvWords").oninput = e => {
 };
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
 $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
-/* 口コミボタンは #list だけに委譲していたが、PC では詳細が
-   右カラムに出るので、そちらでも拾えるようにする。 */
-["#list", "#inspector"].forEach(sel => {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".reviewBtn");
-    if (btn) openReviewFor(btn.dataset.id);
-  });
-});
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
 /* 静的ホスティングには投稿を受ける先が無い。
@@ -1607,6 +1862,30 @@ function applyPostMode() {
     const o = $("#sliders").classList.toggle("open");
     $("#tog").textContent = o ? "配点スライダーを閉じる" : "配点で細かくしぼる";
   };
+
+  /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると
+     復元のための classList 操作が「押した」ことになってしまう。 */
+  setRail(rkStore.getRailOpen());
+  $("#grip").onclick = () => {
+    const open = $("#workbench").classList.contains("railOff");   // 畳んでいた＝これから開く
+    setRail(open);
+    window.rkTrack?.("rail_toggle", open ? "open" : "close");
+  };
+
+  /* 長い科目名の流し読み。#list は描き直すたびに中身が入れ替わるので、
+     カードごとではなく #list に1つだけ張る。カード内での移動（見出し→タグ等）で
+     止まらないよう、relatedTarget が同じカードの中なら何もしない。 */
+  const listEl = $("#list");
+  const titleOf = e => {
+    const card = e.target.closest?.(".card");
+    if (!card || card.contains(e.relatedTarget)) return null;
+    return card.querySelector(".title");
+  };
+  listEl.addEventListener("mouseover", e => mqStart(titleOf(e)));
+  listEl.addEventListener("mouseout",  e => mqStop(titleOf(e)));
+  /* キーボードで辿る人にも同じものを見せる（.head は role="button" tabindex="0"）。 */
+  listEl.addEventListener("focusin",  e => mqStart(titleOf(e)));
+  listEl.addEventListener("focusout", e => mqStop(titleOf(e)));
   let t; $("#q").oninput = e => { clearTimeout(t);
     t = setTimeout(() => { state.q = e.target.value; load();
       /* 打鍵が止まるたびに確定するので、第2引数で同じ語の重複を落とす。
@@ -1633,47 +1912,57 @@ function applyPostMode() {
 })();
 
 /* お気に入りの星。カードは絞り込みのたびに作り直されるので、
-   1枚ずつに onclick を付けず、親で受ける（.panelBtn と同じ型）。 */
-for (const sel of ["#list", "#inspector"]) {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".favBtn");
-    if (!btn) return;
-    const now = rkStore.toggleFavorite(btn.dataset.id);
-    /* 一覧と詳細に同じ科目の星が同時に出ていることがある。両方直す。 */
-    document.querySelectorAll(`.favBtn[data-id="${CSS.escape(btn.dataset.id)}"]`)
-      .forEach(b => { b.setAttribute("aria-pressed", String(now));
-                      b.textContent = now ? "★" : "☆"; });
-  });
-}
+   1枚ずつに onclick を付けず、親で受ける（.ttAddBtn と同じ型）。
+   委譲先は #list だけ ―― .favBtn は詳細（#inspector）には出ない
+   （カード右上に☆があるので詳細から外した。detailHtml 前のコメント参照）。 */
+$("#list").addEventListener("click", e => {
+  const btn = e.target.closest(".favBtn");
+  if (!btn) return;
+  const now = rkStore.toggleFavorite(btn.dataset.id);
+  /* 「あなたに合う」枠と通常の一覧に同じ科目が重複して出ることがあるので、
+     同じ id の .favBtn が複数あり得る。両方直す。 */
+  document.querySelectorAll(`.favBtn[data-id="${CSS.escape(btn.dataset.id)}"]`)
+    .forEach(b => { b.setAttribute("aria-pressed", String(now));
+                    b.textContent = now ? "★" : "☆"; });
+});
 
-/* 詳細パネルの「時間割に追加」。配置ロジック（コンフリクト確認＋一括配置）は
+/* 「時間割に追加」（2026-09-06、カードの操作バー新設で .ttAddBtn が詳細から
+   カードの .cardActs へ移った。委譲先は #list だけ ―― detailHtml はもう
+   .ttAddBtn を出さない）。配置ロジック（コンフリクト確認＋一括配置）は
    rkStore.putCourse に1本化されている（mypage.jsのputCourseと共有。理由は
    web/assets/mypage.js の putCourse 直前コメントを参照）。曜限が無い科目は
-   putCourse が何もしない（false を返す）ので、ここで addExtra に振り分ける。 */
-for (const sel of ["#list", "#inspector"]) {
-  $(sel).addEventListener("click", e => {
-    const btn = e.target.closest(".ttAddBtn");
-    if (!btn) return;
-    const id = btn.dataset.id;
-    const c = courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id);
-    if (!c) return;
-    const terms = rkStore.termsFor(c);
-    let placed;
-    if (rkStore.slotsOf(c).length){
-      placed = rkStore.putCourse(terms, c, null, tid =>
-        (courses.find(x => x.id === tid) || DATA.courses.find(x => x.id === tid) || {}).title);
-    } else {
-      for (const t of terms) rkStore.addExtra(t, c.id);
-      placed = true;
-    }
-    if (placed){
-      document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`).forEach(b => {
-        b.setAttribute("aria-pressed", "true");
-        b.textContent = "時間割に入っています";
-      });
-    }
-  });
-}
+   putCourse が何もしない（false を返す）ので、ここで addExtra に振り分ける。
+   2026-09-08：押すだけで外せなかった（追加のみ）のをトグルにした。
+   外す側は rkStore.removeCourse に1本化（store.js のコメント参照・
+   putCourse と対称の置き場所）。同じ id のボタンは「あなたに合う」枠と
+   通常の一覧に重複しうるので、押した後は data-id が一致する全ボタンを
+   まとめて直す（.favBtn の委譲コメントと同じ理由）。 */
+$("#list").addEventListener("click", e => {
+  const btn = e.target.closest(".ttAddBtn");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const c = courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id);
+  if (!c) return;
+  const terms = rkStore.termsFor(c);
+  const pressed = btn.getAttribute("aria-pressed") === "true";
+  let nowPressed;
+  if (pressed){
+    rkStore.removeCourse(terms, c);
+    nowPressed = false;
+  } else if (rkStore.slotsOf(c).length){
+    nowPressed = rkStore.putCourse(terms, c, null, tid =>
+      (courses.find(x => x.id === tid) || DATA.courses.find(x => x.id === tid) || {}).title);
+  } else {
+    for (const t of terms) rkStore.addExtra(t, c.id);
+    nowPressed = true;
+  }
+  if (nowPressed !== pressed){
+    document.querySelectorAll(`.ttAddBtn[data-id="${CSS.escape(id)}"]`).forEach(b => {
+      b.setAttribute("aria-pressed", String(nowPressed));
+      b.textContent = nowPressed ? "✓ 時間割に入れた" : "＋ 時間割";
+    });
+  }
+});
 
 /* 画面幅で出す番号の数を変えているので、幅が変わったら描き直す。
    スマホを横にしたときに「…」の畳み方が古いままになるのを防ぐ。 */

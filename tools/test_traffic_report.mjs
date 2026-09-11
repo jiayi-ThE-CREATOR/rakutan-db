@@ -131,12 +131,12 @@ const WEBHOOK = "https://discord.test/webhook";
 const SQL_OK = JSON.stringify({ data: rows });
 const realFetch = globalThis.fetch;
 let calls = [];
-const runScheduled = async (env, sqlStatus = 200, sqlBody = SQL_OK) => {
+const runScheduled = async (env, sqlStatus = 200, sqlBody = SQL_OK, hookStatus = 204) => {
   calls = [];
   globalThis.fetch = async (url, init) => {
     calls.push({ url: String(url), init });
     if (String(url).includes("analytics_engine")) return new Response(sqlBody, { status: sqlStatus });
-    return new Response(null, { status: 204 });
+    return new Response(null, { status: hookStatus });
   };
   const waits = [];
   await worker.scheduled({ scheduledTime: NOW.getTime(), cron: "0 23 * * *" },
@@ -171,6 +171,17 @@ check(/取れ|失敗|⚠/.test(JSON.parse(errPost?.init?.body ?? "{}").content ?
 // secret が欠けている日も同じ（黙って止まらない）
 await runScheduled({ STATS_DISCORD_WEBHOOK: WEBHOOK });
 check(calls.some((c) => c.url === WEBHOOK), "CF の secret が無い日に何も鳴らしていない");
+
+// Discord に弾かれた日は、黙って終わらずに例外にする（2026-09-09 の事故）。
+// 失効した webhook URL に6日間投げ続けても invocation は success のままで、
+// console.error はどこにも出ないまま速報が消えていた。
+let threw = false;
+try {
+  await runScheduled(ENV, 200, SQL_OK, 404);
+} catch {
+  threw = true;
+}
+check(threw, "Discord が 404 を返した日を、成功として黙って終えている");
 
 globalThis.fetch = realFetch;
 

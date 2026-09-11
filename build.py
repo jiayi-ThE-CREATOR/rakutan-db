@@ -79,6 +79,11 @@ def attendance_req(text: str | None) -> str | None:
 KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         "capacity", "class_format", "credits", "instructor", "numbering",
         "eval_ratio", "eval_raw", "eval_unclassified",
+        # 成績評価テーブルの「外」に書かれた配点（2026-09-08）。原文系はここに
+        # 載せない方針だが、これは**成績評価の話そのもの**で、表が空・
+        # 「補足情報を参照」だけ・合計が100%に届かない 137件では、
+        # これが無いと画面に出せる配点が1つも無い。表が足りている科目では出さない。
+        "eval_note",
         "exam_type", "report_count", "report_words",
         "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years",
         "reviews", "shozoku_cd"]
