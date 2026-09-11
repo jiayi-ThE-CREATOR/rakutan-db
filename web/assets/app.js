@@ -27,11 +27,11 @@ const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), 
                 caps:{ attendance:100, exam:100, quiz:100, report:100 },
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
-                /* track2＝専攻語が「日本語」の学生が実際に履修する言語。
+                /* track2＝専攻語が「日本語」の学生が実際に履修するもう一つの専攻語。
                    外国語学部の日本語専攻は、自分の専攻語（日本語）とは別に
                    もう一つの言語を履修し、その言語の専攻語科目をそのまま取る
-                   （中国語を選べば中国語専攻の学生と同じ科目）。だから track2 は
-                   「専攻」ではなく「言語」で、絞り込みでは track の代わりに使う。 */
+                   （中国語を選べば中国語専攻の学生と同じ科目）。絞り込みでは
+                   track の代わりに track2 を使う。 */
                 faculty:"", track:"", track2:"", division:new Set() };
 const SEMS = [["aki","秋・冬学期"],["haru","春・夏学期"],["all","すべて"]];
 const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
@@ -326,14 +326,13 @@ function buildFaculty(facets){
 
   /* 日本語専攻だけの追加枠。専攻語＝日本語の学生は、卒業要件上もう一つ言語を
      履修し、その言語の専攻語科目をそのまま取る（例：中国語を選べば中国語専攻の
-     学生と同じ科目）。だから見出しは「専攻」ではなく「言語」。
-     選ばせるのは専攻語の一覧から日本語自身を除いたもの。 */
+     学生と同じ科目）。選ばせるのは専攻語の一覧から日本語自身を除いたもの。 */
   const t2sel = $("#trackSel2");
   const showLang2 = tracks.length > 0 && state.track === FS_JAPANESE_TRACK;
   t2sel.hidden = !showLang2;
   $("#trackRow").classList.toggle("split", showLang2);
   if (showLang2){
-    t2sel.innerHTML = `<option value="">言語を選ぶ</option>`
+    t2sel.innerHTML = `<option value="">${esc(fac.tracks_label || "専攻語を選ぶ")}</option>`
       + tracks.filter(t => t.key !== FS_JAPANESE_TRACK)
               .map(t => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join("");
     t2sel.value = state.track2;
