@@ -81,6 +81,14 @@ if BUILT.exists():
           f"情報不足が多すぎる（4,121件の状態に戻った疑い）: {b['情報不足']}")
     check(judged > 7000, f"判定できた件数が少なすぎる: {judged}")
 
+    # ── ⑧ 1つの band に偏っていないこと ──────────────
+    # 改修前は判定できた 3,638 件の 72% が「拘束は軽い」だった。点数が
+    # 出ていても、全部が同じ札なら科目を分別できていない。
+    biggest = max(v for k, v in b.items()
+                  if k not in ("情報不足", "判定不可"))
+    check(biggest / judged < 0.35,
+          f"1つの band に偏っている: {b.most_common()}")
+
 print(f"{n - len(fails)}/{n} 件が通過")
 for m in fails:
     print("  ✗", m)
