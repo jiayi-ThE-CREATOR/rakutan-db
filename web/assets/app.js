@@ -389,13 +389,33 @@ const TRUST_CONDS = ["口コミあり"];
 
 /* 配点系チップが点いているか＝そのチップの軸がすべて 0% か。
    state.cond には入れない（入れると同じことを2か所で持つことになる）。 */
-const chipOn = c => c in CHIP_CAPS
-  ? Object.keys(CHIP_CAPS[c]).every(k => state.caps[k] === 0)
-  : state.cond.has(c);
+const capsZero = c => Object.keys(CHIP_CAPS[c]).every(k => state.caps[k] === 0);
+const chipOn = c => c in CHIP_CAPS ? capsZero(c) : state.cond.has(c);
+
+/* 2026-09-11: 「レポートのみ」は試験・出席・小テストの3軸を 0% にするので、
+   1軸だけ見る「出席なし」「小テストなし」も同時に条件を満たし、3つとも光る。
+   同じ濃さで光ると、自分が押した1つがどれか画面から読めない（本人指摘）。
+
+   **絞り込みの中身は変えない。** 実際に出席0%で絞れている以上、「出席なし」を
+   消灯させるのは画面が嘘をつくことになる。見分けたいだけなので、
+   広いチップに含まれて点いている側を淡い地（--brand-soft）で出す。
+   広い＝自分の軸を全部含み、かつ軸の数が多いチップ。
+   返すのは「どれに含まれているか」の名前（title に出して理由を言う）。 */
+const chipImpliedBy = c => {
+  if (!(c in CHIP_CAPS) || !capsZero(c)) return "";
+  const mine = Object.keys(CHIP_CAPS[c]);
+  return Object.keys(CHIP_CAPS).find(d => d !== c && capsZero(d)
+    && mine.every(k => k in CHIP_CAPS[d])
+    && Object.keys(CHIP_CAPS[d]).length > mine.length) || "";
+};
 
 function chipRow(el, names, facets){
-  el.innerHTML = names.map(c =>
-    `<button class="chip${chipOn(c)?" on":""}" data-c="${esc(c)}">${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`).join("");
+  el.innerHTML = names.map(c => {
+    const by = chipImpliedBy(c);
+    return `<button class="chip${chipOn(c)?" on":""}${by?" imp":""}" data-c="${esc(c)}"` +
+      (by ? ` title="「${esc(by)}」に含まれています"` : "") +
+      `>${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`;
+  }).join("");
   el.querySelectorAll("button").forEach(b => b.onclick = () => {
     const c = b.dataset.c;
     if (c in CHIP_CAPS){

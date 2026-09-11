@@ -286,7 +286,36 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 .chip{border:1px solid var(--rule);background:var(--card);border-radius:var(--r-pill);
   padding:7px 13px;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
 .chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+/* 広いチップ（レポートのみ）に含まれて自動で点いている状態。押した1つと
+   見分けるために淡い地で出す。消さないのは、実際に絞り込みが効いている
+   ものを消すと画面が嘘をつくため（app.js の chipImpliedBy と対）。
+   --brand-soft / --brand-text は淡い地とその上の文字の組で、
+   明暗どちらの地でもコントラストを検証済み（tokens.css の注記）。 */
+.chip.on.imp{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand-text)}
 .chip .n{font-family:var(--data);font-size:var(--fs-xs);opacity:.65;margin-left:4px}
+
+/* 条件チップは6つで固定。flex-wrap のままだと件数の桁が変わるたびに
+   折り返す位置がずれ、押すたびに並びの形が変わる（本人指摘）。
+   3列×2行のグリッドに固定すると、桁が何桁でもズレない。
+   #conds だけに掛ける ―― #trust / #years / #sems は個数が違う。 */
+#conds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+/* 件数は名前の「下」に置く（横に並べない）。
+   768px 以上で条件欄はレールの中に入り、幅は 240〜280px ―― 3で割ると
+   1枠 79px しかない。「小テストなし 5939」を横一列に置くと font を 10px まで
+   縮めても 95px 要るので、**PC では1行組が原理的に成立しない**（実測）。
+   下に落とせば必要なのは名前の幅だけになり 79px に収まる。
+   スマホだけ2段組にすると形が変わるので、全幅で同じ組み方にする。 */
+#conds .chip{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding-inline:6px;white-space:nowrap;overflow:hidden}
+#conds .chip .n{margin-left:0}
+/* 768px から先はレールの中（240〜280px）なので、13.5px では収まらない。
+   一番狭いのは 768〜1159px の 240px ―― 1枠 73px しかなく、ここだけは
+   gap と余白も削らないと「小テストなし」が切れる（実測）。
+   tools/test_conds_layout.mjs が 340/390/768/1024/1160/1280/1440px を全部踏む。 */
+@media (min-width:768px){
+  #conds{gap:4px}
+  #conds .chip{font-size:12px;padding-inline:2px}
+}
 .sliders{margin-top:12px;display:none}
 .sliders.open{display:block}
 /* 3列目は 2026-09-03 に 16px → 44px。目盛りが「4」（1桁）から「100%」に
