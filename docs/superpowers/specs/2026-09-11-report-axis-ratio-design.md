@@ -111,10 +111,14 @@ K が変えるのは目盛りであって、判定できるかどうかではな
 
 ## 同期が必要な箇所
 
-- `web/assets/app.js` の `matchLocal()` ―― score.py と同じ計算を持っている
-  （「片方だけ直さないこと」とコメントに3か所書かれている）
-- `server.py`
-- `build.py --rescore` で `web/data/courses.built.json` を焼き直す
+実測で確認した結果、**採点の複製は無い**ので変更は `score.py` だけで足りる:
+
+- `web/assets/app.js` の `matchLocal()` は `build.py` が焼いた `c.rakutan` を
+  読むだけで、軸の値を計算していない（`app.js:1042`）
+- `server.py` は `import score as scoring` で正本をそのまま使う（`server.py:24`）
+- band の名前（「軽め」等）は変わらないので `app.js:9` の severity 表も触らない
+
+必要なのは `build.py --rescore` による `web/data/courses.built.json` の焼き直しだけ。
 
 ## テスト
 
