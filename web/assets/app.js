@@ -1011,14 +1011,22 @@ function matchLocal(r){
     const unc = r.eval_unclassified;
     const min = (META && META.eval_total_min) || 80;
     let reason;
+    /* 2026-09-11: 読み分けられない項目がある科目（363件）の文言を、こちらの
+       都合の説明から読む人への案内に変えた。「種類に読み分けられなかった」は
+       こちらの分類器の話で、読む人には何の情報でもない。この363件は成績の
+       つけ方がそもそも特殊なので点数は出さず、シラバスの表をそのまま写して
+       いる下の「成績評価の内訳」を読んでもらう。score.py の _unjudged_reason
+       と同文。片方だけ直さないこと。 */
+    const TOKUSHU = "この授業は成績のつけ方が特殊なため、点数での判定は出していません。"
+                  + "下の「成績評価の内訳」に、シラバスに書かれているとおりの項目と配点を出しています。";
     if (cap === null || cap === undefined)
       reason = unc
-        ? "シラバスの成績評価の内訳を、こちらで種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。"
+        ? TOKUSHU
         : "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
     else if (cap >= min)
       reason = "";          // 口コミ待ちは band の下の ※ の行が言う（bandNoteText）
     else if (unc)
-      reason = `シラバスの成績評価の内訳のうち${Math.round(cap)}%分しか種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。`;
+      reason = TOKUSHU;
     else
       reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
     return { fit:null, reason, labels:META.axis_labels };
