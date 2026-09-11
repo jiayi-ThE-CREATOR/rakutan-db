@@ -283,6 +283,11 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
    学部（文学部など）でも #trackSel が出たままになる ―― しかも中身は前に
    選んでいた学部のもの。「文学部なのに専攻語を選ぶ」が出るのはこれが原因だった。 */
 #facSec select[hidden]{display:none}
+/* 日本語専攻だけ、専攻語セレクタの隣に「言語」セレクタを半分ずつ並べる。
+   display:contents は素通しなので、.split が無いときは #trackSel が
+   今までどおり単独で幅100%のまま（他の学部の見た目に影響しない）。 */
+.trackRow{display:contents}
+.trackRow.split{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2)}
 .chip{border:1px solid var(--rule);background:var(--card);border-radius:var(--r-pill);
   padding:7px 13px;font:inherit;font-size:13.5px;color:var(--soft);cursor:pointer}
 .chip.on{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
