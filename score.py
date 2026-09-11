@@ -58,7 +58,11 @@ EVAL_TOTAL_MIN = 80.0
 # これは難しさではなく形なので、意図的に小さくしてある。
 # 実際の難易度は口コミ（テストの難しさ・レポートの本数と分量）が決める。
 EXAM_RATIO_COEF = 0.15
-REPORT_RATIO_COEF = 0.15
+# 2026-09-11: 0.15 → 0.45。0.15 では「レポートが成績の80%」でも 12点しか
+# 引かれず 88点＝軽い になる。これが 2026-08-14 に軸ごと None にした原因
+# だったが、誤りは ratio を使ったことではなく係数が小さすぎたことだった。
+# 0.45 なら 80% → 64点「標準」で妥当な位置に来る。
+REPORT_RATIO_COEF = 0.45
 
 # 2026-09-03: 小テストを出席から独立させて4軸にした。下限が 0.10×4＝0.40 に
 # 増えたぶん、AXIS_SHARE を 0.58 → 0.48 に下げて合計 1.0 を保っている
@@ -183,43 +187,53 @@ def _exam_load(c: dict) -> tuple[float | None, list[str]]:
 
 
 def _report_load(c: dict) -> tuple[float | None, list[str]]:
-    """レポート負荷。本数と分量と時間外学習指示から出す。
+    """レポート負荷。まず割合で「形」を測り、量が取れていれば足す。
 
-    「レポートのみ＝楽」とは扱わない。レポート比率が高くても
-    本数と分量が多ければ重いと判定する。
+    2026-09-11: 本数・分量・時間外学習が全て無いときに軸ごと None を返す
+    実装をやめた。KOAN はこの3つを実測で 0件 / 3件 / 149件（全7,906件中）
+    しか埋めておらず、レポート軸は 98% の科目で動いていなかった。軸が1本
+    死ぬと weight_sum が COVERAGE_MIN を割り、科目ごと「情報不足」に落ちる
+    ―― 4,121件（54%）がこれだった。
+
+    2026-08-14 に軸を止めた判断は、係数が小さすぎた標定の問題（100 −
+    ratio×0.15 なので 80% でも 88点＝軽い）に対して軸の廃止で答えたもの。
+    係数を上げれば 80% → 64点になる（REPORT_RATIO_COEF のコメント参照）。
+
+    試験軸も ratio だけで「形」を測り、難しさは口コミ待ちにしている。
+    レポート軸だけが別の基準で黙るのは非対称なので揃える。
+
+    **測っているのは形だけ。**「レポート40%」が1本2,000字なのか5本1万字
+    なのかは区別できない。evidence にそう書いて画面に出す。
     """
-    ratio = (c.get("eval_ratio") or {}).get("report")
+    er = c.get("eval_ratio")
+    if er is None:
+        # 内訳そのものが読めない科目。勝手に満点にすると、ズレは必ず
+        # 「実際より楽に見える」方向にだけ出る。
+        return None, []
+
+    # キーが無い＝0%（不明ではない）。出席軸・小テスト軸と同じ扱い。
+    ratio = float(er.get("report") or 0.0)
     count = c.get("report_count")
     words = c.get("report_words")
     hours = c.get("out_of_class_hours")
 
-    # 「レポートで評価される」ことは負荷ではない。負荷は本数・分量・時間外学習の
-    # 側にある。その3つが全て無いとき、負荷は「軽い」のではなく「不明」である。
-    #
-    # ここを ratio だけで算出していたため、成績の80%がレポートの科目に
-    # 「レポート軸88＝軽い」が付いていた（2026-08-14 実データで発覚）。
-    # 間違う方向が「重い科目を軽いと言う」側なので、算出せず None を返す。
-    # 総合値は score() のカバレッジ判定で「情報不足」に落ちる。
-    if count is None and words is None and hours is None:
-        if ratio:
-            return None, [f"レポートが成績の{ratio:.0f}%だが、本数・分量が未取得"]
-        return None, []
-
     why = []
-    load = 0.0
-    if ratio is not None:
-        load += ratio * REPORT_RATIO_COEF
+    load = ratio * REPORT_RATIO_COEF
+    if ratio > 0:
         why.append(f"レポートが成績の{ratio:.0f}%")
+    else:
+        why.append("レポートなし")
     if count is not None:
         load += min(count, 10) * 6.0
         why.append(f"レポート{count}本")
-    if c.get("report_words"):
-        w = c["report_words"]
-        load += min(w / 8000.0, 1.0) * 20.0
-        why.append(f"1本あたり約{w:,}字")
+    if words:
+        load += min(words / 8000.0, 1.0) * 20.0
+        why.append(f"1本あたり約{words:,}字")
     if hours is not None:
         load += min(hours / 4.0, 1.0) * 25.0
         why.append(f"時間外学習の指示 週{hours}時間")
+    if ratio > 0 and count is None and words is None:
+        why.append("本数・分量は取得できていないため、形のみで判定")
     return _clamp(100.0 - load), why
 
 
