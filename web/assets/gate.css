@@ -1,0 +1,51 @@
+/* LINE 登録しないと使えない機能の覆い。
+   「見えるけど押せない」（2026-09-14 wang さんの指定）なので、中身は
+   隠さず薄くするだけにして、その上に押せない層を重ねる。 */
+
+.gated{position:relative}
+
+/* 中身。opacity だけで薄くする ―― filter:blur を使うと「読めない」に
+   なってしまい、何がロックされているのか分からなくなる。 */
+.gated > .gateInner{opacity:.42;pointer-events:none;user-select:none}
+
+/* 覆い。中身の上に重ね、クリックを全部受ける。
+   中身が透けて見える程度の地色にする（完全に塗ると「見える」が死ぬ）。 */
+.gateVeil{
+  position:absolute;inset:0;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  padding:var(--sp-3);
+  border:1px dashed var(--brand-line);
+  border-radius:var(--r-md);
+  background:color-mix(in srgb, var(--card) 72%, transparent);
+  cursor:pointer;
+  /* 覆い自体は装飾。読み上げ・タブ順は中のボタンが担う。 */
+  text-align:center;
+}
+.gateVeil:hover{background:color-mix(in srgb, var(--card) 84%, transparent)}
+
+/* color-mix を解さないブラウザ向け。半透明が効かないだけで
+   「中身が見えない」にはならないよう、地色そのものは薄いものにする。 */
+@supports not (background: color-mix(in srgb, red 50%, transparent)){
+  .gateVeil{background:var(--brand-soft)}
+}
+
+.gateBox{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);max-width:30em}
+.gateLead{margin:0;font-size:var(--fs-sm);font-weight:700;color:var(--ink);line-height:1.55}
+.gateSub{margin:0;font-size:var(--fs-xs);color:var(--soft);line-height:1.6}
+
+/* 促しボタン。フッタの LINE ボタンと同じ見た目に寄せる。 */
+.gateBtn{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:9px 18px;border:0;border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);
+  font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;
+}
+.gateBtn:hover{filter:brightness(1.06)}
+.gateBtn:focus-visible{outline:2px solid var(--brand-text);outline-offset:2px}
+
+/* 小さい画面では覆いの文字が中身より大きくなって潰れるので詰める。 */
+@media (max-width:480px){
+  .gateVeil{padding:var(--sp-2)}
+  .gateLead{font-size:var(--fs-xs)}
+  .gateSub{display:none}
+}

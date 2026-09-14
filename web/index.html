@@ -24,6 +24,9 @@
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
 <link rel="stylesheet" href="/assets/version.css">
+<!-- LINE 登録しないと使えない機能の覆い（data-gate を持つ節）。
+     判定は localStorage ではなくサーバー（GET /api/me）。理由は gate.js の頭。 -->
+<link rel="stylesheet" href="/assets/gate.css">
 <!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
      これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
      大きく出る」が成立せず、ただの文字列リンクになる。
@@ -98,23 +101,32 @@
       <!-- 条件チップは配点スライダーの「上」に置く。押すと下のスライダーが
            0% へ動く（同じ1つの状態を指している）。順番を入れ替えると、
            押した結果がどこに出るのか画面から読めなくなる。 -->
+      <!-- data-gate … LINE 登録するまで覆いをかける節（gate.js）。
+           見出しは覆いの外に置く ―― 何がロックされているか分からないと、
+           登録する理由も伝わらない。 -->
       <section>
         <h2>条件</h2>
-        <div class="chips" id="conds"></div>
+        <div data-gate>
+          <div class="chips" id="conds"></div>
+        </div>
       </section>
 
       <section>
         <h2>配点でしぼる</h2>
-        <button class="toggle" id="tog">配点スライダーを閉じる</button>
-        <div class="sliders open" id="sliders"></div>
-        <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も
-             条件を満たさない。0件になってから気付かせず、先に理由を出す。 -->
-        <p class="capWarn" id="capWarn" hidden>上限の合計が100%を下回っています。成績評価の内訳は合計100%なので、この組み合わせに当てはまる科目はありません。</p>
+        <div data-gate>
+          <button class="toggle" id="tog">配点スライダーを閉じる</button>
+          <div class="sliders open" id="sliders"></div>
+          <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も
+               条件を満たさない。0件になってから気付かせず、先に理由を出す。 -->
+          <p class="capWarn" id="capWarn" hidden>上限の合計が100%を下回っています。成績評価の内訳は合計100%なので、この組み合わせに当てはまる科目はありません。</p>
+        </div>
       </section>
 
       <section>
         <h2>口コミ</h2>
-        <div class="chips" id="trust"></div>
+        <div data-gate>
+          <div class="chips" id="trust"></div>
+        </div>
       </section>
 
       <section>
@@ -257,6 +269,8 @@
      Cookie を置かず、個人を特定する情報も送らない。
      自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
 <script src="/assets/analytics.js" defer></script>
+<!-- 覆いは app.js / mypage.js が描き終わってから掛ける（gate.js 内で待つ）。 -->
+<script src="/assets/gate.js" defer></script>
 <!--/SHELL:FOOTER-->
 </div>
 
