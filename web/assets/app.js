@@ -230,7 +230,7 @@ function buildFaculty(facets){
        <button class="toggle" id="divsTog"></button>
        <div class="chips" id="divs"></div>
 
-       <h2 class="facH">学部からさがす</h2>
+       <h2 class="facH">学部学科からさがす</h2>
        <select id="facSel"></select>
        <select id="trackSel" hidden></select>
 
