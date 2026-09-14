@@ -1,0 +1,72 @@
+/* About ページ専用。「ラクハンの強み」の画像カルーセルだけがここに入る
+ * （他の見出し・段落は app.css の .prose に任せる）。
+ * 値の定義場所は tokens.css だけ、という取り決めは他ページと同じ
+ * （tools/test_tokens.py が見張っている）。
+ */
+
+.strCarousel{margin-top:var(--sp-4)}
+
+/* 横スクロール1本を台にする。scroll-snap でページング、矢印・ドットは
+ * 下の .strCtrl から操作する（画像の上に重ねない ―― 重ねると
+ * 内訳バーやボタンなど、画像側の文字と衝突しやすいため）。 */
+.strTrack{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;gap:var(--sp-5);
+  scrollbar-width:none;margin:0;padding:0;list-style:none}
+.strTrack::-webkit-scrollbar{display:none}
+.strTrack:focus-visible{outline:2px solid var(--focus);outline-offset:3px}
+
+/* スライド1枚＝1枚のカード。画像とキャプションを同じ枠の中に収める
+ * （以前は画像だけ枠があり、説明文はその外に浮いていた）。 */
+.strSlide{flex:0 0 100%;scroll-snap-align:start;margin:0;min-width:0;
+  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-lg);overflow:hidden}
+
+/* 画像はグレー地のパネルの中に、白い角丸カードとして収める
+ * （/design で3案を比較して本人が選んだ「背景で1枚にまとめる」案）。
+ * 以前は画像をカードいっぱいに敷いていたが、5枚目（2枚並び）の境目が
+ * ただの余白で分かりにくかったため、地の差で境目を作る方式に統一した
+ * ―― 1〜4枚目（画像1枚）も揃えて同じ地にする。
+ * 高さは決め打ちにせず、画像自身の縦横比のままにする ―― 前は高さを
+ * 固定して object-fit:contain で収めていたが、縦長のスクショ
+ * （詳細パネルなど）が枠の中で小さく縮んでしまっていた。 */
+/* display:block が要る。.strFig は HTML 側では <span>（既定 inline）で、
+ * inline のままだと中の <img>（display:block）の幅は .strFig の
+ * padding ぶん内側ではなく .strSlide いっぱいに広がってしまう
+ * ―― 上下の余白は付くのに左右だけ付かない、という形で発覚した
+ * （2026-09-14 本人指摘）。 */
+.strFig{display:block;background:var(--dim);padding:var(--sp-3)}
+/* <picture> も既定 inline なので、.strFig と同じ理由で block にする
+ * （無いと中の img の幅の基準がまた外側へ抜ける）。実寸は img 側の
+ * width:100% が持つので、picture 自身は等幅に育つだけでよい。 */
+.strFig picture{display:block;width:100%}
+.strFig img{display:block;width:100%;height:auto;
+  border:1px solid var(--rule);border-radius:var(--r-md)}
+
+/* 5枚目だけ、画像2枚を横に並べて半分幅ずつ表示する（本人の指定）。
+ * 2枚とも同じ高さ（544×720）に揃えてあるので、上下ともきれいに並ぶ。
+ * 半分幅は picture（flex item）側に持たせる ―― img 側に付けると
+ * 「.strFig picture の 100%」の50%という2段の%計算になり崩れやすい。 */
+.strFigSplit{display:flex;align-items:flex-start;gap:var(--sp-3)}
+.strFigSplit picture{width:calc(50% - var(--sp-3) / 2)}
+
+.strSlide figcaption{padding:var(--sp-4);font-size:var(--fs-sm);color:var(--soft);line-height:1.7}
+.strSlide figcaption b{color:var(--ink)}
+
+/* 矢印＋ドットの操作列。画像の下、キャプションの外に置く。
+ * 順番は ‹・ドット・› ―― 参考サイト（KULMS+）と同じ並び。
+ * width:100% は上の .strFig と横幅をそろえるため（無いと中身の幅だけの
+ * 小さな塊になり、画像より狭く見えて浮いてしまう）。 */
+.strCtrl{display:flex;align-items:center;justify-content:center;gap:var(--sp-4);
+  width:100%;margin-top:var(--sp-3)}
+.strNav{flex:none;width:34px;height:34px;padding:0;border:1px solid var(--rule);border-radius:var(--r-pill);
+  background:var(--card);color:var(--brand-text);font-size:18px;line-height:1;cursor:pointer;
+  display:flex;align-items:center;justify-content:center}
+.strNav:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+.strNav:disabled{opacity:.35;cursor:default}
+.strDots{display:flex;align-items:center;gap:7px}
+.strDot{width:8px;height:8px;padding:0;border:none;border-radius:var(--r-pill);
+  background:var(--rule);cursor:pointer}
+.strDot.on{width:20px;background:var(--brand)}
+
+/* 実物のスクショだが、口コミ件数やスコアは日々変わる。撮影時点の一例だと
+ * 分かるようにする注記（参考サイトの「画像はイメージです」に合わせた）。 */
+.strNote{margin-top:var(--sp-3);text-align:center;font-size:var(--fs-xs);color:var(--muted)}
