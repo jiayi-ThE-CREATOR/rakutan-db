@@ -38,48 +38,54 @@ check(cards > 0, "カードが1枚も出ていない（前提が崩れている�
 check(cards === codes, `コードが出ていないカードがある（カード${cards}枚・コード${codes}個）`);
 
 const firstId = await page.locator(".card").first().getAttribute("data-id");
-const firstCode = (await page.locator(".card").first().locator(".mCode").textContent()).trim();
+/* 数字は .mCode の中の地のテキスト、コピー先の値は .ccC の data-code。
+   2つがズレると「見ている数字と違うものがコピーされる」ので両方見る。 */
+const firstCode = await page.locator(".card").first().locator(".mCode").evaluate(
+  el => el.childNodes[0].textContent.trim());
+check(await page.locator(".card").first().locator(".ccC").getAttribute("data-code") === firstId,
+      "コピー先の data-code が科目の id と違う");
 check(firstCode === firstId,
       `カードのコードが data-id と違う（表示 ${firstCode} / 実体 ${firstId}）`);
 check(/^\d{6}$/.test(firstCode), `コードが6桁の数字でない（${firstCode}）`);
 
-/* コードは .head（role="button"）の中に置く＝押せる要素の入れ子を作らない。
-   一覧では「見えるだけ」で、押したらカードが開くのが正しい挙動。 */
+/* コードは .head（role="button"）の中＝ .meta の行に置く。
+   一覧側は <span>（押せる要素の入れ子を作らない）、PCの右ペインは <button>。 */
 check(await page.locator(".card .head .mCode").count() === codes,
       "コードが .meta（.head の中）に無い");
-check(await page.locator(".card .mCode button, .card .head .codeChip").count() === 0,
-      "一覧カードに押せるコード要素がある（.head は role=button なので入れ子になる）");
+check(await page.locator(".card .head button").count() === 0,
+      "一覧カードの .head の中に <button> がある（role=button の入れ子になる）");
+check(await page.locator(".dActs .codeChip, .codeChip").count() === 0,
+      "詳細の全幅チップが残っている（この行へ移したはず）");
 
-// ── ② 詳細のコピーチップ ────────────────────────
-await page.locator(".card").first().locator(".head").click();
-await page.waitForSelector(".detail .dSec, #inspector .dSec");
+// ── ② 行の中でコピーできる ────────────────────
+const codeEl = page.locator(".card").first().locator(".mCode");
+const copyEl = codeEl.locator(".ccC");
+check((await copyEl.textContent()).includes("コピー"),
+      "数字の右に「コピー」が出ていない");
 
-const chip = page.locator(".codeChip").first();
-check(await chip.count() === 1 || await page.locator(".codeChip").count() > 0,
-      "詳細に .codeChip が無い");
-check(await chip.getAttribute("data-code") === firstId,
-      "詳細のチップの data-code が科目の id と違う");
-check((await chip.textContent()).includes(firstId),
-      "詳細のチップに6桁が出ていない");
-check((await chip.textContent()).includes("時間割コード"),
-      "詳細のチップに「時間割コード」の呼び名が無い");
-
-/* KOAN リンクの真上にあること（コードを控える→KOANを開く、の順） */
-const order = await page.evaluate(() => {
-  const acts = document.querySelector(".dActs");
-  if (!acts) return null;
-  return [...acts.children].map(el => el.className.split(" ")[0]);
-});
-check(order && order.indexOf("codeChip") >= 0 && order.indexOf("koanLink") >= 0
-      && order.indexOf("codeChip") < order.indexOf("koanLink"),
-      `チップが KOAN リンクの上に無い（${JSON.stringify(order)}）`);
-
-await chip.click();
+await copyEl.click();
 await page.waitForTimeout(150);
 const copied = await page.evaluate(() => navigator.clipboard.readText());
 check(copied === firstId, `コピーされたのが id と違う（${copied} / ${firstId}）`);
-check((await chip.textContent()).includes("コピーしました"),
+check((await copyEl.textContent()).includes("コピー済"),
       "コピーした手応え（文言の切り替え）が出ない");
+/* コードを押してカードが開いてしまわないこと（capture 段で止めている）。
+   ここが崩れると、コピーのたびに詳細が開いて一覧が飛ぶ。 */
+check(await page.locator(".card").first().locator(".detail .dSec").count() === 0,
+      "「コピー」を押しただけでカードが開いた（stopPropagation が効いていない）");
+
+/* 数字そのものは押せない＝押せばカードが開く（誤爆防止の要）。 */
+await page.locator(".card").first().locator(".title").click();
+await page.waitForSelector(".detail .dSec, #inspector .dSec");
+check(await page.locator(".detail .dSec, #inspector .dSec").count() > 0,
+      "科目名を押してもカードが開かない（回帰）");
+
+/* 押せる面が広がりすぎていないこと。ここはカードの本文の中なので、
+   大きくすると「カードを開こうとした指がコピーに当たる」が増える。
+   ラベル1つぶん（だいたい 70×30px）を超えたら作り直しを疑う。 */
+const box = await copyEl.boundingBox();
+check(box && box.width <= 90 && box.height <= 34,
+      `コピーの当たり判定が広すぎる（${box && Math.round(box.width)}×${box && Math.round(box.height)}px）`);
 
 // ── ③ コードで検索 ──────────────────────────────
 await page.fill("#q", firstId);
