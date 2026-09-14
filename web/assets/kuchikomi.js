@@ -458,7 +458,9 @@ function renderExtraSelect() {
     o.value = r.id;
     const mark = done[`${state.semester}-x-${r.id}`] ? '✅ ' : '';
     const who = r.instructor ? `（${r.instructor}）` : '';
-    o.textContent = `${mark}${r.title}${who}　[${r.day_period || '曜限なし'}]`;
+    /* 末尾に時間割コード（KOAN の6桁）。同姓同名の科目が並ぶので、
+       どれを選んだのかを学生自身が KOAN 側と突き合わせられるようにする。 */
+    o.textContent = `${mark}${r.title}${who}　[${r.day_period || '曜限なし'}] ${r.id}`;
     return o;
   };
 
@@ -662,7 +664,8 @@ function renderModalSubjectOptions() {
       option.value = subj.id;
       /* 同じ科目名が曜限違いで何コマもある（基礎解析学Iは10コマ以上）。
          担当教員はコマの特定に要るので必ず出す。 */
-      option.textContent = subj.instructor ? `${subj.title}（${subj.instructor}）` : subj.title;
+      const base = subj.instructor ? `${subj.title}（${subj.instructor}）` : subj.title;
+      option.textContent = `${base} ${subj.id}`;
       els.modalSubjectSelect.appendChild(option);
     });
     if ([...els.modalSubjectSelect.options].some(o => o.value === keep)) {

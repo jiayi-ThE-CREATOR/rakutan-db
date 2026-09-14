@@ -17,6 +17,71 @@
 
 ---
 
+## 2026-09-14 ｜ 各科目に時間割コード（KOAN の6桁）を表示 ｜ Claude → 次の人
+
+wangから「KOAN にある授業コードを全部の科目に付けてほしい」。
+データ側は既に揃っていた ―― `courses.built.json` の `id` がその6桁そのもので、
+7,906件すべてに入っていて重複ゼロ（`koanUrl()` も同じ値を `j_cd` に渡している）。
+なので **scrape / build.py / score.py は一切触らず、表示だけ**を足した。
+呼び名は KOAN の画面と同じ「時間割コード」に統一（LINE bot が出していた
+「授業コード」もこちらへ寄せた）。
+
+### 1. 何が動く状態か
+
+    cd .worktrees/koancode/web && python3 -m http.server 8203 &
+    node ../tools/test_koan_code.mjs http://localhost:8203     # OK 19 checks
+
+出るのは5か所：
+
+- **一覧カード**の `.meta`（曜限・教員・キャンパス・区分の後ろ）。素のテキスト
+- **詳細**の `.dActs`、KOAN リンクの真上に `時間割コード 135312 ⧉コピー` のチップ。
+  押すとクリップボードへ入り、1.6秒だけ「コピーしました」に変わる
+- **マイページ**：時間割のマス（科目名の下に9px）・科目ピッカー・お気に入り・時間割外の行
+- **口コミ**：時間割外の科目セレクタと、モーダルの科目セレクタの選択肢末尾
+- **LINE bot**：既にあった行の呼び名だけ変更
+
+検索も通る（`#q` に `135312`）。API モードも同じ：
+
+    python3 server.py --port 8205
+    curl -s --get --data-urlencode "q=１３８５３１" localhost:8205/api/courses   # → 1件
+
+### 2. 何をしていないか
+
+- **一覧カードからは直接コピーできない**（見えるだけ）。`.head` が `role="button"` なので、
+  中に押せる要素を置くと入れ子になる（`.favBtn` を外に出してあるのと同じ理由）。
+  一覧からもコピーさせたいなら、チップを `.cardActs` の4つ目に置く形になる
+  ―― 390px で「口コミN件を読む／✎／＋時間割」に並ぶと詰まるので、やるなら要デザイン判断
+- **口コミページの2つの検索窓はコードで引けない**（`r.title.includes(q)` のまま）。
+  選択肢にコードは出るが、検索語としては科目名だけ。直すなら kuchikomi.js の
+  `extraCandidates()` と `renderModalSubjectOptions()` の2か所
+- コード検索の下限は**数字3桁**（`matchesQuery` / `_matches_query`）。「1」で数千件
+  当たって科目名の検索が潰れるのを避けるため。1〜2桁で引きたい要望が出たら要相談
+- `tools/test_kuchikomi_modal.mjs`（「詳細に .rv が残っている」）と `tools/smoke.mjs`
+  （POST 501）は**この変更の前から落ちている**。main の checkout で同じ結果を確認ずみ
+  ―― 前者は 2026-09-10 に詳細へ口コミ集計を出した仕様変更にテストが追いついていない、
+  後者は `python3 -m http.server` が POST を持たないだけ（`server.py` なら通る）
+- スマホ実機では見ていない（390px のスクショのみ）
+
+### 3. 次の人が最初にやること
+
+とくに無し。版（右下のバージョン表示）に載せるかは wang に確認中。
+
+### 4. 踏んだ罠
+
+- **`.meta` の行は2か所ある** ―― 一覧カード（`card()`）とPCの右ペイン
+  （`showDetail()` の `.inspectorHead`）。片方だけ直すと、PC でだけコードが
+  出ない状態になる。`grep -n 'class="meta"' web/assets/app.js` で2件出るのが正
+- **チップの委譲先は `document`**。`#list` に付けると PC の `#inspector` に出た
+  チップが死ぬ（`.favBtn` / `.ttAddBtn` が `#list` 委譲なのは、あちらが
+  カードの中にしか出ないから。同じ形を真似すると外す）
+- `navigator.clipboard` は **secure context でないと存在しない**。本番は https だが、
+  チームが確認に使う `http://<LAN IP>:8000` では丸ごと無い。textarea +
+  `execCommand("copy")` のフォールバックを付けてある
+- 検索を直すときは **`app.js` の `matchesQuery` と `server.py` の `_matches_query` が対**。
+  静的モードと API モードで結果が食い違うと、同じ URL を開いた2人の画面が変わる
+
+---
+
 ## 2026-09-11 ｜ 外国語学部・日本語専攻に専攻語の二段目セレクタを追加 ｜ Claude → 次の人
 
 wangから：外国語学部は専攻語ごとに一つ別の言語を学ぶ（例：日本語専攻の人も中国語を履修する）。

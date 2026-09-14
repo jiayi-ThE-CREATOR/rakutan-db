@@ -636,6 +636,70 @@ function insLabel(c){
    名前が無い科目では span ごと出さないと「・・」が残る。 */
 const insMetaSpan = c => insLabel(c) ? `<span>${esc(insLabel(c))}</span>` : "";
 
+/* ── 時間割コード ───────────────────────────
+ * KOAN の履修登録で打ち込む6桁。`c.id` がその値そのもので、koanUrl() も
+ * 同じものを j_cd に渡している。courses.built.json の 7,906件すべてに
+ * 入っていて重複が無いので、出すだけ ―― build 側は触らない。
+ *
+ * 一覧カードでは「見えるだけ」の素のテキストにする。.head は role="button"
+ * （カードを開く当たり判定）なので、その中に押せる要素を入れると押せる要素の
+ * 入れ子になる ―― .favBtn を .head の外に出してあるのと同じ理由。
+ * コピーは詳細のチップ（codeChipHtml）で1タップ。 */
+const codeMetaSpan = c => c.id ? `<span class="mCode">${esc(c.id)}</span>` : "";
+
+/* 詳細のコピーチップ。置き場所は .dActs の中、KOAN リンクの**真上**
+   ―― 履修登録の動線（コードを控える → KOAN を開く）がそこで閉じる。
+   .dActs>* が全幅ボタンの見た目を持つので、ここでは中身だけを組む。 */
+function codeChipHtml(c){
+  if (!c.id) return "";
+  return `<button type="button" class="codeChip" data-code="${esc(c.id)}"
+      aria-label="時間割コード ${esc(c.id)} をコピー"
+    ><span class="ccL">時間割コード</span><b class="ccN">${esc(c.id)}</b
+    ><span class="ccC">⧉ コピー</span></button>`;
+}
+
+/* コピーの実体。https の本番では navigator.clipboard が使えるが、
+   チームが確認に使う http://<LAN IP>:8000 は secure context ではないので
+   clipboard が丸ごと無い。そこでテキストエリア＋execCommand に落ちる
+   （非推奨だが、落ちた先が「何も起きない」になるよりはよい）。 */
+async function copyText(text){
+  try {
+    if (navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) { /* 下のフォールバックへ */ }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:-100px;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch (e) { return false; }
+}
+
+/* チップは一覧カードの中（.detail）とPCの #inspector の両方に出るので、
+   委譲先は document にする（#list だけだと PC 側で効かない）。 */
+document.addEventListener("click", async e => {
+  const chip = e.target.closest(".codeChip");
+  if (!chip) return;
+  const code = chip.dataset.code || "";
+  const label = chip.querySelector(".ccC");
+  const ok = await copyText(code);
+  if (!label) return;
+  clearTimeout(chip._ccT);
+  label.textContent = ok ? "コピーしました" : "長押しで選んでコピー";
+  chip.classList.toggle("copied", ok);
+  chip._ccT = setTimeout(() => {
+    label.textContent = "⧉ コピー";
+    chip.classList.remove("copied");
+  }, 1600);
+});
+
 /* 口コミの件数表示。件数そのものは操作バーの「口コミ N件を読む」が持つので、
    ここが返すのは「まだ採点に入っていない」の注意帯だけ（2026-09-06）。
    導線の文言（「タップして中身を見る ↓」）も外した ―― 読む先は
@@ -733,7 +797,7 @@ function card(c){
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
       </div>
       <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
@@ -859,6 +923,7 @@ function detailHtml(c){
         ${first ? `<p class="dQuote">${esc(first)}</p>` : ""}
       </div>` : ""}
       <div class="dActs">
+        ${codeChipHtml(c)}
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       </div>`;
 }
@@ -936,6 +1001,23 @@ async function panelListHtml(id){
 const DATA = { mode: null, courses: [] };
 
 const norm = s => String(s || "").replace(/[\s　]+/g, "").toLowerCase();
+
+/* 検索語で当てるのは「科目名」と「時間割コード」の2つだけ。
+   教員名は足さない ―― README「教員名の扱い」の線（教員を軸にした検索を
+   作らない）はここが入口になる。
+   コードは6桁の数字なので、打たれた語から数字だけを抜いて部分一致で見る。
+   全角で打つ学生がいるので半角に寄せる。3桁未満では見ない ―― 「1」で
+   7,000件のうち数千件が当たると、科目名の検索が使い物にならなくなる。
+   server.py の _matches_query と同じ内容。片方だけ直さないこと。 */
+const ZEN_DIGITS = "０１２３４５６７８９";
+const codeDigits = q => String(q || "")
+  .replace(/[０-９]/g, ch => String(ZEN_DIGITS.indexOf(ch)))
+  .replace(/\D/g, "");
+function matchesQuery(c, q){
+  if (norm(c.title).includes(norm(q))) return true;
+  const d = codeDigits(q);
+  return d.length >= 3 && String(c.id || "").includes(d);
+}
 
 /* 口コミの件数。reviews を持たない科目は0件として扱う（server.py と同じ）。 */
 const reviewCount = c => ((c.reviews || {}).n) || 0;
@@ -1095,7 +1177,7 @@ function queryLocal(){
 
   const base = [];
   for (const c of DATA.courses){
-    if (state.q && !norm(c.title).includes(norm(state.q))) continue;
+    if (state.q && !matchesQuery(c, state.q)) continue;
     if (state.year !== "all" && !(c.eligible_years || []).includes(+state.year)) continue;
     // full（通年）はどちらの学期でも履修できるので必ず通す。
     if (state.sem !== "all" && c.term_group !== state.sem && c.term_group !== "full") continue;
@@ -1253,7 +1335,7 @@ function showDetail(c, article){
     ins.innerHTML = `<div class="inspectorHead">
         <button type="button" class="insClose" aria-label="この科目を閉じる">✕</button>
         <h3>${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span></div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
       </div><div class="detail">${detailHtml(c)}</div>`;
     ins.querySelector(".insClose").onclick = closeDetail;
     ins.scrollTop = 0;
