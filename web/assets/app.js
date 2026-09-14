@@ -27,7 +27,12 @@ const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), 
                 caps:{ attendance:100, exam:100, quiz:100, report:100 },
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
-                faculty:"", track:"", division:new Set() };
+                /* track2＝専攻語が「日本語」の学生が実際に履修するもう一つの専攻語。
+                   外国語学部の日本語専攻は、自分の専攻語（日本語）とは別に
+                   もう一つの言語を履修し、その言語の専攻語科目をそのまま取る
+                   （中国語を選べば中国語専攻の学生と同じ科目）。絞り込みでは
+                   track の代わりに track2 を使う。 */
+                faculty:"", track:"", track2:"", division:new Set() };
 const SEMS = [["aki","秋・冬学期"],["haru","春・夏学期"],["all","すべて"]];
 const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
                ["5","5年"],["6","6年"],["all","すべて"]];
@@ -56,6 +61,7 @@ function qs(){
   state.cond.forEach(c => p.append("cond", c));
   if (state.faculty) p.set("faculty", state.faculty);
   if (state.track) p.set("track", state.track);
+  if (state.track2) p.set("track2", state.track2);
   state.division.forEach(d => p.append("division", d));
   for (const k of CAP_AXES) if (state.caps[k] < NO_CAP) p.set("cap_" + k, state.caps[k]);
   return p;
@@ -117,6 +123,15 @@ function buildYears(){
    （設計 1章① を読むこと）。 */
 
 const DIV_OTHER = "other";   // 「まだ判定していない」科目の置き場。データには書かない
+// 外国語学部の専攻語のうち「日本語」だけは、もう一つ言語を選ばせる特別枠。
+// requirements.json の外国語学部 tracks に出てくる固定のキー。
+const FS_JAPANESE_TRACK = "fs_lang:R";
+
+// 絞り込みに実際に使うトラック。日本語専攻で言語を選んでいれば、その言語の
+// 専攻語科目をそのまま取る＝その言語のキーで絞る（自分の専攻語＝日本語では絞らない）。
+function effectiveTrack(){
+  return (state.track === FS_JAPANESE_TRACK && state.track2) ? state.track2 : state.track;
+}
 
 /* チップにする区分だけを返す。chip:false の区分（第1外国語）は、内訳の
    総合英語・実践英語が実在する区分なので、親はチップにしない
@@ -232,7 +247,10 @@ function buildFaculty(facets){
 
        <h2 class="facH">学部学科からさがす</h2>
        <select id="facSel"></select>
-       <select id="trackSel" hidden></select>
+       <div class="trackRow" id="trackRow">
+         <select id="trackSel" hidden></select>
+         <select id="trackSel2" hidden></select>
+       </div>
 
        <div id="facOwn" hidden>
          <h2 class="facH" id="facOwnH"></h2>
@@ -251,11 +269,15 @@ function buildFaculty(facets){
     // 学部をまたいで残すと「ドイツ語専攻のまま工学部」のような、
     // 存在しない絞り込みになる。
     $("#facSel").onchange = e => {
-      state.faculty = e.target.value; state.track = "";
+      state.faculty = e.target.value; state.track = ""; state.track2 = "";
       dropForeignDivisions();
       load();
     };
-    $("#trackSel").onchange = e => { state.track = e.target.value; load(); };
+    $("#trackSel").onchange = e => {
+      state.track = e.target.value; state.track2 = "";
+      load();
+    };
+    $("#trackSel2").onchange = e => { state.track2 = e.target.value; load(); };
     // 既定は閉じる。すでに区分を選んでいる状態（URL復元など）なら、
     // 選択が見えなくならないよう開いたままにする。
     const startOpen = state.division.size > 0;
@@ -300,6 +322,23 @@ function buildFaculty(facets){
     // 実際に「文学部なのに専攻語を選ぶ」が見えていた）。
     tsel.innerHTML = "";
     if (state.track) state.track = "";
+  }
+
+  /* 日本語専攻だけの追加枠。専攻語＝日本語の学生は、卒業要件上もう一つ言語を
+     履修し、その言語の専攻語科目をそのまま取る（例：中国語を選べば中国語専攻の
+     学生と同じ科目）。選ばせるのは専攻語の一覧から日本語自身を除いたもの。 */
+  const t2sel = $("#trackSel2");
+  const showLang2 = tracks.length > 0 && state.track === FS_JAPANESE_TRACK;
+  t2sel.hidden = !showLang2;
+  $("#trackRow").classList.toggle("split", showLang2);
+  if (showLang2){
+    t2sel.innerHTML = `<option value="">${esc(fac.tracks_label || "専攻語を選ぶ")}</option>`
+      + tracks.filter(t => t.key !== FS_JAPANESE_TRACK)
+              .map(t => `<option value="${esc(t.key)}">${esc(t.label)}</option>`).join("");
+    t2sel.value = state.track2;
+  } else {
+    t2sel.innerHTML = "";
+    if (state.track2) state.track2 = "";
   }
 
   // 下段＝その学部だけの区分。
@@ -389,13 +428,33 @@ const TRUST_CONDS = ["口コミあり"];
 
 /* 配点系チップが点いているか＝そのチップの軸がすべて 0% か。
    state.cond には入れない（入れると同じことを2か所で持つことになる）。 */
-const chipOn = c => c in CHIP_CAPS
-  ? Object.keys(CHIP_CAPS[c]).every(k => state.caps[k] === 0)
-  : state.cond.has(c);
+const capsZero = c => Object.keys(CHIP_CAPS[c]).every(k => state.caps[k] === 0);
+const chipOn = c => c in CHIP_CAPS ? capsZero(c) : state.cond.has(c);
+
+/* 2026-09-11: 「レポートのみ」は試験・出席・小テストの3軸を 0% にするので、
+   1軸だけ見る「出席なし」「小テストなし」も同時に条件を満たし、3つとも光る。
+   同じ濃さで光ると、自分が押した1つがどれか画面から読めない（本人指摘）。
+
+   **絞り込みの中身は変えない。** 実際に出席0%で絞れている以上、「出席なし」を
+   消灯させるのは画面が嘘をつくことになる。見分けたいだけなので、
+   広いチップに含まれて点いている側を淡い地（--brand-soft）で出す。
+   広い＝自分の軸を全部含み、かつ軸の数が多いチップ。
+   返すのは「どれに含まれているか」の名前（title に出して理由を言う）。 */
+const chipImpliedBy = c => {
+  if (!(c in CHIP_CAPS) || !capsZero(c)) return "";
+  const mine = Object.keys(CHIP_CAPS[c]);
+  return Object.keys(CHIP_CAPS).find(d => d !== c && capsZero(d)
+    && mine.every(k => k in CHIP_CAPS[d])
+    && Object.keys(CHIP_CAPS[d]).length > mine.length) || "";
+};
 
 function chipRow(el, names, facets){
-  el.innerHTML = names.map(c =>
-    `<button class="chip${chipOn(c)?" on":""}" data-c="${esc(c)}">${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`).join("");
+  el.innerHTML = names.map(c => {
+    const by = chipImpliedBy(c);
+    return `<button class="chip${chipOn(c)?" on":""}${by?" imp":""}" data-c="${esc(c)}"` +
+      (by ? ` title="「${esc(by)}」に含まれています"` : "") +
+      `>${esc(c)}<span class="n">${facets?.[c] ?? 0}</span></button>`;
+  }).join("");
   el.querySelectorAll("button").forEach(b => b.onclick = () => {
     const c = b.dataset.c;
     if (c in CHIP_CAPS){
@@ -991,14 +1050,22 @@ function matchLocal(r){
     const unc = r.eval_unclassified;
     const min = (META && META.eval_total_min) || 80;
     let reason;
+    /* 2026-09-11: 読み分けられない項目がある科目（363件）の文言を、こちらの
+       都合の説明から読む人への案内に変えた。「種類に読み分けられなかった」は
+       こちらの分類器の話で、読む人には何の情報でもない。この363件は成績の
+       つけ方がそもそも特殊なので点数は出さず、シラバスの表をそのまま写して
+       いる下の「成績評価の内訳」を読んでもらう。score.py の _unjudged_reason
+       と同文。片方だけ直さないこと。 */
+    const TOKUSHU = "この授業は成績のつけ方が特殊なため、点数での判定は出していません。"
+                  + "下の「成績評価の内訳」に、シラバスに書かれているとおりの項目と配点を出しています。";
     if (cap === null || cap === undefined)
       reason = unc
-        ? "シラバスの成績評価の内訳を、こちらで種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。"
+        ? TOKUSHU
         : "シラバスに成績評価の内訳が載っていないため、判定を出していません。";
     else if (cap >= min)
       reason = "";          // 口コミ待ちは band の下の ※ の行が言う（bandNoteText）
     else if (unc)
-      reason = `シラバスの成績評価の内訳のうち${Math.round(cap)}%分しか種類に読み分けられなかったため、判定を出していません。内訳そのものは科目の詳細に出しています。`;
+      reason = TOKUSHU;
     else
       reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
     return { fit:null, reason, labels:META.axis_labels };
@@ -1023,7 +1090,8 @@ function matchLocal(r){
    そうしないとコマを押した瞬間に他のコマが全部0件になり、次の一手が打てない。 */
 function queryLocal(){
   const conds = [...state.cond].filter(k => k in CONDITIONS);
-  const trackAxis = state.track ? state.track.split(":")[0] + ":" : "";
+  const track = effectiveTrack();
+  const trackAxis = track ? track.split(":")[0] + ":" : "";
 
   const base = [];
   for (const c of DATA.courses){
@@ -1038,7 +1106,7 @@ function queryLocal(){
     // トラック（専攻語・学科）は同じ軸の中でだけ効かせる。トラックを持たない
     // 科目（共通教育・学部共通など）は通す ―― 落とすと上段の共通区分が
     // まるごと0件になる。
-    if (trackAxis && c.track && c.track.startsWith(trackAxis) && c.track !== state.track) continue;
+    if (trackAxis && c.track && c.track.startsWith(trackAxis) && c.track !== track) continue;
     base.push({ ...c, match: matchLocal(c.rakutan) });
   }
 
@@ -1391,6 +1459,11 @@ $("#list").addEventListener("click", e => {
  * このサービスの価値は、絞ったことのほうにある。
  */
 let page = 1;
+/* 下の一覧に実際に並べる分（「あなたに合う」枠に出したぶんを抜いたもの）と、
+   抜いた件数。renderPager は resize からも引数なしで呼ばれるので、
+   ページ送りの計算に要るこの2つはここに置いて共有する。 */
+let listed = [];
+let picked = 0;
 
 /* 1ページ目の先頭に出す推薦枠。人が確認ずみの科目からだけ選ぶ。
    ⚠️ 本一覧の並び順そのものは変えない。
@@ -1434,25 +1507,33 @@ function appendCards(parent, list){
    初回描画で動かすと、まだ何もしていないのに
    ヘッダが画面外へ流れていってしまう。 */
 function renderPage(n, scroll = false){
-  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  /* 2026-09-11：「あなたに合う」枠に出した科目が、すぐ下の一覧にも
+     そのまま並んでいた（本人指摘・実測3件）。枠に出したものは一覧から外す。
+
+     外すのは1ページ目だけでは足りない。**全ページから外す** ―― 1ページ目の
+     一覧だけから抜くと、抜いたぶんが後ろへ押し出されて2ページ目に現れ、
+     同じ重複が戻るだけになる。 */
+  const picks = topPicks();
+  const pickIds = new Set(picks.map(c => c.id));
+  listed = picks.length ? courses.filter(c => !pickIds.has(c.id)) : courses;
+  picked = picks.length;
+
+  const total = Math.ceil(listed.length / PAGE_SIZE) || 1;
   page = Math.max(1, Math.min(n, total));
   const list = $("#list");
   list.innerHTML = "";
 
-  if (page === 1){
-    const picks = topPicks();
-    if (picks.length){
-      const box = document.createElement("section");
-      box.className = "picks";
-      box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
-        `<span class="sub">人が確認ずみの科目から</span></h2>`;
-      appendCards(box, picks);
-      list.appendChild(box);
-    }
+  if (page === 1 && picks.length){
+    const box = document.createElement("section");
+    box.className = "picks";
+    box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
+      `<span class="sub">人が確認ずみの科目から</span></h2>`;
+    appendCards(box, picks);
+    list.appendChild(box);
   }
 
   const start = (page - 1) * PAGE_SIZE;
-  appendCards(list, courses.slice(start, start + PAGE_SIZE));
+  appendCards(list, listed.slice(start, start + PAGE_SIZE));
   renderPager();
 
   /* 左の絞り込みと右の詳細は sticky なので画面に残る。
@@ -1464,10 +1545,13 @@ function renderPage(n, scroll = false){
 function renderPager(){
   const el = $("#pager");
   if (!el) return;
-  const total = Math.ceil(courses.length / PAGE_SIZE) || 1;
+  const total = Math.ceil(listed.length / PAGE_SIZE) || 1;
   if (!courses.length || total <= 1){ el.innerHTML = ""; return; }
 
-  const shownTo = Math.min(page * PAGE_SIZE, courses.length);
+  /* 分母は courses.length（＝上の帯に出ている件数）のままにする。
+     「あなたに合う」枠に出したぶんも利用者はもう見ているので、分子に足す。
+     ここを listed.length にすると、帯の件数とページ送りの件数が食い違う。 */
+  const shownTo = Math.min(page * PAGE_SIZE, listed.length) + picked;
 
   /* 1,015件だと43ページになるので、番号を全部は出せない。
      先頭・末尾・現在の前後だけ出して、あいだは「…」で畳む。
@@ -1527,6 +1611,7 @@ async function load(retry){
   } else {
     $("#list").innerHTML =
       `<div class="empty">条件に合う科目がありません。<br>条件チップを外すか、別のコマを押してみてください。</div>`;
+    listed = []; picked = 0;   // 前回の結果を残したままページ送りを描かせない
     renderPager();
   }
 }

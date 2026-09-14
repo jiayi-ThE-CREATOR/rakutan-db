@@ -80,7 +80,7 @@ if target.is_file():
 if pages:
     with tempfile.TemporaryDirectory() as d:
         out = Path(d) / "syllabus_text.jsonl.gz"
-        wrote = run(RAW, out)
+        wrote = run([RAW], out)
         check(wrote == len(pages), f"書き出した件数が違う: {wrote} / {len(pages)}")
         check(out.is_file(), "出力ファイルが無い")
         with gzip.open(out, "rt", encoding="utf-8") as f:
@@ -92,6 +92,53 @@ if pages:
         per = out.stat().st_size / len(rows)
         check(per * 7906 < 20 * 1024 * 1024,
               f"7,906件に換算すると {per * 7906 / 1024 / 1024:.1f}MB で大きすぎる")
+
+# ── ③.5 英字を含む科目コード（2026-09-04 政岡さんの指摘） ──────
+# 🚨 実データの id 7,906件のうち **324件は数字だけではない**（00Z008 等）。
+# 数字だけを拾うと "00" に潰れ、324件が同じキーに重なって courses.built.json と
+# 突き合わなくなる。外国語学部197・文学部53・医学部36・理学部26・医保9・薬3。
+# **件数は7,600件などと出るので、渡された側は気づけない。**
+#
+# 正解はファイル名。fetch.py:74 が detail/{code}.html として保存し、
+# parse.py:171 が同じ code を id にしている ―― 構造上ここが一致する。
+with tempfile.TemporaryDirectory() as d:
+    fake = Path(d) / "00Z008.html"
+    fake.write_text(
+        "<table>"
+        "<tr><th>時間割コード</th><td>00Z008 (専攻科目)</td></tr>"
+        "<tr><th>開講科目名</th><td>アラビア語学講義</td></tr>"
+        "<tr><th>授業サブタイトル</th><td>語のかたち</td></tr>"
+        "<tr><th>第2回</th><td>題目:形態論</td></tr>"
+        "<tr><th>第10回</th><td>題目:統語論</td></tr>"
+        "</table>", encoding="utf-8")
+    row = extract_one(fake)
+    check(row["id"] == "00Z008",
+          f"英字を含む科目コードが切り詰められた: {row['id']!r}")
+    check(row["title"] == "アラビア語学講義", "科目名が取れていない")
+    # 各回の題目は回数の順（辞書の並び順ではない）。
+    check(row["kaiji"] == "題目:形態論 / 題目:統語論",
+          f"各回が回数順になっていない: {row['kaiji']!r}")
+
+# ── ③.6 取得先ディレクトリは複数指定できる ────────────────
+# 8/25 に全所属を取ったとき、所属ごとに分けて保存されている:
+#   data/raw/detail（共通教育1,111）/ data/raw/lang/detail（語学1,165）
+#   data/raw/f00〜f10/detail（学部の専門5,630）
+# 1か所しか見ないと 1,112件で終わる。scrape/parse.py と同じ --raw の形にする。
+with tempfile.TemporaryDirectory() as d:
+    a, b = Path(d) / "a" / "detail", Path(d) / "b" / "detail"
+    for i, dd in ((1, a), (2, b)):
+        dd.mkdir(parents=True)
+        (dd / f"0000{i}.html").write_text(
+            f"<table><tr><th>開講科目名</th><td>科目{i}</td></tr>"
+            f"<tr><th>授業の目的と概要</th><td>概要{i}</td></tr></table>",
+            encoding="utf-8")
+    out = Path(d) / "out.jsonl.gz"
+    wrote = run([a, b], out)
+    check(wrote == 2, f"2ディレクトリぶん書けていない: {wrote}")
+    with gzip.open(out, "rt", encoding="utf-8") as f:
+        got = {json.loads(line)["id"] for line in f}
+    check(got == {"00001", "00002"}, f"読み戻した id が違う: {got}")
+
 
 # ── ④ 出力は公開リポジトリに入れない ─────────────────────
 # シラバス原文なので data/courses.json と同じ扱い。追跡すると
