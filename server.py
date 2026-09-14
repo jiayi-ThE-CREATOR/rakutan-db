@@ -81,8 +81,27 @@ DAYS = ["月", "火", "水", "木", "金"]
 PERIODS = ["1", "2", "3", "4", "5", "6"]
 
 
+# 全角数字で打つ学生がいる（KOAN の画面からのコピペでも起きる）。
+_ZEN_DIGITS = str.maketrans("０１２３４５６７８９", "0123456789")
+
+
 def _norm(s: str) -> str:
     return re.sub(r"[\s　]+", "", s).lower()
+
+
+def _matches_query(c: dict, q: str) -> bool:
+    """検索語で当てるのは「科目名」と「時間割コード」の2つだけ。
+
+    教員名は足さない ―― README「教員名の扱い」の線（教員を軸にした検索を
+    作らない）はここが入口になる。コードは6桁の数字なので、打たれた語から
+    数字だけを抜いて部分一致で見る。全角で打つ学生がいるので半角に寄せる。
+    3桁未満では見ない ―― 「1」で数千件が当たると科目名の検索が潰れる。
+    web/assets/app.js の matchesQuery と同じ内容。片方だけ直さないこと。
+    """
+    if _norm(q) in _norm(c["title"]):
+        return True
+    digits = re.sub(r"\D", "", q.translate(_ZEN_DIGITS))
+    return len(digits) >= 3 and digits in str(c.get("id") or "")
 
 
 # 学生が実際に使う言葉での絞り込み条件。
@@ -208,7 +227,7 @@ def search(params: dict) -> dict:
 
     base = []
     for c in COURSES:
-        if q and _norm(q) not in _norm(c["title"]):
+        if q and not _matches_query(c, q):
             continue
         if year != "all" and int(year) not in (c.get("eligible_years") or []):
             continue
@@ -343,7 +362,7 @@ def openapi() -> dict:
                     "operationId": "searchCourses",
                     "summary": "科目を検索して楽単プロファイル付きで返す",
                     "parameters": [
-                        {"name": "q", "in": "query", "schema": {"type": "string"}, "description": "科目名の部分一致"},
+                        {"name": "q", "in": "query", "schema": {"type": "string"}, "description": "科目名または時間割コード（6桁）の部分一致。コードは3桁以上の数字のときだけ見る"},
                         {"name": "category", "in": "query", "schema": {"type": "string"}},
                         {"name": "campus", "in": "query", "schema": {"type": "string"}},
                         {"name": "term", "in": "query", "schema": {"type": "string"}},

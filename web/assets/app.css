@@ -458,6 +458,9 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 }
 .meta{font-size:12px;color:var(--muted);font-family:var(--data)}
 .meta span+span::before{content:"・";margin:0 3px}
+/* 時間割コード。数字が縦に揃うと6桁を目で拾いやすい。行が狭いときに
+   ここだけ折り返して読めなくならないよう、単語として切らせない。 */
+.mCode{font-variant-numeric:tabular-nums;letter-spacing:.04em;white-space:nowrap}
 .fit{text-align:right}
 .fit b{font-size:25px;font-family:var(--data);font-weight:600;line-height:1;
   font-variant-numeric:tabular-nums;color:var(--brand)}
@@ -709,6 +712,21 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
    ホバーを足す理由もない。.reviewBtn は2026-09-06に詳細から外れて使われなく
    なったので、セレクタからも外した ―― 使うのは .koanLink だけ。 */
 .koanLink{background:var(--brand-soft);color:var(--brand-text)}
+/* 時間割コードのコピーチップ。KOAN リンクの真上に置く（app.js の
+   codeChipHtml のコメント参照）。面は --dim ／文字は --ink ――
+   tools/test_tokens.py に「集計の数字」として登録ずみの組み合わせで、
+   KOAN リンク（--brand-soft の面）と役割の差が面の色で読める。
+   .dActs>* が全幅・12px・太字・中央寄せを既に与えているので、
+   ここで足すのは中身の並べ方だけ。 */
+.codeChip{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  background:var(--dim);color:var(--ink);min-height:44px}
+.codeChip .ccL{font-weight:400;color:var(--soft);font-size:var(--fs-xs)}
+.codeChip .ccN{font-family:var(--data);font-variant-numeric:tabular-nums;
+  letter-spacing:.08em;font-size:var(--fs-base)}
+.codeChip .ccC{font-weight:400;color:var(--brand-text);font-size:var(--fs-xs);white-space:nowrap}
+/* 押した手応え。色は変えず枠だけ ―― 1.6秒で戻るので、面の色が入れ替わると
+   一覧の中でそこだけ点滅して見える。 */
+.codeChip.copied{box-shadow:inset 0 0 0 1px var(--brand)}
 
 /* ── 口コミを1件ずつ読む ─────────────────
    カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」
