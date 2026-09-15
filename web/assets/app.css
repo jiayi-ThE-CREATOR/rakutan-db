@@ -244,6 +244,13 @@ option:hover, option:focus{ background:var(--brand-soft); }
 
 section{margin-top:22px}
 h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-weight:700}
+/* 左の絞り込みの見出し。既定の h2（12px・--muted）は中の項目（.sl label＝13px・--soft）より
+   小さく薄く、見出しに見えなかった（wang 指摘 2026-09-12「タイトルから探したい場所を特定できるように」）。
+   本文と同じ濃さ・一段大きい字にし、欄と欄の間に罫線を引いて「ここから別の欄」を示す。
+   margin-top は触らない ―― .facH が2つ目以降の見出しにだけ上の間を足している。
+   section+section にしているのは、最初の欄の上には .railHead の罫線が既にあるから。 */
+.rail h2{font-size:var(--fs-base);color:var(--ink);letter-spacing:.04em;margin-bottom:var(--sp-3)}
+.rail section+section{border-top:1px solid var(--rule);padding-top:var(--sp-4)}
 
 /* ── 空きコマグリッド ─────────────────── */
 .grid{display:grid;grid-template-columns:20px repeat(5,1fr);gap:4px}
