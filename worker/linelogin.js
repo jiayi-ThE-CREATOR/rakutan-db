@@ -17,6 +17,19 @@
  * bot を指定しておくこと。これを忘れると friendship status API が
  * 常に friendFlag:false を返し、誰もゲートを通れなくなる。
  *
+ * ■ ドメインは SITE_URL に固定する（request.url を使わない）
+ * 公開ドメイン rakuhan.nocode-sol.co.jp は吉村さんのサーバーを経由して
+ * この Worker に届く。そのため Worker からは、新ドメインで来た人も
+ * **旧ドメイン（*.workers.dev）で来たように見える**。
+ * 2026-09-16 に request.url の origin で redirect_uri を組んでいて、
+ * LINE に登録したコールバックURL（新ドメイン）と一致せず、誰も
+ * ログインできなかった（ロックだけが効いた状態で本番に出た）。
+ * index.js の SITE_URL と同じ理由・同じ値。
+ *
+ * さらに、Cookie はドメインごとに別物。旧ドメインで state の Cookie を
+ * 置いて新ドメインのコールバックへ戻ると、照合が必ず落ちる。だから
+ * /line/login の最初の一歩で必ず SITE_URL へ移ってから Cookie を置く（go=1）。
+ *
  * ■ セッションは Cookie に閉じる（D1 を使わない）
  * 持つのは userId と friendFlag と期限だけで、消えても友だち追加を
  * やり直す必要はない（もう一度ログインすれば復帰する）。
@@ -27,6 +40,10 @@
 const AUTH_URL = "https://access.line.me/oauth2/v2.1/authorize";
 const TOKEN_URL = "https://api.line.me/oauth2/v2.1/token";
 const FRIENDSHIP_URL = "https://api.line.me/friendship/v1/status";
+
+/* LINE Developers に登録したコールバックURLのドメイン。変えるなら両方直す。 */
+export const SITE_URL = "https://rakuhan.nocode-sol.co.jp";
+const CALLBACK_URL = `${SITE_URL}/line/callback`;
 
 const SESSION_COOKIE = "rk_sess";
 const STATE_COOKIE = "rk_oauth_state";
@@ -103,7 +120,8 @@ function cookies(request) {
 }
 
 /* SameSite=Lax でなければならない。Strict にすると、LINE の認可画面から
-   戻ってきた最初のリクエストに Cookie が乗らず、state の検証が必ず落ちる。 */
+   戻ってきた最初のリクエストに Cookie が乗らず、state の検証が必ず落ちる。
+   Domain は付けない ―― ブラウザが開いているホスト（SITE_URL）に紐づく。 */
 function setCookie(name, value, maxAge) {
   return `${name}=${value}; Path=/; Max-Age=${maxAge}; HttpOnly; Secure; SameSite=Lax`;
 }
@@ -131,19 +149,32 @@ function json(status, body, extraHeaders) {
   });
 }
 
+function redirect(location, cookieHeaders) {
+  const headers = new Headers({ location, "cache-control": "no-store" });
+  for (const c of cookieHeaders || []) headers.append("set-cookie", c);
+  return new Response(null, { status: 302, headers });
+}
+
 function configured(env) {
   return !!(env.LINE_LOGIN_CHANNEL_ID && env.LINE_LOGIN_CHANNEL_SECRET && env.SESSION_SECRET);
 }
 
 /* ── GET /line/login ───────────────────────────────────────
-   認可画面へ送る。state は Cookie と URL の両方に置き、戻ってきたときに
-   突き合わせる（CSRF 対策）。next も state の中に入れる ―― URL に
-   別で持たせると、戻り先だけ差し替えられる余地が残る。 */
+   2段階で動く。
+   ① go が無い … SITE_URL の /line/login?go=1 へ移るだけ。どのドメインから
+      来ても、Cookie を置く時点では必ず新ドメインにいる状態を作る。
+   ② go=1     … state を Cookie と URL の両方に置いて認可画面へ送る（CSRF 対策）。
+      next も state の中に入れる ―― URL に別で持たせると、戻り先だけ
+      差し替えられる余地が残る。 */
 export async function handleLineLogin(request, env) {
   if (!configured(env)) return json(503, { ok: false, error: "not_configured" });
 
   const url = new URL(request.url);
   const next = safeNext(url.searchParams.get("next") || "/");
+
+  if (url.searchParams.get("go") !== "1") {
+    return redirect(`${SITE_URL}/line/login?go=1&next=${encodeURIComponent(next)}`);
+  }
 
   const nonce = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
   const state = await sign(env.SESSION_SECRET, {
@@ -152,32 +183,25 @@ export async function handleLineLogin(request, env) {
     exp: Math.floor(Date.now() / 1000) + STATE_TTL_SEC,
   });
 
-  const redirectUri = `${url.origin}/line/callback`;
   const auth = new URL(AUTH_URL);
   auth.searchParams.set("response_type", "code");
   auth.searchParams.set("client_id", env.LINE_LOGIN_CHANNEL_ID);
-  auth.searchParams.set("redirect_uri", redirectUri);
+  auth.searchParams.set("redirect_uri", CALLBACK_URL);
   auth.searchParams.set("state", state);
   auth.searchParams.set("scope", "profile openid");
   /* 友だちでない人には、認可と同時に友だち追加も勧める。
      これが無いと「ログインしたのに friendFlag:false」で行き止まりになる。 */
   auth.searchParams.set("bot_prompt", "aggressive");
 
-  return new Response(null, {
-    status: 302,
-    headers: {
-      location: auth.toString(),
-      "set-cookie": setCookie(STATE_COOKIE, state, STATE_TTL_SEC),
-      "cache-control": "no-store",
-    },
-  });
+  return redirect(auth.toString(), [setCookie(STATE_COOKIE, state, STATE_TTL_SEC)]);
 }
 
 /* ── GET /line/callback ────────────────────────────────────
    code をアクセストークンに替え、friendship status を確かめてから
    セッションを発行する。friendFlag が false でもセッションは出す
    （本人であることは確かめられているので、画面側で「まだ友だちでない」と
-   出し分けられるようにする。ここで弾くと、何が足りないのか伝えられない）。 */
+   出し分けられるようにする。ここで弾くと、何が足りないのか伝えられない）。
+   戻り先は必ず SITE_URL の中 ―― Cookie を置いたドメインへ帰す。 */
 export async function handleLineCallback(request, env) {
   if (!configured(env)) return json(503, { ok: false, error: "not_configured" });
 
@@ -190,14 +214,7 @@ export async function handleLineCallback(request, env) {
      エラーページを出すより、元のページへ黙って戻す方が親切。 */
   if (!code) {
     const back = stateParam ? (await verify(env.SESSION_SECRET, stateParam))?.next : null;
-    return new Response(null, {
-      status: 302,
-      headers: {
-        location: safeNext(back || "/"),
-        "set-cookie": clearCookie(STATE_COOKIE),
-        "cache-control": "no-store",
-      },
-    });
+    return redirect(`${SITE_URL}${safeNext(back || "/")}`, [clearCookie(STATE_COOKIE)]);
   }
 
   if (!stateParam || !stateCookie || stateParam !== stateCookie) {
@@ -208,7 +225,6 @@ export async function handleLineCallback(request, env) {
     return json(400, { ok: false, error: "state_invalid" }, { "set-cookie": clearCookie(STATE_COOKIE) });
   }
 
-  const redirectUri = `${url.origin}/line/callback`;
   let tokenRes;
   try {
     tokenRes = await fetch(TOKEN_URL, {
@@ -217,7 +233,8 @@ export async function handleLineCallback(request, env) {
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        redirect_uri: redirectUri,
+        /* 認可リクエストで渡したものと一字一句同じでないと LINE が弾く。 */
+        redirect_uri: CALLBACK_URL,
         client_id: env.LINE_LOGIN_CHANNEL_ID,
         client_secret: env.LINE_LOGIN_CHANNEL_SECRET,
       }),
@@ -270,13 +287,10 @@ export async function handleLineCallback(request, env) {
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC,
   });
 
-  const headers = new Headers({
-    location: safeNext(stateObj.next),
-    "cache-control": "no-store",
-  });
-  headers.append("set-cookie", setCookie(SESSION_COOKIE, session, SESSION_TTL_SEC));
-  headers.append("set-cookie", clearCookie(STATE_COOKIE));
-  return new Response(null, { status: 302, headers });
+  return redirect(`${SITE_URL}${safeNext(stateObj.next)}`, [
+    setCookie(SESSION_COOKIE, session, SESSION_TTL_SEC),
+    clearCookie(STATE_COOKIE),
+  ]);
 }
 
 /* ── GET /api/me ───────────────────────────────────────────
