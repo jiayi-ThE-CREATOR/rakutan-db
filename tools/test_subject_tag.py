@@ -97,6 +97,18 @@ with tempfile.TemporaryDirectory() as d:
     check(T.already_done(Path(d) / "ない.tsv") == set(),
           "TSV が無いときに空集合を返せていない")
 
+# 英字を含む時間割コード（00Z008 形式・324件）を捨てない
+got2 = T.parse_reply("00Z008\tkotoba,bunka\n科目コード\tキー\n135063\t")
+check(got2.get("00Z008") == ["kotoba", "bunka"], f"英字入りのコードが読めない: {got2}")
+check("科目コード" not in got2, "見出し行が科目として読まれている")
+
+# 返事に無かった科目は書かずに持ち越す（空の行を返した科目とは区別する）
+batch = [{"id": "135063", "title": "a"}, {"id": "138537", "title": "b"},
+         {"id": "138999", "title": "c"}]
+rows_ok, missing = T.split_reply(batch, {"135063": ["kotoba"], "138537": []})
+check([r[0] for r in rows_ok] == ["135063", "138537"], f"書く科目が違う: {rows_ok}")
+check(missing == ["138999"], f"返事に無かった科目が持ち越されない: {missing}")
+
 print(f"{n - len(fails)}/{n} 件が通過")
 for m in fails:
     print("  ✗", m)

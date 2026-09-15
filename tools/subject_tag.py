@@ -31,6 +31,7 @@ Gemini の無料枠を使う（本人の恒久方針）。呼び出しは urllib
 
 from __future__ import annotations
 
+import re
 import argparse
 import csv
 import gzip
@@ -120,10 +121,26 @@ def parse_reply(text: str) -> dict[str, list[str]]:
             continue
         cid, _, tags = line.partition("\t")
         cid = cid.strip()
-        if not cid.isdigit():
+        # 時間割コードは数字だけとは限らない（00Z008 形式が324件）。isdigit() だと
+        # それが全部捨てられ、タグ0個として「済み」に入り二度と投げ直されなかった。
+        # 見出し行（「科目コード」等）は非 ASCII なのでここで落ちる。
+        if not re.fullmatch(r"[0-9A-Za-z]+", cid):
             continue
         got[cid] = clean([t.strip() for t in tags.split(",") if t.strip()])
     return got
+
+
+def split_reply(batch: list[dict], got: dict[str, list[str]]):
+    """返事に**行があった**科目だけを書く。行が無い科目は書かずに持ち越す。
+
+    `got.get(id, [])` で埋めると、モデルが長いリストの途中で黙って打ち切ったとき、
+    返ってこなかった科目が「タグ0個」として TSV に入り、already_done() が
+    済みに数えて二度と投げ直さない（2026-09-11、450件ずつで1バッチ247件が
+    こうして消えた）。空の行を返した科目（＝判定できない）とは区別する。
+    """
+    rows = [(r["id"], r.get("title", ""), got[r["id"]]) for r in batch if r["id"] in got]
+    missing = [r["id"] for r in batch if r["id"] not in got]
+    return rows, missing
 
 
 def already_done(tsv: Path) -> set[str]:
@@ -252,11 +269,13 @@ def main() -> None:
             time.sleep(args.sleep)
             continue
         got = parse_reply(reply)
-        append_rows(tsv, [(r["id"], r.get("title", ""), got.get(r["id"], []))
-                          for r in batch])
-        tagged += sum(1 for r in batch if got.get(r["id"]))
-        print(f"  [{i}] {len(batch)}件 → タグ付き "
-              f"{sum(1 for r in batch if got.get(r['id']))}件")
+        rows_ok, missing = split_reply(batch, got)
+        append_rows(tsv, rows_ok)
+        n_tagged = sum(1 for _, _, tags in rows_ok if tags)
+        tagged += n_tagged
+        failed += len(missing)
+        print(f"  [{i}] {len(batch)}件 → タグ付き {n_tagged}件"
+              + (f" / 返事に無かった {len(missing)}件（次回に持ち越し）" if missing else ""))
         time.sleep(args.sleep)
 
     print(f"\n→ {tsv}")
