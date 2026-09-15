@@ -21,6 +21,9 @@ async function boot(){
   /* データを読まない節なので fetch より先に描く。下の catch は return するので、
      後ろに置くと「読み込めなかった」のときに LINE の節ごと消える。 */
   renderLine();
+  /* 連携状態はサーバーに聞く。await しない ―― timetable.json の取得と
+     並行させ、返ってきた時点で renderLine() を描き直す。 */
+  loadLineState();
   let tt, req;
   try {
     [tt, req] = await Promise.all([
@@ -111,11 +114,57 @@ const LINE_ADD_URL = "https://line.me/R/ti/p/@733udbnt";
    公式アカウントを変えるときは shell.html と両方直す。 */
 const LINE_MARK = `<span class="snsIcon line"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12 2.4c5.72 0 10.37 3.78 10.37 8.42 0 1.86-.72 3.53-2.22 5.18-2.18 2.5-7.05 5.55-8.16 6.02-1.1.47-.96-.29-.9-.55l.15-.89c.03-.27.07-.68-.03-.94-.12-.29-.58-.44-.91-.51C5.31 18.47 1.63 15 1.63 10.82 1.63 6.18 6.28 2.4 12 2.4Zm-2.9 5.7h-.73a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h.73a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2Zm5.02 0h-.73a.2.2 0 0 0-.2.2v2.69L11.11 8.2a.2.2 0 0 0-.17-.1h-.76a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h.73a.2.2 0 0 0 .2-.2v-2.69l2.09 2.8c.04.05.1.09.16.09h.76a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2Zm-6.6 3.59H5.59V8.3a.2.2 0 0 0-.2-.2h-.73a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h2.86a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2Zm11.35-2.46a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2H16a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h2.87a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2h-1.93v-.75h1.93a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2h-1.93v-.75h1.93Z"/></svg></span>`;
 
+/* サーバーに聞いた本当の連携状態。null のあいだは「まだ分からない」。
+   2026-09-14 まではここが localStorage（押した印）だったので、押して
+   戻るだけで「連携済み」になっていた（wang さんの 9/13 の指摘）。
+   いまは GET /api/me ―― LINE 自身に友だちかを確かめた結果を使う。 */
+let lineState = null;
+
+async function loadLineState(){
+  try {
+    const res = await fetch("/api/me", { credentials: "same-origin" });
+    if (res.ok) lineState = await res.json();
+  } catch (e) {
+    /* 届かないときは「分からない」のまま。押した印での判定には戻さない
+       ―― 戻すと、直したはずの穴がここだけ残る。 */
+  }
+  renderLine();
+  /* 覆いの掛け直し（連携できていれば外れる）。 */
+  window.rkGate?.apply?.();
+}
+
 function renderLine(){
   const body = $("#mpLineBody");
   if (!body) return;
 
-  if (rkStore.isLineLinked()){
+  /* 未設定のとき（configured:false）は、サーバーが linked:true を返す。
+     その場合ここは「連携済み」ではなく、これまでどおりの案内を出す
+     ―― 設定前に「連携済み」と言うのは嘘になる。 */
+  if (lineState && lineState.configured && lineState.linked){
+    body.innerHTML = `
+      <p class="mpLineOk">${LINE_MARK}<span>LINE 連携済み</span></p>
+      <p class="mpLineNote">LINE から科目の検索とおすすめ、今後の更新情報が届きます。</p>
+      <a class="mpLineBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE を開く</a>`;
+    /* 取り消し導線は置かない。サーバーが LINE に確認した結果なので、
+       本人が「まだ追加していない」と申告する余地がない。 */
+    return;
+  }
+
+  /* ログイン済みだが友だちでない ―― ログインし直しても開かないので、
+     友だち追加そのものを促す。 */
+  if (lineState && lineState.configured && lineState.loggedIn && !lineState.linked){
+    body.innerHTML = `
+      <p class="mpLineNote">LINE ログインは済んでいますが、<b>まだ友だち追加されていません</b>。</p>
+      <a class="mpLineBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>
+      <p class="mpLineUndo"><button type="button" id="mpLineRecheck">追加したので確認し直す</button></p>`;
+    $("#mpLineRecheck").onclick = () => {
+      /* もう一度ログインを通すと friendship を取り直せる。 */
+      location.href = "/line/login?next=" + encodeURIComponent(location.pathname);
+    };
+    return;
+  }
+
+  if (rkStore.isLineLinked() && !(lineState && lineState.configured)){
     body.innerHTML = `
       <p class="mpLineOk">${LINE_MARK}<span>LINE 連携済み</span></p>
       <p class="mpLineNote">LINE から科目の検索とおすすめ、今後の更新情報が届きます。</p>
@@ -125,19 +174,38 @@ function renderLine(){
     return;
   }
 
+  /* 未連携（または未設定）。LINE ログインへ送る ―― これを通すと
+     サーバーが friendship を確認してセッションを発行するので、
+     戻ってきた時点で連携済みかどうかが確定する。
+     LINE Login が未設定のあいだは従来の友だち追加リンクのままにする
+     （押しても何も確認できないが、入口を消すより良い）。 */
+  const gated = !!(lineState && lineState.configured);
+  /* 3行目はゲートが効いているときだけ。未設定のあいだは覆いも掛からない
+     ので、「使えるようになります」と書くと事実でないことを言うことになる。 */
   body.innerHTML = `
     <ul class="mpLineWhy">
       <li>LINE から科目の検索とおすすめが届きます</li>
       <li>今後のラクハンの更新情報が受け取れます</li>
+      ${gated ? "<li>お気に入り・時間割・絞り込みが使えるようになります</li>" : ""}
     </ul>
-    <a class="mpLineBtn" id="mpLineAdd" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>`;
+    ${gated
+      ? `<button type="button" class="mpLineBtn" id="mpLineLogin">${LINE_MARK}<span>LINE で続ける</span></button>
+         <p class="mpLineNote">LINE の画面が開きます。友だち追加まで済むと、この下の機能が使えます。</p>`
+      : `<a class="mpLineBtn" id="mpLineAdd" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>`}`;
+
+  if (gated){
+    $("#mpLineLogin").onclick = () => {
+      location.href = "/line/login?next=" + encodeURIComponent(location.pathname);
+    };
+    return;
+  }
   $("#mpLineAdd").onclick = () => {
-    /* 押した先（LINE アプリ）で本当に追加したかは戻ってこないので、押した
-       時点で印を立てる。代わりに連携済みの表示に取り消し導線を必ず置く。
+    /* LINE Login 未設定のときだけ通る旧経路。押した先で本当に追加したかは
+       戻ってこないので、押した時点の印しか立てられない。だから連携済みの
+       表示には取り消し導線を残す（この節の頭の注記と同じ理由）。
        ここで即 renderLine() すると、押された <a> 自身が click の処理中に
        DOM から外れる。外れた <a> の既定動作（新しいタブを開く）を実行
-       しないブラウザがあり、「押したのに LINE が開かない」になる。
-       だから描き直しは次のタスクまで待つ。 */
+       しないブラウザがあり、「押したのに LINE が開かない」になる。 */
     rkStore.markLineLinked();
     setTimeout(renderLine, 0);
   };

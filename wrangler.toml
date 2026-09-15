@@ -76,6 +76,21 @@ enabled = true
 #   npx wrangler secret put STATS_DISCORD_WEBHOOK
 #   npx wrangler secret put CF_ACCOUNT_ID
 #   npx wrangler secret put CF_API_TOKEN
+#   npx wrangler secret put LINE_LOGIN_CHANNEL_ID
+#   npx wrangler secret put LINE_LOGIN_CHANNEL_SECRET
+#   npx wrangler secret put SESSION_SECRET
+#
+# LINE_LOGIN_* は **Messaging API チャネルとは別の「LINE ログイン」チャネル**。
+# 同じプロバイダー内に作り、「リンクされた LINE 公式アカウント」に
+# ラクハンの bot を指定しておくこと。これを忘れると friendship status API が
+# 常に friendFlag:false を返し、誰もゲートを通れなくなる。
+# コールバックURLには https://rakuhan.nocode-sol.co.jp/line/callback を登録する。
+#
+# SESSION_SECRET はセッション Cookie の署名鍵。適当な長い乱数でよい:
+#   openssl rand -base64 48
+# 変えると全員のログインが切れる（friendship はやり直せるので実害は小さい）。
+# 3つとも未設定のあいだ /api/me は linked:true を返す ―― 設定漏れで
+# サイト全体を使えなくする方が、開けておくより害が大きいという判断。
 #
 # FEEDBACK_DISCORD_WEBHOOK は意見箱（POST /api/feedback）の落とし先。
 # Discord の「サイトへのご意見」チャンネル → 設定 → 連携サービス →

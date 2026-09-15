@@ -8,6 +8,10 @@
  *   - POST /api/feedback  … 意見箱（フッタのモーダル → Discord へ中継）
  *   - POST /api/kuchikomi … 口コミ投稿の中継（→ GAS。成功したら Discord へ通知）
  *   - POST /api/hit       … 実際に使われた回数（→ Analytics Engine）
+ *   - GET  /line/login    … LINE ログイン（友だち確認つき）の入口
+ *   - GET  /line/callback … その戻り。セッション Cookie を発行する
+ *   - GET  /api/me        … 友だちかどうかを画面へ返す（ゲートの開閉）
+ *   - POST /api/logout    … セッションを捨てる
  *   - それ以外            … env.ASSETS.fetch() でこれまで通り静的配信
  *
  * データ取得は env.ASSETS 経由で /data/courses.built.json を同一オリジンから
@@ -33,6 +37,9 @@
  * **関数以外の named export を受け付けない**ため（`export const STATS_SQL = "…"`
  * を index.js に置くと Worker が起動時に落ちる。2026-09-03 に実測）。 */
 import { TRACKING_SLUGS, runDailyTraffic } from "./traffic.js";
+import {
+  handleLineLogin, handleLineCallback, handleMe, handleLogout,
+} from "./linelogin.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -1094,6 +1101,23 @@ async function route(request, env, ctx) {
   }
   if (url.pathname === "/line/health") {
     return new Response("ok");
+  }
+  /* LINE ログイン。/line/webhook より後ろに置くこと（前に置くと
+     startsWith 的な取り違えを将来やったときに webhook を食う）。 */
+  if (url.pathname === "/line/login") {
+    return handleLineLogin(request, env);
+  }
+  if (url.pathname === "/line/callback") {
+    return handleLineCallback(request, env);
+  }
+  if (url.pathname === "/api/me") {
+    return handleMe(request, env);
+  }
+  if (url.pathname === "/api/logout") {
+    if (request.method !== "POST") {
+      return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+    }
+    return handleLogout(request, env);
   }
   if (url.pathname === "/api/feedback") {
     if (request.method !== "POST") {
