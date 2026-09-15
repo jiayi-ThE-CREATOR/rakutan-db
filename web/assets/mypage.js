@@ -552,7 +552,8 @@ function renderTimetable(){
          挟んで兄弟要素にする（mypage.css 参照）。 */
       const added = rkStore.isCalAdded(id);
       html += `<div class="mpCellWrap">`
-            + `<button class="mpCell filled" data-slot="${slot}" aria-label="${slot} ${esc(c.title)}">${esc(c.title)}</button>`
+            + `<button class="mpCell filled" data-slot="${slot}" aria-label="${slot} ${esc(c.title)} 時間割コード${esc(c.id)}">`
+            +   `${esc(c.title)}<small class="mpCellCode">${esc(c.id)}</small></button>`
             + `<button type="button" class="mpCalBtn${added ? " added" : ""}" data-cal-id="${esc(id)}"`
             + ` aria-label="${esc(c.title)}をカレンダーに${added ? "連携（削除）" : "追加"}">${calIconSVG(added)}</button>`
             + `</div>`;
@@ -583,7 +584,8 @@ function renderExtra(){
   if (!tt.extra.length){ $("#mpExtra").innerHTML = ""; return; }
   $("#mpExtra").innerHTML = `<h4>時間割に入らない科目</h4>` + tt.extra.map(id => {
     const c = BY_ID.get(id);
-    return `<div class="mpExtraRow"><span>${c ? esc(c.title) : id}</span>
+    return `<div class="mpExtraRow"><span>${c ? esc(c.title) : id}
+      <small class="mpCode">${esc(id)}</small></span>
       <button data-rm="${esc(id)}">外す</button></div>`;
   }).join("");
   $("#mpExtra").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
@@ -637,7 +639,8 @@ function renderPickerList(list, slot, query){
     : `<p>この学期の ${slot} に科目がありません。</p>`;
   $("#mpPickerList").innerHTML = list.length
     ? list.map(c => `<button class="mpPick" data-id="${esc(c.id)}">
-        <b>${esc(c.title)}</b><small>${esc(c.instructor || "―")}</small></button>`).join("")
+        <b>${esc(c.title)}</b><small>${esc(c.instructor || "―")}
+          <span class="mpCode">${esc(c.id)}</span></small></button>`).join("")
     : empty;
   $("#mpPickerList").querySelectorAll(".mpPick").forEach(b => b.onclick = () => {
     putCourse(b.dataset.id, slot);
@@ -713,7 +716,7 @@ function renderFavorites(){
     }
     return `<div class="mpFav">
       <span><b>${esc(c.title)}</b><small>${esc(c.day_period || "曜限なし")}
-        ・${esc(c.instructor || "―")}</small></span>
+        ・${esc(c.instructor || "―")}<span class="mpCode">${esc(id)}</span></small></span>
       <span class="mpFavActions">${action}
         <button data-fav="${esc(id)}">☆ 外す</button></span>
     </div>`;
