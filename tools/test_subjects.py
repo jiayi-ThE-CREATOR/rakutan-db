@@ -5,7 +5,7 @@
 自由記述を許すと必ず数千語のロングテールが生えて、タグの重なりが消える
 ――「日本語の歴史」を `ことば・語学 ∩ 歴史` で掘り当てる、という設計の前提が壊れる。
 
-だからここでは「知らないキーは弾く」「1科目3個まで」を機械に守らせる。
+だからここでは「知らないキーは弾く」「1科目5個まで」を機械に守らせる。
 
   python3 tools/test_subjects.py
 
@@ -56,9 +56,9 @@ check(subjects.clean(["rekishi", "にほんごのれきし"]) == ["rekishi"],
 check(subjects.clean([]) == [], "空は空のまま")
 check(subjects.clean(None) == [], "None を空として扱えていない")
 check(subjects.clean(["rekishi", "rekishi"]) == ["rekishi"], "重複が落ちていない")
-# 1科目3個まで。増やすと「とりあえず全部付ける」に寄って、
+# 1科目5個まで（2026-09-15 に 3 → 5）。増やすと「とりあえず全部付ける」に寄って、
 # タグが絞り込みの役に立たなくなる。
-check(len(subjects.clean(list(V)[:8])) == 3, "3個を超えて付いている")
+check(len(subjects.clean(list(V)[:8])) == 5, "5個を超えて付いている")
 
 # ── ③ 科目名ルール（語学） ────────────────────────
 # 実データで科目名に言語名を含むのは 2,479件。ここは AI を呼ばずに確定させる。
@@ -87,17 +87,17 @@ check(merged == ["kotoba"] and src == "title",
 merged, src = subjects.merge(manual=None, title=[], ai=[])
 check(merged == [] and src is None,
       f"何も付かないときは出所も None: {merged} / {src}")
-# 合流しても3個を超えない。
+# 合流しても5個を超えない（科目名ルール1 + AI 5 = 6 → 5）。
 merged, _ = subjects.merge(manual=None, title=["kotoba"],
-                           ai=["rekishi", "bunka", "kokusai"])
-check(len(merged) == 3, f"合流で3個を超えている: {merged}")
+                           ai=["rekishi", "bunka", "kokusai", "shakai", "seiji"])
+check(len(merged) == 5, f"合流で5個を超えている: {merged}")
 
 # ── ⑤ AI に渡すプロンプトが語彙と食い違わない ────────────
 prompt = subjects.vocab_prompt()
 for key, label in V.items():
     check(key in prompt, f"プロンプトに {key} が載っていない")
     check(label in prompt, f"プロンプトに表示名 {label} が載っていない")
-check("3" in prompt, "個数の上限がプロンプトに書かれていない")
+check("最大5個" in prompt, "個数の上限がプロンプトに書かれていない")
 
 print(f"{n - len(fails)}/{n} 件が通過（語彙 {len(V)}語）")
 for m in fails:

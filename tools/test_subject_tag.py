@@ -59,7 +59,7 @@ text = "\n".join([
     "138537\t",                             # 空＝判定できなかった
     "こわれた行",                            # 区切りが無い
     "138545\tkotoba,にほんごのれきし",       # 語彙に無いキーが混ざる
-    "138547\tkotoba,kotoba,rekishi,bunka,shakai",   # 重複と上限超え
+    "138547\tkotoba,kotoba,rekishi,bunka,shakai,seiji,kokusai",   # 重複と上限超え（重複を除いて6個）
 ])
 got = T.parse_reply(text)
 check(got.get("135063") == ["kotoba", "rekishi"], f"素直な行が読めない: {got.get('135063')}")
@@ -69,8 +69,8 @@ check(got.get("138537") == [], "空の行が空リストになっていない")
 check("こわれた行" not in got, "壊れた行が混ざっている")
 check(got.get("138545") == ["kotoba"],
       f"語彙に無いキーが落ちていない: {got.get('138545')}")
-check(len(got.get("138547", [])) == 3,
-      f"上限3個で切れていない: {got.get('138547')}")
+check(len(got.get("138547", [])) == 5,
+      f"上限5個で切れていない: {got.get('138547')}")
 # 壊れた行があっても、他の5件は取れていること（巻き添えにしない）。
 check(len(got) == 5, f"読めた件数が違う: {len(got)}")
 
