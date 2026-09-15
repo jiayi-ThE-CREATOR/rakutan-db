@@ -641,21 +641,30 @@ const insMetaSpan = c => insLabel(c) ? `<span>${esc(insLabel(c))}</span>` : "";
  * 同じものを j_cd に渡している。courses.built.json の 7,906件すべてに
  * 入っていて重複が無いので、出すだけ ―― build 側は触らない。
  *
- * 一覧カードでは「見えるだけ」の素のテキストにする。.head は role="button"
- * （カードを開く当たり判定）なので、その中に押せる要素を入れると押せる要素の
- * 入れ子になる ―― .favBtn を .head の外に出してあるのと同じ理由。
- * コピーは詳細のチップ（codeChipHtml）で1タップ。 */
-const codeMetaSpan = c => c.id ? `<span class="mCode">${esc(c.id)}</span>` : "";
+ * 出す場所は科目名の下の .meta の行（曜限・教員・キャンパス・区分の後ろ）。 */
+/* コードは「見えるところでそのまま押せる」形にする（2026-09-15 wang の依頼で
+   詳細の全幅チップから、この1行の中へ移した）。押すとクリップボードへ入り、
+   1.6秒だけ「コピーしました」に変わる。
 
-/* 詳細のコピーチップ。置き場所は .dActs の中、KOAN リンクの**真上**
-   ―― 履修登録の動線（コードを控える → KOAN を開く）がそこで閉じる。
-   .dActs>* が全幅ボタンの見た目を持つので、ここでは中身だけを組む。 */
-function codeChipHtml(c){
+   **押せるのは「⧉ コピー」の文字だけ。数字そのものは押せない。**
+   一覧カードの .meta は .head（role="button"＝カードを開く当たり判定）の中に
+   在るので、行全体を押せるようにすると「カードを開こうとして数字に当たり、
+   開かずにコピーされる」が普通に起きる（Playwright の中央クリックで実際に
+   踏んだ）。押す面を「コピー」の2文字に絞れば、誤爆はほぼ無くなる。
+   文字は小さいので、当たり判定だけ padding で広げてある（app.css）。
+
+   要素が2通りあるのは、同じ .head の中に <button> を入れると押せる要素の
+   入れ子になるから（.favBtn を .head の外へ出してあるのと同じ線）:
+     一覧カード          … <i>。タップは capture 段の委譲で拾う
+     PCの右ペインの見出し … .head の外なので素直に <button>（キーボードでも押せる）
+   見た目は同じ。data-code を持つものだけが押せる。 */
+function codeMetaSpan(c, asButton = false){
   if (!c.id) return "";
-  return `<button type="button" class="codeChip" data-code="${esc(c.id)}"
-      aria-label="時間割コード ${esc(c.id)} をコピー"
-    ><span class="ccL">時間割コード</span><b class="ccN">${esc(c.id)}</b
-    ><span class="ccC">⧉ コピー</span></button>`;
+  const copy = asButton
+    ? `<button type="button" class="ccC" data-code="${esc(c.id)}"
+         aria-label="時間割コード ${esc(c.id)} をコピー">⧉ コピー</button>`
+    : `<i class="ccC" data-code="${esc(c.id)}" title="時間割コードをコピー">⧉ コピー</i>`;
+  return `<span class="mCode">${esc(c.id)}${copy}</span>`;
 }
 
 /* コピーの実体。https の本番では navigator.clipboard が使えるが、
@@ -682,23 +691,27 @@ async function copyText(text){
   } catch (e) { return false; }
 }
 
-/* チップは一覧カードの中（.detail）とPCの #inspector の両方に出るので、
-   委譲先は document にする（#list だけだと PC 側で効かない）。 */
+/* 委譲先は document、しかも **capture 段**（第3引数 true）。
+   一覧カードの「コピー」は .head（role="button"）の中に在り、.head の onclick は
+   バブリングで先に走ってしまう ―― capture なら先に捕まえて stopPropagation でき、
+   「コピーを押したのにカードが開く」を防げる。PC の右ペインにも同じ委譲で届く。 */
 document.addEventListener("click", async e => {
-  const chip = e.target.closest(".codeChip");
-  if (!chip) return;
-  const code = chip.dataset.code || "";
-  const label = chip.querySelector(".ccC");
-  const ok = await copyText(code);
-  if (!label) return;
-  clearTimeout(chip._ccT);
-  label.textContent = ok ? "コピーしました" : "長押しで選んでコピー";
-  chip.classList.toggle("copied", ok);
-  chip._ccT = setTimeout(() => {
-    label.textContent = "⧉ コピー";
-    chip.classList.remove("copied");
+  const el = e.target.closest(".ccC[data-code]");
+  if (!el) return;
+  e.stopPropagation();
+  e.preventDefault();
+  const ok = await copyText(el.dataset.code || "");
+  clearTimeout(el._ccT);
+  /* 文言は「⧉ コピー」と同じ幅に収まるものにする ―― 「コピーしました」に
+     伸ばすと、その1.6秒だけ押せる面が広がり、隣を押そうとした指が当たる
+     （実際に .head の中央がここに乗ってテストが落ちた）。 */
+  el.textContent = ok ? "✓ コピー済" : "⧉ 長押しで選ぶ";
+  el.classList.toggle("copied", ok);
+  el._ccT = setTimeout(() => {
+    el.textContent = "⧉ コピー";
+    el.classList.remove("copied");
   }, 1600);
-});
+}, true);
 
 /* 口コミの件数表示。件数そのものは操作バーの「口コミ N件を読む」が持つので、
    ここが返すのは「まだ採点に入っていない」の注意帯だけ（2026-09-06）。
@@ -923,7 +936,6 @@ function detailHtml(c){
         ${first ? `<p class="dQuote">${esc(first)}</p>` : ""}
       </div>` : ""}
       <div class="dActs">
-        ${codeChipHtml(c)}
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       </div>`;
 }
@@ -1335,7 +1347,7 @@ function showDetail(c, article){
     ins.innerHTML = `<div class="inspectorHead">
         <button type="button" class="insClose" aria-label="この科目を閉じる">✕</button>
         <h3>${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c, true)}</div>
       </div><div class="detail">${detailHtml(c)}</div>`;
     ins.querySelector(".insClose").onclick = closeDetail;
     ins.scrollTop = 0;
