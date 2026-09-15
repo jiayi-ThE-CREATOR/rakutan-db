@@ -61,6 +61,11 @@
 
   <section class="kkStep">
     <h3><span class="kkNum">1</span>あなたのこと</h3>
+    <!-- ✎／「この科目の口コミを書く」（一覧の /kuchikomi?c=<id>）で来たが、
+         学期・学部がまだ分からず自動選択できないときの案内。kuchikomi.js が出し入れする。
+         app.css の .note は2026-08-26 に恒久非表示にされているので、同じクラスは使わない
+         （#load-note が display:none のまま動いているのはその名残。ここは実際に見せる必要がある）。 -->
+    <p class="kkParamNote hidden" id="course-param-note"></p>
     <div class="kkFields">
       <div class="input-group">
         <!-- ここは「いま何年生か」。受けたときの学年でも年度でもない。

@@ -35,6 +35,12 @@
 .required{color:var(--brand-text);font-weight:700}
 
 /* ── 1. あなたのこと ─────────────────── */
+/* ?c=<id> で来たが学期・学部が未選択で自動選択できないときの案内
+   （kuchikomi.js の applyCourseParam）。.extraItem と同じ「押せる面」トーンで、
+   エラーではなく「あと1手」であることを示す。 */
+.kkParamNote{margin:0 0 var(--sp-4);padding:var(--sp-3) var(--pad);
+  background:var(--brand-soft);border:1px solid var(--brand-line);
+  border-radius:var(--r-md);color:var(--ink);font-size:var(--fs-sm)}
 .kkFields{display:grid;grid-template-columns:1fr;gap:var(--sp-4);
   background:var(--card);border:1px solid var(--rule);border-radius:var(--r-lg);
   padding:var(--pad)}

@@ -27,6 +27,12 @@
    他のマス（空き含む）まで一律に背が伸びてしまうため、幅で逃がす。 */
 .mpCell.filled{ background:var(--brand); color:var(--brand-ink); border-color:var(--brand);
   padding-right:22px; }
+/* 時間割コード。履修登録で打ち込むのはこの6桁なので、マスの中にも出す
+   （科目名だけだと、登録画面に移った瞬間にもう一度探すことになる）。
+   色は落とさず（--brand-ink on --brand は tools/test_tokens.py に登録ずみの
+   組み合わせ。薄くすると測った比率が崩れる）、大きさと字間だけで従属させる。 */
+.mpCellCode{ display:block; margin-top:2px; font-size:9px; letter-spacing:.06em;
+  font-variant-numeric:tabular-nums; }
 
 /* カレンダーに追加ずみのマスは、右上に小さいボタンを重ねて置く。
    .mpCell の中に入れると button の中に button が入ってしまう（読み上げが
@@ -63,6 +69,10 @@
 .mpFav{ display:flex; justify-content:space-between; align-items:center; gap:12px;
   padding:12px 0; border-bottom:1px solid var(--rule); font-size:14px; }
 .mpFav small{ display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+/* 一覧・お気に入り・時間割外の行に添える時間割コード。小さい文字の中の
+   さらに補助なので、色は親（--muted）のまま字間だけ空ける。 */
+.mpCode{ margin-left:6px; font-variant-numeric:tabular-nums; letter-spacing:.04em;
+  white-space:nowrap; }
 .mpFavActions{ display:flex; gap:6px; flex-shrink:0; }
 .mpFavActions button{ padding:6px 10px; font-size:12px; border:1px solid var(--rule);
   border-radius:6px; background:var(--card); color:var(--soft); cursor:pointer; white-space:nowrap; }

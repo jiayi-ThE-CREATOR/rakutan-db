@@ -81,8 +81,27 @@ DAYS = ["月", "火", "水", "木", "金"]
 PERIODS = ["1", "2", "3", "4", "5", "6"]
 
 
+# 全角数字で打つ学生がいる（KOAN の画面からのコピペでも起きる）。
+_ZEN_DIGITS = str.maketrans("０１２３４５６７８９", "0123456789")
+
+
 def _norm(s: str) -> str:
     return re.sub(r"[\s　]+", "", s).lower()
+
+
+def _matches_query(c: dict, q: str) -> bool:
+    """検索語で当てるのは「科目名」と「時間割コード」の2つだけ。
+
+    教員名は足さない ―― README「教員名の扱い」の線（教員を軸にした検索を
+    作らない）はここが入口になる。コードは6桁の数字なので、打たれた語から
+    数字だけを抜いて部分一致で見る。全角で打つ学生がいるので半角に寄せる。
+    3桁未満では見ない ―― 「1」で数千件が当たると科目名の検索が潰れる。
+    web/assets/app.js の matchesQuery と同じ内容。片方だけ直さないこと。
+    """
+    if _norm(q) in _norm(c["title"]):
+        return True
+    digits = re.sub(r"\D", "", q.translate(_ZEN_DIGITS))
+    return len(digits) >= 3 and digits in str(c.get("id") or "")
 
 
 # 学生が実際に使う言葉での絞り込み条件。
@@ -198,14 +217,17 @@ def search(params: dict) -> dict:
     # トラック（外国語学部＝専攻語、工学部＝学科）。区分とは別の軸で、
     # 同じ軸を持つ科目の中でだけ効く。トラックを持たない科目は通す
     # ―― 落とすと共通教育がまるごと消える。
-    trk = get("track")
-    trk_axis = trk.split(":")[0] + ":" if trk else ""
+    # track2＝専攻語が日本語の学生が実際に履修する言語（例：中国語を選べば
+    # 中国語専攻と同じ科目）。web/assets/app.js の effectiveTrack() と同じ手順。
+    trk, trk2 = get("track"), get("track2")
+    eff_trk = trk2 if (trk == "fs_lang:R" and trk2) else trk
+    trk_axis = eff_trk.split(":")[0] + ":" if eff_trk else ""
     # 配点の上限（?cap_attendance=30 …）。既定は全部100%＝制限なし。
     caps = {k: scoring.NO_CAP for k in scoring.CAP_AXES} | scoring.parse_caps(params)
 
     base = []
     for c in COURSES:
-        if q and _norm(q) not in _norm(c["title"]):
+        if q and not _matches_query(c, q):
             continue
         if year != "all" and int(year) not in (c.get("eligible_years") or []):
             continue
@@ -223,7 +245,7 @@ def search(params: dict) -> dict:
         if any(not CONDITIONS[k](c) for k in conds):
             continue
         if trk_axis and (c.get("track") or "").startswith(trk_axis) \
-                and c.get("track") != trk:
+                and c.get("track") != eff_trk:
             continue
         e = scoring.enrich(c)
         if min_conf and e["rakutan"]["confidence"]["level"] not in _conf_ok(min_conf):
@@ -340,7 +362,7 @@ def openapi() -> dict:
                     "operationId": "searchCourses",
                     "summary": "科目を検索して楽単プロファイル付きで返す",
                     "parameters": [
-                        {"name": "q", "in": "query", "schema": {"type": "string"}, "description": "科目名の部分一致"},
+                        {"name": "q", "in": "query", "schema": {"type": "string"}, "description": "科目名または時間割コード（6桁）の部分一致。コードは3桁以上の数字のときだけ見る"},
                         {"name": "category", "in": "query", "schema": {"type": "string"}},
                         {"name": "campus", "in": "query", "schema": {"type": "string"}},
                         {"name": "term", "in": "query", "schema": {"type": "string"}},
@@ -349,6 +371,9 @@ def openapi() -> dict:
                         {"name": "track", "in": "query",
                          "schema": {"type": "string"},
                          "description": "専攻語・学科（例 fs_lang:K／eng_dept:denshi）"},
+                        {"name": "track2", "in": "query",
+                         "schema": {"type": "string"},
+                         "description": "track=fs_lang:R（日本語専攻）のときだけ効く、実際に履修する言語"},
                         {"name": "division", "in": "query",
                          "schema": {"type": "array", "items": {"type": "string"}},
                          "description": "科目区分。複数指定で OR。other は未判定"},

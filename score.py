@@ -58,7 +58,11 @@ EVAL_TOTAL_MIN = 80.0
 # これは難しさではなく形なので、意図的に小さくしてある。
 # 実際の難易度は口コミ（テストの難しさ・レポートの本数と分量）が決める。
 EXAM_RATIO_COEF = 0.15
-REPORT_RATIO_COEF = 0.15
+# 2026-09-11: 0.15 → 0.45。0.15 では「レポートが成績の80%」でも 12点しか
+# 引かれず 88点＝軽い になる。これが 2026-08-14 に軸ごと None にした原因
+# だったが、誤りは ratio を使ったことではなく係数が小さすぎたことだった。
+# 0.45 なら 80% → 64点「標準」で妥当な位置に来る。
+REPORT_RATIO_COEF = 0.45
 
 # 2026-09-03: 小テストを出席から独立させて4軸にした。下限が 0.10×4＝0.40 に
 # 増えたぶん、AXIS_SHARE を 0.58 → 0.48 に下げて合計 1.0 を保っている
@@ -183,43 +187,53 @@ def _exam_load(c: dict) -> tuple[float | None, list[str]]:
 
 
 def _report_load(c: dict) -> tuple[float | None, list[str]]:
-    """レポート負荷。本数と分量と時間外学習指示から出す。
+    """レポート負荷。まず割合で「形」を測り、量が取れていれば足す。
 
-    「レポートのみ＝楽」とは扱わない。レポート比率が高くても
-    本数と分量が多ければ重いと判定する。
+    2026-09-11: 本数・分量・時間外学習が全て無いときに軸ごと None を返す
+    実装をやめた。KOAN はこの3つを実測で 0件 / 3件 / 149件（全7,906件中）
+    しか埋めておらず、レポート軸は 98% の科目で動いていなかった。軸が1本
+    死ぬと weight_sum が COVERAGE_MIN を割り、科目ごと「情報不足」に落ちる
+    ―― 4,121件（54%）がこれだった。
+
+    2026-08-14 に軸を止めた判断は、係数が小さすぎた標定の問題（100 −
+    ratio×0.15 なので 80% でも 88点＝軽い）に対して軸の廃止で答えたもの。
+    係数を上げれば 80% → 64点になる（REPORT_RATIO_COEF のコメント参照）。
+
+    試験軸も ratio だけで「形」を測り、難しさは口コミ待ちにしている。
+    レポート軸だけが別の基準で黙るのは非対称なので揃える。
+
+    **測っているのは形だけ。**「レポート40%」が1本2,000字なのか5本1万字
+    なのかは区別できない。evidence にそう書いて画面に出す。
     """
-    ratio = (c.get("eval_ratio") or {}).get("report")
+    er = c.get("eval_ratio")
+    if er is None:
+        # 内訳そのものが読めない科目。勝手に満点にすると、ズレは必ず
+        # 「実際より楽に見える」方向にだけ出る。
+        return None, []
+
+    # キーが無い＝0%（不明ではない）。出席軸・小テスト軸と同じ扱い。
+    ratio = float(er.get("report") or 0.0)
     count = c.get("report_count")
     words = c.get("report_words")
     hours = c.get("out_of_class_hours")
 
-    # 「レポートで評価される」ことは負荷ではない。負荷は本数・分量・時間外学習の
-    # 側にある。その3つが全て無いとき、負荷は「軽い」のではなく「不明」である。
-    #
-    # ここを ratio だけで算出していたため、成績の80%がレポートの科目に
-    # 「レポート軸88＝軽い」が付いていた（2026-08-14 実データで発覚）。
-    # 間違う方向が「重い科目を軽いと言う」側なので、算出せず None を返す。
-    # 総合値は score() のカバレッジ判定で「情報不足」に落ちる。
-    if count is None and words is None and hours is None:
-        if ratio:
-            return None, [f"レポートが成績の{ratio:.0f}%だが、本数・分量が未取得"]
-        return None, []
-
     why = []
-    load = 0.0
-    if ratio is not None:
-        load += ratio * REPORT_RATIO_COEF
+    load = ratio * REPORT_RATIO_COEF
+    if ratio > 0:
         why.append(f"レポートが成績の{ratio:.0f}%")
+    else:
+        why.append("レポートなし")
     if count is not None:
         load += min(count, 10) * 6.0
         why.append(f"レポート{count}本")
-    if c.get("report_words"):
-        w = c["report_words"]
-        load += min(w / 8000.0, 1.0) * 20.0
-        why.append(f"1本あたり約{w:,}字")
+    if words:
+        load += min(words / 8000.0, 1.0) * 20.0
+        why.append(f"1本あたり約{words:,}字")
     if hours is not None:
         load += min(hours / 4.0, 1.0) * 25.0
         why.append(f"時間外学習の指示 週{hours}時間")
+    if ratio > 0 and count is None and words is None:
+        why.append("本数・分量は取得できていないため、形のみで判定")
     return _clamp(100.0 - load), why
 
 
@@ -439,9 +453,23 @@ def score(course: dict) -> dict:
 #
 # 軸を足す・係数を変えるときは、必ず tools/test_haiten_filter.py の
 # band 分布チェックを通すこと。
-LIGHT_MIN = 79
-NORMAL_MIN = 67
-HEAVYISH_MIN = 53
+# 2026-09-11: レポート軸が生き返って判定できる科目が 3,638 → 7,474 件に
+# 増えたので、4,121件が判定不能だった頃の分布で決めた 79/67/53 は使えない。
+#
+# 選び方は 2026-09-03 と同じ ―― 実測分布で「±1 動かしても大きく跳ばない」
+# 平らな場所だけを候補にして、その中から4つの band が均等に近くなる位置を採る。
+#
+# 🚨 76・77・78 には置けない。78.2 ちょうどに 742 件が固まっており、
+#   78 → 79 で 16.2pt 跳ぶ。閾値をこの塊の上に置くと 742 件が一斉に band を
+#   変える（2026-09-03 に 53.1 の 348件 で同じことを避けたのと同じ理屈）。
+#
+# 87 / 79 / 75 はいずれも ±1 で 1.3pt 以下しか動かない平らな場所で、
+# 結果の分布は やや重め 26.0% ／ 重め 25.1% ／ 標準 22.2% ／
+# 拘束は軽い 20.1% ―― 最大の band でも 27.5%（改修前は 72% が
+# 「拘束は軽い」に集まっていた）。
+LIGHT_MIN = 87
+NORMAL_MIN = 79
+HEAVYISH_MIN = 75
 
 
 def band_of(overall: float | None, conf_level: str,
@@ -609,12 +637,43 @@ def _unjudged_reason(course_score: dict) -> str:
     言う。2か所で言うと、同じカードに口コミの話が二段で並ぶ。
     ここで待っても出ない2つ（内訳が無い／読み取れた%が足りない）は、
     ※ の行が出ない科目なので今までどおり文を返す。
+
+    2026-09-07: 「シラバスに載っていない」と「こちらが読み分けられない」を
+    **言い分ける**ようにした。内訳の欄をシラバス直写しに変えた（#127）ので、
+    科目の詳細には内訳が4項目・合計100%で出ているのに、一覧のカードで
+    「シラバスに内訳が載っていない」と言う状態になっていた（507科目）。
+    例：総合英語（Content-based English）は
+    `Learning engagnement 35% / mini news presetations 5% / short speeches 30%
+     / reading and listening comprehension 30%` と**シラバスには書いてある**。
+    載っていないのではなく、METHOD_RULES がこの4つをどの区分にも
+    振り分けられていない。見分けは eval_unclassified が空かどうかで付く。
+
+    **スコアは1点も変わらない。ここで変えたのは文だけ。**
+
+    2026-09-11: 読み分けられない項目がある科目の文言を、こちらの都合の説明から
+    **読む人への案内**に変えた（363科目）。「種類に読み分けられなかった」は
+    こちらの分類器の話で、読む人には何の情報でもない。
+
+    この363科目は成績のつけ方がそもそも特殊で、項目名を機械で分類しても
+    意味のある軸にならない（例:「TOEFL ITPの得点 40%」「e-learningの
+    取り組み状況 40%」）。**点数は出さない。** 代わりに、科目の詳細の
+    「成績評価の内訳」がシラバスの表をそのまま写して出しているので、
+    そちらを読んでもらう。判断は学生に返す。
     """
     captured = course_score.get("eval_captured")
+    unclassified = course_score.get("eval_unclassified")
     if captured is None:
+        if unclassified:
+            return ("この授業は成績のつけ方が特殊なため、点数での判定は出していません。"
+                    "下の「成績評価の内訳」に、シラバスに書かれているとおりの"
+                    "項目と配点を出しています。")
         return "シラバスに成績評価の内訳が載っていないため、判定を出していません。"
     if captured >= EVAL_TOTAL_MIN:
         return ""
+    if unclassified:
+        return ("この授業は成績のつけ方が特殊なため、点数での判定は出していません。"
+                "下の「成績評価の内訳」に、シラバスに書かれているとおりの"
+                "項目と配点を出しています。")
     return (f"シラバスの成績評価の内訳が{captured:.0f}%分しか読み取れないため、"
             "判定を出していません。")
 

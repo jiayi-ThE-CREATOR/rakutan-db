@@ -16,6 +16,7 @@
 <link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
 <link rel="stylesheet" href="/assets/tokens.css">
 <link rel="stylesheet" href="/assets/app.css">
+<link rel="stylesheet" href="/assets/about.css">
 <!--SHELL:HEAD-->
 <!-- 全ページ共通の <head> 資源。ページごとに手で書くと必ず片方が古くなるので、
      ヘッダ・フッタと同じくここが正本。tokens.css / app.css は
@@ -50,13 +51,66 @@
 <!--/SHELL:HEADER--><div class="wrap prose"><h2 id="what">ラクハンとは</h2><p>阪大 全学部の科目 7,906件について、その科目が<b>どれくらい手間がかかるか</b>を、シラバスに書かれている事実から機械的に出しています。登録もログインもしなくていい。</p>
 
         <h2 id="strength">ラクハンの強み</h2>
-  <ul>
-    <li><b>阪大の全科目 7,906件。</b>紙の情報誌のように、載せられる科目や部数の限りがありません</li>
-    <li><b>URL を開くだけ。</b>登録もログインもしなくていい（したい人のために、あとで登録もできるようにする予定です）</li>
-    <li><b>口コミが1件も無い科目でも数字が出ます。</b>シラバスに書かれている事実だけから出しているためです</li>
-    <li><b>KOAN の公式シラバスに、1タップで飛べます。</b>元の記載をその場で確かめられます</li>
-    <li><b>「人文系の単位が欲しい」から探せます。</b>学部を選ぶと、卒業要件の科目区分ごとに絞り込めます</li>
-  </ul>
+  <!-- 画像スライドで機能を1つずつ見せる。実際の画面のスクショなので、
+       見た目が変わったら差し替えが要る（tools/shots.mjs で撮り直せる）。
+       構造・動きは web/assets/about.css / about.js。 -->
+  <div class="strCarousel" id="strCarousel">
+    <div class="strTrack" id="strTrack" tabindex="0" role="region" aria-roledescription="カルーセル" aria-label="ラクハンの強み">
+      <figure class="strSlide">
+        <span class="strFig"><picture>
+          <source srcset="/assets/strengths/all-courses-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="/assets/strengths/all-courses.png" alt="科目一覧画面。件数「7906件」の表示と、科目カードが並んでいる" loading="lazy" width="1752" height="1164">
+        </picture></span>
+        <figcaption><b>阪大の全科目 7,906件。</b>紙の情報誌のように、載せられる科目や部数の限りがありません</figcaption>
+      </figure>
+      <figure class="strSlide">
+        <span class="strFig"><picture>
+          <source srcset="/assets/strengths/no-login-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="/assets/strengths/no-login.png" alt="トップページの見出しから空きコマ検索・おすすめ科目まで。ログインや会員登録の案内が無い" loading="lazy" width="2560" height="1796">
+        </picture></span>
+        <figcaption><b>URL を開くだけ。</b>登録もログインもしなくていい</figcaption>
+      </figure>
+      <figure class="strSlide">
+        <span class="strFig"><picture>
+          <source srcset="/assets/strengths/no-review-score-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="/assets/strengths/no-review-score.png" alt="口コミ0件の科目の詳細パネル。成績評価の内訳が表示されている" loading="lazy" width="792" height="572">
+        </picture></span>
+        <figcaption><b>口コミが1件も無い科目でも数字が出ます。</b>シラバスに書かれている事実だけから出しているためです</figcaption>
+      </figure>
+      <figure class="strSlide">
+        <span class="strFig"><picture>
+          <source srcset="/assets/strengths/koan-link-dark.png" media="(prefers-color-scheme: dark)">
+          <img src="/assets/strengths/koan-link.png" alt="科目詳細パネル。科目名・成績評価の内訳の下に「この科目のKOAN公式シラバスを見る」ボタンがある" loading="lazy" width="800" height="662">
+        </picture></span>
+        <figcaption><b>KOAN の公式シラバスに、1タップで飛べます。</b>元の記載をその場で確かめられます</figcaption>
+      </figure>
+      <figure class="strSlide">
+        <span class="strFig strFigSplit">
+          <picture>
+            <source srcset="/assets/strengths/conditions-score-dark.png" media="(prefers-color-scheme: dark)">
+            <img src="/assets/strengths/conditions-score.png" alt="「条件」の絞り込みチップ（出席なし・レポートのみなど）と、「配点でしぼる」スライダー（出席・期末テスト・小テスト・レポート）" loading="lazy" width="544" height="720">
+          </picture>
+          <picture>
+            <source srcset="/assets/strengths/grade-faculty-dark.png" media="(prefers-color-scheme: dark)">
+            <img src="/assets/strengths/grade-faculty.png" alt="「学年」の絞り込みタブ、「全学部共通の区分でしぼる」、「学部からさがす」の学部・学科選択欄" loading="lazy" width="544" height="720">
+          </picture>
+        </span>
+        <figcaption><b>あなたの好み・学年・学部学科から探せます。</b>出席なし・レポートのみなどの条件や、配点の重さでも絞り込めます</figcaption>
+      </figure>
+    </div>
+    <div class="strCtrl">
+      <button type="button" class="strNav prev" id="strPrev" aria-label="前のスライド">‹</button>
+      <div class="strDots" id="strDots" aria-hidden="true">
+        <button type="button" class="strDot" data-i="0" aria-label="1枚目"></button>
+        <button type="button" class="strDot" data-i="1" aria-label="2枚目"></button>
+        <button type="button" class="strDot" data-i="2" aria-label="3枚目"></button>
+        <button type="button" class="strDot" data-i="3" aria-label="4枚目"></button>
+        <button type="button" class="strDot" data-i="4" aria-label="5枚目"></button>
+      </div>
+      <button type="button" class="strNav next" id="strNext" aria-label="次のスライド">›</button>
+    </div>
+    <p class="strNote">※ 画像はイメージです。実際の表示とは異なる場合があります。</p>
+  </div>
   <p>載っていないことは、載っていないと表示します。分からないものを平均で埋めたりはしません。</p>
 
 <h2 id="howto">数字の読み方</h2>
@@ -73,7 +127,8 @@
   <p>小テストは 2026年9月まで「出席」に含めていました。毎週の小テストと毎週の出席は学生にとって別の負担なので、分けて出すようにしました。</p>
 
   <h3>配点でしぼる</h3>
-  <p>スライダーの数字は、<b>シラバスの「成績評価の内訳」に書かれている割合そのもの</b>です。「出席・平常点 30%」まで下げると、出席が成績の30%以下の科目だけが残ります。0% にすると条件チップの「出席なし」と同じ状態になります ―― 同じことを指しているので、どちらを動かしてももう片方が動きます。</p>
+  <p>スライダーの数字は、シラバスの「成績評価の内訳」の割合です。「出席・平常点 30%」まで下げると、出席が成績の30%以下の科目だけが残ります。0% にすると条件チップの「出席なし」と同じ状態になります ―― 同じことを指しているので、どちらを動かしてももう片方が動きます。</p>
+  <p>ただし<b>しぼり込みは、シラバスの項目をこの4つに寄せてから使っています</b>。たとえば「発表 30%」はレポートに、「期末レポート 40%」は試験に数えられます。科目を選んだときに出る「成績評価の内訳」のほうは<b>シラバスの文言と数字をそのまま</b>出しているので、この2つは1対1では対応しません。正確な内訳は科目の詳細のほうを見てください。</p>
   <p>上限を1つでも動かすと、<b>成績評価の内訳が最後まで読み取れない科目は結果から外れます</b>。読み取れない部分に何が入るか分からないまま残すと、実際より軽く見える方向にだけ外れるからです。</p>
   <p>4本の上限の合計を100%より小さくすると、内訳の合計は100%なので、当てはまる科目はほぼ無くなります。その組み合わせを選んだときは画面で先にお知らせします。</p>
 
@@ -198,5 +253,6 @@
 <!--/SHELL:FOOTER-->
 
 <script src="/assets/shell.js" defer></script>
+<script src="/assets/about.js" defer></script>
 </body>
 </html>

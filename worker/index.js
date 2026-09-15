@@ -133,7 +133,7 @@ function courseBubble(c) {
         },
         {
           type: "text",
-          text: `授業コード ${c.id}${nReviews ? ` ／ 口コミ${nReviews}件` : ""}`,
+          text: `時間割コード ${c.id}${nReviews ? ` ／ 口コミ${nReviews}件` : ""}`,
           size: "xs",
           color: "#999999",
           margin: "sm",

@@ -218,5 +218,17 @@ export async function runDailyTraffic(env, now) {
     // 本文に数字しか入らない作りだが、念のため飛ばさない。
     body: JSON.stringify({ content, allowed_mentions: { parse: [] } }),
   });
-  if (!res.ok) console.error("stats webhook failed", res.status);
+  /* 🚨 ここで黙ると、0件より質の悪い沈黙になる（2026-09-09 の事故）。
+     STATS_DISCORD_WEBHOOK に失効した URL が入っていた6日間、cron は毎朝
+     08:00 に正しく起きて、死んだ URL へ投げて、console.error だけ書いて
+     終わっていた。投げっぱなしなので invocation は success のまま、
+     observability も無かったので、その1行はどこにも出なかった。
+     throw すれば waitUntil が reject し、Cloudflare 側に exception として
+     残る ―― 誰も見ていない console より、まだ拾える場所に落とす。
+     cron は他に何も連れていないので、ここで落ちて困る後続は無い
+     （口コミ中継のように「通知のために本処理を落とさない」という制約は、
+       この経路には無い）。 */
+  if (!res.ok) {
+    throw new Error(`stats webhook が ${res.status}（本文 ${content.length} 字）`);
+  }
 }

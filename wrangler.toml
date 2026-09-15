@@ -59,6 +59,15 @@ dataset = "rakutan_use"
 [triggers]
 crons = ["0 23 * * *"]
 
+# ログを残す（2026-09-09 追加）。
+# これが無いあいだ、この Worker は全サイトのトラフィック・LINE の webhook・
+# 口コミ通知・毎朝の速報を全部さばきながら、**1行もログが読めない**状態だった。
+# 毎朝の速報が6日間死んでいたのに誰も気づけなかったのはこれが理由
+# （`wrangler tail` は今この瞬間を覗くだけで、過去は見られない）。
+# 無料枠に収まる範囲で入れておく。ダッシュボードの Workers Logs から読む。
+[observability]
+enabled = true
+
 # シークレットはここに書かない。デプロイ後に以下で登録する:
 #   npx wrangler secret put LINE_CHANNEL_SECRET
 #   npx wrangler secret put LINE_CHANNEL_ACCESS_TOKEN
