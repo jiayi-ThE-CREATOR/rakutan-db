@@ -64,7 +64,11 @@ METHOD_RULES: list[tuple[str, str]] = [
     (r"小テスト|小test|クイズ|quiz", "quiz"),
     (r"試験|テスト|筆記|口頭試問|exam|達成度チェック|レベルチェック|アチーブメント", "exam"),
     (r"レポート|リポート|論文|課題|作品|提出|essay|report|assignment|paper", "report"),
-    (r"発表|プレゼン|presentation|leading", "report"),
+    # 2026-09-16: 発表を report から独立させた
+    # （docs/superpowers/specs/2026-09-16-happyou-axis-design.md）。
+    # **このルールの位置は動かさない。** レポートのルールより後ろにあるので、
+    # 「個人のレポートとプレゼンテーション」のような同居項目はレポートに残る。
+    (r"発表|プレゼン|presentation|leading", "presentation"),
     (r"参加|出席|平常点|態度|理解|実技|実演|討論|ディベート|debate|discussion|participation", "attendance"),
 
     # ── ここから下は 2026-08-20 追加（政岡さんのデータ品質チェック 8/20分）。
@@ -163,7 +167,8 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
     raw = grading(soup)
 
     # 評価方法 → 4バケツ
-    buckets = {"exam": 0.0, "report": 0.0, "attendance": 0.0, "quiz": 0.0}
+    buckets = {"exam": 0.0, "report": 0.0, "attendance": 0.0, "quiz": 0.0,
+               "presentation": 0.0}
     unknown = []
     unclassified = {}          # 落とした項目を「落とした」と記録する（下記）
     for name, pct in raw.items():

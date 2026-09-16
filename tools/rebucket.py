@@ -35,7 +35,8 @@ SRC = ROOT / "data" / "courses.json"
 
 def rebucket(raw: dict[str, float]) -> tuple[dict | None, dict | None]:
     """eval_raw → (eval_ratio, eval_unclassified)。parse.py の one() と同じ手順。"""
-    buckets = {"exam": 0.0, "report": 0.0, "attendance": 0.0, "quiz": 0.0}
+    buckets = {"exam": 0.0, "report": 0.0, "attendance": 0.0, "quiz": 0.0,
+               "presentation": 0.0}
     unclassified: dict[str, float] = {}
     for name, pct in raw.items():
         b = bucket_of(name)
