@@ -79,6 +79,12 @@ async function boot(){
   $("#mpCalDelDlg").addEventListener("click", (e) => {
     if (e.target === e.currentTarget) $("#mpCalDelDlg").close();
   });
+
+  /* 科目の詳細。閉じ方は他のダイアログと同じ（ボタン・背景クリック・Esc）。 */
+  $("#mpDetailClose").onclick = () => $("#mpDetail").close();
+  $("#mpDetail").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) $("#mpDetail").close();
+  });
 }
 
 function buildProfile(){
@@ -615,14 +621,18 @@ function renderTimetable(){
         html += `<button class="mpCell" data-slot="${slot}" aria-label="${slot} 空き"></button>`;
         continue;
       }
-      /* 埋まっているマスは押すと「いつもの詳細」へ飛ぶ（2026-09-16）。
+      /* 埋まっているマスは押すと「いつもの詳細」が開く（2026-09-16）。
          それまではマスそのものが「外す」ボタンで、詳細を見る手立ては
          マイページから1つも無かった（一覧で科目名を探し直すしかなかった）。
          外すのは右下の ✕（.mpCellDel）へ移した。
 
-         button ではなく a にしてある。時間割を見ながら1科目だけ調べる
-         使い方になるので、長押し・中クリックで別タブに開けるほうがいい。
-         行き先の ?open= を受けるのは app.js の openCourseDetail。
+         開くのは**このページの中**（#mpDetail）。同じ日の先行版では
+         /?open= で一覧ページへ飛ばしていたが、時間割を見ながら1つずつ
+         確かめる使い方だと、そのたびにマイページを離れることになる（本人指摘）。
+
+         それでも button ではなく a のままにしてあるのは、長押し・中クリックで
+         別タブに開けるようにするため。その場合だけ従来どおり一覧ページが開く
+         （?open= は app.js の openCourseDetail が受ける）。
 
          カレンダー追加ボタンと ✕ は .mpCell の中には入れない。a や button の
          中に button を置くと読み上げが崩れるので、.mpCellWrap を挟んで
@@ -630,7 +640,7 @@ function renderTimetable(){
       const added = rkStore.isCalAdded(id);
       const ins = c.instructor || "担当教員未定";
       html += `<div class="mpCellWrap">`
-            + `<a class="mpCell filled" data-slot="${slot}" href="/?open=${encodeURIComponent(id)}"`
+            + `<a class="mpCell filled" data-slot="${slot}" data-id="${esc(id)}" href="/?open=${encodeURIComponent(id)}"`
             + ` aria-label="${slot} ${esc(c.title)} ${esc(ins)} 時間割コード${esc(c.id)} の詳細を見る">`
             +   `${esc(c.title)}<small class="mpCellIns">${esc(ins)}</small>`
             +   `<small class="mpCellCode">${esc(c.id)}</small></a>`
@@ -646,6 +656,13 @@ function renderTimetable(){
      ここのセレクタには掛からない。 */
   $("#mpGrid").querySelectorAll("button.mpCell").forEach(b => b.onclick = () => openPicker(b.dataset.slot));
   $("#mpGrid").querySelectorAll(".mpCellDel").forEach(b => b.onclick = () => removeCourse(b.dataset.del));
+  /* ふつうのクリックはページ内で開く。修飾キー・中クリックのときは
+     何もしない ―― ブラウザに任せれば別タブで一覧ページが開く。 */
+  $("#mpGrid").querySelectorAll("a.mpCell").forEach(a => a.onclick = (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    openDetail(a.dataset.id);
+  });
   $("#mpGrid").querySelectorAll(".mpCalBtn").forEach(btn => {
     btn.onclick = () => {
       const c = BY_ID.get(btn.dataset.calId);
@@ -676,6 +693,76 @@ function renderExtra(){
   $("#mpExtra").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
     rkStore.removeExtra(term, b.dataset.rm); renderTimetable();
   });
+}
+
+/* ── 科目の詳細（このページの中で開く）────────────────────
+ *
+ * 出すのは一覧ページと**同じもの**。組み立てるのは detail.js の detailHtml で、
+ * ここにコピーは持たない（detail.js の冒頭の注記を参照）。
+ *
+ * 🚨 データだけは重い。詳細に要る成績評価の内訳（eval_raw）と口コミの集計は
+ *    timetable.json に入っていない ―― あちらは名前・担当・曜限だけの投影で、
+ *    このページを 135KB で開くためにそう作ってある（このファイルの冒頭）。
+ *    なので courses.built.json（12.5MB・gzip 570KB）を**最初にコマを押した
+ *    ときだけ**取りに行く。ページを開いただけでは取らない。
+ *    一覧ページが常時読んでいるのと同じURLなので、そちらを見たあとなら
+ *    ブラウザのキャッシュに載っている。
+ *
+ *    ここを boot() に移して先読みしないこと。押さない人（時間割を眺めるだけ、
+ *    お気に入りを見るだけ）にまで 570KB を払わせることになる。
+ *    軽くするなら、build.py に詳細だけの投影（eval_raw・eval_note・
+ *    weekly_quiz・reviews・shozoku_cd）を吐かせる ―― 実測 gzip 68KB まで
+ *    落ちるが、build.py は wang の持ち場なので相談してから（2026-09-16）。
+ */
+let fullCache = null;          // courses.built.json の中身（id → 科目）
+let fullPromise = null;        // 取得中の約束。二重に取りに行かないため
+
+async function fetchFull(){
+  if (fullCache) return fullCache;
+  if (!fullPromise){
+    fullPromise = fetch("/data/courses.built.json")
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(d => { fullCache = new Map((d.courses || []).map(c => [c.id, c])); return fullCache; })
+      .catch(e => { fullPromise = null; throw e; });   // 次に押したときは取り直す
+  }
+  return fullPromise;
+}
+
+async function openDetail(id){
+  const t = BY_ID.get(id);                      // 名前・担当・曜限はもう手元にある
+  const dlg = $("#mpDetail");
+  /* いま開いているのがどの科目か。下の await のあとで見比べる
+     ―― 読み込み中に別のコマを押されたら、古い方の結果は捨てる。 */
+  dlg.dataset.id = id;
+  $("#mpDetailTitle").textContent = t ? t.title : id;
+  /* 一覧のカードと同じ .meta の行。キャンパス・区分は timetable.json に
+     無いので、ここでは曜限・担当・時間割コードの3つだけ出す。 */
+  $("#mpDetailMeta").innerHTML = t
+    ? `<span>${esc(t.day_period || "曜限なし")}</span><span>${esc(t.instructor || "―")}</span><span>${esc(id)}</span>`
+    : `<span>${esc(id)}</span>`;
+  /* 取りに行く前に開く。570KB のあいだ何も起きないと、押せていないように見える。 */
+  $("#mpDetailBody").innerHTML = `<p class="mpEmpty">読み込んでいます…</p>`;
+  if (!dlg.open) dlg.showModal();
+
+  let full;
+  try {
+    full = await fetchFull();
+  } catch (e) {
+    $("#mpDetailBody").innerHTML =
+      `<p class="mpEmpty">詳細を読み込めませんでした。通信を確かめて、もう一度押してください。</p>`;
+    return;
+  }
+  /* 開いているあいだに別のコマを押されていたら、古い方は描かない。 */
+  if (dlg.dataset.id !== id) return;
+  const c = full.get(id);
+  if (!c){
+    $("#mpDetailBody").innerHTML =
+      `<p class="mpEmpty">この科目は今年度のデータにありません。</p>`;
+    return;
+  }
+  $("#mpDetailBody").innerHTML = window.rkDetail.detailHtml(c)
+    + `<p class="mpDetailMore"><a href="/?open=${encodeURIComponent(id)}">一覧でこの科目を見る →</a></p>`;
+  $("#mpDetailBody").scrollTop = 0;
 }
 
 /* マスの右下の ✕。2026-09-16 までは埋まっているマスを押すこと自体が

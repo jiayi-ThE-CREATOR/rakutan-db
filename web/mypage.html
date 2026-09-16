@@ -116,6 +116,19 @@
   <button id="mpPickerClose">閉じる</button>
 </dialog>
 
+<!-- 時間割のコマを押したときに出る科目の詳細（2026-09-16）。
+     中身は一覧ページとまったく同じもの（detail.js の detailHtml）。
+     以前は /?open=<時間割コード> で一覧ページへ飛ばしていたが、時間割を
+     見ながら1つずつ確かめる使い方では、そのたびにページを離れることになる。 -->
+<dialog class="mpDetailDlg" id="mpDetail" aria-labelledby="mpDetailTitle">
+  <h3 id="mpDetailTitle"></h3>
+  <div class="meta" id="mpDetailMeta"></div>
+  <!-- class="detail" は付けない。app.css の .detail は「カードの中で開くまで
+       隠しておく」ための display:none を持っている（.card.open .detail で出る）。 -->
+  <div id="mpDetailBody"></div>
+  <button type="button" class="mpCalClose" id="mpDetailClose">閉じる</button>
+</dialog>
+
 <!-- カレンダーに追加。1コマだけのときも「全てカレンダーに追加」のときも
      同じダイアログを使い回し、中身（タイトル・件数の説明）だけ差し替える。 -->
 <dialog class="mpCalDlg" id="mpCalAddDlg">
@@ -226,6 +239,9 @@
 
 <script src="/assets/store.js"></script>
 <script src="/assets/shell.js" defer></script>
+<!-- 一覧（index.html）と同じ詳細を、このページの中で出すために読む。
+     mypage.js より先に置くこと（mypage.js が window.rkDetail を読む）。 -->
+<script src="/assets/detail.js" defer></script>
 <script src="/assets/mypage.js" defer></script>
 </body>
 </html>

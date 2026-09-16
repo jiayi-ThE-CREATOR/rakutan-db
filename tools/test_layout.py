@@ -48,9 +48,15 @@ check(not re.search(r"\.hd\s*\{[^}]*max-width:\s*560px", css),
 check("grid-template-columns" in css, "3カラムの grid-template-columns が無い")
 
 # 詳細の組み立ては1本のまま、という約束。
+# 2026-09-16 に app.js から detail.js へ移した（マイページも同じものを
+# その場で開くため）。「1本」の約束は移っただけで変わっていないので、
+# **両方**を見る ―― app.js 側に書き戻されたら、そこで2本になる。
 js = (ROOT / "web" / "assets" / "app.js").read_text(encoding="utf-8")
-check(js.count("function detailHtml(") == 1,
+detail_js = (ROOT / "web" / "assets" / "detail.js").read_text(encoding="utf-8")
+check(detail_js.count("function detailHtml(") == 1,
       "detailHtml が1本ではない（PC 用とスマホ用に分裂している）")
+check(js.count("function detailHtml(") == 0,
+      "app.js にも detailHtml がある（detail.js と2本になっている）")
 check("matchMedia" in js, "app.js に matchMedia による分岐が無い")
 check("selectedCourseId" in js, "app.js に selectedCourseId が無い")
 
@@ -59,7 +65,7 @@ check("selectedCourseId" in js, "app.js に selectedCourseId が無い")
 # reviewHtml（口コミの集計数字）はボタンではなく、対応するボタンが
 # .cardActs に無いので重複しない。wang の依頼で 2026-09-10 に
 # detailHtml へ戻した（モーダルを開かなくても数字が見えるように）。
-det = js[js.index("function detailHtml("):]
+det = detail_js[detail_js.index("function detailHtml("):]
 det = det[:det.index("\n}\n")]
 for cls in ["panelBtn", "ttAddBtn", "reviewBtn"]:
     check(cls not in det, f"detailHtml に {cls} が残っている（操作バーと重複する）")

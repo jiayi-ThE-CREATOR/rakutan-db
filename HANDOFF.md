@@ -17,6 +17,85 @@
 
 ---
 
+## 2026-09-16（2）｜ 詳細の組み立てを detail.js に切り出し、マイページの中で開く ｜ Claude → 次の人
+
+ひとつ下の項（同じ日の①）で、コマを押すと `/?open=` で**一覧ページへ飛ぶ**ようにした。
+本人から「いちいちマイページから出るのではなく、そのページ内で上に出してほしい」。
+飛ばずに**その場でダイアログ**を開くように変えた。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8140 &
+    node tools/test_mypage.mjs http://localhost:8140   # OK 59 checks
+    node tools/test_favorite.mjs / test_eval_raw.mjs / test_koan_code.mjs …  全通過
+    （.mjs 16本を通した。唯一の NG は test_kuchikomi_modal で、**本番の main に
+      向けて流しても同じく落ちる**ので無関係 ―― 確認方法：
+      `node tools/test_kuchikomi_modal.mjs https://rakuhan.nocode-sol.co.jp`）
+
+- **`web/assets/detail.js` を新設（app.js から切り出した）**
+  科目1件を受け取って詳細の HTML を返す関数だけを集めた：
+  `detailHtml` `reviewHtml` `evalCompHtml` `evalNoteHtml` `koanUrl` `RV_ATT` `rvLv` `rvAvg`。
+  **中身は app.js から1行も変えずに移した**（コメントごと）。`window.rkDetail` で渡す。
+  - `app.js` は先頭付近で `const { detailHtml, reviewHtml, rvLv, RV_ATT } = window.rkDetail;`
+    と受け取るだけ。**他の呼び出し箇所は1つも書き換えていない**（名前が同じなので）
+  - `index.html` / `mypage.html` の `<script>` に1行ずつ追加。**app.js・mypage.js より先**
+- **マイページ（`mypage.js`）**
+  コマを押す → `#mpDetail`（`<dialog>`）がその場で開く。中身は一覧とまったく同じ
+  `detailHtml` の出力。`<a href="/?open=…">` は**残してある** ―― 長押し・中クリック・
+  修飾キー付きクリックのときだけ既定の遷移に任せ、別タブで一覧ページが開く
+- **データ** ―― 詳細に要る `eval_raw` と口コミの集計は `timetable.json` に無いので、
+  **最初にコマを押したときだけ** `courses.built.json` を取りに行く（後述）
+
+### 2. 何をしていないか
+
+- 🚨 **初回のコマ押しで `courses.built.json`（12.5MB・gzip 570KB）を1回ダウンロードする。**
+  ページを開いただけでは取らない。一覧ページを先に見ていればキャッシュに載っている。
+  **軽くする道は測ってある**：詳細に要る項目だけの投影
+  （`eval_raw` `eval_note` `weekly_quiz` `reviews` `shozoku_cd` ＋見出し用の数項目）なら
+  **gzip 245KB**、`rakutan` を除いた最小なら**さらに小さい**。ただし作るのは `build.py`＝
+  wang の持ち場なので**相談してから**。実測コマンドは HANDOFF 末尾ではなくこの項の下に置いた
+- 実機（4G・iPhone）での初回の待ち時間は**測っていない**。ローカルは 230ms
+- お気に入り一覧（`#mpFavList`）の科目名は**まだ押せない**。時間割のコマだけ
+- `?open=` は残してある（別タブ用の逃げ道と、ダイアログ下の「一覧でこの科目を見る →」）。
+  もう不要と判断するなら app.js の `openCourseDetail` ごと消せる
+
+### 3. 次の人が最初に打つコマンド
+
+    cd web && python3 -m http.server 8140 &
+    open http://localhost:8140/mypage.html     # コマを押す → その場で詳細
+    node tools/test_mypage.mjs http://localhost:8140
+
+投影を作るかを判断するための実測（2026-09-16 時点）:
+
+    python3 - <<'EOF'
+    import json, gzip
+    cs = json.load(open("web/data/courses.built.json"))["courses"]
+    K = ["id","title","instructor","day_period","term","credits","category",
+         "class_format","campus","shozoku_cd","eval_raw","eval_note",
+         "eval_unclassified","weekly_quiz","reviews"]
+    proj = [{k: c[k] for k in K if c.get(k) is not None} for c in cs]
+    for n, o in [("全体", cs), ("詳細だけの投影", proj)]:
+        b = json.dumps(o, ensure_ascii=False, separators=(",",":")).encode()
+        print(f"{n}: raw {len(b)/1024/1024:.2f}MB  gzip {len(gzip.compress(b,6))/1024:.0f}KB")
+    EOF
+
+### 4. 踏んだ罠
+
+- 🚨 **`class="detail"` を他のページで使い回さない。** app.css の `.detail` は
+  `display:none` を持っている（カードの中では `.card.open .detail` で初めて出る）。
+  マイページのダイアログの中身に同じクラスを付けたら、**HTML は入っているのに
+  何も見えない**状態になった。テストが `.dSec` を「見えている」で待っていたので
+  気づけたが、目視だけだと「読み込みに失敗した」と誤読しやすい
+- **`window.rkDetail` を読む側は、読み込み順に依存する。** `app.js` の先頭で
+  分割代入しているので、`detail.js` を後に置くと **app.js が丸ごと落ちる**（= 一覧が
+  真っ白）。両方 `defer` なら書いた順に実行されるので、`<script>` の順序を守ること
+- 切り出しは**行範囲で機械的に移した**（`sed` ではなく Python で行を抜いた）。
+  手で書き写すと、コメントの中の実測値（「延べ172箇所」など）が落ちる。
+  移したあと `grep` で `evalCompHtml` `evalNoteHtml` `EVAL_POINTER` `rvAvg` `koanUrl` が
+  app.js に1つも残っていないことを確かめている
+
+---
+
 ## 2026-09-16 ｜ マイページ：コマを押したら科目の詳細へ／コマに担当教員 ｜ Claude → 次の人
 
 依頼は2つ。「マイページの授業を押したら、いつもの詳細ページが出るようにしたい」
