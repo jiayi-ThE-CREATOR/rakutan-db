@@ -24,7 +24,7 @@ const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), 
                 /* 配点の上限（%）。100＝制限なし。2026-09-03 に「重み 0〜5」から
                    置き換えた。**チップ「出席なし」等はここと同じ状態を指す** ――
                    別々に持つと片方を押したときにもう片方と食い違う。 */
-                caps:{ attendance:100, exam:100, quiz:100, report:100 },
+                caps:{ attendance:100, exam:100, quiz:100, report:100, presentation:100 },
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
                 /* track2＝専攻語が「日本語」の学生が実際に履修するもう一つの専攻語。
@@ -843,7 +843,10 @@ const evalKnown = c => !!c.eval_ratio && !c.eval_unclassified;
 
 /* ── 配点の上限（score.py の passes_caps / caps_impossible と同じ） ──
    規模・形態（scale）は成績評価の内訳ではないので上限をかけられない。 */
-const CAP_AXES = ["attendance", "exam", "quiz", "report"];
+/* 🚨 2026-09-16 に presentation を足した。ここに無いキーの上限は passesCaps が
+   黙って無視する（入れ忘れると「発表なし」が全件に一致する）。
+   score.py の CAP_AXES と同じにすること。 */
+const CAP_AXES = ["attendance", "exam", "quiz", "report", "presentation"];
 const NO_CAP = 100;
 /* 目盛りの刻み。**10 で確定（2026-09-04 wangさんの判断）。**
 
@@ -859,9 +862,10 @@ const NO_CAP = 100;
    刻みを変えるときはここだけ直すこと。URL復元の丸めもこの値を見ている
    （以前 10 を直書きしていて、5刻みにしたとき 35% が往復で 40% に化けた）。 */
 const CAP_STEP = 10;
-const NO_CAPS = { attendance:NO_CAP, exam:NO_CAP, quiz:NO_CAP, report:NO_CAP };
+const NO_CAPS = { attendance:NO_CAP, exam:NO_CAP, quiz:NO_CAP, report:NO_CAP,
+                  presentation:NO_CAP };
 const CAP_LABEL = { attendance:"出席・平常点", exam:"期末テスト",
-                    quiz:"小テスト", report:"レポート" };
+                    quiz:"小テスト", report:"レポート", presentation:"発表" };
 
 function passesCaps(c, caps){
   /* 上限が全部100%（＝既定）なら何も落とさない。触っていないのに件数が
@@ -910,7 +914,10 @@ const capsImpossible = caps =>
 const CHIP_CAPS = {
   "出席なし":     { attendance:0 },
   "小テストなし": { quiz:0 },
-  "レポートのみ": { exam:0, attendance:0, quiz:0 },
+  /* 2026-09-16: 発表を独立した軸にしたので「レポートのみ」は発表 0% も要る。
+     server.py の CHIP_CAPS と同じにすること。 */
+  "レポートのみ": { exam:0, attendance:0, quiz:0, presentation:0 },
+  "発表なし":     { presentation:0 },
 };
 const capChip = caps => c => passesCaps(c, { ...NO_CAPS, ...caps });
 
@@ -921,6 +928,7 @@ const CONDITIONS = {
   "1限以外":      c => !/1$/.test(c.day_period || ""),
   "集中講義":     c => c.term === "集中",
   "小テストなし": capChip(CHIP_CAPS["小テストなし"]),
+  "発表なし":     capChip(CHIP_CAPS["発表なし"]),
   "口コミあり":   c => ((c.reviews || {}).n || 0) > 0,
 };
 

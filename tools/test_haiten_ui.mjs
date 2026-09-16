@@ -52,8 +52,8 @@ const setCap = (k, v) => p.$eval(`#s_${k}`, (e, val) => {
   e.dispatchEvent(new Event("input", { bubbles: true }));
 }, v);
 
-/* ── ① 4本のスライダーがあり、既定は 100%（＝制限なし） ── */
-const AXES = ["attendance", "exam", "quiz", "report"];
+/* ── ① 5本のスライダーがあり、既定は 100%（＝制限なし） ── */
+const AXES = ["attendance", "exam", "quiz", "report", "presentation"];
 for (const k of AXES) {
   check(await p.$(`#s_${k}`) !== null, `スライダー #s_${k} が無い`);
 }
@@ -71,7 +71,7 @@ for (const k of AXES) {
   check(fits, `${k} の行がはみ出している（目盛りの % が読めない）`);
 }
 
-/* 目盛りは 10 刻み（2026-09-04 確定）。4本とも同じ刻みであること。 */
+/* 目盛りは 10 刻み（2026-09-04 確定）。5本とも同じ刻みであること。 */
 const STEP = await p.$eval("#s_attendance", e => Number(e.step));
 check(STEP === 10, `目盛りが 10 刻みでない: ${STEP}`);
 for (const k of AXES) {
@@ -109,12 +109,12 @@ check(await capOf("attendance") === 0,
       `チップ「出席なし」を押したのに出席スライダーが ${await capOf("attendance")}%`);
 check(await chipOn("出席なし"), "チップ「出席なし」が点灯していない");
 
-/* 「レポートのみ」は3本まとめて 0% にする */
+/* 「レポートのみ」は4本まとめて 0% にする（2026-09-16 に発表が加わった） */
 await clickChip("出席なし");                 // 解除してから
 await p.waitForTimeout(150);
 await clickChip("レポートのみ");
 await p.waitForTimeout(200);
-for (const k of ["exam", "attendance", "quiz"]) {
+for (const k of ["exam", "attendance", "quiz", "presentation"]) {
   check(await capOf(k) === 0,
         `「レポートのみ」なのに ${k} が ${await capOf(k)}%`);
 }
@@ -123,11 +123,13 @@ check(await capOf("report") === 100, "「レポートのみ」でレポートま
 /* ── ⑤ 上限の合計が100%を下回ると0件になり、先に警告が出る ── */
 await clickChip("レポートのみ");             // 解除
 await p.waitForTimeout(150);
-for (const k of AXES) await setCap(k, 20);
+/* 5本とも 10% で合計 50%。2026-09-16 までは4本×20%＝80% で見ていたが、
+   発表を足して5本になると 20% ずつでは合計 100% になり、警告の条件を満たさない。 */
+for (const k of AXES) await setCap(k, 10);
 await p.waitForTimeout(250);
 check(await p.$eval("#capWarn", e => !e.hidden),
-      "上限の合計が80%なのに警告が出ていない");
-check(await count() === 0, `合計80%なのに ${await count()}件 出ている`);
+      "上限の合計が50%なのに警告が出ていない");
+check(await count() === 0, `合計50%なのに ${await count()}件 出ている`);
 
 /* 1本でも戻せば警告は消える */
 await setCap("exam", 100);
@@ -137,10 +139,10 @@ check(await p.$eval("#capWarn", e => e.hidden),
 
 /* ── ⑥ URL に上限が載り、開き直しても同じ状態になる ── */
 const url = p.url();
-check(/cap_attendance=20/.test(url), `URL に上限が載っていない: ${url}`);
+check(/cap_attendance=10/.test(url), `URL に上限が載っていない: ${url}`);
 await p.goto(url, { waitUntil: "networkidle" });
 await p.waitForSelector("#list > .card, #list");
-check(await capOf("attendance") === 20, "URL から開き直すと上限が復元されない");
+check(await capOf("attendance") === 10, "URL から開き直すと上限が復元されない");
 
 /* URL に目盛りへ乗らない値（35%）が来たら、目盛りに合わせて丸めること。
    つまみの位置と件数が食い違うと「なぜこの件数なのか」が画面から読めない。

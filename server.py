@@ -150,7 +150,9 @@ def _eval_known(c: dict) -> bool:
 CHIP_CAPS = {
     "出席なし":     {"attendance": 0},
     "小テストなし": {"quiz": 0},
-    "レポートのみ": {"exam": 0, "attendance": 0, "quiz": 0},
+    # 2026-09-16: 発表を独立した軸にしたので、「レポートのみ」は発表 0% も要る。
+    "レポートのみ": {"exam": 0, "attendance": 0, "quiz": 0, "presentation": 0},
+    "発表なし":     {"presentation": 0},
 }
 
 
@@ -166,6 +168,7 @@ CONDITIONS = {
     "1限以外":      lambda c: not (c.get("day_period") or "").endswith("1"),
     "集中講義":     lambda c: c.get("term") == "集中",
     "小テストなし": _chip(CHIP_CAPS["小テストなし"]),
+    "発表なし":     _chip(CHIP_CAPS["発表なし"]),
     # 口コミが1件でも入っている科目。KOAN から取れない5つ（定員／レポート本数／
     # 字数／時間外学習／毎回小テスト）が埋まっているのはこの科目だけなので、
     # 「シラバスの形だけで出した数字」と「人が確認した数字」を学生が区別できる。
