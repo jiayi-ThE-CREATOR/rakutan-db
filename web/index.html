@@ -24,6 +24,9 @@
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
 <link rel="stylesheet" href="/assets/version.css">
+<!-- LINE 登録しないと使えない機能の覆い（data-gate を持つ節）。
+     判定は localStorage ではなくサーバー（GET /api/me）。理由は gate.js の頭。 -->
+<link rel="stylesheet" href="/assets/gate.css">
 <!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
      これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
      大きく出る」が成立せず、ただの文字列リンクになる。
@@ -84,7 +87,13 @@
       <!-- この列の名前。開閉の操作子は持たない ―― 取っ手は条件欄と一覧の
            継ぎ目（.gripRail）に1つだけ置く。見出しの罫線は右の .bar の罫線と
            高さを揃えてあり、左右が「同じ段」に見えるようにしてある。 -->
-      <div class="railHead"><span class="railHeadT">絞り込み</span></div>
+      <!-- リセットは見出しの右。.railHead はもともと space-between で
+           右側が空いていた場所で、768px 以上でしか出ない＝PC 専用の置き場。
+           スマホぶんは学期の下（このレールの末尾）に別に置く。 -->
+      <div class="railHead">
+        <span class="railHeadT">絞り込み</span>
+        <button class="resetAll" data-reset hidden>リセット</button>
+      </div>
       <div class="slotBar" id="slotBar" hidden>
         <span id="slotBarText"></span>
         <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
@@ -98,23 +107,32 @@
       <!-- 条件チップは配点スライダーの「上」に置く。押すと下のスライダーが
            0% へ動く（同じ1つの状態を指している）。順番を入れ替えると、
            押した結果がどこに出るのか画面から読めなくなる。 -->
+      <!-- data-gate … LINE 登録するまで覆いをかける節（gate.js）。
+           見出しは覆いの外に置く ―― 何がロックされているか分からないと、
+           登録する理由も伝わらない。 -->
       <section>
         <h2>条件</h2>
-        <div class="chips" id="conds"></div>
+        <div data-gate>
+          <div class="chips" id="conds"></div>
+        </div>
       </section>
 
       <section>
         <h2>配点でしぼる</h2>
-        <button class="toggle" id="tog">配点スライダーを閉じる</button>
-        <div class="sliders open" id="sliders"></div>
-        <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も
-             条件を満たさない。0件になってから気付かせず、先に理由を出す。 -->
-        <p class="capWarn" id="capWarn" hidden>上限の合計が100%を下回っています。成績評価の内訳は合計100%なので、この組み合わせに当てはまる科目はありません。</p>
+        <div data-gate>
+          <button class="toggle" id="tog">配点スライダーを閉じる</button>
+          <div class="sliders open" id="sliders"></div>
+          <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も
+               条件を満たさない。0件になってから気付かせず、先に理由を出す。 -->
+          <p class="capWarn" id="capWarn" hidden>上限の合計が100%を下回っています。成績評価の内訳は合計100%なので、この組み合わせに当てはまる科目はありません。</p>
+        </div>
       </section>
 
       <section>
         <h2>口コミ</h2>
-        <div class="chips" id="trust"></div>
+        <div data-gate>
+          <div class="chips" id="trust"></div>
+        </div>
       </section>
 
       <section>
@@ -131,6 +149,14 @@
         <h2>学期</h2>
         <div class="chips" id="sems"></div>
       </section>
+
+      <!-- スマホのリセット。見出し行（.railHead）は 768px 未満では出していない
+           ので、そこに置くとスマホから押せない。レールの末尾＝学期の下に置く。
+           条件チップより「下」なのが肝で、出たり消えたりしてもチップは動かない
+           （上に置くと、条件を1つ押した瞬間にチップ6個が全部ずれる）。 -->
+      <div class="resetSp">
+        <button class="resetAll" data-reset hidden>リセット</button>
+      </div>
 
 
       <p class="railNote"><a href="/about#howto">数字の読み方 →</a></p>
@@ -257,6 +283,8 @@
      Cookie を置かず、個人を特定する情報も送らない。
      自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
 <script src="/assets/analytics.js" defer></script>
+<!-- 覆いは app.js / mypage.js が描き終わってから掛ける（gate.js 内で待つ）。 -->
+<script src="/assets/gate.js" defer></script>
 <!--/SHELL:FOOTER-->
 </div>
 
@@ -334,6 +362,9 @@
 <script src="/assets/splash.js"></script>
 <script src="/assets/store.js"></script>
 <script src="/assets/shell.js" defer></script>
+<!-- 科目の詳細を組み立てるところ。マイページ（mypage.html）も同じものを読む。
+     app.js より先に置くこと（app.js が window.rkDetail を読む）。 -->
+<script src="/assets/detail.js" defer></script>
 <script src="/assets/app.js" defer></script>
 <script src="/assets/onboard.js" defer></script>
 </body>
