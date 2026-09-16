@@ -83,6 +83,24 @@
   color:var(--soft); cursor:pointer; padding:0; font:inherit; font-size:10px;
   line-height:1;
 }
+/* コマを押すと出る科目の詳細（2026-09-16）。#mpPicker と同じ骨格に揃える。
+   中身（.dSec・.compBar・.rv・.koanLink…）のスタイルは app.css が持っていて、
+   mypage.html は前からそれを読んでいるので、ここで書き足すものは無い
+   ―― 同じ見た目を2か所で定義しないため、増やさないこと。
+   縦は 80vh で止めて中だけ送る。成績評価の内訳＋口コミの集計＋KOANリンクで、
+   科目によっては画面より縦に長くなる。 */
+.mpDetailDlg{ border:0; border-radius:14px; padding:20px; max-width:480px; width:90vw;
+  max-height:80vh; overflow-y:auto; background:var(--card); color:var(--ink); }
+.mpDetailDlg::backdrop{ background:var(--scrim); }
+.mpDetailDlg h3{ margin:0 0 6px; font-size:17px; line-height:1.4; }
+/* 曜限・担当教員・時間割コードの行。app.css の .meta をそのまま使うと
+   カード用の余白が付くので、上下の詰めだけここで上書きする。 */
+.mpDetailDlg .meta{ margin:0 0 14px; }
+#mpDetailBody{ margin:0 0 14px; }
+/* 一覧ページへの逃げ道。押すと /?open= で同じ科目が一覧側で開く。 */
+.mpDetailMore{ margin:14px 0 0; font-size:12.5px; }
+.mpDetailMore a{ color:var(--brand-text); }
+
 #mpPicker{ border:0; border-radius:14px; padding:20px; max-width:420px; width:90vw;
   background:var(--card); color:var(--ink); }
 #mpPicker::backdrop{ background:var(--scrim); }
