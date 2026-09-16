@@ -175,7 +175,7 @@ git commit -m "feat(parse): 発表を report から独立した presentation バ
 **Files:**
 - Modify: `score.py`（係数定数の直後・保底定数・`WEIGHTS`・`dynamic_weights`・`_quiz_load` の直後・`AXES`・band 閾値・`AXIS_LABEL`・`PRESETS`・`CAP_AXES`・`passes_caps` の docstring）
 - Modify: `tools/test_happyou_axis.py`（B を追加）
-- Modify: `tools/test_haiten_filter.py:181`（`REF`）
+- Modify: `tools/test_haiten_filter.py`（`NO_CAP` の作り方・`caps_impossible` の検査・`REF`）
 - Modify: `web/data/courses.built.json`（`build.py --rescore` が書き換える）
 
 **Interfaces:**
@@ -583,6 +583,28 @@ HEAVYISH_MIN = 69
     # 点数が動いたので参照値を入れ替えた。閾値 83/77/69 での実測。
     REF = {"軽い": 0.229, "標準": 0.161, "やや重め": 0.314, "重め": 0.296}
 ```
+
+- [ ] **Step 13b: 軸キーを直書きしている fixture を直す（2026-09-16 実装中に判明）**
+
+`tools/test_haiten_filter.py` の `NO_CAP` は軸キーを直書きしており、`_cap()` が
+辞書に無いキーを「上限なし（100）」として数えるため、軸が増えると検査が黙って
+意味を失う。実際 `caps_impossible({... 4軸×20%})` が合計 180 と数えられて落ちた。
+
+```python
+NO_CAP = {"attendance": 100, "exam": 100, "quiz": 100, "report": 100}
+```
+
+を次に置き換える:
+
+```python
+# 2026-09-16: 軸キーを直書きすると、軸が増えたときに「辞書に無いキー＝上限なし」として
+# 黙って通り、テストが実態と食い違う（発表を足したときに実際に起きた）。
+NO_CAP = {k: scoring.NO_CAP for k in scoring.CAP_AXES}
+```
+
+同じ理由で `caps_impossible` の2つの辞書に `"presentation": 0` を足し、合計が
+80% と 100% のままになるようにする（期待値は変えない）。`score.py` の
+`caps_impossible` の docstring 1行目も「4本の上限」→「CAP_AXES の上限」に直す。
 
 - [ ] **Step 14: Python テストを全件流す**
 
