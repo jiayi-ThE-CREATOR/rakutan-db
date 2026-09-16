@@ -299,6 +299,29 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 .chip.on.imp{background:var(--brand-soft);border-color:var(--brand-line);color:var(--brand-text)}
 .chip .n{font-family:var(--data);font-size:var(--fs-xs);opacity:.65;margin-left:4px}
 
+/* ── 条件をまとめて戻すボタン ─────────────
+   置き場所は2つ。**.railHead には手を入れない** ―― 768px 未満で見出し行を
+   出さないのは huaqianshue さんの取り決め（tools/test_rail_toggle.mjs）で、
+   そこを触らずに済むよう、スマホぶんはレールの末尾に別の器を置いている。
+     PC（768px〜）… 「絞り込み」見出しの右（.railHead の中。元から空いていた）
+     スマホ（〜767px）… 学期の下（.resetSp）
+   条件チップより「下」に置くのが肝。出たり消えたりしてもチップは動かない。
+   上に置くと、条件を1つ押した瞬間にチップ6個が全部ずれる（実測）。
+
+   押せるもの＝--brand 系（tokens.css の約束）。ただし主役は左の条件そのもので、
+   リセットは「戻す」側なので、面ではなく淡い地で出す。 */
+.resetAll{border:1px solid var(--brand-line);background:var(--brand-soft);
+  color:var(--brand-text);border-radius:var(--r-pill);
+  padding:6px 12px;font:inherit;font-size:12.5px;cursor:pointer;
+  min-height:32px;white-space:nowrap}
+.resetAll:hover{border-color:var(--brand)}
+.resetAll[hidden]{display:none}
+/* スマホぶんは幅いっぱいの押しやすい板にする（タップ領域44px）。 */
+.resetSp{margin-top:var(--sp-4)}
+.resetSp .resetAll{width:100%;min-height:44px;font-size:var(--fs-sm)}
+/* PC では見出しの右にあるほうだけを使う。 */
+@media (min-width:768px){ .resetSp{display:none} }
+
 /* 条件チップは6つで固定。flex-wrap のままだと件数の桁が変わるたびに
    折り返す位置がずれ、押すたびに並びの形が変わる（本人指摘）。
    3列×2行のグリッドに固定すると、桁が何桁でもズレない。
