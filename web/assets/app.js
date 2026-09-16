@@ -1700,6 +1700,7 @@ async function load(retry){
   buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
   $("#count").textContent = d.count;
   syncRailTog();   // 条件が変われば畳んでいるときのバッジも変わる
+  syncResetBtn();  // 同じ理由。条件が0になったらリセットも引っ込める
   if (d.count){
     renderPage(1);
   } else {
@@ -1733,6 +1734,49 @@ function activeFilterCount(){
   if (state.sem  !== "all") n++;
   n += state.division.size;                             // 卒業要件の区分
   return n;
+}
+
+/* ── 条件をまとめて戻す ───────────────
+ * 2026-09-11：一度選ぶと1つずつ押し直すしかなかった（本人指摘）。
+ *
+ * activeFilterCount() は「左カラムで押せるもの」だけを数える約束なので、
+ * リセットの出し入れには使えない ―― 検索語と学部/専攻はそこに入っていない。
+ * 「何か選んでいるか」はここで別に見る。
+ *
+ * 学部・学年はマイページに保存されていて開くたびに入るが、**保存そのものは
+ * 消さない**。消すのはマイページの仕事で、ここは「今の画面を白紙に戻す」だけ。
+ * つまりリセット後に開き直すと、学部・学年はまた入る。
+ *
+ * ボタンは2つある（PC＝見出しの右／スマホ＝学期の下）。どちらも data-reset で、
+ * 幅に応じて CSS が片方だけを見せる。詳しい理由は app.css の .resetAll。 */
+function hasAnyFilter(){
+  return activeFilterCount() > 0
+      || !!state.q || !!state.faculty || !!state.track || !!state.track2;
+}
+
+function syncResetBtn(){
+  const on = hasAnyFilter();
+  document.querySelectorAll("[data-reset]").forEach(b => {
+    b.hidden = !on;
+    b.setAttribute("aria-label",
+      on ? `選んでいる条件${activeFilterCount() || ""}件をすべて解除` : "条件を解除");
+  });
+}
+
+function resetAllFilters(){
+  state.q = ""; state.year = "all"; state.sem = "all";
+  state.day = ""; state.period = "";
+  state.cond.clear();
+  for (const k of CAP_AXES) state.caps[k] = NO_CAP;
+  state.division.clear();
+  state.faculty = ""; state.track = ""; state.track2 = "";
+  const q = $("#q");
+  if (q) q.value = "";
+  /* 学年・学期のチップは自前の描画関数を持っていて load() では作り直されない。 */
+  buildYears(); buildSems();
+  syncCaps();               // スライダーのつまみと URL の cap_* を戻す
+  syncReviewSortOptions();  // 「口コミが多い順」を選んだまま口コミありを外す場合がある
+  load();
 }
 
 /* 開閉の操作子は継ぎ目の取っ手（#grip）1つだけ。矢印の向きは CSS が
@@ -1904,6 +1948,9 @@ $("#rvWords").oninput = e => {
   checkSend();
 };
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
+/* コマ解除（↑）は1つだけ外す。こちらは全部戻す。ボタンは PC とスマホで
+   別の場所にあるので、1つずつ割り当てず data-reset でまとめて拾う。 */
+document.querySelectorAll("[data-reset]").forEach(b => b.onclick = resetAllFilters);
 $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };

@@ -87,7 +87,13 @@
       <!-- この列の名前。開閉の操作子は持たない ―― 取っ手は条件欄と一覧の
            継ぎ目（.gripRail）に1つだけ置く。見出しの罫線は右の .bar の罫線と
            高さを揃えてあり、左右が「同じ段」に見えるようにしてある。 -->
-      <div class="railHead"><span class="railHeadT">絞り込み</span></div>
+      <!-- リセットは見出しの右。.railHead はもともと space-between で
+           右側が空いていた場所で、768px 以上でしか出ない＝PC 専用の置き場。
+           スマホぶんは学期の下（このレールの末尾）に別に置く。 -->
+      <div class="railHead">
+        <span class="railHeadT">絞り込み</span>
+        <button class="resetAll" data-reset hidden>リセット</button>
+      </div>
       <div class="slotBar" id="slotBar" hidden>
         <span id="slotBarText"></span>
         <button id="slotBarClear" aria-label="コマ選択を解除">✕</button>
@@ -143,6 +149,14 @@
         <h2>学期</h2>
         <div class="chips" id="sems"></div>
       </section>
+
+      <!-- スマホのリセット。見出し行（.railHead）は 768px 未満では出していない
+           ので、そこに置くとスマホから押せない。レールの末尾＝学期の下に置く。
+           条件チップより「下」なのが肝で、出たり消えたりしてもチップは動かない
+           （上に置くと、条件を1つ押した瞬間にチップ6個が全部ずれる）。 -->
+      <div class="resetSp">
+        <button class="resetAll" data-reset hidden>リセット</button>
+      </div>
 
 
       <p class="railNote"><a href="/about#howto">数字の読み方 →</a></p>
