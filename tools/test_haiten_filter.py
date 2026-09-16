@@ -236,10 +236,14 @@ with contextlib.redirect_stdout(io.StringIO()):
     import server  # noqa: E402
 
 if BUILT.is_file():
+    # ここは server.CHIP_CAPS から作らない。**わざと別に書き下して**、
+    # チップの意味が黙って変わったら落ちるようにしている（作ると恒真になる）。
+    # 2026-09-16: 発表を独立した軸にしたので「レポートのみ」は発表も 0%。
     CHIP_TO_CAPS = {
         "出席なし":     {"attendance": 0},
         "小テストなし": {"quiz": 0},
-        "レポートのみ": {"exam": 0, "attendance": 0, "quiz": 0},
+        "レポートのみ": {"exam": 0, "attendance": 0, "quiz": 0, "presentation": 0},
+        "発表なし":     {"presentation": 0},
     }
     for chip, caps in CHIP_TO_CAPS.items():
         fn = server.CONDITIONS[chip]

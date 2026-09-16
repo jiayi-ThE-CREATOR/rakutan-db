@@ -4,6 +4,8 @@
 
 設計は docs/superpowers/specs/2026-09-16-happyou-axis-design.md
 """
+import contextlib
+import io
 import sys
 from pathlib import Path
 
@@ -102,6 +104,26 @@ check("presentation" in scoring.AXIS_LABEL, "AXIS_LABEL に presentation が無�
 for name, pw in scoring.PRESETS.items():
     check(pw.get("presentation") == pw.get("report"),
           f"プリセット「{name}」の発表の重みがレポートと違う: {pw}")
+
+
+# ── C. 条件チップ（server.py）──────────────────────────
+with contextlib.redirect_stdout(io.StringIO()):
+    import server  # noqa: E402
+keys = list(server.CONDITIONS)
+has_pres = {"eval_ratio": {"presentation": 40.0, "report": 60.0}}
+no_pres = {"eval_ratio": {"report": 100.0}}
+check("発表なし" in keys, "条件チップ「発表なし」が無い")
+if "発表なし" in keys:
+    check(keys.index("発表なし") == keys.index("小テストなし") + 1,
+          "「発表なし」が「小テストなし」の直後にない（チップの並びが崩れる）")
+    check(not server.CONDITIONS["発表なし"](has_pres),
+          "発表40%の科目が「発表なし」に入っている")
+    check(server.CONDITIONS["発表なし"](no_pres),
+          "発表の無い科目が「発表なし」から落ちている")
+check(not server.CONDITIONS["レポートのみ"](has_pres),
+      "発表を含む科目が「レポートのみ」に入っている")
+check(server.CONDITIONS["レポートのみ"](no_pres),
+      "レポート100%の科目が「レポートのみ」から落ちている")
 
 
 print(f"{n - len(fails)}/{n} 件が通過")
