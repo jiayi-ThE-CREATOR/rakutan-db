@@ -64,10 +64,21 @@ EXAM_RATIO_COEF = 0.15
 # 0.45 なら 80% → 64点「標準」で妥当な位置に来る。
 REPORT_RATIO_COEF = 0.45
 
+# 2026-09-16: 発表を独立した軸にした。PRESENTATION_BASE は「発表があること自体の
+# 負担」―― 人前に立つ・日程が動かせない・グループなら他人と合わせる、という
+# レポートとは違う性質の重さ。20 では発表のみの科目がレポートのみと同じ 55 点になり
+# 分けた意味が無く、25 では band の地形が崩れ（最大 band 42.5%）、35 では出席のみ
+# （45）より重くなるので 30 にした（全7,906件で実測）。
+PRESENTATION_BASE = 30.0
+PRESENTATION_RATIO_COEF = 0.25
+
 # 2026-09-03: 小テストを出席から独立させて4軸にした。下限が 0.10×4＝0.40 に
 # 増えたぶん、AXIS_SHARE を 0.58 → 0.48 に下げて合計 1.0 を保っている
 # （0.40 ＋ 0.48 ＋ SCALE_WEIGHT 0.12 ＝ 1.00）。
-AXIS_FLOOR = 0.10       # 4軸それぞれの下限（合計 0.40）
+# 2026-09-16: 下限は「内訳に出てくる軸」だけに付け、出てくる軸の重みを合計
+# 1 − SCALE_WEIGHT に正規化するようにした（dynamic_weights）。上の足し算は
+# もう成り立たないが、2つの定数の比（下限：比率ぶん）はそのまま使っている。
+AXIS_FLOOR = 0.10       # 内訳に出てくる軸それぞれの下限（正規化の前）
 AXIS_SHARE = 0.48       # 成績評価比率に応じて配分される分
 SCALE_WEIGHT = 0.12     # 規模・形態。事実ではなく推定なので最小固定
 
@@ -77,7 +88,7 @@ WEIGHTS = {
     "axis_floor": AXIS_FLOOR,
     "axis_share": AXIS_SHARE,
     "scale": SCALE_WEIGHT,
-    "note": "試験・レポート・出席・小テストの重みは、その科目の成績評価内訳から動的に決まる",
+    "note": "試験・レポート・出席・小テスト・発表の重みは、その科目の成績評価内訳から動的に決まる。内訳に出てこない軸の重みは 0",
 }
 
 
@@ -96,16 +107,30 @@ def _min_for_scoring() -> int:
 
 
 def dynamic_weights(course: dict) -> dict[str, float]:
+    """軸の重みを、その科目の成績評価内訳から決める。
+
+    2026-09-16: 下限（AXIS_FLOOR）を**内訳に出てくる軸だけ**に付けるようにした。
+    以前は内訳に出てこない軸にも 0.10 を付けていたので、発表を独立した軸にすると
+    「発表が無い約5,000科目」で満点 100 × 0.10 が総合値に混ざり、全科目が1か所に
+    寄った（実測 最大 band 63〜73%）。出てこない軸の重みは 0 にし、出てくる軸だけで
+    合計 1 − SCALE_WEIGHT に正規化する。weight_sum が「算出できた割合」である
+    ことは変わらないので、COVERAGE_MIN はそのまま使える（正規化しないと、
+    レポート100%だけの科目は重みが 0.48 になり COVERAGE_MIN を割る）。
+    """
     er = course.get("eval_ratio") or {}
     shares = {k: float(er.get(k) or 0)
-              for k in ("exam", "report", "attendance", "quiz")}
+              for k in ("exam", "report", "attendance", "quiz", "presentation")}
     total = sum(shares.values())
+    axis_total = 1.0 - SCALE_WEIGHT
     if total <= 0:
-        # 評価内訳が不明な科目は均等配分にする（推測で偏らせない）
-        shares = {k: 1 / len(shares) for k in shares}
+        # 評価内訳が不明な科目は均等配分にする（推測で偏らせない）。
+        # この科目は各軸の値が None になるので、配り方は総合値に影響しない。
+        w = {k: axis_total / len(shares) for k in shares}
     else:
-        shares = {k: v / total for k, v in shares.items()}
-    w = {k: AXIS_FLOOR + AXIS_SHARE * s for k, s in shares.items()}
+        raw = {k: (AXIS_FLOOR + AXIS_SHARE * v / total) if v > 0 else 0.0
+               for k, v in shares.items()}
+        z = sum(raw.values())
+        w = {k: raw[k] / z * axis_total for k in raw}
     w["scale"] = SCALE_WEIGHT
     return w
 
@@ -292,6 +317,26 @@ def _quiz_load(c: dict) -> tuple[float | None, list[str]]:
     return _clamp(100.0 - load), why
 
 
+def _presentation_load(c: dict) -> tuple[float | None, list[str]]:
+    """発表の重さ。返り値は 0〜100 の「楽さ」（高いほど楽）。
+
+    2026-09-16 に report から独立させた。レポートは夜中に書き足せるが、発表は
+    人前に立ち、日程が動かせず、グループなら他人と合わせる必要がある。この
+    「あること自体の負担」を PRESENTATION_BASE で表し、比率ぶんを足す。
+
+    比率が内訳に無いのは「0%」＝負担なしであって不明ではない。
+    内訳そのものが読めない科目だけ None を返す。
+    """
+    er = c.get("eval_ratio")
+    if er is None:
+        return None, []
+    ratio = float(er.get("presentation") or 0.0)
+    if ratio == 0:
+        return 100.0, ["発表なし"]
+    load = PRESENTATION_BASE + ratio * PRESENTATION_RATIO_COEF
+    return _clamp(100.0 - load), [f"発表が成績の{ratio:.0f}%"]
+
+
 def _scale_ease(c: dict) -> tuple[float | None, list[str]]:
     """規模・開講形態。大人数講義ほど個別の詰めが甘くなりやすい、という経験則。
 
@@ -346,6 +391,7 @@ AXES = [
     ("report", "レポート・課題", _report_load),
     ("attendance", "出席拘束", _attendance_load),
     ("quiz", "小テスト", _quiz_load),
+    ("presentation", "発表", _presentation_load),
     ("scale", "規模・形態", _scale_ease),
 ]
 
@@ -467,9 +513,20 @@ def score(course: dict) -> dict:
 # 結果の分布は やや重め 26.0% ／ 重め 25.1% ／ 標準 22.2% ／
 # 拘束は軽い 20.1% ―― 最大の band でも 27.5%（改修前は 72% が
 # 「拘束は軽い」に集まっていた）。
-LIGHT_MIN = 87
-NORMAL_MIN = 79
-HEAVYISH_MIN = 75
+# 2026-09-16: 発表を独立した軸にし、保底を内訳に出てくる軸だけに付けたので、
+# 約7,300科目の点数が動いた。87/79/75 はその前の分布の値なので置き直す。
+#
+# 選び方は同じ ―― ±1 動かしても 1.5pt 以下しか動かない平らな場所だけを候補にし、
+# 4つの band の最大が最も小さくなる3点を採る。
+#
+# 🚨 発表の固定罰点を 25 にすると最良の3点が 83/72/30 になり最大 band 42.5% まで
+#   崩れた。地形は係数に対して単調ではないので、係数を変えたら必ず測り直すこと。
+#
+# 83 / 77 / 69 での分布は やや重め 2,322 ／ 重め 2,192 ／ 拘束は軽い 1,688 ／
+# 標準 1,190 ―― tools/test_report_axis.py の⑧が見る最大 band は 31.0%。
+LIGHT_MIN = 83
+NORMAL_MIN = 77
+HEAVYISH_MIN = 69
 
 
 def band_of(overall: float | None, conf_level: str,
@@ -521,6 +578,7 @@ AXIS_LABEL = {
     "report": "課題の軽さ",
     "exam": "テストの楽さ",
     "quiz": "小テストの少なさ",
+    "presentation": "発表の少なさ",
     "scale": "成績の甘さ",   # 規模からの推定。口コミが貯まるまでは確度が低い
 }
 
@@ -532,10 +590,10 @@ AXIS_LABEL = {
 # LINE 側の作り直しは別セッションの担当。そこが終わるまでは消さないこと。
 # quiz は 5軸化に合わせて追加した（無いと小テストが順位に効かない）。
 PRESETS = {
-    "バイト優先":   {"attendance": 5, "quiz": 5, "report": 3, "exam": 2, "scale": 2},
-    "GPA重視":     {"attendance": 2, "quiz": 3, "report": 3, "exam": 3, "scale": 5},
-    "とにかく軽い": {"attendance": 4, "quiz": 4, "report": 4, "exam": 4, "scale": 4},
-    "テストが苦手": {"attendance": 2, "quiz": 4, "report": 3, "exam": 5, "scale": 3},
+    "バイト優先":   {"attendance": 5, "quiz": 5, "report": 3, "exam": 2, "presentation": 3, "scale": 2},
+    "GPA重視":     {"attendance": 2, "quiz": 3, "report": 3, "exam": 3, "presentation": 3, "scale": 5},
+    "とにかく軽い": {"attendance": 4, "quiz": 4, "report": 4, "exam": 4, "presentation": 4, "scale": 4},
+    "テストが苦手": {"attendance": 2, "quiz": 4, "report": 3, "exam": 5, "presentation": 3, "scale": 3},
 }
 DEFAULT_WEIGHTS = PRESETS["とにかく軽い"]
 
@@ -555,7 +613,11 @@ DEFAULT_WEIGHTS = PRESETS["とにかく軽い"]
 # ═══════════════════════════════════════════════════════════════
 
 # 上限をかけられる軸。規模・形態（scale）は成績評価の内訳ではないので入らない。
-CAP_AXES = ("attendance", "exam", "quiz", "report")
+# 🚨 2026-09-16 に presentation を足した。**ここに無いキーの上限は passes_caps が
+# 黙って無視する**（最初の「全部 100% なら通す」判定がこのタプルしか見ない）。
+# 入れ忘れると「発表なし」チップが全 7,906件に一致した（実測）。
+# web/assets/app.js の CAP_AXES と同じにすること。
+CAP_AXES = ("attendance", "exam", "quiz", "report", "presentation")
 NO_CAP = 100
 
 
@@ -567,7 +629,7 @@ def _cap(caps: dict, key: str) -> int:
 
 
 def caps_impossible(caps: dict) -> bool:
-    """4本の上限の合計が100%を下回っているか。
+    """CAP_AXES の上限の合計が100%を下回っているか。
 
     成績評価の内訳は合計100%なので、合計が100を割った瞬間に
     条件を満たす科目は**原理的に存在しない**。実装ミスではなく仕様の性質。
@@ -577,7 +639,7 @@ def caps_impossible(caps: dict) -> bool:
 
 
 def passes_caps(course: dict, caps: dict) -> bool:
-    """科目が4本の上限をすべて満たすか。
+    """科目が CAP_AXES の上限をすべて満たすか。
 
     **上限を1本でも 100% から動かしたら、配点が最後まで読めない科目は通さない。**
     eval_unclassified が残る科目は「残りの%」にどの軸が隠れているか分からず、

@@ -66,7 +66,9 @@ KNOWN = {"eval_ratio": {"exam": 60.0, "quiz": 20.0, "attendance": 20.0},
 NO_RATIO = {"eval_ratio": None, "eval_unclassified": None}
 UNCLASSIFIED = {"eval_ratio": {"exam": 60.0},
                 "eval_unclassified": {"その他": 40.0}}
-NO_CAP = {"attendance": 100, "exam": 100, "quiz": 100, "report": 100}
+# 2026-09-16: 軸キーを直書きすると、軸が増えたときに「辞書に無いキー＝上限なし」として
+# 黙って通り、テストが実態と食い違う（発表を足したときに実際に起きた）。
+NO_CAP = {k: scoring.NO_CAP for k in scoring.CAP_AXES}
 
 # 上限なし（既定）では何も落とさない ―― 配点が読めない科目も含めて。
 for name, c in (("配点あり", KNOWN), ("配点なし", NO_RATIO),
@@ -91,15 +93,19 @@ for name, c in (("配点なし", NO_RATIO), ("未分類あり", UNCLASSIFIED)):
     check(scoring.passes_caps(c, {**NO_CAP, "attendance": 90}) is False,
           f"上限を動かしたのに {name} の科目が残った")
 
-# 4本の上限の合計が100%を下回ると、成績評価の合計が100%である以上
+# 上限の合計が100%を下回ると、成績評価の合計が100%である以上
 # 通る科目は原理的に存在しない。これは実装ミスではなく仕様の性質。
-check(scoring.caps_impossible({"attendance": 20, "exam": 20,
-                               "quiz": 20, "report": 20}) is True,
+#
+# 2026-09-16: ここの辞書に発表を足した。_cap は辞書に無いキーを「上限なし（100）」
+# として数えるので、発表を書かないと合計が 80 ではなく 180 になり、この検査が
+# 意味を失う（5軸化で実際に落ちた）。
+check(scoring.caps_impossible({"attendance": 20, "exam": 20, "quiz": 20,
+                               "report": 20, "presentation": 0}) is True,
       "合計80%が「不可能」と判定されていない")
 check(scoring.caps_impossible(NO_CAP) is False,
       "上限なしが「不可能」と判定された")
-check(scoring.caps_impossible({"attendance": 0, "exam": 100,
-                               "quiz": 0, "report": 0}) is False,
+check(scoring.caps_impossible({"attendance": 0, "exam": 100, "quiz": 0,
+                               "report": 0, "presentation": 0}) is False,
       "合計ちょうど100%が「不可能」と判定された")
 
 
@@ -178,7 +184,10 @@ if BUILT.is_file():
     # 新しい参照値は閾値 87/79/75 での実測。この検査の役目は変わらず
     # 「1つの band に寄っていないか」の見張りで、改修前は「軽い」が
     # 73.5% を占めていた（＝科目を分別できていなかった）。
-    REF = {"軽い": 0.216, "標準": 0.237, "やや重め": 0.279, "重め": 0.268}
+    # 2026-09-16: 発表を独立した軸にし、保底を内訳に出てくる軸だけに付けた
+    # （docs/superpowers/specs/2026-09-16-happyou-axis-design.md）。約7,300科目の
+    # 点数が動いたので参照値を入れ替えた。閾値 83/77/69 での実測。
+    REF = {"軽い": 0.229, "標準": 0.161, "やや重め": 0.314, "重め": 0.296}
     TOL = 0.03
     # 焼き込んだ c["rakutan"] ではなく、いまの score.py で計算し直した値を見る。
     # 焼いた値と生きている定数を突き合わせると、build.py --rescore を流す前は
