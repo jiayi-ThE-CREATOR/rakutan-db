@@ -615,20 +615,37 @@ function renderTimetable(){
         html += `<button class="mpCell" data-slot="${slot}" aria-label="${slot} 空き"></button>`;
         continue;
       }
-      /* カレンダー追加ボタンは .mpCell（外すボタン）の中には入れない。
-         button の中に button を置くと読み上げが崩れるので、.mpCellWrap を
-         挟んで兄弟要素にする（mypage.css 参照）。 */
+      /* 埋まっているマスは押すと「いつもの詳細」へ飛ぶ（2026-09-16）。
+         それまではマスそのものが「外す」ボタンで、詳細を見る手立ては
+         マイページから1つも無かった（一覧で科目名を探し直すしかなかった）。
+         外すのは右下の ✕（.mpCellDel）へ移した。
+
+         button ではなく a にしてある。時間割を見ながら1科目だけ調べる
+         使い方になるので、長押し・中クリックで別タブに開けるほうがいい。
+         行き先の ?open= を受けるのは app.js の openCourseDetail。
+
+         カレンダー追加ボタンと ✕ は .mpCell の中には入れない。a や button の
+         中に button を置くと読み上げが崩れるので、.mpCellWrap を挟んで
+         兄弟要素にする（mypage.css 参照）。 */
       const added = rkStore.isCalAdded(id);
+      const ins = c.instructor || "担当教員未定";
       html += `<div class="mpCellWrap">`
-            + `<button class="mpCell filled" data-slot="${slot}" aria-label="${slot} ${esc(c.title)} 時間割コード${esc(c.id)}">`
-            +   `${esc(c.title)}<small class="mpCellCode">${esc(c.id)}</small></button>`
+            + `<a class="mpCell filled" data-slot="${slot}" href="/?open=${encodeURIComponent(id)}"`
+            + ` aria-label="${slot} ${esc(c.title)} ${esc(ins)} 時間割コード${esc(c.id)} の詳細を見る">`
+            +   `${esc(c.title)}<small class="mpCellIns">${esc(ins)}</small>`
+            +   `<small class="mpCellCode">${esc(c.id)}</small></a>`
             + `<button type="button" class="mpCalBtn${added ? " added" : ""}" data-cal-id="${esc(id)}"`
             + ` aria-label="${esc(c.title)}をカレンダーに${added ? "連携（削除）" : "追加"}">${calIconSVG(added)}</button>`
+            + `<button type="button" class="mpCellDel" data-del="${slot}"`
+            + ` aria-label="${esc(c.title)}を時間割から外す">✕</button>`
             + `</div>`;
     }
   }
   $("#mpGrid").innerHTML = html;
-  $("#mpGrid").querySelectorAll(".mpCell").forEach(b => b.onclick = () => onCell(b.dataset.slot));
+  /* 空きマスだけが button。埋まっているマスは <a>（詳細へ）なので、
+     ここのセレクタには掛からない。 */
+  $("#mpGrid").querySelectorAll("button.mpCell").forEach(b => b.onclick = () => openPicker(b.dataset.slot));
+  $("#mpGrid").querySelectorAll(".mpCellDel").forEach(b => b.onclick = () => removeCourse(b.dataset.del));
   $("#mpGrid").querySelectorAll(".mpCalBtn").forEach(btn => {
     btn.onclick = () => {
       const c = BY_ID.get(btn.dataset.calId);
@@ -661,26 +678,25 @@ function renderExtra(){
   });
 }
 
-function onCell(slot){
+/* マスの右下の ✕。2026-09-16 までは埋まっているマスを押すこと自体が
+   これだったが、押す先を詳細に譲って専用のボタンになった。 */
+function removeCourse(slot){
   const tt = rkStore.getTimetable(term);
   const id = tt.slots[slot];
-  if (id){
-    /* 置くときは科目の全コマを埋める（putCourse）ので、外すときも対称に
-       全コマ外す。クリックしたマスだけ外すと、複数コマの科目
-       （金4・金5・金6 の実験など。timetable.json に528件ある）が
-       半分残ったまま「埋まっている」ように見えてしまう。
-       2026-08-27：以前は「1タップで戻せるから」と確認を出していなかったが、
-       誤タップで消えたことが分かりにくいという指摘を受けて確認を挟む方針に変えた。 */
-    const c = BY_ID.get(id);
-    /* BY_ID に無い＝古いデータのまま残った id。せめてクリックしたマスは外す。 */
-    const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
-    const label = c ? c.title : id;
-    if (!confirm(`「${label}」を時間割から外しますか？`)) return;
-    for (const s of slots) rkStore.clearSlot(term, s);
-    renderTimetable();
-    return;
-  }
-  openPicker(slot);
+  if (!id) return;
+  /* 置くときは科目の全コマを埋める（putCourse）ので、外すときも対称に
+     全コマ外す。クリックしたマスだけ外すと、複数コマの科目
+     （金4・金5・金6 の実験など。timetable.json に528件ある）が
+     半分残ったまま「埋まっている」ように見えてしまう。
+     2026-08-27：以前は「1タップで戻せるから」と確認を出していなかったが、
+     誤タップで消えたことが分かりにくいという指摘を受けて確認を挟む方針に変えた。 */
+  const c = BY_ID.get(id);
+  /* BY_ID に無い＝古いデータのまま残った id。せめてクリックしたマスは外す。 */
+  const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
+  const label = c ? c.title : id;
+  if (!confirm(`「${label}」を時間割から外しますか？`)) return;
+  for (const s of slots) rkStore.clearSlot(term, s);
+  renderTimetable();
 }
 
 let pickerList = [];   // 開いている曜限の全候補。検索は絞り込むだけでこれ自体は変えない。

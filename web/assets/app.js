@@ -1504,6 +1504,37 @@ async function openPanel(id, push = true){
   $("#panelClose").focus();
 }
 
+/* ── ?open=<時間割コード> ──────────────────────
+ * マイページの時間割のコマから「いつもの詳細」へ来る入口（2026-09-16）。
+ *
+ * ?c= と何が違うか: ?c= が開くのは**口コミのモーダル**で、ここで開きたいのは
+ * カード（PC は右カラム）の**詳細** ―― 4軸のバーと信頼度が出るいつもの画面。
+ * 別々の入口にしてあるのは、共有リンク（?c=）の行き先を変えると、
+ * すでに配られた口コミのリンクが別の画面を開くようになるため。
+ *
+ * 絞り込みを白紙に戻してから時間割コード1件に絞るのは、**スマホでは詳細が
+ * カードの中に開く**から。カードが一覧に無ければ開く先そのものが無い。
+ * 学部・学年はマイページに保存された値が開くたびに入る（下の「起動」参照）ので、
+ * 放っておくと「自分で時間割に入れた科目なのに一覧から外れていて開けない」が
+ * 普通に起きる。PC の右カラムだけならカードは要らないが、幅で挙動を変えると
+ * 「PC では開くのにスマホでは開かない」という差になるので両方同じにする。
+ *
+ * 検索窓にコードを残すのは、絞り込みを触った覚えが無いのに1件しか出ていない
+ * 状態を画面から読めるようにするため（消すと「壊れている」に見える）。 */
+async function openCourseDetail(id){
+  const c = await findCourse(id);
+  if (!c) return;
+  resetAllFilters(false);
+  state.q = id;
+  const q = $("#q");
+  if (q) q.value = id;
+  await load();
+  const article = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
+  showDetail(c, article);
+  /* スマホは一覧が空きコマグリッドの下にある。開いただけでは画面の外。 */
+  article?.scrollIntoView({ block: "center" });
+}
+
 function closePanel(){
   /* 開くときに積んだぶんだけ戻す。閉じる本体は popstate 側。
      ?c= が URL に在ることは「自分で積んだ」の証拠にならない ―― 共有リンクで
@@ -1763,7 +1794,10 @@ function syncResetBtn(){
   });
 }
 
-function resetAllFilters(){
+/* reload=false は「白紙に戻すだけで読み直さない」。?open=<時間割コード> が
+   このあと検索語を入れてから1回だけ load() したいときに使う ――
+   ここで読み直すと、同じ画面のために API を2回叩くことになる。 */
+function resetAllFilters(reload = true){
   state.q = ""; state.year = "all"; state.sem = "all";
   state.day = ""; state.period = "";
   state.cond.clear();
@@ -1776,7 +1810,7 @@ function resetAllFilters(){
   buildYears(); buildSems();
   syncCaps();               // スライダーのつまみと URL の cap_* を戻す
   syncReviewSortOptions();  // 「口コミが多い順」を選んだまま口コミありを外す場合がある
-  load();
+  if (reload) load();
 }
 
 /* 開閉の操作子は継ぎ目の取っ手（#grip）1つだけ。矢印の向きは CSS が
@@ -1950,7 +1984,9 @@ $("#rvWords").oninput = e => {
 $("#slotBarClear").onclick = () => { state.day = ""; state.period = ""; load(); };
 /* コマ解除（↑）は1つだけ外す。こちらは全部戻す。ボタンは PC とスマホで
    別の場所にあるので、1つずつ割り当てず data-reset でまとめて拾う。 */
-document.querySelectorAll("[data-reset]").forEach(b => b.onclick = resetAllFilters);
+/* 関数を直に渡さない ―― 第1引数に click の Event が入り、resetAllFilters(reload) の
+   意味が変わる。 */
+document.querySelectorAll("[data-reset]").forEach(b => b.onclick = () => resetAllFilters());
 $("#fab").onclick = () => openReviewFor(lastOpenedCourseId);
 $("#close").onclick = () => $("#sheet").classList.remove("open");
 $("#sheet").onclick = e => { if (e.target === $("#sheet")) $("#sheet").classList.remove("open"); };
@@ -2130,6 +2166,11 @@ function applyPostMode() {
   });
   await load();
   window.dispatchEvent(new CustomEvent("rk:app-ready"));
+  /* マイページの時間割のコマから来た人（?open=）。?c= より先に処理する
+     ―― 両方付いていたら、詳細を開いてからその上に口コミを重ねる順になる。 */
+  const openId = new URL(location.href).searchParams.get("open");
+  if (openId) await openCourseDetail(openId);
+
   /* ?c=<科目id> で入ってきた人。push はしない（履歴を二重に積まない）。
      共有リンクは既定の絞り込みで開くので、その科目が一覧に無いことは
      普通に起きる ―― findCourse が1件だけ取りに行く。 */
