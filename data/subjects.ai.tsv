@@ -405,7 +405,7 @@
 135231	【総合】思考の世界	tetsugaku
 135233	【総合】人文地理学の考え方	bunka,shoku,kankyo
 135235	【総合】現代差別論	rekishi,shakai,seiji
-135237	【総合】世界は今	kokusai,iryo
+135237	【総合】世界は今	seiji,kokusai,iryo
 135239	【総合】科学技術の問題を考える	tetsugaku,shakai,seiji,iryo,ai
 135241	【総合】共生学の話題	rekishi,bunka,shakai,kankyo
 135243	【総合】共生学の話題	tetsugaku,shakai,kyoiku,kokusai
@@ -450,7 +450,7 @@
 135337	【総合】文理融合に向けた数理科学 I	sugaku,tokei,ai
 135339	【総合】文理融合に向けた数理科学 I	sugaku,tokei,ai
 135341	【総合】文理融合に向けた数理科学 I	sugaku,tokei,ai
-135343	【総合】阪大SDGs学入門	shakai,kankyo
+135343	【総合】阪大SDGs学入門	shakai,keizai,kankyo
 135345	【総合】大阪の防災ー南海トラフ巨大地震・津波からあなたの身の守り方を学ぶ	shakai,kankyo
 135349	【総合】SDGs＋Beyondに向けた新しい共感・共助の経済づくり	shakai,keizai,kankyo
 135357	【総合】万博スタディーズ	rekishi,bunka,shakai,kokusai
@@ -953,8 +953,8 @@
 137621	化学基礎論D	kagaku
 137623	化学基礎論Ｂ	kagaku
 137625	化学基礎論Ｂ	butsuri,kagaku,kankyo,energy
-137633	化学熱力学	kagaku
-137635	化学基礎論Ｂ	kagaku
+137633	化学熱力学	butsuri,kagaku
+137635	化学基礎論Ｂ	butsuri,kagaku
 137639	化学基礎論Ｂ	kagaku,kankyo
 137643	基礎有機化学	kagaku
 137645	化学基礎論Ｂ	butsuri,kagaku
@@ -1068,7 +1068,7 @@
 138583	脳情報学基礎Ⅰ	nou,joho
 138585	バイオメカニクス基礎Ⅰ（キネマティクス：運動学）	butsuri,sports
 138587	バイオメカニクス基礎Ⅰ（キネマティクス：運動学）	butsuri,sports
-138601	健康科学のための人工知能学基礎	tokei,iryo,ai
+138601	健康科学のための人工知能学基礎	tokei,iryo,joho,ai
 138603	健康科学のための人工知能学基礎	tokei,iryo,joho,ai
 138609	運動器の解剖と機能	iryo,sports
 138611	運動器の解剖と機能	iryo,sports
@@ -1215,7 +1215,7 @@
 002229	東洋史学演習	kotoba,rekishi,bunka
 002230	東洋史学演習	kotoba,rekishi,bunka
 002231	東洋史学演習	kotoba,rekishi,bunka
-002233	東洋文献学演習	kotoba
+002233	東洋文献学演習	kotoba,rekishi
 002235	東洋文献学演習	kotoba,rekishi
 002236	東洋文献学演習	kotoba,rekishi,shukyo,bunka
 002237	東洋文献学演習	kotoba,rekishi,shukyo,bunka
@@ -1982,7 +1982,7 @@
 020277	特別講義（リーダーシップを考える）	shakai
 020278	特別講義（実践グローバル・リーダーシップ）	shakai,kokusai
 020279	経済史	rekishi,keizai,kokusai
-020280	財政	seiji,keizai,iryo
+020280	財政	shakai,seiji,keizai,iryo
 020286	特別講義（リーダーシップデザイン）	shakai
 020299	法情報学１	seiji,joho
 020301	国際法３	seiji,kokusai
@@ -2395,7 +2395,7 @@
 028487	セミナーⅣb	seiji
 030101	マクロ経済	keizai
 030102	ミクロ経済	keizai
-030103	経済史	rekishi,keizai
+030103	経済史	rekishi,keizai,kokusai
 030105	統計	sugaku,tokei
 030106	経営計算システム	keizai
 030201	財政	shakai,seiji,keizai,iryo
@@ -2639,8 +2639,8 @@
 040463	実験数学１（コンピュータプログラミング）	sugaku,joho
 040466	応用数理学７（情報システム論）	joho
 040467	応用数理学８（通信ネットワーク論）	joho
-040474	物理学実験１	butsuri,uchu
-040475	物理学実験２	butsuri,uchu
+040474	物理学実験１	butsuri,kankyo,uchu
+040475	物理学実験２	butsuri,kankyo,uchu
 040476	放射化学	butsuri,kagaku,uchu
 040477	無機放射化学特論	butsuri,kagaku
 040500	物理オナーセミナー（１学期）	butsuri
@@ -4493,7 +4493,7 @@
 090750	Frontier Engineering Science 1	kotoba,kokusai,butsuri,kagaku,ikimono
 090751	Frontier Engineering Science 2	kotoba,kokusai,kagaku,shoku
 099001	数学Ａ	sugaku
-099002	数学Ａ	sugaku
+099002	数学Ａ	sugaku,butsuri
 099003	数学Ａ	sugaku
 099004	数学Ｂ	sugaku
 099007	数学Ｃ	sugaku
@@ -6937,15 +6937,15 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 191393	総合英語III	kotoba
 191395	総合英語III	kotoba
 191397	総合英語III	kotoba
-191399	総合英語III	kotoba,kokusai
+191399	総合英語III	kotoba
 191401	総合英語III	kotoba,shinri,iryo
 191403	総合英語III	kotoba,shinri,iryo
 191405	総合英語III	kotoba,kokusai
 191407	総合英語III	kotoba,shinri,iryo
 191409	総合英語III	kotoba,geijutsu,media
-191411	総合英語III	kotoba,kokusai
+191411	総合英語III	kotoba
 191413	総合英語III	kotoba
-191415	総合英語III	kotoba,kokusai
+191415	総合英語III	kotoba
 191417	総合英語III（上級）	kotoba
 191419	総合英語III（上級）	kotoba
 191421	総合英語III（上級）	kotoba
@@ -7039,7 +7039,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 191647	専門日本語	kotoba
 191649	総合日本語	kotoba,shakai
 191663	英語選択	kotoba,tetsugaku,shinri
-191665	英語選択	kotoba,kokusai
+191665	英語選択	kotoba
 191667	英語選択	kotoba
 191669	英語選択	kotoba,kokusai
 191671	ドイツ語初級I選択	kotoba,bunka,shakai,seiji
@@ -7145,7 +7145,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 191941	特別外国語演習（スウェーデン語）I	kotoba
 191943	特別外国語演習（ポルトガル語）I	kotoba
 192001	総合英語（Performance Workshop）	kotoba
-192003	総合英語（Liberal Arts & Sciences）	kotoba,bunka,shakai,kankyo
+192003	総合英語（Liberal Arts & Sciences）	kotoba
 192005	総合英語（Liberal Arts & Sciences）	kotoba
 192007	総合英語（Content-based English）	kotoba
 192011	総合英語（Liberal Arts & Sciences）	kotoba,rekishi,keizai,shoku,kankyo
@@ -7156,17 +7156,17 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192023	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,bunka,shakai
 192025	総合英語（Liberal Arts & Sciences）	kotoba
 192027	総合英語（Project-based English）	kotoba,kyoiku,ai
-192029	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,bunka,shakai
+192029	総合英語（Liberal Arts & Sciences）	kotoba
 192031	総合英語（Performance Workshop）	kotoba
 192033	総合英語（Liberal Arts & Sciences）	kotoba,bungaku,shinri
-192035	総合英語（Liberal Arts & Sciences）	kotoba,media
+192035	総合英語（Liberal Arts & Sciences）	kotoba
 192037	総合英語（Project-based English）	kotoba
 192039	総合英語（Liberal Arts & Sciences）	kotoba
 192041	総合英語（Liberal Arts & Sciences）	kotoba
 192043	総合英語（Content-based English）	kotoba,kyoiku
 192047	総合英語（Performance Workshop）	kotoba
 192049	総合英語（Performance Workshop）	kotoba
-192051	総合英語（Liberal Arts & Sciences）	kotoba,rekishi,bunka
+192051	総合英語（Liberal Arts & Sciences）	kotoba,rekishi
 192052	総合英語（Liberal Arts & Sciences）	kotoba,shukyo,bunka,shakai,gender
 192053	総合英語（Performance Workshop）	kotoba,media
 192055	総合英語（Academic Skills）	kotoba
@@ -7174,7 +7174,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192059	総合英語（Performance Workshop）	kotoba
 192061	総合英語（Liberal Arts & Sciences）	kotoba
 192063	総合英語（Liberal Arts & Sciences）	kotoba,shinri
-192065	総合英語（Liberal Arts & Sciences）	kotoba,rekishi,bunka,shakai,seiji
+192065	総合英語（Liberal Arts & Sciences）	kotoba
 192067	総合英語（Project-based English）	kotoba
 192069	総合英語（Academic Skills）	kotoba
 192073	総合英語（Liberal Arts & Sciences）	kotoba
@@ -7186,7 +7186,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192087	総合英語（Liberal Arts & Sciences）	kotoba,media,kokusai
 192101	総合英語（Project-based English）	kotoba
 192103	総合英語（Liberal Arts & Sciences）	kotoba
-192108	総合英語（Liberal Arts & Sciences）	kotoba,media
+192108	総合英語（Liberal Arts & Sciences）	kotoba
 192109	総合英語（Liberal Arts & Sciences）	kotoba,shakai
 192111	総合英語（Project-based English）	kotoba,media
 192113	総合英語（Performance Workshop）	kotoba,media
@@ -7202,7 +7202,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192141	総合英語（Performance Workshop）	kotoba
 192143	総合英語（Content-based English）	kotoba
 192145	総合英語（Performance Workshop）	kotoba
-192147	総合英語（Liberal Arts & Sciences）	kotoba,bunka,shakai,media
+192147	総合英語（Liberal Arts & Sciences）	kotoba,bunka,shakai
 192149	総合英語（Content-based English）	kotoba
 192151	総合英語（Performance Workshop）	kotoba
 192153	総合英語（Content-based English）	kotoba,media
@@ -7212,7 +7212,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192165	総合英語（Liberal Arts & Sciences）	kotoba,shakai
 192167	総合英語（Academic Skills）	kotoba
 192169	総合英語（Liberal Arts & Sciences）	kotoba,shinri,iryo
-192171	総合英語（Liberal Arts & Sciences）	kotoba,bunka,media
+192171	総合英語（Liberal Arts & Sciences）	kotoba,bunka
 192173	総合英語（Performance Workshop）	kotoba,media
 192175	総合英語（Liberal Arts & Sciences）	kotoba,tetsugaku
 192177	総合英語（Academic Skills）	kotoba
@@ -7220,7 +7220,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192183	総合英語（Content-based English）	kotoba
 192185	総合英語（Liberal Arts & Sciences）	kotoba
 192187	総合英語（Project-based English）	kotoba,shakai,seiji,kokusai,kankyo
-192189	総合英語（Liberal Arts & Sciences）	kotoba,rekishi,bunka,shakai,seiji
+192189	総合英語（Liberal Arts & Sciences）	kotoba
 192191	総合英語（Content-based English）	kotoba
 192193	総合英語（Content-based English）	kotoba
 192195	総合英語（Academic Skills）	kotoba,bunka
@@ -7267,13 +7267,13 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192277	総合英語（Liberal Arts & Sciences）	kotoba
 192279	総合英語（Academic Skills）	kotoba
 192281	総合英語（Content-based English）	kotoba,kokusai,kankyo
-192287	総合英語（Project-based English）	kotoba,iryo,sports
+192287	総合英語（Project-based English）	kotoba,iryo
 192289	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,shakai,kankyo
-192291	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,bunka,shakai,kankyo
+192291	総合英語（Liberal Arts & Sciences）	kotoba
 192293	総合英語（Project-based English）	kotoba
 192295	総合英語（Liberal Arts & Sciences）	kotoba,shinri,iryo
 192297	総合英語（Academic Skills）	kotoba
-192299	総合英語（Project-based English）	kotoba,bunka,media
+192299	総合英語（Project-based English）	kotoba,media
 192301	総合英語（Liberal Arts & Sciences）	kotoba
 192303	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,bunka,shakai,kokusai
 192305	総合英語（Content-based English）	kotoba,shinri,kyoiku
@@ -7304,7 +7304,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 192341	総合英語（Liberal Arts & Sciences）	kotoba
 192342	総合英語（Liberal Arts & Sciences）	kotoba
 192343	総合英語（Performance Workshop）	kotoba
-192344	総合英語（Liberal Arts & Sciences）	kotoba,bunka,shakai,media,kankyo
+192344	総合英語（Liberal Arts & Sciences）	kotoba
 192345	総合英語（Performance Workshop）	kotoba,media
 192346	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,bunka,shakai
 192347	総合英語（Liberal Arts & Sciences）	kotoba
@@ -7540,7 +7540,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 193001	総合英語（Liberal Arts & Sciences）	kotoba
 193003	総合英語（Liberal Arts & Sciences）	kotoba
 193005	総合英語（Academic Skills）	kotoba
-193008	総合英語（Liberal Arts & Sciences）	kotoba,media
+193008	総合英語（Liberal Arts & Sciences）	kotoba
 193009	総合英語（Liberal Arts & Sciences）	kotoba,bunka,shakai
 193011	総合英語（Academic Skills）	kotoba
 193013	総合英語（Project-based English）	kotoba
@@ -7548,48 +7548,48 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 193021	総合英語（Performance Workshop）	kotoba
 193023	総合英語（Liberal Arts & Sciences）	kotoba
 193025	総合英語（Performance Workshop）	kotoba
-193027	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,bunka,shakai
+193027	総合英語（Liberal Arts & Sciences）	kotoba
 193029	総合英語（Performance Workshop）	kotoba
 193031	総合英語（Liberal Arts & Sciences）	kotoba,bungaku,shinri
 193033	総合英語（Academic Skills）	kotoba
 193035	総合英語（Liberal Arts & Sciences）	kotoba,rekishi,bunka
 193037	総合英語（Content-based English）	kotoba,rekishi,bunka
 193039	総合英語（Liberal Arts & Sciences）	kotoba
-193041	総合英語（Liberal Arts & Sciences）	kotoba,geijutsu,bunka,shakai,kokusai
+193041	総合英語（Liberal Arts & Sciences）	kotoba
 193043	総合英語（Academic Skills）	kotoba
 193045	総合英語（Content-based English）	kotoba,shinri,kyoiku
 193047	総合英語（Liberal Arts & Sciences）	kotoba
-193049	総合英語（Project-based English）	kotoba,bunka,kokusai
+193049	総合英語（Project-based English）	kotoba,bunka
 193051	総合英語（Performance Workshop）	kotoba
 193053	総合英語（Content-based English）	kotoba
 193055	総合英語（Liberal Arts & Sciences）	kotoba,bungaku,shinri
 193057	総合英語（Project-based English）	kotoba
 193059	総合英語（Content-based English）	kotoba,bunka,ikimono,kankyo
-193061	総合英語（Liberal Arts & Sciences）	kotoba,media
+193061	総合英語（Liberal Arts & Sciences）	kotoba
 193063	総合英語（Performance Workshop）	kotoba
-193065	総合英語（Liberal Arts & Sciences）	kotoba,media,kokusai
-193067	総合英語（Academic Skills）	kotoba,kokusai,ai
+193065	総合英語（Liberal Arts & Sciences）	kotoba,kokusai
+193067	総合英語（Academic Skills）	kotoba,kokusai
 193069	総合英語（Performance Workshop）	kotoba
 193101	総合英語（Academic Skills）	kotoba
 193103	総合英語（Liberal Arts & Sciences）	kotoba,bunka,shakai
 193105	総合英語（Project-based English）	kotoba
 193107	総合英語（Project-based English）	kotoba,iryo
-193119	総合英語（Project-based English）	kotoba,bunka,media
+193119	総合英語（Project-based English）	kotoba
 193121	総合英語（Liberal Arts & Sciences）	kotoba,iryo
 193122	総合英語（Content-based English）	kotoba,tetsugaku,shakai,seiji
 193123	総合英語（Content-based English）	kotoba,media
 193124	総合英語（Academic Skills）	kotoba
-193126	総合英語（Content-based English）	kotoba,shinri
+193126	総合英語（Content-based English）	kotoba
 193127	総合英語（Liberal Arts & Sciences）	kotoba,media
 193129	総合英語（Liberal Arts & Sciences）	kotoba,rekishi,bunka,seiji,kokusai
-193135	総合英語（Liberal Arts & Sciences）	kotoba,rekishi,tetsugaku,ikimono,iryo
+193135	総合英語（Liberal Arts & Sciences）	kotoba
 193137	総合英語（Liberal Arts & Sciences）	kotoba
 193139	総合英語（Liberal Arts & Sciences）	kotoba,shakai
 193141	総合英語（Academic Skills）	kotoba
 193143	総合英語（Liberal Arts & Sciences）	kotoba,tetsugaku
 193145	総合英語（Performance Workshop）	kotoba
 193147	総合英語（Liberal Arts & Sciences）	kotoba
-193149	総合英語（Project-based English）	kotoba,shakai
+193149	総合英語（Project-based English）	kotoba
 193151	総合英語（Performance Workshop）	kotoba
 193153	総合英語（Project-based English）	kotoba,iryo
 193155	総合英語（Project-based English）	kotoba
@@ -7792,7 +7792,7 @@ S22478	看護の統合と実践Ⅰ（再履修用）	shakai,kokusai,iryo
 194019	総合英語（Performance Workshop）	kotoba
 194021	総合英語（Academic Skills）	kotoba
 194023	総合英語（Content-based English）	kotoba,shinri,kyoiku
-194025	総合英語（Liberal Arts & Sciences）	kotoba,bunka,shakai
+194025	総合英語（Liberal Arts & Sciences）	kotoba
 194027	総合英語（Project-based English）	kotoba
 194029	総合英語（Liberal Arts & Sciences）	kotoba,kokusai
 194031	総合英語（Liberal Arts & Sciences）	kotoba,bungaku,shinri
