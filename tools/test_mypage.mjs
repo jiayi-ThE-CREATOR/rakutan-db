@@ -97,11 +97,13 @@ for (const s of MULTI_SLOTS){
         `複数コマ科目を置いたのに ${s} が空のまま`);
 }
 
-// クリックしたのは1コマだけ。外すときは科目ごと ―― 全コマ対称に外れるべき。
+// 押したのは1コマぶんの ✕ だけ。外すときは科目ごと ―― 全コマ対称に外れるべき。
 // 2026-08-27 に「外すときは確認ダイアログを挟む」仕様が入ったので、承諾しないと
 // この後の click は何も外さない（Playwright は既定で確認ダイアログを自動キャンセルする）。
+// 2026-09-16: 外すのはマス本体ではなく右下の ✕（.mpCellDel）。マス本体は
+// 科目の詳細へのリンクになった。
 page.once("dialog", d => d.accept());
-await page.click(".mpCell[data-slot='金5']");
+await page.click(".mpCellDel[data-del='金5']");
 for (const s of MULTI_SLOTS){
   check((await page.locator(`.mpCell[data-slot='${s}']`).textContent()).trim() === "",
         `${s} をクリックして外したのに ${s === "金5" ? "同じマス" : s + " が"} 埋まったまま（複数コマの片外れ）`);
@@ -111,14 +113,48 @@ tt = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")))
 check(!Object.values(tt.aki.slots).includes(MULTI_ID),
       "外したはずの複数コマ科目が aki.slots のどこかに残っている");
 
+// ── マスを押したら「いつもの詳細」が、このページの中で出ること（2026-09-16）──
+// それまではマスを押す＝時間割から外す、だった。詳細を見る手立てが
+// マイページから1つも無く、一覧で科目名を探し直すしかなかった。
+// 同じ日の先行版では /?open= で一覧ページへ飛ばしていたが、時間割を見ながら
+// 1つずつ確かめる使い方だと毎回このページを離れることになるので、その場で開く。
+{
+  const cell = page.locator(".mpCell[data-slot='月2']");
+  // 修飾キー・中クリックのときだけブラウザに任せる（別タブで一覧が開く）ので、
+  // href は従来どおり残っていること。
+  check((await cell.getAttribute("href")) === `/?open=${pickedId}`,
+        "マスの href（別タブ用の逃げ道）が無くなっている");
+  // 担当教員がマスの中に、時間割コードより先に出ていること。
+  const insIdx = (await cell.innerHTML()).indexOf("mpCellIns");
+  const codeIdx = (await cell.innerHTML()).indexOf("mpCellCode");
+  check(insIdx > -1, "マスに担当教員が出ていない");
+  check(insIdx < codeIdx, "担当教員が時間割コードより後ろに出ている");
+
+  const urlBefore = page.url();
+  await cell.click();
+  await page.waitForSelector("#mpDetail[open]");
+  check(page.url() === urlBefore, "マスを押したらページを離れてしまった（その場で出ない）");
+  // 中身は detail.js（一覧と同じ組み立て）。.dSec は詳細が描けた印
+  // ―― courses.built.json を取りに行くので、出るまで待つ。
+  await page.waitForSelector("#mpDetailBody .dSec", { timeout: 60000 });
+  check((await page.locator("#mpDetailTitle").textContent()).trim() !== "",
+        "詳細に科目名が出ていない");
+  check(await page.locator("#mpDetailBody .compBar, #mpDetailBody .compNote").count() > 0,
+        "成績評価の内訳が出ていない");
+  check(await page.locator(`#mpDetailBody .mpDetailMore a[href='/?open=${pickedId}']`).count() === 1,
+        "一覧で見るための逃げ道が出ていない");
+  await page.click("#mpDetailClose");
+  check(await page.locator("#mpDetail[open]").count() === 0, "閉じるで閉じない");
+}
+
 // ── 単一コマの科目は、これまで通り1コマだけで置ける・外れること（回帰）──
 // 月2 は上のテストで pickedId（単一コマの科目）が入ったまま。
 check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() !== "",
       "単一コマ科目の回帰確認の前提が崩れている（月2 が既に空）");
 page.once("dialog", d => d.accept());
-await page.click(".mpCell[data-slot='月2']");
+await page.click(".mpCellDel[data-del='月2']");
 check((await page.locator(".mpCell[data-slot='月2']").textContent()).trim() === "",
-      "単一コマ科目が1タップで外れない（回帰）");
+      "単一コマ科目が ✕ 1タップで外れない（回帰）");
 
 tt = JSON.parse(await page.evaluate(() => localStorage.getItem("rk_timetable")));
 check(!Object.values(tt.aki.slots).includes(pickedId),

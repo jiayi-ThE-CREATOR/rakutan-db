@@ -30,6 +30,9 @@
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
 <link rel="stylesheet" href="/assets/version.css">
+<!-- LINE 登録しないと使えない機能の覆い（data-gate を持つ節）。
+     判定は localStorage ではなくサーバー（GET /api/me）。理由は gate.js の頭。 -->
+<link rel="stylesheet" href="/assets/gate.css">
 <!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
      これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
      大きく出る」が成立せず、ただの文字列リンクになる。
@@ -67,8 +70,11 @@
     <div id="mpLineBody"></div>
   </section>
 
+  <!-- data-gate … LINE 登録するまで覆いをかける（gate.js）。
+       LINE 連携の節は覆わない ―― そこが入口なので、塞ぐと登録できなくなる。 -->
   <section id="mpProfile">
     <h3>プロフィール</h3>
+    <div data-gate>
     <div class="mpRow">
       <label for="mpFaculty">学部</label>
       <select id="mpFaculty"></select>
@@ -77,9 +83,11 @@
       <label for="mpGrade">学年</label>
       <select id="mpGrade"></select>
     </div>
+    </div>
   </section>
 
   <section id="mpTimetable">
+    <div data-gate>
     <div class="mpToolbar">
       <h3>私の時間割</h3>
       <button type="button" class="mpAllCal" id="mpAllCal">
@@ -90,11 +98,14 @@
     <div class="mpTerms" id="mpTerms"></div>
     <div class="mpGrid" id="mpGrid"></div>
     <div id="mpExtra"></div>
+    </div>
   </section>
 
   <section id="mpFavorites">
     <h3>お気に入りの授業</h3>
-    <div id="mpFavList"></div>
+    <div data-gate>
+      <div id="mpFavList"></div>
+    </div>
   </section>
 </div>
 
@@ -103,6 +114,19 @@
   <input type="search" id="mpPickerSearch" placeholder="科目名で検索" aria-label="科目名で検索" autocomplete="off">
   <div id="mpPickerList"></div>
   <button id="mpPickerClose">閉じる</button>
+</dialog>
+
+<!-- 時間割のコマを押したときに出る科目の詳細（2026-09-16）。
+     中身は一覧ページとまったく同じもの（detail.js の detailHtml）。
+     以前は /?open=<時間割コード> で一覧ページへ飛ばしていたが、時間割を
+     見ながら1つずつ確かめる使い方では、そのたびにページを離れることになる。 -->
+<dialog class="mpDetailDlg" id="mpDetail" aria-labelledby="mpDetailTitle">
+  <h3 id="mpDetailTitle"></h3>
+  <div class="meta" id="mpDetailMeta"></div>
+  <!-- class="detail" は付けない。app.css の .detail は「カードの中で開くまで
+       隠しておく」ための display:none を持っている（.card.open .detail で出る）。 -->
+  <div id="mpDetailBody"></div>
+  <button type="button" class="mpCalClose" id="mpDetailClose">閉じる</button>
 </dialog>
 
 <!-- カレンダーに追加。1コマだけのときも「全てカレンダーに追加」のときも
@@ -209,10 +233,15 @@
      Cookie を置かず、個人を特定する情報も送らない。
      自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
 <script src="/assets/analytics.js" defer></script>
+<!-- 覆いは app.js / mypage.js が描き終わってから掛ける（gate.js 内で待つ）。 -->
+<script src="/assets/gate.js" defer></script>
 <!--/SHELL:FOOTER-->
 
 <script src="/assets/store.js"></script>
 <script src="/assets/shell.js" defer></script>
+<!-- 一覧（index.html）と同じ詳細を、このページの中で出すために読む。
+     mypage.js より先に置くこと（mypage.js が window.rkDetail を読む）。 -->
+<script src="/assets/detail.js" defer></script>
 <script src="/assets/mypage.js" defer></script>
 </body>
 </html>

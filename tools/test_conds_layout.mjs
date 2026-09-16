@@ -10,7 +10,9 @@
  *   ② 押すボタンによって配置の形が変わる
  *      → 件数の桁が変わると flex-wrap は折り返し位置がずれる。押す前後で
  *        1pxも動かないことを座標で確かめる。
- *   ③ 3列×2行で並ぶこと。
+ *   ③ 3列で並ぶこと。2026-09-16 に「発表なし」が加わり 7個・3行になった
+ *      （3行目は1個）。4列にしないのは、PC の条件欄が 240〜280px しかなく
+ *      3列でも1枠 73〜79px だから（web/assets/app.css の実測コメント）。
  *
  * 件数そのものの正しさは tools/test_conditions.mjs が見ている。ここは形だけ。
  */
@@ -45,16 +47,17 @@ for (const [label, width] of [["スマホ(最小)", 340], ["スマホ", 390], ["
 
   console.log(`\n=== ${label}（幅${width}px） ===`);
   const a = await snap(p);
-  check(a.length === 6, `条件チップは6個（実測 ${a.length}個）`);
+  check(a.length === 7, `条件チップは7個（実測 ${a.length}個）`);
 
   const rows = [...new Set(a.map(c => c.y))].sort((x, y) => x - y);
-  check(rows.length === 2, `2行に並ぶ（実測 ${rows.length}行）`);
+  check(rows.length === 3, `3行に並ぶ（実測 ${rows.length}行）`);
   rows.forEach((y, i) => {
     const cols = a.filter(c => c.y === y);
-    check(cols.length === 3, `  ${i + 1}行目は3列: ${cols.map(c => c.name).join(" / ")}`);
+    const want = i < 2 ? 3 : 1;
+    check(cols.length === want, `  ${i + 1}行目は${want}列: ${cols.map(c => c.name).join(" / ")}`);
   });
   const ws = [...new Set(a.map(c => c.w))];
-  check(ws.length === 1, `6個とも同じ幅（実測 ${ws.join(",")}px）`);
+  check(ws.length === 1, `7個とも同じ幅（実測 ${ws.join(",")}px）`);
   const clip = a.filter(c => c.clipped);
   check(!clip.length, `文字が切れていない${clip.length ? "（切れ: " + clip.map(c => c.name).join(",") + "）" : ""}`);
 
@@ -77,6 +80,7 @@ for (const [label, width] of [["スマホ(最小)", 340], ["スマホ", 390], ["
       check(of("レポートのみ").cls === "chip on",     "レポートのみ＝濃い（押した本人）");
       check(of("出席なし").cls === "chip on imp",     "出席なし＝淡い（含まれている）");
       check(of("小テストなし").cls === "chip on imp", "小テストなし＝淡い（含まれている）");
+      check(of("発表なし").cls === "chip on imp",     "発表なし＝淡い（含まれている）");
       check(of("出席なし").title.includes("レポートのみ"), "淡い側に理由が title で出る");
     }
     await p.locator("#conds .chip").filter({ hasText: name }).first().click();  // 外して次へ

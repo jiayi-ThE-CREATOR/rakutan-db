@@ -8,6 +8,9 @@
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
 <link rel="stylesheet" href="/assets/version.css">
+<!-- LINE 登録しないと使えない機能の覆い（data-gate を持つ節）。
+     判定は localStorage ではなくサーバー（GET /api/me）。理由は gate.js の頭。 -->
+<link rel="stylesheet" href="/assets/gate.css">
 <!-- OGP（LINE・Instagram・X でリンクを貼ったときのカード）。
      これが無いと、宣伝マニュアル §2 ルール1 の「オレンジの OGP カードが
      大きく出る」が成立せず、ただの文字列リンクになる。
@@ -107,4 +110,6 @@
      Cookie を置かず、個人を特定する情報も送らない。
      自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
 <script src="/assets/analytics.js" defer></script>
+<!-- 覆いは app.js / mypage.js が描き終わってから掛ける（gate.js 内で待つ）。 -->
+<script src="/assets/gate.js" defer></script>
 <!--/PART:FOOTER-->

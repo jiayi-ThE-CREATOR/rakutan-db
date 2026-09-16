@@ -21,6 +21,9 @@ async function boot(){
   /* データを読まない節なので fetch より先に描く。下の catch は return するので、
      後ろに置くと「読み込めなかった」のときに LINE の節ごと消える。 */
   renderLine();
+  /* 連携状態はサーバーに聞く。await しない ―― timetable.json の取得と
+     並行させ、返ってきた時点で renderLine() を描き直す。 */
+  loadLineState();
   let tt, req;
   try {
     [tt, req] = await Promise.all([
@@ -76,6 +79,12 @@ async function boot(){
   $("#mpCalDelDlg").addEventListener("click", (e) => {
     if (e.target === e.currentTarget) $("#mpCalDelDlg").close();
   });
+
+  /* 科目の詳細。閉じ方は他のダイアログと同じ（ボタン・背景クリック・Esc）。 */
+  $("#mpDetailClose").onclick = () => $("#mpDetail").close();
+  $("#mpDetail").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) $("#mpDetail").close();
+  });
 }
 
 function buildProfile(){
@@ -111,11 +120,57 @@ const LINE_ADD_URL = "https://line.me/R/ti/p/@733udbnt";
    公式アカウントを変えるときは shell.html と両方直す。 */
 const LINE_MARK = `<span class="snsIcon line"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12 2.4c5.72 0 10.37 3.78 10.37 8.42 0 1.86-.72 3.53-2.22 5.18-2.18 2.5-7.05 5.55-8.16 6.02-1.1.47-.96-.29-.9-.55l.15-.89c.03-.27.07-.68-.03-.94-.12-.29-.58-.44-.91-.51C5.31 18.47 1.63 15 1.63 10.82 1.63 6.18 6.28 2.4 12 2.4Zm-2.9 5.7h-.73a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h.73a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2Zm5.02 0h-.73a.2.2 0 0 0-.2.2v2.69L11.11 8.2a.2.2 0 0 0-.17-.1h-.76a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h.73a.2.2 0 0 0 .2-.2v-2.69l2.09 2.8c.04.05.1.09.16.09h.76a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2Zm-6.6 3.59H5.59V8.3a.2.2 0 0 0-.2-.2h-.73a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h2.86a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2Zm11.35-2.46a.2.2 0 0 0 .2-.2V8.3a.2.2 0 0 0-.2-.2H16a.2.2 0 0 0-.2.2v4.52c0 .11.09.2.2.2h2.87a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2h-1.93v-.75h1.93a.2.2 0 0 0 .2-.2v-.73a.2.2 0 0 0-.2-.2h-1.93v-.75h1.93Z"/></svg></span>`;
 
+/* サーバーに聞いた本当の連携状態。null のあいだは「まだ分からない」。
+   2026-09-14 まではここが localStorage（押した印）だったので、押して
+   戻るだけで「連携済み」になっていた（wang さんの 9/13 の指摘）。
+   いまは GET /api/me ―― LINE 自身に友だちかを確かめた結果を使う。 */
+let lineState = null;
+
+async function loadLineState(){
+  try {
+    const res = await fetch("/api/me", { credentials: "same-origin" });
+    if (res.ok) lineState = await res.json();
+  } catch (e) {
+    /* 届かないときは「分からない」のまま。押した印での判定には戻さない
+       ―― 戻すと、直したはずの穴がここだけ残る。 */
+  }
+  renderLine();
+  /* 覆いの掛け直し（連携できていれば外れる）。 */
+  window.rkGate?.apply?.();
+}
+
 function renderLine(){
   const body = $("#mpLineBody");
   if (!body) return;
 
-  if (rkStore.isLineLinked()){
+  /* 未設定のとき（configured:false）は、サーバーが linked:true を返す。
+     その場合ここは「連携済み」ではなく、これまでどおりの案内を出す
+     ―― 設定前に「連携済み」と言うのは嘘になる。 */
+  if (lineState && lineState.configured && lineState.linked){
+    body.innerHTML = `
+      <p class="mpLineOk">${LINE_MARK}<span>LINE 連携済み</span></p>
+      <p class="mpLineNote">LINE から科目の検索とおすすめ、今後の更新情報が届きます。</p>
+      <a class="mpLineBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE を開く</a>`;
+    /* 取り消し導線は置かない。サーバーが LINE に確認した結果なので、
+       本人が「まだ追加していない」と申告する余地がない。 */
+    return;
+  }
+
+  /* ログイン済みだが友だちでない ―― ログインし直しても開かないので、
+     友だち追加そのものを促す。 */
+  if (lineState && lineState.configured && lineState.loggedIn && !lineState.linked){
+    body.innerHTML = `
+      <p class="mpLineNote">LINE ログインは済んでいますが、<b>まだ友だち追加されていません</b>。</p>
+      <a class="mpLineBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>
+      <p class="mpLineUndo"><button type="button" id="mpLineRecheck">追加したので確認し直す</button></p>`;
+    $("#mpLineRecheck").onclick = () => {
+      /* もう一度ログインを通すと friendship を取り直せる。 */
+      location.href = "/line/login?next=" + encodeURIComponent(location.pathname);
+    };
+    return;
+  }
+
+  if (rkStore.isLineLinked() && !(lineState && lineState.configured)){
     body.innerHTML = `
       <p class="mpLineOk">${LINE_MARK}<span>LINE 連携済み</span></p>
       <p class="mpLineNote">LINE から科目の検索とおすすめ、今後の更新情報が届きます。</p>
@@ -125,19 +180,38 @@ function renderLine(){
     return;
   }
 
+  /* 未連携（または未設定）。LINE ログインへ送る ―― これを通すと
+     サーバーが friendship を確認してセッションを発行するので、
+     戻ってきた時点で連携済みかどうかが確定する。
+     LINE Login が未設定のあいだは従来の友だち追加リンクのままにする
+     （押しても何も確認できないが、入口を消すより良い）。 */
+  const gated = !!(lineState && lineState.configured);
+  /* 3行目はゲートが効いているときだけ。未設定のあいだは覆いも掛からない
+     ので、「使えるようになります」と書くと事実でないことを言うことになる。 */
   body.innerHTML = `
     <ul class="mpLineWhy">
       <li>LINE から科目の検索とおすすめが届きます</li>
       <li>今後のラクハンの更新情報が受け取れます</li>
+      ${gated ? "<li>お気に入り・時間割・絞り込みが使えるようになります</li>" : ""}
     </ul>
-    <a class="mpLineBtn" id="mpLineAdd" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>`;
+    ${gated
+      ? `<button type="button" class="mpLineBtn" id="mpLineLogin">${LINE_MARK}<span>LINE で続ける</span></button>
+         <p class="mpLineNote">LINE の画面が開きます。友だち追加まで済むと、この下の機能が使えます。</p>`
+      : `<a class="mpLineBtn" id="mpLineAdd" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>`}`;
+
+  if (gated){
+    $("#mpLineLogin").onclick = () => {
+      location.href = "/line/login?next=" + encodeURIComponent(location.pathname);
+    };
+    return;
+  }
   $("#mpLineAdd").onclick = () => {
-    /* 押した先（LINE アプリ）で本当に追加したかは戻ってこないので、押した
-       時点で印を立てる。代わりに連携済みの表示に取り消し導線を必ず置く。
+    /* LINE Login 未設定のときだけ通る旧経路。押した先で本当に追加したかは
+       戻ってこないので、押した時点の印しか立てられない。だから連携済みの
+       表示には取り消し導線を残す（この節の頭の注記と同じ理由）。
        ここで即 renderLine() すると、押された <a> 自身が click の処理中に
        DOM から外れる。外れた <a> の既定動作（新しいタブを開く）を実行
-       しないブラウザがあり、「押したのに LINE が開かない」になる。
-       だから描き直しは次のタスクまで待つ。 */
+       しないブラウザがあり、「押したのに LINE が開かない」になる。 */
     rkStore.markLineLinked();
     setTimeout(renderLine, 0);
   };
@@ -547,20 +621,48 @@ function renderTimetable(){
         html += `<button class="mpCell" data-slot="${slot}" aria-label="${slot} 空き"></button>`;
         continue;
       }
-      /* カレンダー追加ボタンは .mpCell（外すボタン）の中には入れない。
-         button の中に button を置くと読み上げが崩れるので、.mpCellWrap を
-         挟んで兄弟要素にする（mypage.css 参照）。 */
+      /* 埋まっているマスは押すと「いつもの詳細」が開く（2026-09-16）。
+         それまではマスそのものが「外す」ボタンで、詳細を見る手立ては
+         マイページから1つも無かった（一覧で科目名を探し直すしかなかった）。
+         外すのは右下の ✕（.mpCellDel）へ移した。
+
+         開くのは**このページの中**（#mpDetail）。同じ日の先行版では
+         /?open= で一覧ページへ飛ばしていたが、時間割を見ながら1つずつ
+         確かめる使い方だと、そのたびにマイページを離れることになる（本人指摘）。
+
+         それでも button ではなく a のままにしてあるのは、長押し・中クリックで
+         別タブに開けるようにするため。その場合だけ従来どおり一覧ページが開く
+         （?open= は app.js の openCourseDetail が受ける）。
+
+         カレンダー追加ボタンと ✕ は .mpCell の中には入れない。a や button の
+         中に button を置くと読み上げが崩れるので、.mpCellWrap を挟んで
+         兄弟要素にする（mypage.css 参照）。 */
       const added = rkStore.isCalAdded(id);
+      const ins = c.instructor || "担当教員未定";
       html += `<div class="mpCellWrap">`
-            + `<button class="mpCell filled" data-slot="${slot}" aria-label="${slot} ${esc(c.title)} 時間割コード${esc(c.id)}">`
-            +   `${esc(c.title)}<small class="mpCellCode">${esc(c.id)}</small></button>`
+            + `<a class="mpCell filled" data-slot="${slot}" data-id="${esc(id)}" href="/?open=${encodeURIComponent(id)}"`
+            + ` aria-label="${slot} ${esc(c.title)} ${esc(ins)} 時間割コード${esc(c.id)} の詳細を見る">`
+            +   `${esc(c.title)}<small class="mpCellIns">${esc(ins)}</small>`
+            +   `<small class="mpCellCode">${esc(c.id)}</small></a>`
             + `<button type="button" class="mpCalBtn${added ? " added" : ""}" data-cal-id="${esc(id)}"`
             + ` aria-label="${esc(c.title)}をカレンダーに${added ? "連携（削除）" : "追加"}">${calIconSVG(added)}</button>`
+            + `<button type="button" class="mpCellDel" data-del="${slot}"`
+            + ` aria-label="${esc(c.title)}を時間割から外す">✕</button>`
             + `</div>`;
     }
   }
   $("#mpGrid").innerHTML = html;
-  $("#mpGrid").querySelectorAll(".mpCell").forEach(b => b.onclick = () => onCell(b.dataset.slot));
+  /* 空きマスだけが button。埋まっているマスは <a>（詳細へ）なので、
+     ここのセレクタには掛からない。 */
+  $("#mpGrid").querySelectorAll("button.mpCell").forEach(b => b.onclick = () => openPicker(b.dataset.slot));
+  $("#mpGrid").querySelectorAll(".mpCellDel").forEach(b => b.onclick = () => removeCourse(b.dataset.del));
+  /* ふつうのクリックはページ内で開く。修飾キー・中クリックのときは
+     何もしない ―― ブラウザに任せれば別タブで一覧ページが開く。 */
+  $("#mpGrid").querySelectorAll("a.mpCell").forEach(a => a.onclick = (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    openDetail(a.dataset.id);
+  });
   $("#mpGrid").querySelectorAll(".mpCalBtn").forEach(btn => {
     btn.onclick = () => {
       const c = BY_ID.get(btn.dataset.calId);
@@ -593,26 +695,95 @@ function renderExtra(){
   });
 }
 
-function onCell(slot){
-  const tt = rkStore.getTimetable(term);
-  const id = tt.slots[slot];
-  if (id){
-    /* 置くときは科目の全コマを埋める（putCourse）ので、外すときも対称に
-       全コマ外す。クリックしたマスだけ外すと、複数コマの科目
-       （金4・金5・金6 の実験など。timetable.json に528件ある）が
-       半分残ったまま「埋まっている」ように見えてしまう。
-       2026-08-27：以前は「1タップで戻せるから」と確認を出していなかったが、
-       誤タップで消えたことが分かりにくいという指摘を受けて確認を挟む方針に変えた。 */
-    const c = BY_ID.get(id);
-    /* BY_ID に無い＝古いデータのまま残った id。せめてクリックしたマスは外す。 */
-    const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
-    const label = c ? c.title : id;
-    if (!confirm(`「${label}」を時間割から外しますか？`)) return;
-    for (const s of slots) rkStore.clearSlot(term, s);
-    renderTimetable();
+/* ── 科目の詳細（このページの中で開く）────────────────────
+ *
+ * 出すのは一覧ページと**同じもの**。組み立てるのは detail.js の detailHtml で、
+ * ここにコピーは持たない（detail.js の冒頭の注記を参照）。
+ *
+ * 🚨 データだけは重い。詳細に要る成績評価の内訳（eval_raw）と口コミの集計は
+ *    timetable.json に入っていない ―― あちらは名前・担当・曜限だけの投影で、
+ *    このページを 135KB で開くためにそう作ってある（このファイルの冒頭）。
+ *    なので courses.built.json（12.5MB・gzip 570KB）を**最初にコマを押した
+ *    ときだけ**取りに行く。ページを開いただけでは取らない。
+ *    一覧ページが常時読んでいるのと同じURLなので、そちらを見たあとなら
+ *    ブラウザのキャッシュに載っている。
+ *
+ *    ここを boot() に移して先読みしないこと。押さない人（時間割を眺めるだけ、
+ *    お気に入りを見るだけ）にまで 570KB を払わせることになる。
+ *    軽くするなら、build.py に詳細だけの投影（eval_raw・eval_note・
+ *    weekly_quiz・reviews・shozoku_cd）を吐かせる ―― 実測 gzip 68KB まで
+ *    落ちるが、build.py は wang の持ち場なので相談してから（2026-09-16）。
+ */
+let fullCache = null;          // courses.built.json の中身（id → 科目）
+let fullPromise = null;        // 取得中の約束。二重に取りに行かないため
+
+async function fetchFull(){
+  if (fullCache) return fullCache;
+  if (!fullPromise){
+    fullPromise = fetch("/data/courses.built.json")
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(d => { fullCache = new Map((d.courses || []).map(c => [c.id, c])); return fullCache; })
+      .catch(e => { fullPromise = null; throw e; });   // 次に押したときは取り直す
+  }
+  return fullPromise;
+}
+
+async function openDetail(id){
+  const t = BY_ID.get(id);                      // 名前・担当・曜限はもう手元にある
+  const dlg = $("#mpDetail");
+  /* いま開いているのがどの科目か。下の await のあとで見比べる
+     ―― 読み込み中に別のコマを押されたら、古い方の結果は捨てる。 */
+  dlg.dataset.id = id;
+  $("#mpDetailTitle").textContent = t ? t.title : id;
+  /* 一覧のカードと同じ .meta の行。キャンパス・区分は timetable.json に
+     無いので、ここでは曜限・担当・時間割コードの3つだけ出す。 */
+  $("#mpDetailMeta").innerHTML = t
+    ? `<span>${esc(t.day_period || "曜限なし")}</span><span>${esc(t.instructor || "―")}</span><span>${esc(id)}</span>`
+    : `<span>${esc(id)}</span>`;
+  /* 取りに行く前に開く。570KB のあいだ何も起きないと、押せていないように見える。 */
+  $("#mpDetailBody").innerHTML = `<p class="mpEmpty">読み込んでいます…</p>`;
+  if (!dlg.open) dlg.showModal();
+
+  let full;
+  try {
+    full = await fetchFull();
+  } catch (e) {
+    $("#mpDetailBody").innerHTML =
+      `<p class="mpEmpty">詳細を読み込めませんでした。通信を確かめて、もう一度押してください。</p>`;
     return;
   }
-  openPicker(slot);
+  /* 開いているあいだに別のコマを押されていたら、古い方は描かない。 */
+  if (dlg.dataset.id !== id) return;
+  const c = full.get(id);
+  if (!c){
+    $("#mpDetailBody").innerHTML =
+      `<p class="mpEmpty">この科目は今年度のデータにありません。</p>`;
+    return;
+  }
+  $("#mpDetailBody").innerHTML = window.rkDetail.detailHtml(c)
+    + `<p class="mpDetailMore"><a href="/?open=${encodeURIComponent(id)}">一覧でこの科目を見る →</a></p>`;
+  $("#mpDetailBody").scrollTop = 0;
+}
+
+/* マスの右下の ✕。2026-09-16 までは埋まっているマスを押すこと自体が
+   これだったが、押す先を詳細に譲って専用のボタンになった。 */
+function removeCourse(slot){
+  const tt = rkStore.getTimetable(term);
+  const id = tt.slots[slot];
+  if (!id) return;
+  /* 置くときは科目の全コマを埋める（putCourse）ので、外すときも対称に
+     全コマ外す。クリックしたマスだけ外すと、複数コマの科目
+     （金4・金5・金6 の実験など。timetable.json に528件ある）が
+     半分残ったまま「埋まっている」ように見えてしまう。
+     2026-08-27：以前は「1タップで戻せるから」と確認を出していなかったが、
+     誤タップで消えたことが分かりにくいという指摘を受けて確認を挟む方針に変えた。 */
+  const c = BY_ID.get(id);
+  /* BY_ID に無い＝古いデータのまま残った id。せめてクリックしたマスは外す。 */
+  const slots = (c && c.slots && c.slots.length) ? c.slots : [slot];
+  const label = c ? c.title : id;
+  if (!confirm(`「${label}」を時間割から外しますか？`)) return;
+  for (const s of slots) rkStore.clearSlot(term, s);
+  renderTimetable();
 }
 
 let pickerList = [];   // 開いている曜限の全候補。検索は絞り込むだけでこれ自体は変えない。

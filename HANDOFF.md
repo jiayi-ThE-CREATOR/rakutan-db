@@ -171,6 +171,269 @@
 
 ---
 
+## 2026-09-04 ｜ 授業内容タグの語彙と打タグ・品質ゲート（本文待ち）｜ Claude → 次の人
+
+### 1. 何が動く状態か
+
+    python3 tools/test_subjects.py       # 120件（語彙とルール）
+    python3 tools/test_subject_tag.py    # 19件（バッチ・再開・返事の読み取り）
+    python3 tools/subject_survey.py      # 3つの品質ゲート
+
+3本入れました。`tools/subjects.py`（語彙31語・科目名ルール・出所の優先順位）、
+`tools/subject_tag.py`（Gemini へバッチ投げ）、`tools/subject_survey.py`（品質ゲート）。
+
+**手元の実データ10件で Gemini まで通してあります。** 設計の中心にあるケース、
+`ことばの学問入門`（科目名に「歴史」は出てこない）に本文を渡すと
+**`ことば・語学 ＋ 歴史`** が付きました。科目名だけなら `ことば・語学` だけです。
+
+### 2. 何をしていないか
+
+- **全量を流していません。** `data/syllabus_text.jsonl.gz` が要ります
+  ―― 政岡さんが `tools/extract_syllabus_text.py` を流して渡してくれるのを待ち中
+- **語彙31語はまだ草案です。** 品質ゲート（頻度・共起・学部集中度）は
+  **7,906件そろって初めて意味を持ちます**。手元10件では当然すべて不合格になります
+  （ゲートが動いていることの確認にはなります）
+- `build.py` への焼き込みと画面（モーダル）はまだです。ゲートを通してから
+- `data/subjects.ai.tsv` は gitignore していません。中身は id・科目名・タグだけで
+  シラバス原文を含まないので、**全量を流したら commit してください**
+  （「数字の根拠を全部提示できる」ため）
+
+### 3. 次の人が最初に打つコマンド
+
+    # 政岡さんから data/syllabus_text.jsonl.gz を受け取ってから
+    export GEMINI_API_KEY=...
+    python3 tools/subject_tag.py --limit 200     # まず200件で様子を見る
+    python3 tools/subject_survey.py              # 3つの表を見る
+    python3 tools/subject_tag.py                 # 良さそうなら全件（途中で止めて再開可）
+
+### 4. 踏んだ罠
+
+- **macOS の python.org 版 Python は TLS の証明書を検証できません**
+  （`CERTIFICATE_VERIFY_FAILED`）。`/usr/bin/python3` なら通ります。
+  `subject_tag.py` は 既定 → certifi の順に試し、どちらも駄目なら直し方を出して
+  止まります。**検証を切る選択肢は置いていません**（鍵を載せた通信なので）
+- **本文が「英文シラバスをご参照ください。」の1文だけ、という科目があります。**
+  最初のプロンプトでは `Cross Cultural Psychology` に何も付きませんでした。
+  「概要が空なら科目名から確実に言えるものだけ付ける（想像で補わない）」を
+  足して直っています
+- **モデルはやや多めに付けます**（`ことばの学問入門` に `生き物` が付く ――
+  第1章が動物のコミュニケーションなので誤りではない）。多すぎるかは10件では
+  決められないので、頻度表を全量で見てから調整すること
+- **プロンプトに語彙を書き写さないこと。** `tools/subjects.py` の `vocab_prompt()`
+  が唯一の定義です。書き写すと語彙を足したときにプロンプトだけ古くなり、
+  モデルが知らないキーを返して `clean()` に黙って落とされます
+  （＝タグが付かない科目が増えるだけで、原因が画面から見えない）
+- 設計スペックに「語彙33語」と書いていましたが**数え間違いで実際は31語**でした。
+  正本は `tools/subjects.py` の `VOCAB` です
+
+---
+
+## 2026-09-16 ｜ 発表を独立した軸にした（採点の作り直しの1段目）｜ Claude → 次の人
+
+採点を「相性度」へ作り直す3段のうちの1段目。2段目（固定重みの採点エンジン）の既定の重みに
+「発表」が入るので、先に分けた。設計は `docs/superpowers/specs/2026-09-16-happyou-axis-design.md`、
+手順は `docs/superpowers/plans/2026-09-16-happyou-axis.md`。ブランチ `feat/happyou-axis`（**未マージ**）。
+
+### 1. 何が動く状態か
+
+    python3 tools/test_happyou_axis.py        # 振り分け・発表軸・保底・上限・チップ（40件）
+    cd web && python3 -m http.server 8761 &
+    node tools/test_haiten_ui.mjs http://localhost:8761     # スライダー5本
+    node tools/test_conds_layout.mjs http://localhost:8761  # チップ7個・3列×3行
+
+- 「発表」は `presentation` バケツ（2,530科目）。ルールの順序は動かしていないので、
+  「個人のレポートとプレゼンテーション」のような同居項目はレポートに残る
+- 発表軸 `100 − (30 + 比率 × 0.25)`。保底は内訳に出てくる軸だけに付け、出てくる軸で 0.88 に正規化
+- band 閾値 83/77/69。やや重め 2,322 ／ 重め 2,192 ／ 拘束は軽い 1,688 ／ 標準 1,190 ／ 情報不足 272
+- 配点スライダーに「発表」、条件チップに「発表なし」（5,004件）。「レポートのみ」は 508 → 298
+- LINE の `preset_top` は6組とも不変（実測）
+- 9/16 時点の main（#139 LINE ゲート・#145 リセット を含む）を取り込み済み。Python 全件 ok、
+  JS 27/28（NG は main でも落ちる `test_kuchikomi_modal.mjs` の `.rv` のみ）。
+  リセットは `CAP_AXES` をループするので発表のスライダーも戻る
+
+### 2. 何をしていないか
+
+- **「試験のみ 85.0 ／ レポートのみ 55.0」の倒挂が広がった**（前は 90.1 ／ 66.5）。保底を外すと
+  成分が1つの科目はその軸の値そのものになるため。方針（多くの学生は試験を嫌う）と逆向きで、
+  2段目の採点エンジンで試験軸に有無の落差を入れて直す
+- **条件チップを 3列×3行にした件は林さんに未確認。** 9/11 の指摘で決めた 3列×2行を変えている
+- #139 の LINE ゲートで、未登録の人には「発表なし」チップも発表スライダーも「見えるが押せない」
+- 版に載せるか（`docs/version-pending.md`）は未決。wang に聞く
+- 2段目以降（固定重み・相性度・規模軸の削除・事実層:体感層 8:2・好みを調整する UI）
+
+### 3. 次の人が最初に打つコマンド
+
+    git fetch origin && git checkout feat/happyou-axis
+    python3 tools/test_happyou_axis.py
+
+### 4. 踏んだ罠
+
+- **`CAP_AXES` に無いキーの上限は黙って無視される。** `passes_caps` / `passesCaps` の最初の判定が
+  このタプルしか見ないので、入れ忘れると「発表なし」が全 7,906件に一致した。エラーは出ない
+- **テストの中に軸キーの写しが3つあった。** `test_haiten_filter.py` の `NO_CAP`（→ `CAP_AXES` から
+  作るよう直した）、`caps_impossible` の辞書（`_cap` は無いキーを 100 と数えるので合計が 180 に
+  なった）、`CHIP_TO_CAPS`（**わざと写し**。`server.CHIP_CAPS` から作ると恒真になるので写しのまま直した）
+- **今の動的重みのまま軸を足すと分布が崩れる。** 保底 0.10 が内訳に無い軸にも付き、新しい軸が
+  満点の約5,000科目を押し上げる（最大 band 63〜73%）。保底の付け方を変えて解いた
+- **band の地形は係数に対して単調ではない。** 発表の固定罰点 25 だけ最大 band 42.5% に崩れた
+- `tools/test_haiten_ui.mjs` の「合計が100%を下回ると警告」は本数×1本の値で決まる。
+  5本×20% は 100% なので警告が出ない。10% ずつに変えた
+
+---
+
+## 2026-09-16（2）｜ 詳細の組み立てを detail.js に切り出し、マイページの中で開く ｜ Claude → 次の人
+
+ひとつ下の項（同じ日の①）で、コマを押すと `/?open=` で**一覧ページへ飛ぶ**ようにした。
+本人から「いちいちマイページから出るのではなく、そのページ内で上に出してほしい」。
+飛ばずに**その場でダイアログ**を開くように変えた。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8140 &
+    node tools/test_mypage.mjs http://localhost:8140   # OK 59 checks
+    node tools/test_favorite.mjs / test_eval_raw.mjs / test_koan_code.mjs …  全通過
+    （.mjs 16本を通した。唯一の NG は test_kuchikomi_modal で、**本番の main に
+      向けて流しても同じく落ちる**ので無関係 ―― 確認方法：
+      `node tools/test_kuchikomi_modal.mjs https://rakuhan.nocode-sol.co.jp`）
+
+- **`web/assets/detail.js` を新設（app.js から切り出した）**
+  科目1件を受け取って詳細の HTML を返す関数だけを集めた：
+  `detailHtml` `reviewHtml` `evalCompHtml` `evalNoteHtml` `koanUrl` `RV_ATT` `rvLv` `rvAvg`。
+  **中身は app.js から1行も変えずに移した**（コメントごと）。`window.rkDetail` で渡す。
+  - `app.js` は先頭付近で `const { detailHtml, reviewHtml, rvLv, RV_ATT } = window.rkDetail;`
+    と受け取るだけ。**他の呼び出し箇所は1つも書き換えていない**（名前が同じなので）
+  - `index.html` / `mypage.html` の `<script>` に1行ずつ追加。**app.js・mypage.js より先**
+- **マイページ（`mypage.js`）**
+  コマを押す → `#mpDetail`（`<dialog>`）がその場で開く。中身は一覧とまったく同じ
+  `detailHtml` の出力。`<a href="/?open=…">` は**残してある** ―― 長押し・中クリック・
+  修飾キー付きクリックのときだけ既定の遷移に任せ、別タブで一覧ページが開く
+- **データ** ―― 詳細に要る `eval_raw` と口コミの集計は `timetable.json` に無いので、
+  **最初にコマを押したときだけ** `courses.built.json` を取りに行く（後述）
+
+### 2. 何をしていないか
+
+- 🚨 **初回のコマ押しで `courses.built.json`（12.5MB・gzip 570KB）を1回ダウンロードする。**
+  ページを開いただけでは取らない。一覧ページを先に見ていればキャッシュに載っている。
+  **軽くする道は測ってある**：詳細に要る項目だけの投影
+  （`eval_raw` `eval_note` `weekly_quiz` `reviews` `shozoku_cd` ＋見出し用の数項目）なら
+  **gzip 245KB**、`rakutan` を除いた最小なら**さらに小さい**。ただし作るのは `build.py`＝
+  wang の持ち場なので**相談してから**。実測コマンドは HANDOFF 末尾ではなくこの項の下に置いた
+- 実機（4G・iPhone）での初回の待ち時間は**測っていない**。ローカルは 230ms
+- お気に入り一覧（`#mpFavList`）の科目名は**まだ押せない**。時間割のコマだけ
+- `?open=` は残してある（別タブ用の逃げ道と、ダイアログ下の「一覧でこの科目を見る →」）。
+  もう不要と判断するなら app.js の `openCourseDetail` ごと消せる
+
+### 3. 次の人が最初に打つコマンド
+
+    cd web && python3 -m http.server 8140 &
+    open http://localhost:8140/mypage.html     # コマを押す → その場で詳細
+    node tools/test_mypage.mjs http://localhost:8140
+
+投影を作るかを判断するための実測（2026-09-16 時点）:
+
+    python3 - <<'EOF'
+    import json, gzip
+    cs = json.load(open("web/data/courses.built.json"))["courses"]
+    K = ["id","title","instructor","day_period","term","credits","category",
+         "class_format","campus","shozoku_cd","eval_raw","eval_note",
+         "eval_unclassified","weekly_quiz","reviews"]
+    proj = [{k: c[k] for k in K if c.get(k) is not None} for c in cs]
+    for n, o in [("全体", cs), ("詳細だけの投影", proj)]:
+        b = json.dumps(o, ensure_ascii=False, separators=(",",":")).encode()
+        print(f"{n}: raw {len(b)/1024/1024:.2f}MB  gzip {len(gzip.compress(b,6))/1024:.0f}KB")
+    EOF
+
+### 4. 踏んだ罠
+
+- 🚨 **`class="detail"` を他のページで使い回さない。** app.css の `.detail` は
+  `display:none` を持っている（カードの中では `.card.open .detail` で初めて出る）。
+  マイページのダイアログの中身に同じクラスを付けたら、**HTML は入っているのに
+  何も見えない**状態になった。テストが `.dSec` を「見えている」で待っていたので
+  気づけたが、目視だけだと「読み込みに失敗した」と誤読しやすい
+- **`window.rkDetail` を読む側は、読み込み順に依存する。** `app.js` の先頭で
+  分割代入しているので、`detail.js` を後に置くと **app.js が丸ごと落ちる**（= 一覧が
+  真っ白）。両方 `defer` なら書いた順に実行されるので、`<script>` の順序を守ること
+- 切り出しは**行範囲で機械的に移した**（`sed` ではなく Python で行を抜いた）。
+  手で書き写すと、コメントの中の実測値（「延べ172箇所」など）が落ちる。
+  移したあと `grep` で `evalCompHtml` `evalNoteHtml` `EVAL_POINTER` `rvAvg` `koanUrl` が
+  app.js に1つも残っていないことを確かめている
+
+---
+
+## 2026-09-16 ｜ マイページ：コマを押したら科目の詳細へ／コマに担当教員 ｜ Claude → 次の人
+
+依頼は2つ。「マイページの授業を押したら、いつもの詳細ページが出るようにしたい」
+「ピース内に授業番号よりも先に先生名と教室名を乗せてほしい」。
+**教室名だけは出せない**（理由は②）。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8140 &
+    node tools/test_mypage.mjs  http://localhost:8140   # OK 56 checks（+6 は今回の追加）
+    node tools/test_koan_code.mjs http://localhost:8140 # OK 20 checks
+    node tools/test_reset.mjs   http://localhost:8140   # 全部OK
+    python3 tools/test_tokens.py / test_layout.py       # OK
+
+触ったのは3ファイル＋テスト1本。
+
+- **マイページのコマ（`web/assets/mypage.js` renderTimetable）**
+  - 埋まっているコマが `<button>` から `<a href="/?open=<時間割コード>">` になった。
+    押すと科目の一覧ページへ飛び、**いつもの詳細（4軸のバーと信頼度）が開く**。
+    リンクなので長押し・中クリックで別タブにも開ける
+  - 中身の並びを **科目名 → 担当教員 → 時間割コード** にした（`.mpCellIns` を新設）。
+    連名で伸びないよう2行で切る（`-webkit-line-clamp:2`）
+  - **「時間割から外す」はコマ本体から右下の ✕（`.mpCellDel`）へ移した。** 押す先が
+    詳細に変わったので、外す口が別に要る。確認ダイアログ・複数コマ一括解除は従来どおり
+- **`?open=` を受ける側（`web/assets/app.js` の `openCourseDetail`）**
+  - 絞り込みを白紙に戻して（`resetAllFilters(false)`）時間割コード1件に絞り、
+    その科目の詳細を開く。**スマホは詳細がカードの中に開く＝カードが一覧に無いと
+    開く先が無い**ので、幅によらず必ず1件に絞ってから開く
+  - `?c=`（口コミのモーダル）とは別の入口。`?c=` の行き先は変えていない
+    ―― 既に配られている共有リンクが別の画面を開くようになるため
+  - `resetAllFilters()` に `reload` 引数を足した（既定 true。従来の呼び出しは変化なし）
+
+### 2. 何をしていないか
+
+- 🚨 **教室名は出していない。データが無い。** KOAN の外部公開シラバスに
+  こう書いてある（2026-09-16 に詳細ページを1件だけ実際に取って確認）：
+
+      ※外部公開用シラバスについて
+      このページは、外部公開用に、教室等の一部項目が非表示になっています。
+      ログイン可能なユーザは、KOAN からシラバス参照することで、当該項目が表示されます。
+
+  **教室は「まだ取っていない」のではなく「ログインしないと出てこない」。**
+  scrape/parse.py が拾い漏らしているわけではないので、パーサを直しても出ない。
+  出すとしたら (a) 口コミで聞く（KOAN から取れない5項目と同じ扱い）
+  (b) CELAS の時間割表（PDF）から別途取る、のどちらか。**どちらも未着手**
+- お気に入り一覧（`#mpFavList`）の科目名は**まだ押せない**。今回いじったのは
+  時間割のコマだけ。同じ `/?open=<id>` を張るだけで揃うが、行の作りが変わるので見送った
+- `?open=` は**検索窓に時間割コードを残す**。「絞り込みが勝手に消えた」と見えないための
+  意図的な作りだが、利用者に見せて確かめてはいない
+- 版（`docs/version-pending.md`）にはまだ足していない。**利用者への確認待ち**
+
+### 3. 次の人が最初に打つコマンド
+
+    cd web && python3 -m http.server 8140 &
+    open http://localhost:8140/mypage.html    # コマを埋めて押す → 詳細が開く
+    node tools/test_mypage.mjs http://localhost:8140
+
+### 4. 踏んだ罠
+
+- 🚨 **`.mpCellCode` に `white-space:nowrap` を足すとページが横にはみ出す。**
+  コマは grid の `1fr`。折り返せない中身があると列がその幅より狭くなれず、
+  **320px で 64px、360px で 24px** の横スクロールが出た（実測）。
+  6桁が折り返すのが嫌で nowrap にしたのが直接の原因。
+  直し方は nowrap ではなく **字間を 0 に、右のパディングを 22→20px**（ボタンの実寸）。
+  390px なら1行に収まる（6桁＝35.5px／使える幅 36.6px）。360px 以下は従来どおり2行
+- **`b.onclick = resetAllFilters` のような関数の直渡しは、引数を足した瞬間に壊れる。**
+  第1引数に click の Event が入る。今回 `reload` を足したので `() => resetAllFilters()` にした
+- `page.addInitScript` は**ナビゲーションのたびに走る**。Playwright で localStorage を
+  仕込んでから `reload()` すると、テスト中に書き換えた値が初期値へ戻る（確認中に1回踏んだ）
+- KOAN を叩いて確かめるのは**1リクエストで足りる**（`Koan(delay=2.0)` で search→detail の2発）。
+  「たぶん無い」で済ませず取って確かめたので、教室が**構造的に出てこない**ことまで分かった
+
+---
+
 ## 2026-09-07 ｜ 採点側：「期末」「中間」の誤分類を直した ｜ Claude → 次の人
 
 ひとつ上の「内訳をシラバスの文言そのままに」で**表示だけ**直した②を、採点側でも直す。
@@ -275,6 +538,38 @@ quiz 軸が測っているのは「毎回そのつど準備が要る」拘束（
   「毎回の拘束」なので、学期2回の試験を入れると科目が2バンド飛ぶ。実測してから決める
 - `data/courses.json` は gitignore。**ルールを変えたら `tools/rebucket.py` を流す**
   （HTML は要らない）。`build.py --rescore` が焼き直すのは built ファイルだけ
+
+---
+
+## 2026-09-16 ｜ v1.2 を切った（配点でしぼれる・時間割コード）｜ Claude → 次の人
+
+`docs/version-pending.md` に溜まっていた14件を `web/assets/version.js` の `RELEASES` 先頭へ
+1件の版として移し、仮置き場を空にした。`new` を含むので MINOR（1.1.1 → 1.2）。
+
+### 1. 何が動く状態か
+
+    node tools/test_version.mjs     # ✓ 版: v1.2, v1.1.1, v1.1, v1.0
+
+並びは過去の版に合わせて new → improve → fix。
+
+### 2. 何をしていないか
+
+- **LINE の門（#139：友だち追加しないと絞り込み・配点・マイページが使えない）は載せていない。**
+  本番では有効（`/api/me` が `configured:true`）だが、wang の判断で v1.2 からは外した。
+  **載せ忘れではない**ので、次の版で扱うなら改めて wang に聞くこと
+- 仮置き場の文案のうち2件を、wang の承認のうえで現状に合わせて直した：
+  時間割コード（「詳細からコピー」→「コードの右の『コピー』」。#142 で詳細の横条を外したため）、
+  詳細を短くした件（「口コミを一覧側に」→「読む・書く・時間割のボタンを一覧側に」。
+  9/10 に口コミの集計が詳細へ戻っているため）
+
+### 3. 次の人が最初にやること
+
+とくに無し。
+
+### 4. 踏んだ罠
+
+- 仮置き場の文案は**書いた時点の画面**の説明なので、版を切るまでに後の変更で古くなる。
+  移す前に、1件ずつ今の本番と突き合わせること（今回2件ずれていた）
 
 ---
 
@@ -565,6 +860,60 @@ API モード（`server.py` の `/api/courses`）にも `track2` パラメータ
   実際の絞り込みに使う箇所を混同しないよう `effectiveTrack()` を1つ作って
   `queryLocal()` からだけ呼ぶ形にした。UI表示側（`tsel.value = state.track` など）は
   そのまま日本語専攻を指し続ける必要がある。
+
+---
+
+## 2026-09-16 ｜ 条件のリセットボタン（置き場所を作り直した）｜ Claude → 次の人
+
+9/11 に保留したリセットを、**置き場所を変えて作り直した。** 保留の原因だった
+huaqianshue さんへの確認は**要らなくなった**（取り決めに触らずに済んだため）。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8177 &
+    node tools/test_reset.mjs http://localhost:8177
+
+ブランチ `feat/hayashi-reset`（`398b98d` = v1.2 から）。
+
+  PC（768px〜）   … 「絞り込み」見出しの右
+  スマホ（〜767px）… 学期の下（`.resetSp`）。幅いっぱい・タップ領域44px
+
+戻すのは 検索語・空きコマ・条件チップ・配点・学年・学期・区分・学部・
+専攻（track / track2）。**マイページの保存は消さない**（開き直すと学部・
+学年はまた入る）。
+
+`docs/version-pending.md` に3件入れた（リセット=new / 3列と濃淡=improve /
+重複=fix）。**`RELEASES` へはまだ移していない** ―― 移すのは水曜の仕事で、
+`new` が1件あるので次の版は 1.3（MINOR）。
+
+### 2. 何をしていないか
+
+- `RELEASES`（`web/assets/version.js`）は触っていない。pending に置いただけ。
+- 本番には出ていない（PR まで）。
+- `data/courses.json` が手元に無いので `web/data/courses.built.json` を
+  静的配信して確認した。`server.py` の API モードは踏んでいない。
+
+### 3. 次の人が最初に打つコマンド
+
+    git fetch origin && git checkout feat/hayashi-reset
+    npm install && npx playwright install chromium   # node_modules が空なら
+    cd web && python3 -m http.server 8177 &
+    node tools/test_reset.mjs http://localhost:8177
+
+### 4. 踏んだ罠
+
+- **リセットを条件チップより「上」に置くと、押した瞬間にチップが全部ずれる。**
+  9/11 版は見出し行に置いたので、行が生まれてチップ6個が下へ動いた。
+  直したばかりの「押すと配置が変わる」を作り直すことになり、高さを固定する
+  小細工が要った。**下に置けば小細工ごと消える。**
+  置き場所を変えるだけで、他人の取り決めへの確認も不要になった。
+  実装が込み入ってきたら、まず置き場所を疑う。
+- **`activeFilterCount()` を出し入れの判定に使わない。** あれは「左カラムで
+  押せるもの」だけを数える約束で、検索語と学部/専攻が入っていない。
+- **`state.track2` を忘れない**（外国語学部の日本語専攻がもう1つ選ぶ言語。
+  9/11 以降に増えた）。戻し漏れると学部だけ消えて専攻語が残る。
+- **27コミット遅れていた。** その間に LINE ゲート（#139）と track2 が入って
+  いた。作り直す前に `git fetch` して、触る範囲が変わっていないか見ること。
 
 ---
 
@@ -2012,61 +2361,6 @@ CSS px の **y≈847〜926**。直す前の版番号は **884〜902** で、ち�
   `templates/shell.html` 側の器だけ）。今回は再注入の必要なし
 
 ---
-
-## 2026-09-04 ｜ 授業内容タグの語彙と打タグ・品質ゲート（本文待ち）｜ Claude → 次の人
-
-### 1. 何が動く状態か
-
-    python3 tools/test_subjects.py       # 120件（語彙とルール）
-    python3 tools/test_subject_tag.py    # 19件（バッチ・再開・返事の読み取り）
-    python3 tools/subject_survey.py      # 3つの品質ゲート
-
-3本入れました。`tools/subjects.py`（語彙31語・科目名ルール・出所の優先順位）、
-`tools/subject_tag.py`（Gemini へバッチ投げ）、`tools/subject_survey.py`（品質ゲート）。
-
-**手元の実データ10件で Gemini まで通してあります。** 設計の中心にあるケース、
-`ことばの学問入門`（科目名に「歴史」は出てこない）に本文を渡すと
-**`ことば・語学 ＋ 歴史`** が付きました。科目名だけなら `ことば・語学` だけです。
-
-### 2. 何をしていないか
-
-- **全量を流していません。** `data/syllabus_text.jsonl.gz` が要ります
-  ―― 政岡さんが `tools/extract_syllabus_text.py` を流して渡してくれるのを待ち中
-- **語彙31語はまだ草案です。** 品質ゲート（頻度・共起・学部集中度）は
-  **7,906件そろって初めて意味を持ちます**。手元10件では当然すべて不合格になります
-  （ゲートが動いていることの確認にはなります）
-- `build.py` への焼き込みと画面（モーダル）はまだです。ゲートを通してから
-- `data/subjects.ai.tsv` は gitignore していません。中身は id・科目名・タグだけで
-  シラバス原文を含まないので、**全量を流したら commit してください**
-  （「数字の根拠を全部提示できる」ため）
-
-### 3. 次の人が最初に打つコマンド
-
-    # 政岡さんから data/syllabus_text.jsonl.gz を受け取ってから
-    export GEMINI_API_KEY=...
-    python3 tools/subject_tag.py --limit 200     # まず200件で様子を見る
-    python3 tools/subject_survey.py              # 3つの表を見る
-    python3 tools/subject_tag.py                 # 良さそうなら全件（途中で止めて再開可）
-
-### 4. 踏んだ罠
-
-- **macOS の python.org 版 Python は TLS の証明書を検証できません**
-  （`CERTIFICATE_VERIFY_FAILED`）。`/usr/bin/python3` なら通ります。
-  `subject_tag.py` は 既定 → certifi の順に試し、どちらも駄目なら直し方を出して
-  止まります。**検証を切る選択肢は置いていません**（鍵を載せた通信なので）
-- **本文が「英文シラバスをご参照ください。」の1文だけ、という科目があります。**
-  最初のプロンプトでは `Cross Cultural Psychology` に何も付きませんでした。
-  「概要が空なら科目名から確実に言えるものだけ付ける（想像で補わない）」を
-  足して直っています
-- **モデルはやや多めに付けます**（`ことばの学問入門` に `生き物` が付く ――
-  第1章が動物のコミュニケーションなので誤りではない）。多すぎるかは10件では
-  決められないので、頻度表を全量で見てから調整すること
-- **プロンプトに語彙を書き写さないこと。** `tools/subjects.py` の `vocab_prompt()`
-  が唯一の定義です。書き写すと語彙を足したときにプロンプトだけ古くなり、
-  モデルが知らないキーを返して `clean()` に黙って落とされます
-  （＝タグが付かない科目が増えるだけで、原因が画面から見えない）
-- 設計スペックに「語彙33語」と書いていましたが**数え間違いで実際は31語**でした。
-  正本は `tools/subjects.py` の `VOCAB` です
 
 ## 2026-09-04 ｜ シラバス本文の抽出ツール（授業内容タグの前工程）｜ Claude → 政岡さん
 
