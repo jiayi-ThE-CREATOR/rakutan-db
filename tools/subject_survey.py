@@ -43,6 +43,13 @@ DEAD_MAX = 50          # これ未満は死にタグ
 BROAD_MIN = 3000       # これ超えは広すぎ
 FACULTY_MAX = 0.90     # 1学部がこれ以上を占めたら偽タグ
 
+# ③ の例外。偏りが「学部の言い換え」ではなく開講の仕組みから来る、と人が判断したタグだけを書く。
+# 理由を書かずに足さないこと ―― ゲートを黙らせる逃げ道にしない。
+FACULTY_EXEMPT = {
+    "sports": "体育実技（スマート・スポーツ／ヘルスリテラシー）は全学教育推進機構でしか開講しない。"
+              "学部名から作ったタグではなく中身のタグ（2026-09-16 本人判断・91%/169件）",
+}
+
 
 def read_tsv(path: Path) -> dict[str, list[str]]:
     if not path.is_file():
@@ -153,8 +160,13 @@ def main() -> None:
 
     # ── ③ 学部集中度 ────────────────────────────
     print(f"\n③ 学部集中度（{FACULTY_MAX * 100:.0f}%以上は偽タグ）")
+    assert set(FACULTY_EXEMPT) <= set(VOCAB), "FACULTY_EXEMPT に語彙外のキーがある"
+    assert all(FACULTY_EXEMPT.values()), "FACULTY_EXEMPT には理由を書くこと"
     bad = [(t, v) for t, v in fac.items() if v[1] >= FACULTY_MAX]
     for t, (cat, share, total) in sorted(bad, key=lambda x: -x[1][1]):
+        if t in FACULTY_EXEMPT:
+            print(f"   {VOCAB[t]:16} {cat} が {share * 100:.0f}%（{total}件）  ← 例外：{FACULTY_EXEMPT[t]}")
+            continue
         print(f"   {VOCAB[t]:16} {cat} が {share * 100:.0f}%（{total}件）  ← 偽タグ")
         ng.append(f"{VOCAB[t]}: {cat} に {share * 100:.0f}% 偏っている")
     if not bad:
