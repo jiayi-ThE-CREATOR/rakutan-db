@@ -672,32 +672,40 @@ def _unjudged_reason(course_score: dict) -> str:
             "判定を出していません。")
 
 
-def match(course_score: dict, weights: dict | None = None) -> dict:
-    """学生の重みを掛けた相性と、その理由の文章を返す。
+def profile_from_weights(weights: dict) -> tuple[float, dict]:
+    """プリセットの重み（0〜5）を、試験の取り分と試験以外の重みに当てる。
 
-    数値だけ出しても「なぜ勧められたか」が伝わらないので、
-    重みの高い軸のうち満たしたもの／満たさなかったものを言葉にする。
+    試験の取り分 ＝ 試験の重み ÷（試験の重み ＋ 試験以外の重みの平均）。
+    すべて同じ重み（とにかく軽い）なら 0.50 で、既定の式と一致する。
+    """
+    others = {k: float(weights.get(k, 0)) for k in OTHER_WEIGHTS}
+    mean_other = sum(others.values()) / len(others)
+    exam_w = float(weights.get("exam", 0))
+    if exam_w + mean_other <= 0:
+        return EXAM_SHARE, dict(OTHER_WEIGHTS)
+    return exam_w / (exam_w + mean_other), others
+
+
+def match(course_score: dict, weights: dict | None = None) -> dict:
+    """学生の重み（LINE のプリセット）で並べ直した相性と、その理由の文章を返す。
+
+    2026-09-17: 中身を「軸の値の加重平均」から相性度の式（aishoudo）に替えた。
+    プリセットの重みは profile_from_weights で試験の取り分と試験以外の重みに当てる。
     """
     w = {**DEFAULT_WEIGHTS, **(weights or {})}
     axes = course_score["axes"]
 
     # 総合値を出さないと決めた科目に、相性の数字だけ出してはいけない。
-    # 学生が実際に見て比較するのはこの数字なので、ここを素通しにすると
-    # 「情報不足」の判定が画面上では無かったことになる（2026-08-15）。
     if course_score.get("overall") is None:
-        # 「口コミが入れば出る」と言えるのは、口コミで埋まる穴のときだけ。
-        # 成績評価の内訳そのものが欠けている科目は口コミでは直らない
-        # （シラバス側の問題）ので、同じ文言を出すと嘘になる。
         return {"fit": None, "reason": _unjudged_reason(course_score),
                 "weights": w, "labels": AXIS_LABEL}
 
-    total, wsum = 0.0, 0.0
-    for k, weight in w.items():
-        v = axes.get(k, {}).get("value")
-        if v is not None and weight > 0:
-            total += v * weight
-            wsum += weight
-    fit = round(total / wsum) if wsum > 0 else None
+    exam_share, other_weights = profile_from_weights(w)
+    feel = course_score.get("feel") or {}
+    fit = aishoudo({k: a.get("value") for k, a in axes.items()},
+                   course_score.get("present") or [],
+                   (feel.get("value"), feel.get("share", 0.0)),
+                   exam_share, other_weights)
 
     # 重視している順に見て、満たした軸／満たさない軸を拾う
     ranked = sorted(w.items(), key=lambda kv: -kv[1])

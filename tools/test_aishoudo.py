@@ -116,6 +116,22 @@ check(s["present"] == ["report"] and s["feel"] == {"value": None, "share": 0.0},
       f"present / feel が返っていない: {s.get('present')} {s.get('feel')}")
 
 
+# ── ⑧ LINE のプリセット：試験の取り分 ＝ 試験の重み ÷（試験の重み ＋ 試験以外の平均）──
+e, ow = scoring.profile_from_weights(scoring.PRESETS["とにかく軽い"])
+check(e == 0.5, f"すべて同じ重みなら試験の取り分は 0.50: {e}")
+e, _ = scoring.profile_from_weights(scoring.PRESETS["テストが苦手"])
+check(abs(e - 0.625) < 1e-9, f"テストが苦手は 5/(5+3)=0.625: {e}")
+e, _ = scoring.profile_from_weights(scoring.PRESETS["バイト優先"])
+check(abs(e - 1 / 3) < 1e-9, f"バイト優先は 2/(2+4)=0.333: {e}")
+rk = scoring.score(course({"exam": 100.0}))
+fit_test = scoring.match(rk, scoring.PRESETS["テストが苦手"])["fit"]
+fit_baito = scoring.match(rk, scoring.PRESETS["バイト優先"])["fit"]
+check(fit_test < fit_baito,
+      f"試験のみの科目は「テストが苦手」で「バイト優先」より低く出る: {fit_test} {fit_baito}")
+check(scoring.match(scoring.score({"eval_ratio": None}), scoring.PRESETS["バイト優先"])["fit"] is None,
+      "総合値を出さない科目にプリセットの相性を出している")
+
+
 print(f"{n - len(fails)}/{n} 件が通過")
 for m in fails:
     print("  ✗", m)
