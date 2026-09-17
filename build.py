@@ -291,17 +291,8 @@ def load_subjects() -> tuple[dict, dict]:
 
 
 def subjects_of(cid: str, ai: dict, manual: dict) -> tuple[list[str], str | None]:
-    """1科目の授業内容タグと出所（"manual" / "ai" / None）。人の手直しが AI に勝つ。
-
-    **科目名ルール（subjects.from_title）はここでは使わない。**
-    設計では語学の科目へ先回りして `ことば・語学` を付け、AI 呼び出しを節約する
-    つもりだった。だが 2026-09-16 に全7,909件を Opus で判断済みで、
-    「英語で文献を読むだけの授業には付けない」という house rule で揃えてある。
-    ここで科目名ルールを重ねると 147件に `ことば・語学` が足され
-    （中国語圏文学Ⅰ・ウルドゥー文学演習 など）、うち14件は上限5個で
-    AI のタグが押し出される ―― 品質ゲートを通した台帳と画面が食い違う。
-    """
-    return subj.merge(manual=manual.get(cid), title=None, ai=ai.get(cid))
+    """1科目の授業内容タグと出所。中身と「科目名ルールを重ねない理由」は tools/subjects.py の for_course。"""
+    return subj.for_course(cid, ai, manual)
 
 
 def resubject(out: Path) -> None:

@@ -161,6 +161,21 @@ def merge(manual=None, title=None, ai=None) -> tuple[list[str], str | None]:
     return merged, "ai" if a else "title"
 
 
+def for_course(cid: str, ai: dict, manual: dict) -> tuple[list[str], str | None]:
+    """画面に出す1科目のタグと出所（"manual" / "ai" / None）。人の手直しが AI に勝つ。
+
+    build.py（焼く）と server.py（開発用 API）が同じものを使う。
+
+    **科目名ルール（from_title）はここでは重ねない。**
+    設計では語学の科目へ先回りして `ことば・語学` を付け、AI 呼び出しを節約する
+    つもりだった。だが 2026-09-16 に全7,909件を Opus で判断済みで、
+    「英語で文献を読むだけの授業には付けない」という house rule で揃えてある。
+    重ねると 147件に `ことば・語学` が足され（中国語圏文学Ⅰ・ウルドゥー文学演習 など）、
+    うち14件は上限5個で AI のタグが押し出される ―― 品質ゲートを通した台帳と画面が食い違う。
+    """
+    return merge(manual=manual.get(cid), title=None, ai=ai.get(cid))
+
+
 def vocab_prompt() -> str:
     """AI に渡す語彙の一覧。**ここが唯一の定義**で、プロンプト側に書き写さない。
 
