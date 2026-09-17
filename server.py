@@ -571,7 +571,7 @@ class Handler(BaseHTTPRequestHandler):
                 "conditions": list(CONDITIONS),
                 "divisions": requirements_doc().get("divisions", []),
                 "presets": scoring.PRESETS,
-                "min_for_scoring": reviews_mod.MIN_FOR_SCORING,
+                "min_for_backfill": reviews_mod.MIN_FOR_BACKFILL,
                 "axis_labels": scoring.AXIS_LABEL,
                 "disclaimer": DATA_META["note"],
             })

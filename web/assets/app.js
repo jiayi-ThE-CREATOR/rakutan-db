@@ -39,15 +39,6 @@ const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
 let META = null;
 let REQ = null;   // 卒業要件表（学部→区分→単位数）。data/requirements.json
 
-/* 口コミが採点に効き始める人数。reviews.py の MIN_FOR_SCORING が正本で、
-   build.py が courses.built.json の _meta に焼き、API は /api/meta で返す。
-   ここで数字を書くと、門を変えたときに文言だけ古くなる
-   （2026-08-24 まで「1件入ると出ます」と出していたが、実際は3件だった）。 */
-function minForScoring(){
-  // API モードは /api/meta、静的モードは courses.built.json の _meta 由来。
-  // どちらも届かないときだけ 3（reviews.py の既定）に落とす。
-  return (META && META.min_for_scoring) || 3;
-}
 
 /* ── クエリ組み立て ───────────────────── */
 function qs(){
@@ -1114,7 +1105,6 @@ async function boot(){
     days: ["月","火","水","木","金"], periods: ["1","2","3","4","5","6"],
     weights: m.weights, conditions: Object.keys(CONDITIONS),
     axis_labels: m.axis_label,
-    min_for_scoring: m.min_for_scoring,
     eval_total_min: m.eval_total_min,
     disclaimer: m.note || "",
   };

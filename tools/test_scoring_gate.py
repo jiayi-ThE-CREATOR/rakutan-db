@@ -50,7 +50,7 @@ def course(**kw) -> dict:
     return {**base, **kw}
 
 
-MIN = reviews.MIN_FOR_SCORING
+MIN = reviews.MIN_FOR_BACKFILL
 base = score.score(course())["overall"]
 
 
