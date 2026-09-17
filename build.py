@@ -31,11 +31,15 @@ from pathlib import Path
 import reviews
 import score as scoring
 from tools import engineering, faculty as faculty_mod, foreign_studies, senmon
+from tools import subjects as subj
 from tools.division import JP_ONLY_TITLES, divide, track
 
 ROOT = Path(__file__).parent
 SRC = ROOT / "data" / "courses.json"
 OUT = ROOT / "web" / "data" / "courses.built.json"
+# 授業内容タグの台帳。AI の判定と、人が直した行。manual があればそちらが勝つ。
+SUBJECTS_AI = ROOT / "data" / "subjects.ai.tsv"
+SUBJECTS_MANUAL = ROOT / "data" / "subjects.manual.tsv"
 # 口コミ1件ずつは別ファイルにする。courses.built.json は絞り込みのたびに
 # 全件なめるので、件数に比例して伸びるものを混ぜない。詳細パネルを最初に
 # 開いた時だけ取りに行けば足りる（server.py も同じURLで返す）。
@@ -281,6 +285,39 @@ def represet(out: Path) -> None:
           f"（学年×プリセット {moved} 通りで順位が変わりました）")
 
 
+def load_subjects() -> tuple[dict, dict]:
+    """授業内容タグの台帳（AI・人の手直し）。どちらも id → キーの列。"""
+    return subj.read_tsv(SUBJECTS_AI), subj.read_tsv(SUBJECTS_MANUAL)
+
+
+def subjects_of(cid: str, ai: dict, manual: dict) -> tuple[list[str], str | None]:
+    """1科目の授業内容タグと出所。中身と「科目名ルールを重ねない理由」は tools/subjects.py の for_course。"""
+    return subj.for_course(cid, ai, manual)
+
+
+def resubject(out: Path) -> None:
+    """焼き済みの courses.built.json に授業内容タグだけを付け直す。
+
+    represet() / rescore() と同じく、生データ（data/courses.json 全所属ぶん）を
+    持っていない人でも台帳の変更を本番へ出せるようにする。
+    **採点はしない。** rescore を通すと、score.py がその後に変わっていた場合に
+    タグと無関係な band まで動く。触るのは subjects / subjects_source と
+    _meta.subject_labels だけ。
+    """
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    ai, manual = load_subjects()
+    by_src: dict = {}
+    for c in payload["courses"]:
+        c["subjects"], c["subjects_source"] = subjects_of(c["id"], ai, manual)
+        by_src[c["subjects_source"]] = by_src.get(c["subjects_source"], 0) + 1
+    payload["_meta"]["subject_labels"] = subj.VOCAB
+    out.write_text(json.dumps(payload, ensure_ascii=False,
+                              separators=(",", ":")), encoding="utf-8")
+    tagged = sum(1 for c in payload["courses"] if c["subjects"])
+    print(f"→ {out}  {len(payload['courses'])} 件に授業内容タグを付けました"
+          f"（タグあり {tagged} 件／出所 {by_src}）")
+
+
 def rescore(out: Path) -> None:
     """焼き済みの courses.built.json を、いまの score.py で採点し直す。
 
@@ -358,6 +395,9 @@ def main() -> None:
     ap.add_argument("--rescore", action="store_true",
                     help="焼き済みの courses.built.json を今の score.py で採点し直す"
                          "（同上。eval_raw から eval_ratio も作り直す）")
+    ap.add_argument("--subjects", action="store_true",
+                    help="焼き済みの courses.built.json に授業内容タグだけを付け直す"
+                         "（同上。採点はしない）")
     args = ap.parse_args()
 
     if args.represet:
@@ -366,6 +406,10 @@ def main() -> None:
 
     if args.rescore:
         rescore(Path(args.out))
+        return
+
+    if args.subjects:
+        resubject(Path(args.out))
         return
 
     raw = json.loads(SRC.read_text(encoding="utf-8"))
@@ -405,6 +449,7 @@ def main() -> None:
     guard_not_fewer([dest_now, Path(args.out_timetable)], len(courses),
                     args.allow_fewer_courses)
 
+    subj_ai, subj_manual = load_subjects()
     built = []
     for c in courses:
         # 留学生向けの日本語科目。区分は CELAS どおり第2外国語（＝lang2）に
@@ -427,6 +472,8 @@ def main() -> None:
         # （2026-08-26 まで実際にそうなっていた。手で当て直していたぶんが
         #  0b17580 の焼き直しで消えて気付いた）。
         base["track"] = c["track"] = track(c)
+        # 授業内容タグ（何の話をする授業か）。台帳からそのまま載せる ―― subjects_of 参照。
+        base["subjects"], base["subjects_source"] = subjects_of(c["id"], subj_ai, subj_manual)
         built.append(base)
 
     # プリセット4つ分の順位を焼いておくと、LINE側は採点ロジックを持たずに済む。
@@ -453,6 +500,9 @@ def main() -> None:
             # 2026-08-24：門を3件にしたのに「1件入ると出ます」と
             # 表示し続けていたので、数字を持たせて食い違いを止める。
             "min_for_scoring": reviews.MIN_FOR_SCORING,
+            # 授業内容タグのキー → 画面の表示名。語彙の正本は tools/subjects.py の VOCAB。
+            # 画面側に表示名を書き写さない（axis_label と同じ置き方）。
+            "subject_labels": subj.VOCAB,
             "note": "採点は build.py（score.py）で確定済み。"
                     "ブラウザ側は重み×軸スコアの内積のみ行う。",
             "eligible_years_note": "履修できる学年。KOAN の学年絞り込みで判定"

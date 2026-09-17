@@ -1,0 +1,60 @@
+/* 授業内容タグ（subjects.js / detail.js の subjectTagsHtml）。
+ *
+ * 色は tokens.css の既存の組み合わせだけを使う（tools/test_tokens.py に登録済みの組）：
+ *   ふだんのタグ   --soft on --dim（案内帯 .note と同じ）
+ *   選んだタグ     --brand-text on --brand-soft
+ *   ダイアログ     --ink / --muted on --card、決定ボタンは --brand-ink on --brand
+ * 左の絞り込みのチップとダイアログの選択肢は app.css の .chip をそのまま使う（見た目を揃える）。
+ * ダイアログの作りは version.css の .verDlg と同じ（スマホは下から、700px 以上は中央）。
+ * app.css は松下さん担当なので、足すものはこのファイルに置く。 */
+
+/* ── カードと詳細のタグ ── */
+.subjRow{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 12px}
+.detail .subjRow{padding:0}
+.subjTag{font:inherit;font-size:var(--fs-xs);line-height:1.4;
+  color:var(--soft);background:var(--dim);border:1px solid transparent;
+  border-radius:var(--r-pill);padding:4px 10px;min-height:28px}
+button.subjTag{cursor:pointer}
+button.subjTag:hover{border-color:var(--rule)}
+.subjTag.on{color:var(--brand-text);background:var(--brand-soft);border-color:var(--brand-line);font-weight:700}
+
+/* ── 左の絞り込み ── */
+.subjOpen{font:inherit;width:100%;text-align:left;cursor:pointer;
+  color:var(--ink);background:var(--card);border:1px solid var(--rule);
+  border-radius:var(--r-md);padding:10px 12px;min-height:44px}
+.subjOpen:hover{border-color:var(--brand-line)}
+.subjPicked{margin-top:var(--sp-2)}
+
+/* ── ダイアログ ── */
+.subjDlg{border:none;padding:0;background:none;max-width:none;max-height:none;
+  width:100%;height:100%;margin:0}
+.subjDlg::backdrop{background:var(--scrim)}
+.subjDlg[open]{display:flex;align-items:flex-end;justify-content:center}
+.subjCard{background:var(--card);color:var(--ink);width:100%;max-width:560px;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px var(--pad) 0;
+  max-height:86vh;overflow:auto;font-size:var(--fs-base);
+  display:flex;flex-direction:column;gap:var(--sp-3)}
+.subjHead{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3)}
+.subjHead h2{margin:0;font-size:var(--fs-lg)}
+.subjClose{background:none;border:none;color:var(--muted);font:inherit;font-size:var(--fs-lg);
+  line-height:1;cursor:pointer;flex:none;min-width:44px;min-height:44px;margin:-10px -10px 0 0}
+/* 16px 未満だと iOS の Safari が入力のたびに画面を拡大する。 */
+.subjFind{font:inherit;font-size:16px;width:100%;box-sizing:border-box;padding:10px 12px;
+  color:var(--ink);background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md)}
+.subjLead,.subjEmpty{margin:0;font-size:var(--fs-sm);color:var(--muted)}
+.subjNote{margin:0;font-size:var(--fs-xs);color:var(--muted)}
+.subjDlg .chips .chip{min-height:40px}
+/* 選択肢が多くても決定ボタンが画面の外に出ないように、カードの下端に貼り付ける。 */
+.subjFoot{display:flex;gap:var(--sp-2);justify-content:flex-end;position:sticky;bottom:0;
+  background:var(--card);border-top:1px solid var(--rule);margin:0 calc(-1 * var(--pad));
+  padding:var(--sp-3) var(--pad) 18px}
+.subjClear{font:inherit;cursor:pointer;color:var(--ink);background:var(--card);
+  border:1px solid var(--rule);border-radius:var(--r-pill);padding:10px 16px;min-height:44px}
+.subjClear:disabled{color:var(--muted);cursor:default}
+.subjDone{font:inherit;font-weight:700;cursor:pointer;color:var(--brand-ink);background:var(--brand);
+  border:1px solid var(--brand);border-radius:var(--r-pill);padding:10px 18px;min-height:44px}
+
+@media (min-width:700px){
+  .subjDlg[open]{align-items:center}
+  .subjCard{border-radius:var(--r-lg)}
+}

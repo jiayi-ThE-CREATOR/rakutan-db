@@ -32,7 +32,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from tools.subjects import LENS, VOCAB, merge  # noqa: E402
+from tools.subjects import LENS, VOCAB, merge, read_tsv  # noqa: E402
 
 BUILT = ROOT / "web" / "data" / "courses.built.json"
 AI = ROOT / "data" / "subjects.ai.tsv"
@@ -49,17 +49,6 @@ FACULTY_EXEMPT = {
     "sports": "体育実技（スマート・スポーツ／ヘルスリテラシー）は全学教育推進機構でしか開講しない。"
               "学部名から作ったタグではなく中身のタグ（2026-09-16 本人判断。件数と割合は上の行に毎回出る）",
 }
-
-
-def read_tsv(path: Path) -> dict[str, list[str]]:
-    if not path.is_file():
-        return {}
-    out = {}
-    with path.open(encoding="utf-8", newline="") as f:
-        for row in csv.reader(f, delimiter="\t"):
-            if len(row) >= 3:
-                out[row[0]] = [t for t in row[2].split(",") if t]
-    return out
 
 
 def frequency(tags_by_id: dict[str, list[str]]) -> collections.Counter:

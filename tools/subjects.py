@@ -29,7 +29,9 @@
 
 from __future__ import annotations
 
+import csv
 import re
+from pathlib import Path
 
 # ── 語彙 ────────────────────────────────────────
 # 学問名ではなく**学生の言葉**にする。score.py が内部の attendance を画面では
@@ -123,6 +125,22 @@ def clean(tags) -> list[str]:
     return [k for k in VOCAB if k in seen][:MAX_TAGS]
 
 
+def read_tsv(path: Path) -> dict[str, list[str]]:
+    """台帳（`data/subjects.ai.tsv` / `data/subjects.manual.tsv`）を id → キーの列にする。
+
+    列は「科目ID<TAB>科目名<TAB>キー,キー」。ファイルが無ければ空 ―― manual は
+    人が直したい行を書いたときだけ作る。build.py と subject_survey.py が同じものを読む。
+    """
+    if not path.is_file():
+        return {}
+    out = {}
+    with path.open(encoding="utf-8", newline="") as f:
+        for row in csv.reader(f, delimiter="\t"):
+            if len(row) >= 3:
+                out[row[0]] = [t for t in row[2].split(",") if t]
+    return out
+
+
 def merge(manual=None, title=None, ai=None) -> tuple[list[str], str | None]:
     """出所の優先順位を適用して、最終的なタグと出所を返す。
 
@@ -141,6 +159,21 @@ def merge(manual=None, title=None, ai=None) -> tuple[list[str], str | None]:
     if not merged:
         return [], None
     return merged, "ai" if a else "title"
+
+
+def for_course(cid: str, ai: dict, manual: dict) -> tuple[list[str], str | None]:
+    """画面に出す1科目のタグと出所（"manual" / "ai" / None）。人の手直しが AI に勝つ。
+
+    build.py（焼く）と server.py（開発用 API）が同じものを使う。
+
+    **科目名ルール（from_title）はここでは重ねない。**
+    設計では語学の科目へ先回りして `ことば・語学` を付け、AI 呼び出しを節約する
+    つもりだった。だが 2026-09-16 に全7,909件を Opus で判断済みで、
+    「英語で文献を読むだけの授業には付けない」という house rule で揃えてある。
+    重ねると 147件に `ことば・語学` が足され（中国語圏文学Ⅰ・ウルドゥー文学演習 など）、
+    うち14件は上限5個で AI のタグが押し出される ―― 品質ゲートを通した台帳と画面が食い違う。
+    """
+    return merge(manual=manual.get(cid), title=None, ai=ai.get(cid))
 
 
 def vocab_prompt() -> str:

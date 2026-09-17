@@ -17,6 +17,53 @@
 
 ---
 
+## 2026-09-17 ｜ 授業内容タグを画面につないだ（「何の話？」ダイアログ・カードと詳細のタグ）｜ Claude → 次の人
+
+### 1. 何が動く状態か
+
+    python3 build.py --subjects                  # built にタグだけ付け直す（採点はしない）
+    cd web && python3 -m http.server 8231 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8231
+
+- 左の絞り込み「空きコマからさがす」の下に **「授業内容でさがす」**。「何の話？」→ 中央のダイアログで選ぶ
+  - 複数選択は AND。各タグの数字＝そのタグを足したら残る件数。0件のタグは出さない。タグ名で検索できる
+  - 選んだタグは左に残り、✕ で外せる。ダイアログに「AI がシラバスを読んで付けたタグ」と書いてある
+- **カードの下にタグ**。押すとそのタグでしぼる（もう一度押すと外す）。PC の右カラムの詳細にも「授業内容」
+- URL `?subject=rekishi&subject=bunka` で共有・再現できる。リセットで消える
+- `server.py`（API モード）も同じ `?subject=` と `subject_facets`、`/api/meta` に `subject_labels`
+- 検算：`search()` で「歴史＋他28語」の表示件数＝足した後の実件数（ずれ0）。ブラウザでも 390px・1280px で同じことを確認
+- 既存の test_reset / test_haiten_ui / test_conditions / test_favorite / test_inspector_center / test_rail_toggle /
+  test_sort / test_koan_code / test_index_gate / test_version / test_layout / test_tokens は通過
+
+### 2. 何をしていないか
+
+- **2026-09-17 に本人の了承で merge（本番）。** 版は `docs/version-pending.md` に new で置いた（次の水曜にまとめて出す）
+- mypage の詳細にはタグを出していない（mypage.js はタグの表示名を持っていない）
+- 科目名ルール（語学 → `ことば・語学`）は重ねていない。重ねると147件に足され14件で AI のタグが押し出される（`tools/subjects.py` の `for_course`）
+- `web/assets/version.js` の v1.0 の履歴文に「規模」が残る。8/26 当時の事実なので書き換えていない
+- about の「しぼり込みは…この4つに寄せて」「発表 30% はレポートに」の段は、発表を独立させた #149 と食い違って読める。この PR では触っていない
+- `tools/test_kuchikomi_modal.mjs` は **main でも落ちる**（「詳細に口コミの集計が残っている」。9/10 に詳細へ集計を戻した変更にテストが追いついていない）
+- 松下さん担当の `web/index.html` は、読み込み2行と meta description だけ触った。見た目の追加は `web/assets/subjects.css` に分けた
+
+### 3. 次の人が最初に打つコマンド
+
+    git switch feat/naiyou-ui
+    cd web && python3 -m http.server 8231 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8231 /tmp/shots   # 第2引数でスクショも出る
+
+### 4. 踏んだ罠
+
+- 🚨 **`server.py` は built を読まない。** 生データ（`data/courses.json`）を読んで起動時に区分などを焼く。
+  built にタグを入れただけでは API モードに出ないので、division と同じく起動時に `subjects.for_course` で付けている。
+  data/courses.json が無い worktree ではダミー30件で起動するので、検算は `S.COURSES[:] = built` で差し替えて `search()` を直接叩いた
+- **Playwright の座標クリックは、リセット直後に空振りする。** 一覧の描き直しとスクロールで位置が動く。
+  `locator(...).dispatchEvent("click")` で要素に送る（#list への委譲で受けているので実際の操作と同じ経路）
+- 静的配信では `POST /api/hit`（501）・`GET /api/health` と `/api/me`（404）が必ず console に出る。テストで数えるのは JS の例外だけにする
+- テスト用スクリプトを scratchpad など repo の外に置くと `import "playwright"` が解決できない（ESM はファイルの場所から node_modules を探す）
+- `timeout` コマンドは macOS に無い
+
+---
+
 ## 2026-09-16（追記）｜ 授業内容タグ：品質ゲートが3つとも合格 ｜ Claude → 次の人
 
 ### 1. 何が動く状態か
