@@ -163,7 +163,7 @@ AI への出力指示は「**下の一覧から当てはまる限りすべて選
 ```
 
 - `subjects` … 語彙のキー配列（0〜5個）。空配列は「判定できなかった」
-- `subjects_source` … `"title"`（科目名ルール）/ `"ai"` / `"manual"`（人が直した）
+- `subjects_source` … `"title"`（科目名ルール）/ `"ai"` / `"manual"`（人が直した）。**2026-09-17 時点で `"title"` は出ない** ―― 全件を Opus で判断済みのため科目名ルールを重ねていない（理由と数字は `tools/subjects.py` の `for_course`）
 - `_meta.subject_labels` … キー → 画面表示名。`axis_label` と同じ置き方
 
 AI の判定は `data/subjects.ai.tsv` に別途残す（科目ID・科目名・付いたタグ・
@@ -231,7 +231,7 @@ AI の判定は `data/subjects.ai.tsv` に別途残す（科目ID・科目名・
 - 件数は既存のチップと同じ数え方をする ―― **曜限フィルタの「前」で数える**
   （そうしないとコマを押した瞬間に他が全部0件になり、次の一手が打てない。`app.js` に同じ注意書きあり）
 - 検索ボックスはタグ名の部分一致。31語でも打って飛べたほうが速い
-- URL は `?subject=rekishi,kotoba`
+- URL は `?subject=rekishi&subject=kotoba`（区分の `division` と同じ繰り返し形。2026-09-17 の実装で変更 ―― URL を組む `qs()` を共有できる）
 
 ---
 
