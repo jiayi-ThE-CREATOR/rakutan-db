@@ -32,7 +32,9 @@ const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), 
                    もう一つの言語を履修し、その言語の専攻語科目をそのまま取る
                    （中国語を選べば中国語専攻の学生と同じ科目）。絞り込みでは
                    track の代わりに track2 を使う。 */
-                faculty:"", track:"", track2:"", division:new Set() };
+                faculty:"", track:"", track2:"", division:new Set(),
+                /* 授業内容タグ（複数可・AND）。?subject= と往復する（syncSubjectsUrl）。 */
+                subject:new Set() };
 const SEMS = [["aki","秋・冬学期"],["haru","春・夏学期"],["all","すべて"]];
 const YEARS = [["1","1年"],["2","2年"],["3","3年"],["4","4年"],
                ["5","5年"],["6","6年"],["all","すべて"]];
@@ -63,6 +65,7 @@ function qs(){
   if (state.track) p.set("track", state.track);
   if (state.track2) p.set("track2", state.track2);
   state.division.forEach(d => p.append("division", d));
+  state.subject.forEach(s => p.append("subject", s));
   for (const k of CAP_AXES) if (state.caps[k] < NO_CAP) p.set("cap_" + k, state.caps[k]);
   return p;
 }
@@ -714,6 +717,12 @@ function card(c){
   const rv = reviewMark(c.reviews);
   const note = bandNoteText(c);
   const fav = rkStore.isFavorite(c.id);
+  /* 授業内容タグ。.head（role="button"＝押すと詳細）の「外」に置く ―― 中に置くと
+     ボタンの中にボタンが入り、タグを押したときに詳細まで開く。 */
+  const subj = (c.subjects || []).length
+    ? `<div class="subjRow">${window.rkDetail.subjectTagsHtml(c.subjects, {
+        labels: META.subject_labels || {}, selected: state.subject, interactive: true })}</div>`
+    : "";
   return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
     <div class="head" role="button" tabindex="0">
       <div>
@@ -726,6 +735,7 @@ function card(c){
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
+    ${subj}
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
             aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
     ${cardActsHtml(c)}
@@ -1011,6 +1021,15 @@ function queryLocal(){
     base.push({ ...c, match: matchLocal(c.rakutan) });
   }
 
+  /* 授業内容タグ（AND）。区分の件数より「前」で掛ける ―― server.py の search() と同じ順序。 */
+  if (state.subject.size){
+    const want = [...state.subject];
+    for (let i = base.length - 1; i >= 0; i--){
+      const have = base[i].subjects || [];
+      if (!want.every(s => have.includes(s))) base.splice(i, 1);
+    }
+  }
+
   // 区分チップの件数は区分フィルタを掛ける「前」で数える（server.py と同じ理由）。
   const divisionFacets = {};
   for (const e of base){
@@ -1022,6 +1041,13 @@ function queryLocal(){
       if (!state.division.has(base[i].division || "other")) base.splice(i, 1);
     }
   }
+
+  /* 各タグの件数＝いまのタグ選択に、そのタグを足したら残る件数（AND なのでこの集合で数えれば足りる）。
+     曜限フィルタの「前」で数える（空きコマと同じ理由）。server.py の search() と同じ手順。 */
+  const subjectFacetsLocal = {};
+  for (const k of Object.keys(META.subject_labels || {})) subjectFacetsLocal[k] = 0;
+  for (const e of base)
+    for (const s of e.subjects || []) if (s in subjectFacetsLocal) subjectFacetsLocal[s]++;
 
   const slots = {};
   for (const d of META.days){ slots[d] = {}; for (const p of META.periods) slots[d][p] = 0; }
@@ -1081,7 +1107,7 @@ function queryLocal(){
     results.sort(byFit);   /* おすすめ順（既定）＝検証ずみ → 相性 */
 
   return { count: results.length, results, slots, facets, caps: { ...state.caps },
-           division_facets: divisionFacets };
+           division_facets: divisionFacets, subject_facets: subjectFacetsLocal };
 }
 
 async function boot(){
@@ -1114,6 +1140,8 @@ async function boot(){
     days: ["月","火","水","木","金"], periods: ["1","2","3","4","5","6"],
     weights: m.weights, conditions: Object.keys(CONDITIONS),
     axis_labels: m.axis_label,
+    // 授業内容タグの表示名。API モードは /api/meta が同じ名前で返す。
+    subject_labels: m.subject_labels || {},
     min_for_scoring: m.min_for_scoring,
     eval_total_min: m.eval_total_min,
     disclaimer: m.note || "",
@@ -1155,7 +1183,8 @@ function showDetail(c, article){
         <button type="button" class="insClose" aria-label="この科目を閉じる">✕</button>
         <h3>${esc(c.title)}</h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c, true)}</div>
-      </div><div class="detail">${detailHtml(c)}</div>`;
+      </div><div class="detail">${detailHtml(c, { subjectLabels: META.subject_labels,
+        subjectSelected: state.subject, subjectInteractive: true })}</div>`;
     ins.querySelector(".insClose").onclick = closeDetail;
     ins.scrollTop = 0;
     lastOpenedCourseId = c.id;
@@ -1536,6 +1565,8 @@ async function load(retry){
   }
   courses = d.results;
   buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
+  subjectFacets = d.subject_facets || {}; subjectCount = d.count;
+  window.rkSubjects?.render();
   $("#count").textContent = d.count;
   syncRailTog();   // 条件が変われば畳んでいるときのバッジも変わる
   syncResetBtn();  // 同じ理由。条件が0になったらリセットも引っ込める
@@ -1563,6 +1594,38 @@ const mqWide = window.matchMedia("(min-width:768px)");
    効かず区分の並べ替えにしか使っていないので数えない（state の宣言参照）。
    配点は軸ごとに1つと数える。チップ「出席なし」等は state.cond ではなく
    state.caps を 0 にするので（chipOn 参照）、二重には数えていない。 */
+/* ── 授業内容タグ ─────────────────────────
+   描くのは subjects.js（左の絞り込み・ダイアログ）と detail.js（カードと詳細のタグ）。
+   状態・絞り込み・件数はここ（queryLocal / server.py の search()）。 */
+let subjectFacets = {}, subjectCount = 0;
+
+/* 共有リンクから開いた人が同じ絞り込みを見られるように、URL に残す（配点の syncCaps と同じ）。 */
+function syncSubjectsUrl(){
+  const u = new URL(location.href);
+  u.searchParams.delete("subject");
+  state.subject.forEach(s => u.searchParams.append("subject", s));
+  history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+}
+
+function toggleSubject(k){
+  if (!((META && META.subject_labels) || {})[k]) return;
+  state.subject.has(k) ? state.subject.delete(k) : state.subject.add(k);
+  syncSubjectsUrl();
+  /* PC の右カラムの詳細は load() では描き直さないので、押した状態だけ合わせる。 */
+  document.querySelectorAll("#inspector .subjTag[data-subject]").forEach(b => {
+    const on = state.subject.has(b.dataset.subject);
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+  load();
+}
+
+function clearSubjects(){
+  state.subject.clear();
+  syncSubjectsUrl();
+  load();
+}
+
 function activeFilterCount(){
   let n = 0;
   if (state.day) n++;                                   // 空きコマ（曜日と限は対）
@@ -1571,6 +1634,7 @@ function activeFilterCount(){
   if (state.year !== "all") n++;
   if (state.sem  !== "all") n++;
   n += state.division.size;                             // 卒業要件の区分
+  n += state.subject.size;                              // 授業内容タグ
   return n;
 }
 
@@ -1610,6 +1674,7 @@ function resetAllFilters(reload = true){
   state.cond.clear();
   for (const k of CAP_AXES) state.caps[k] = NO_CAP;
   state.division.clear();
+  state.subject.clear(); syncSubjectsUrl();
   state.faculty = ""; state.track = ""; state.track2 = "";
   const q = $("#q");
   if (q) q.value = "";
@@ -1873,6 +1938,12 @@ function applyPostMode() {
       if (Number.isFinite(v))
         state.caps[k] = Math.max(0, Math.min(100, Math.round(v / CAP_STEP) * CAP_STEP));
     }
+    /* 授業内容タグ（?subject=rekishi&subject=kotoba）。語彙に無いキーは捨てる ――
+       壊れた共有リンクで「何も選んでいないように見えて0件」を作らない。 */
+    {
+      const labels = (META && META.subject_labels) || {};
+      for (const s of urlParams.getAll("subject")) if (labels[s]) state.subject.add(s);
+    }
 
     /* LINE 公式アカウントの問診から届いた場合だけ、その回答を「本人の回答」
        として確定する。共有リンクの ?faculty=&year= と URL の形はまったく
@@ -1971,6 +2042,14 @@ function applyPostMode() {
     buildYears();
     load();
   });
+  window.rkSubjects?.init({
+    labels:   () => (META && META.subject_labels) || {},
+    selected: () => state.subject,
+    facets:   () => subjectFacets,
+    count:    () => subjectCount,
+    toggle:   toggleSubject,
+    clear:    clearSubjects,
+  });
   await load();
   window.dispatchEvent(new CustomEvent("rk:app-ready"));
   /* マイページの時間割のコマから来た人（?open=）。?c= より先に処理する
@@ -1989,6 +2068,15 @@ function applyPostMode() {
    1枚ずつに onclick を付けず、親で受ける（.ttAddBtn と同じ型）。
    委譲先は #list だけ ―― .favBtn は詳細（#inspector）には出ない
    （カード右上に☆があるので詳細から外した。detailHtml 前のコメント参照）。 */
+/* 授業内容タグ（カード・PC の右カラムの詳細）。押すとそのタグでしぼる／もう一度押すと外す。
+   カードのタグは .head の外にあるので、詳細は開かない。 */
+document.addEventListener("click", e => {
+  const b = e.target.closest(".subjTag[data-subject]");
+  if (!b) return;
+  e.preventDefault();
+  toggleSubject(b.dataset.subject);
+});
+
 $("#list").addEventListener("click", e => {
   const btn = e.target.closest(".favBtn");
   if (!btn) return;

@@ -24,6 +24,7 @@
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
 <link rel="stylesheet" href="/assets/version.css">
+<link rel="stylesheet" href="/assets/subjects.css">
 <!-- LINE 登録しないと使えない機能の覆い（data-gate を持つ節）。
      判定は localStorage ではなくサーバー（GET /api/me）。理由は gate.js の頭。 -->
 <link rel="stylesheet" href="/assets/gate.css">
@@ -365,6 +366,7 @@
 <!-- 科目の詳細を組み立てるところ。マイページ（mypage.html）も同じものを読む。
      app.js より先に置くこと（app.js が window.rkDetail を読む）。 -->
 <script src="/assets/detail.js" defer></script>
+<script src="/assets/subjects.js" defer></script>
 <script src="/assets/app.js" defer></script>
 <script src="/assets/onboard.js" defer></script>
 </body>
