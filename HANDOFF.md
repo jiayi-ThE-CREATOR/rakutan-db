@@ -37,7 +37,7 @@
 
 ### 2. 何をしていないか
 
-- **merge していない。** 版は `docs/version-pending.md` に new で置いた（本番日は merge した日に直す）
+- **2026-09-17 に本人の了承で merge（本番）。** 版は `docs/version-pending.md` に new で置いた（次の水曜にまとめて出す）
 - mypage の詳細にはタグを出していない（mypage.js はタグの表示名を持っていない）
 - 科目名ルール（語学 → `ことば・語学`）は重ねていない。重ねると147件に足され14件で AI のタグが押し出される（`tools/subjects.py` の `for_course`）
 - `web/assets/version.js` の v1.0 の履歴文に「規模」が残る。8/26 当時の事実なので書き換えていない
