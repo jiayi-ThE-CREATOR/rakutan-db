@@ -509,7 +509,12 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
   font:inherit;font-style:normal;font-size:var(--fs-xs);line-height:1;
   color:var(--brand-text);background:none;border:0;white-space:nowrap;cursor:pointer}
 .ccC.copied{font-weight:700}
-.fit{text-align:right}
+/* 2026-09-17: min-width を足した。この列の幅は中の小さい字（以前は「楽単スコア」、
+   いまは「相性度」）が決めていたので、名前を短くしただけで左の 1fr 列が広がり、
+   meta と時間割コードの行の折り返しが変わって、.head の中央に コピー（.ccC）が
+   来てしまった ―― カードの真ん中を押しても詳細が開かず、コードがコピーされる。
+   app.css の下の方（1035行あたり）も「右の 58px 列」を前提にしている。 */
+.fit{text-align:right;min-width:58px}
 .fit b{font-size:25px;font-family:var(--data);font-weight:600;line-height:1;
   font-variant-numeric:tabular-nums;color:var(--brand)}
 .fit small{display:block;font-size:10px;color:var(--muted);letter-spacing:.06em}

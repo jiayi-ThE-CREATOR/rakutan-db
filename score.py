@@ -616,7 +616,7 @@ def parse_caps(params: dict) -> dict:
 def _unjudged_reason(course_score: dict) -> str:
     """総合値を出さないと決めた科目に、その理由を返す。
 
-    件数は reviews.MIN_FOR_SCORING が正本。ここに数字を書くと、門を変えたときに
+    件数は reviews.MIN_FOR_BACKFILL（旧 MIN_FOR_SCORING）が正本。ここに数字を書くと、門を変えたときに
     文言だけ古くなる（2026-08-24 まで門は3件なのに「1件入ると出ます」と出していた）。
 
     2026-09-03: eval_captured が None（＝シラバスに成績評価の内訳がそもそも

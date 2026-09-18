@@ -617,9 +617,14 @@ document.addEventListener("click", async e => {
    導線の文言（「タップして中身を見る ↓」）も外した ―― 読む先は
    すぐ下の操作バーに在る。 */
 function reviewMark(rv){
-  if (!rv?.n || rv.scored) return { alert:"" };
-  return { alert:`<div class="rvAlert"><i>⚠</i><div>口コミ ${rv.n}件 ―
-      まだ数字には入っていません。下の「口コミを読む」で中身を確認してください</div></div>` };
+  /* 2026-09-17: 「まだ数字には入っていません」は嘘になったので書き換えた。
+     口コミは1人目から相性度の体感層に入る（取り分は人数で増え、上限20%）。
+     帯そのものは消さない ―― 一言を書かず選択式だけ答えた回答しか無い科目では、
+     カードで回答の件数が見えるのはここだけ。「口コミが多い順」も回答の総数（n）で
+     並ぶので、ここで n を出しておかないと並びが画面から読めない（tools/test_sort.mjs）。 */
+  if (!rv?.n) return { alert:"" };
+  return { alert:`<div class="rvAlert"><i>💬</i><div>口コミ ${rv.n}件 ―
+      相性度に入っています。下のボタンで中身を見られます</div></div>` };
 }
 
 /* band の下の ※ の行。「口コミが集まれば数字が出る」科目にだけ出す。
@@ -630,7 +635,7 @@ function reviewMark(rv){
 
    口コミが1件も無いなら「最初の1人」に誘う ―― ここが投稿への入口になる。
    口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、すぐ下の
-   注意帯（口コミ N件 ― まだ数字には入っていません）と矛盾するので、
+   口コミの件数帯（口コミ N件 ― 相性度に入っています）と矛盾するので、
    足りない話（テストの難しさ）だけを書く。それも無いなら注意帯に任せて黙る。 */
 function bandNoteText(c){
   const r = c.rakutan;
@@ -711,7 +716,7 @@ function card(c){
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
       </div>
-      <div class="fit"><b>${r.overall ?? "—"}</b><small>楽単スコア</small></div>
+      <div class="fit"><b>${r.overall ?? "—"}</b><small>相性度</small></div>
       <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
       ${rv.alert}
@@ -923,12 +928,13 @@ const CONDITIONS = {
   "口コミあり":   c => ((c.reviews || {}).n || 0) > 0,
 };
 
-/* score.py の match() と同じ。数字は総合の楽単スコアで、理由は軸の値だけから書く。
+/* score.py の explain() と同じ。数字は相性度で、理由は軸の値だけから書く。
 
-   2026-09-03: スライダーが「重み」から「上限」に変わったので、内積で出す
-   「相性」という数字は入力を失った。ユーザーの重み無しで出した数字に
-   「あなたとの相性」という名前を付けると嘘になるので、表に出すのは
-   総合の楽単スコアにした。上限は絞り込み、順位は楽単スコア。 */
+   2026-09-17: 表の名前を「楽単スコア」から「相性度」に戻した。2026-09-03 には
+   「好みの入力が無いのに『相性』と呼ぶのは嘘になる」として楽単スコアにしていたが、
+   採点を多数派の好み（試験がいちばん負担）で計算する相性度に作り直したのに合わせ、
+   wang がこの経緯を承知のうえで「相性度」と決めた。**この注記を根拠に戻さないこと。**
+   上限は絞り込み、順位は相性度。 */
 function matchLocal(r){
   if (r.overall === null || r.overall === undefined){
     /* 「口コミが集まれば出ます」と言えるのは、口コミで埋まる穴のときだけ。
@@ -1030,8 +1036,8 @@ function queryLocal(){
   const nul = v => v === null || v === undefined;
   /* おすすめ順。同点や未算出のときの並びをここで1回決め、他の並び替えの
      第2キーとしても使う（同じ件数の科目が毎回違う順に出ないように）。
-     2026-09-03: match.fit の中身は「重みとの内積」ではなく総合の楽単スコアに
-     なった（matchLocal 参照）。上限は絞り込み、順位は楽単スコア。 */
+     2026-09-17: match.fit の中身は相性度（matchLocal 参照）。上限は絞り込み、
+     順位は相性度。 */
   /* 🚨 第1キーは「テストの難しさが確認できているか」（needs_review）。
      相性だけで並べると、一番目立つ場所に「誰も難しさを確かめていない
      一発試験の科目」が来る ―― 検証していないから薦めている状態になる
