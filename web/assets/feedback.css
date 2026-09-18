@@ -31,6 +31,24 @@
 .fbForm textarea:focus,.fbForm input[type=text]:focus{outline:2px solid var(--brand);outline-offset:1px}
 .fbCount{margin:4px 0 0;font-size:var(--fs-xs);color:var(--muted);text-align:right}
 
+/* 画像添付のドロップゾーン。<label for> なのでクリックで選択ダイアログが開く。
+   ドラッグオーバー時の見た目は .fbOpen:hover と同じ組み合わせ（border-color:
+   --brand-line / background:--brand-soft）に揃え、「反応するもの」の手触りを統一する。 */
+.fbDrop{display:flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  min-height:64px;box-sizing:border-box;border:1px dashed var(--rule);border-radius:var(--r-sm);
+  background:var(--paper);color:var(--muted);font-size:var(--fs-sm);text-align:center;
+  padding:10px;cursor:pointer;transition:border-color var(--dur) var(--ease-out),background var(--dur) var(--ease-out)}
+.fbDrop:hover,.fbDrop.isOver{border-color:var(--brand-line);background:var(--brand-soft)}
+
+.fbDropPreview{display:flex;align-items:center;gap:var(--sp-2);width:100%}
+.fbDropPreview[hidden]{display:none}
+.fbDropThumb{flex:none;width:48px;height:48px;border-radius:var(--r-sm);object-fit:cover}
+.fbDropMeta{flex:1;min-width:0;text-align:left;font-size:var(--fs-xs);color:var(--soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fbDropRemove{flex:none;width:28px;height:28px;background:none;border:1px solid var(--rule);
+  border-radius:var(--r-pill);color:var(--soft);font-size:var(--fs-xs);line-height:1;cursor:pointer}
+.fbDropRemove:hover{border-color:var(--brand-line);color:var(--brand-text)}
+
 /* honeypot。人には見せず、読み上げにも出さず、フォーカスも当てない。
    display:none だと埋めない bot がいるので、位置で画面外へ出す。 */
 .fbHp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
