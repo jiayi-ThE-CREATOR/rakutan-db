@@ -7,7 +7,7 @@
  *  3. Worker は クライアントを信じない ―― 長さも空も honeypot も自分で判定する
  */
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import path from "node:path";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,16 +49,27 @@ for (const page of pages) {
 check(!read("web/assets/app.css").includes(LABEL), "意見箱の見た目が app.css に漏れている");
 
 // ── 2. Worker の POST /api/feedback ────────────
-const worker = (await import(path.join(ROOT, "worker/index.js"))).default;
+const worker = (await import(pathToFileURL(path.join(ROOT, "worker/index.js")).href)).default;
 
 const ASSETS = { fetch: async () => new Response("asset", { status: 200 }) };
 const WEBHOOK = "https://discord.test/webhook";
 
 // Discord への送信を捕まえる。実際の外部通信はしない。
+// 画像つきは multipart（FormData）で来るので、payload_json と files[0] を読み出す。
+// 画像なしは今まで通り JSON のままなので、既存のアサーション（sent[0]?.body?.content）は
+// どちらの経路でも同じ形で参照できるようにしておく。
 let sent = [];
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, init) => {
-  sent.push({ url: String(url), body: JSON.parse(init.body) });
+  let body, image = null;
+  if (typeof FormData !== "undefined" && init.body instanceof FormData) {
+    body = JSON.parse(init.body.get("payload_json"));
+    const file = init.body.get("files[0]");
+    if (file) image = { type: file.type, name: file.name, bytes: (await file.arrayBuffer()).byteLength };
+  } else {
+    body = JSON.parse(init.body);
+  }
+  sent.push({ url: String(url), body, image });
   return new Response(null, { status: 204 });
 };
 
@@ -91,6 +102,31 @@ check(res.status === 200, `長文が 200 でない: ${res.status}`);
 const long = sent[0]?.body?.content ?? "";
 check((long.match(/あ/g) || []).length === 1000, "本文を1000字で切っていない（クライアントを信じている）");
 check((long.match(/x/g) || []).length === 200, "連絡先を200字で切っていない");
+
+// ── 画像添付 ────────────────────────────
+const PNG_BYTES = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]; // 中身は判定しないので8バイトで十分
+const PNG_B64 = Buffer.from(PNG_BYTES).toString("base64");
+const SMALL_IMAGE = `data:image/png;base64,${PNG_B64}`;
+
+res = await post({ text: "画像つき意見", image: SMALL_IMAGE });
+check(res.status === 200, `画像つきが 200 でない: ${res.status}`);
+check(sent.length === 1, "画像つきを Discord へ送っていない");
+check(sent[0]?.image?.type === "image/png", "画像の mime が Discord へ渡っていない");
+check(sent[0]?.image?.bytes === PNG_BYTES.length, "画像のバイト数が一致しない");
+check(String(sent[0]?.body?.content).includes("画像つき意見"), "画像つきでも本文が載っていない");
+
+const BIG_B64 = Buffer.alloc(6 * 1024 * 1024).toString("base64"); // 5MB上限を超える
+res = await post({ text: "でかい画像", image: `data:image/png;base64,${BIG_B64}` });
+check(res.status === 400, `5MB超の画像が 400 でない: ${res.status}`);
+check(sent.length === 0, "5MB超の画像を Discord へ送ってしまった");
+
+res = await post({ text: "変な形式", image: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=" });
+check(res.status === 400, `許可外の形式が 400 でない: ${res.status}`);
+check(sent.length === 0, "許可外の形式を Discord へ送ってしまった");
+
+res = await post({ text: "壊れたURL", image: "not-a-data-url" });
+check(res.status === 400, `壊れた data URL が 400 でない: ${res.status}`);
+check(sent.length === 0, "壊れた data URL を Discord へ送ってしまった");
 
 // honeypot ―― 埋まっていたら bot。受け付けたふりをして捨てる。
 res = await post({ text: "宣伝です", website: "http://spam.example" });
