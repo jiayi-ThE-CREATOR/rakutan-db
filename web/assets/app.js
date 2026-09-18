@@ -1039,13 +1039,6 @@ function queryLocal(){
     }
   }
 
-  /* 各タグの件数＝いまのタグ選択に、そのタグを足したら残る件数（AND なのでこの集合で数えれば足りる）。
-     曜限フィルタの「前」で数える（空きコマと同じ理由）。server.py の search() と同じ手順。 */
-  const subjectFacetsLocal = {};
-  for (const k of Object.keys(META.subject_labels || {})) subjectFacetsLocal[k] = 0;
-  for (const e of base)
-    for (const s of e.subjects || []) if (s in subjectFacetsLocal) subjectFacetsLocal[s]++;
-
   const slots = {};
   for (const d of META.days){ slots[d] = {}; for (const p of META.periods) slots[d][p] = 0; }
   for (const e of base){
@@ -1058,6 +1051,19 @@ function queryLocal(){
   let results = base;
   if (state.day)    results = results.filter(e => (e.day_period || "").startsWith(state.day));
   if (state.period) results = results.filter(e => (e.day_period || "").endsWith(state.period));
+
+  /* 各タグの件数＝いまのタグ選択に、そのタグを足したら残る件数（AND なのでこの集合で数えれば足りる）。
+     空きコマ・条件チップと違い、曜限フィルタの「後」で数える ―― タグの数字は
+     ダイアログの中で「決定（N件）」と上下に並ぶので、前で数えると食い違う。
+     2026-09-18 実測：歴史＋月1 で「文化・地域 530」と「決定（17件）」が同じ画面に出て、
+     530 を押しても一桁しか残らなかった。
+     空きコマグリッドを前で数えているのは「押した瞬間に他のコマが全部0件になると
+     次の一手が打てない」からだが、タグにその問題は無い ―― 0件のタグは並べないだけで、
+     コマ自体は上の帯からいつでも外せる。server.py の search() と同じ手順。 */
+  const subjectFacetsLocal = {};
+  for (const k of Object.keys(META.subject_labels || {})) subjectFacetsLocal[k] = 0;
+  for (const e of results)
+    for (const s of e.subjects || []) if (s in subjectFacetsLocal) subjectFacetsLocal[s]++;
 
   const nul = v => v === null || v === undefined;
   /* おすすめ順。同点や未算出のときの並びをここで1回決め、他の並び替えの
@@ -1603,6 +1609,20 @@ function syncSubjectsUrl(){
   history.replaceState(history.state, "", u.pathname + u.search + u.hash);
 }
 
+/* タグを押した結果は一覧に出るが、スマホでは絞り込みが縦に積まれていて
+   一覧はその 1,300px ほど下にある（2026-09-18 実測・390px：授業内容の節 788px、
+   一覧 2,173px）。そのままだと「決定」を押しても目の前は絞り込みの続きのままで、
+   何も起きなかったように見える。PC は一覧が横に並んでいるので、たいてい何もしない。 */
+function focusResults(){
+  const bar = document.querySelector(".bar");
+  if (!bar) return;
+  const r = bar.getBoundingClientRect();
+  if (r.top >= 0 && r.bottom <= innerHeight) return;   // もう見えている
+  /* 空きコマを選んでいるときは .slotBar が画面の天井に貼り付いているので、その分下げる。 */
+  const slot = document.querySelector(".slotBar");
+  scrollTo({ top: r.top + scrollY - (slot ? slot.offsetHeight : 0) - 8, behavior: "smooth" });
+}
+
 function toggleSubject(k){
   if (!((META && META.subject_labels) || {})[k]) return;
   state.subject.has(k) ? state.subject.delete(k) : state.subject.add(k);
@@ -1613,7 +1633,11 @@ function toggleSubject(k){
     b.classList.toggle("on", on);
     b.setAttribute("aria-pressed", String(on));
   });
-  load();
+  /* 描き直してから動かす（load は非同期）。ダイアログが開いている間は動かさない
+     ―― 幕の裏でページが動くだけなので、閉じるときに subjects.js が改めて呼ぶ。 */
+  load().then(() => {
+    if (!document.getElementById("subjDlg")?.open) focusResults();
+  });
 }
 
 function clearSubjects(){
@@ -2045,6 +2069,7 @@ function applyPostMode() {
     count:    () => subjectCount,
     toggle:   toggleSubject,
     clear:    clearSubjects,
+    done:     focusResults,
   });
   await load();
   window.dispatchEvent(new CustomEvent("rk:app-ready"));

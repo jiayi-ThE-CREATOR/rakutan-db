@@ -37,6 +37,15 @@ async function gotoRetry(p, url){
   for (let i = 0; i < 40; i++){ try { await p.goto(url, { waitUntil: "networkidle" }); return; } catch (e) { await p.waitForTimeout(250); } }
   throw new Error("server not up");
 }
+/* 画面の縦位置が止まるまで待って、その値を返す ―― サイトは scroll-behavior:smooth なので、
+   スクロールを始めた直後に測ると途中の値を拾う。 */
+async function settle(p){
+  let prev = -1, now = await p.evaluate(() => scrollY);
+  for (let i = 0; i < 20 && now !== prev; i++){
+    prev = now; await p.waitForTimeout(120); now = await p.evaluate(() => scrollY);
+  }
+  return now;
+}
 const count = p => p.$eval("#count", el => +el.textContent);
 const waitCount = async (p, n) => { try { await p.waitForFunction(n => +document.querySelector("#count").textContent === n, n, { timeout: 8000 }); return true; } catch { return false; } };
 
@@ -131,6 +140,73 @@ for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
   for (const pg of [p, p2]) if (pg.errors.length) fails.push(`${label}: console/page error: ${pg.errors.slice(0,3).join(" | ")}`);
   await p.close(); await p2.close();
 }
+/* ── 曜限を選んでいるときのタグの件数（2026-09-18）────────────────
+   タグの数字は「そのタグを足したら残る件数」で、ダイアログの中で「決定（N件）」と
+   並んで出る。曜限フィルタの前で数えていたので、月1 を選ぶと「文化・地域 530」と
+   「決定（17件）」が同じ画面に出て、押すと一桁しか残らなかった。 */
+{
+  const p = await newPage(1280, 900);
+  await gotoRetry(p, base + "/?subject=rekishi");
+  await p.waitForSelector("#subjSec #subjOpen", { timeout: 15000 });
+  await p.waitForSelector("#grid button:not(.zero)");
+  await p.$$eval("#grid button:not(.zero)", bs => bs[0].click());
+  await p.waitForFunction(() => !document.querySelector("#slotBar").hidden, null, { timeout: 8000 });
+  await p.waitForTimeout(400);
+  const withSlot = await count(p);
+  console.log(`[コマ] 歴史＋空きコマ1つ = ${withSlot}件`);
+  await p.click("#subjOpen");
+  await p.waitForSelector("#subjDlg[open] #subjOpts .chip");
+  const dlgCount = await p.$eval("#subjCount", el => +el.textContent);
+  check(dlgCount === withSlot, `コマ: 決定ボタンの件数 ${dlgCount} ≠ 一覧の件数 ${withSlot}`);
+  const opts = await p.$$eval("#subjOpts .chip", bs => bs.map(b => [b.dataset.subject, +b.querySelector(".n").textContent]));
+  check(opts.every(x => x[1] <= withSlot),
+    `コマ: 足す前の件数(${withSlot})より大きい数字が出ている: ` +
+    opts.filter(x => x[1] > withSlot).slice(0,3).map(x=>x.join(":")).join(" "));
+  const top = opts[0];
+  await p.click(`#subjOpts .chip[data-subject="${top[0]}"]`);
+  check(await waitCount(p, top[1]), `コマ: ${top[0]} を足した件数が表示 ${top[1]} と違う (${await count(p)})`);
+  if (p.errors.length) fails.push(`コマ: console/page error: ${p.errors.slice(0,3).join(" | ")}`);
+  await p.close();
+}
+
+/* ── スマホで決定したら一覧まで送る（2026-09-18）──────────────
+   390px では絞り込みが縦に積まれていて、一覧は授業内容の節の 1,300px ほど下にある。
+   閉じただけでは目の前が絞り込みの続きのままで、何も起きなかったように見えた。 */
+{
+  const p = await newPage(390, 844);
+  await gotoRetry(p, base + "/");
+  await p.waitForSelector("#subjSec #subjOpen", { timeout: 15000 });
+  const barSeen = () => p.evaluate(() => {
+    const r = document.querySelector(".bar").getBoundingClientRect();
+    return r.top >= 0 && r.bottom <= innerHeight;
+  });
+  check(!(await barSeen()), "sp送り: 最初から一覧の帯が見えている（前提が崩れている）");
+  await p.click("#subjOpen");
+  await p.waitForSelector("#subjDlg[open] #subjOpts .chip");
+  await p.click('#subjOpts .chip[data-subject="rekishi"]');
+  await p.waitForTimeout(300);
+  await p.click("#subjDone");
+  await p.waitForFunction(() => !document.querySelector("#subjDlg").open);
+  const moved = await p.waitForFunction(() => {
+    const r = document.querySelector(".bar").getBoundingClientRect();
+    return r.top >= 0 && r.bottom <= innerHeight;
+  }, null, { timeout: 5000 }).then(() => true).catch(() => false);
+  check(moved, "sp送り: 決定しても一覧の帯まで動かない");
+  /* 何も変えずに閉じた人は動かさない（勝手に画面が飛ばないこと）。
+     位置を控えるのは「開いたあと」―― click() が #subjOpen を画面に入れるために
+     自分でスクロールするので、その前に控えると開く動作のぶんまで数えてしまう。 */
+  await p.click("#subjOpen");
+  await p.waitForSelector("#subjDlg[open]");
+  const y0 = await settle(p);
+  await p.keyboard.press("Escape");
+  await p.waitForFunction(() => !document.querySelector("#subjDlg").open);
+  await p.waitForTimeout(600);
+  const y1 = await settle(p);
+  check(Math.abs(y1 - y0) < 8, `sp送り: 何も変えずに閉じたのに画面が動いた (${y0}→${y1})`);
+  if (p.errors.length) fails.push(`sp送り: console/page error: ${p.errors.slice(0,3).join(" | ")}`);
+  await p.close();
+}
+
 await browser.close();
 console.log(fails.length ? "✗ " + fails.length + "件\n  - " + fails.join("\n  - ") : "✓ すべて通過");
 process.exit(fails.length ? 1 : 0);
