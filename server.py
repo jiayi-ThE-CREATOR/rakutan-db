@@ -23,6 +23,7 @@ from urllib.parse import parse_qs, urlparse
 import reviews as reviews_mod
 import score as scoring
 from tools.division import divide, track
+from tools import subjects as subj
 # 学期の畳み方は build.py の term_group() が正本。
 # server.py は生データ（data/courses.json）を読むので term_group が焼かれていない。
 # ここで同じ判定をもう一度書くと、必ず片方だけ古くなる。
@@ -60,10 +61,16 @@ COURSES: list[dict] = _raw["courses"]
 # 科目区分を起動時に1回だけ焼く。build.py（静的配信）とまったく同じ関数を使う
 # ―― ここを別実装にすると、API モードと静的モードで違う区分が出る。
 # scoring.enrich() は dict(course) のコピーなので、ここで入れれば API まで届く。
+# 授業内容タグの台帳。build.py と同じ tools/subjects.for_course で付ける（正本は1つ）。
+_SUBJ_AI = subj.read_tsv(ROOT / "data" / "subjects.ai.tsv")
+_SUBJ_MANUAL = subj.read_tsv(ROOT / "data" / "subjects.manual.tsv")
 for _c in COURSES:
     _c["division"], _c["division_source"] = divide(_c)
+    _c["subjects"], _c["subjects_source"] = subj.for_course(_c["id"], _SUBJ_AI, _SUBJ_MANUAL)
     _c["track"] = track(_c)
 DATA_META: dict = dict(_raw.get("_meta") or {})
+# /api/meta で画面へ渡す。静的配信では build.py が courses.built.json の _meta に焼いている。
+DATA_META["subject_labels"] = subj.VOCAB
 DATA_META["is_sample"] = IS_SAMPLE
 DATA_META.setdefault(
     "note",
@@ -217,6 +224,10 @@ def search(params: dict) -> dict:
     conds = [c for c in (params.get("cond") or []) if c in CONDITIONS]
     # 区分（複数可・OR）。data には無い "other" は「まだ判定していない」科目のこと。
     divisions = [d for d in (params.get("division") or []) if d]
+    # 授業内容タグ（複数可・AND ―― 選ぶほど減る）。語彙に無いキーは捨てる。
+    # 語彙の正本は tools/subjects.py の VOCAB で、build.py が _meta.subject_labels に焼いている。
+    subject_labels = subj.VOCAB
+    subjects = [s for s in (params.get("subject") or []) if s in subject_labels]
     # トラック（外国語学部＝専攻語、工学部＝学科）。区分とは別の軸で、
     # 同じ軸を持つ科目の中でだけ効く。トラックを持たない科目は通す
     # ―― 落とすと共通教育がまるごと消える。
@@ -258,6 +269,12 @@ def search(params: dict) -> dict:
         e["match"] = scoring.explain(e["rakutan"])
         base.append(e)
 
+    # 授業内容タグは区分チップの件数より「前」で掛ける ―― 区分の件数も、
+    # 選んだ授業内容の中で数えたいから（学年・学期などほかの絞り込みと同じ扱い）。
+    if subjects:
+        base = [e for e in base
+                if all(s in (e.get("subjects") or []) for s in subjects)]
+
     # 区分チップの件数は、区分フィルタを掛ける「前」の集合で数える。
     # そうしないと1つ選んだ瞬間に他が全部0件になり、次の一手が打てない
     # ―― 空きコマグリッドを曜限フィルタ前で数えているのと同じ理由。
@@ -268,6 +285,16 @@ def search(params: dict) -> dict:
 
     if divisions:
         base = [e for e in base if (e.get("division") or "other") in divisions]
+
+    # 授業内容タグの件数＝「いま選んでいるタグに、そのタグを足したら残る件数」。
+    # AND なので、選択を掛けたあとの集合で各タグを数えればそのまま共起件数になる。
+    # 曜限フィルタの「前」で数える（空きコマと同じ理由。コマを押した瞬間に
+    # タグが全部0件になって次の一手が打てなくなる）。app.js の queryLocal() と同じ順序。
+    subject_facets = {k: 0 for k in subject_labels}
+    for e in base:
+        for s in e.get("subjects") or []:
+            if s in subject_facets:
+                subject_facets[s] += 1
 
     # 空きコマグリッドと条件チップの件数（曜限フィルタは掛けない）
     slots = {d: {p: 0 for p in PERIODS} for d in DAYS}
@@ -338,6 +365,7 @@ def search(params: dict) -> dict:
     return {"count": total, "returned": len(results), "results": results,
             "year": year, "sem": sem, "slots": slots, "facets": facets,
             "division_facets": division_facets,
+            "subject_facets": subject_facets,
             "caps": caps,
             # 上限の合計が100%を下回ると該当が無くなる。画面が理由を出せるように
             # 判定そのものを返す（数字の解釈をクライアント側に散らさない）。
@@ -369,6 +397,7 @@ def openapi() -> dict:
                         {"name": "category", "in": "query", "schema": {"type": "string"}},
                         {"name": "campus", "in": "query", "schema": {"type": "string"}},
                         {"name": "term", "in": "query", "schema": {"type": "string"}},
+                        {"name": "subject", "in": "query", "style": "form", "explode": True, "schema": {"type": "array", "items": {"type": "string"}}, "description": "授業内容タグ（複数可・AND）。キーと表示名は /api/meta の subject_labels"},
                         {"name": "day", "in": "query", "schema": {"type": "string", "enum": DAYS}},
                         {"name": "period", "in": "query", "schema": {"type": "string", "enum": PERIODS}},
                         {"name": "track", "in": "query",

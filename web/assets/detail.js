@@ -192,7 +192,23 @@ function reviewHtml(c){
     </div>`;
 }
 
-function detailHtml(c){
+/* 授業内容タグ（何の話をする授業か）。カード（app.js の card）と詳細で同じものを使う。
+   interactive=true は押すとそのタグでしぼる（押したときの処理は app.js が document で受ける）。
+   表示名は _meta.subject_labels（正本は tools/subjects.py の VOCAB）を渡してもらう ――
+   ここに書き写さない。 */
+function subjectTagsHtml(keys, { labels = {}, selected = null, interactive = false } = {}){
+  return (keys || []).filter(k => labels[k]).map(k => {
+    if (!interactive) return `<span class="subjTag">${esc(labels[k])}</span>`;
+    const on = !!(selected && selected.has(k));
+    return `<button type="button" class="subjTag${on ? " on" : ""}" data-subject="${esc(k)}"`
+         + ` aria-pressed="${on}">${esc(labels[k])}</button>`;
+  }).join("");
+}
+
+/* opts.subjectLabels を渡したときだけ「授業内容」の段を出す。
+   PC の右カラム（#inspector）は渡す。スマホはカードの中で開くので渡さない ――
+   カードにもう同じタグが出ていて、2回並ぶことになる。 */
+function detailHtml(c, opts = {}){
   /* ── 詳細の並び（2026-09-10・口コミの集計を詳細にも出す）──────────
    *
    *   ── 成績評価の内訳  KOANの%を積み上げバーで
@@ -221,7 +237,14 @@ function detailHtml(c){
    * 目印として待っている（2026-09-07）。 */
   const rn = c.reviews?.n || 0;
   const first = (c.reviews?.notes || [])[0] || "";
-  return `<div class="dSec">
+  const subj = opts.subjectLabels && (c.subjects || []).length
+    ? `<div class="dSec">
+        <div class="secH">授業内容</div>
+        <div class="subjRow">${subjectTagsHtml(c.subjects, { labels: opts.subjectLabels,
+            selected: opts.subjectSelected, interactive: !!opts.subjectInteractive })}</div>
+      </div>`
+    : "";
+  return `${subj}<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
       </div>
@@ -238,7 +261,7 @@ function detailHtml(c){
 /* 呼ぶ側（app.js / mypage.js）に渡すのはこれだけ。
    app.js は rvLv・RV_ATT も使う（口コミを1件ずつ出す panelEntry）ので出しておく。 */
 window.rkDetail = {
-  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl,
+  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl, subjectTagsHtml,
   RV_ATT, rvLv, rvAvg,
 };
 
