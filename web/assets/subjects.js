@@ -101,8 +101,15 @@ function mountDialog(){
     const b = e.target.closest("[data-subject]");
     if (b) api.toggle(b.dataset.subject);
   });
-  /* 閉じたら、開いたボタンへフォーカスを戻す（<dialog> は戻してくれない）。 */
-  dlg.addEventListener("close", () => document.getElementById("subjOpen")?.focus());
+  /* 閉じたら、開いたボタンへフォーカスを戻す（<dialog> は戻してくれない）。
+     選んだものが変わっていたら、そのあと一覧まで送る（api.done）――
+     スマホでは一覧がここから1,300pxほど下にあり、閉じただけでは結果が見えない。
+     preventScroll なのは、focus() が先にボタンまで画面を戻してしまうから。
+     開いて何も変えずに閉じた人は動かさない。 */
+  dlg.addEventListener("close", () => {
+    document.getElementById("subjOpen")?.focus({ preventScroll: true });
+    if (selKey() !== openedWith) api.done?.();
+  });
   return dlg;
 }
 
@@ -141,8 +148,14 @@ function renderDialog(){
   }
 }
 
+/* 開いた時点の選択。閉じたときに変わっていれば一覧まで送る（mountDialog の close）。
+   renderDialog / renderRail の中の picked（配列）とは別物なので名前を分ける。 */
+let openedWith = "";
+const selKey = () => [...api.selected()].sort().join(",");
+
 function open(){
   const dlg = mountDialog();
+  openedWith = selKey();
   dlg.querySelector("#subjFind").value = "";
   dlg.showModal();
   renderDialog();
