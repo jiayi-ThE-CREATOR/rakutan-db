@@ -63,32 +63,13 @@ v, _ = scoring._presentation_load({})
 check(v is None, "内訳が読めない科目に発表軸の点が付いている")
 check(any(k == "presentation" for k, _, _ in scoring.AXES), "AXES に presentation が無い")
 
-# ── B. 採点：保底は内訳に出てくる軸だけ ───────────────
-AXIS_KEYS = ("exam", "report", "attendance", "quiz", "presentation")
-w = scoring.dynamic_weights({"eval_ratio": {"report": 100.0}})
-check(abs(w["report"] - 0.88) < 1e-9,
-      f"レポートだけの科目でレポートの重みが 0.88 でない: {w}")
-check(all(w[k] == 0.0 for k in AXIS_KEYS if k != "report"),
-      f"内訳に無い軸に重みが付いている: {w}")
-check(w["scale"] == scoring.SCALE_WEIGHT, f"規模の重みが変わった: {w}")
-
-w = scoring.dynamic_weights({"eval_ratio": {"exam": 60.0, "presentation": 40.0}})
-check(abs(sum(w[k] for k in AXIS_KEYS) - 0.88) < 1e-9,
-      f"出てくる軸の重みの合計が 0.88 でない: {w}")
-check(w["exam"] > w["presentation"] > 0, f"配点の大きい軸ほど重くなっていない: {w}")
-check(w["report"] == w["attendance"] == w["quiz"] == 0.0,
-      f"内訳に無い軸に重みが付いている: {w}")
-
-w = scoring.dynamic_weights({})
-check(all(abs(w[k] - 0.88 / 5) < 1e-9 for k in AXIS_KEYS),
-      f"内訳が読めない科目が均等配分でない: {w}")
-
-# 保底が内訳に無い軸へ漏れていれば、ここは 55 より上に引っぱられる。
+# ── B. 採点：試験以外は「その科目にある項目」だけで平均する（2026-09-17）──
 s = scoring.score({"eval_ratio": {"report": 100.0}, "eval_raw": {"レポート": 100.0}})
-check(s["overall"] == 55.0,
-      f"レポート100%だけの科目の総合値は レポート軸 55 そのもののはず: {s['overall']}")
-check(abs(s["coverage"] - 0.88) < 1e-9,
-      f"覆いが 0.88 でない（COVERAGE_MIN の判定が変わる）: {s['coverage']}")
+check(s["overall"] == 77.5,
+      f"レポート100%だけの科目は 0.5×100 ＋ 0.5×55 ＝ 77.5 のはず: {s['overall']}")
+s = scoring.score({"eval_ratio": {"presentation": 100.0}, "eval_raw": {"発表": 100.0}})
+check(s["overall"] == 72.5,
+      f"発表100%だけの科目は 0.5×100 ＋ 0.5×45 ＝ 72.5 のはず: {s['overall']}")
 
 # ── B. 上限フィルタが発表を見ていること ───────────────
 # CAP_AXES に無いキーの上限は passes_caps が黙って無視する（全件が通る）。

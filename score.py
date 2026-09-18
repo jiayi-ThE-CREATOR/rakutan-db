@@ -19,22 +19,23 @@
 
 from __future__ import annotations
 
-# 4軸それぞれの重み。合計 1.0。Phase 0 でチューニングする前提の v0 値。
-# 重みは固定値ではなく「成績評価の内訳」から動的に決める。
+# 2026-09-17: 採点を「相性度」に作り直した
+# （docs/superpowers/specs/2026-09-16-aishoudo-engine-design.md）。
 #
-# 固定重みでやると壊れる例：レポート1本12,000字・試験なし・出席なしの科目は、
-# 試験軸と出席軸が満点になるので総合が「軽め」に出てしまう。実際には激重。
-# 成績の100%がレポートなら、その科目はレポート負荷でほぼ全部判定されるべき。
+#   相性度 ＝ (1 − s) × 事実層 ＋ s × 体感層
+#   事実層 ＝ EXAM_SHARE × 試験の楽さ ＋ (1 − EXAM_SHARE) × 試験以外の楽さ
 #
-# よって 試験/レポート/出席 の3軸には
-#   floor（どの軸も最低限は見る）＋ 成績評価に占める比率  で重みを配る。
-# 総合値を出すのに必要な「算出できた重みの割合」。
-# これを下回る科目は総合値を出さず「情報不足」と表示する。
-COVERAGE_MIN = 0.60
+# 重みは科目の成績評価内訳からではなく、学生の側から来る（いまは多数派の好み1つ）。
+# 以前の動的重みは「試験があるか」の差を潰し、試験のみの科目がレポートのみの
+# 科目より軽く出ていた（85.0 ＞ 55.0）。
+#
+# ここに以前書かれていた「固定重みでやると、レポート1本12,000字・試験なし・出席なしの
+# 科目が満点の軸に引っぱられて軽く出る」問題は、試験以外を「その科目にある項目だけ」で
+# 平均することで解いている（aishoudo）。
 
 # 成績評価の内訳（eval_ratio）の合計がこれに満たない科目には総合値を出さない。
-# COVERAGE_MIN が守るのは「4軸のうちいくつ測れたか」で、こちらが守るのは
-# 「その軸の重み自体が正しいか」。別物なので両方要る。
+# 2026-09-17 に COVERAGE_MIN（算出できた重みの割合）は消した。
+# いまは内訳が読めて、この割合に届いているかだけが「総合値を出すか」を決める。
 #
 # 合計が 100 に届かないケースは2種類あり、**どちらも「実際より楽に見える」
 # 方向にだけ外れる**：
@@ -54,10 +55,11 @@ COVERAGE_MIN = 0.60
 # 8割を超えていて総合値が出る場合でも「気づけない」ことにはならない。
 EVAL_TOTAL_MIN = 80.0
 
-# 「試験で評価される」「レポートで評価される」こと自体への加重。
-# これは難しさではなく形なので、意図的に小さくしてある。
-# 実際の難易度は口コミ（テストの難しさ・レポートの本数と分量）が決める。
-EXAM_RATIO_COEF = 0.15
+# 試験の楽さ。試験が内訳に無ければ 100、あれば 100 −（EXAM_BASE ＋ 比率 × EXAM_RATIO_COEF）。
+# EXAM_BASE は「試験があること自体の重さ」。38〜42 が平地（最大 band 29.5%）で、
+# 35 にすると 43.1% に崩れた（全 7,906件で実測）。40 はその真ん中。
+EXAM_BASE = 40.0
+EXAM_RATIO_COEF = 0.20
 # 2026-09-11: 0.15 → 0.45。0.15 では「レポートが成績の80%」でも 12点しか
 # 引かれず 88点＝軽い になる。これが 2026-08-14 に軸ごと None にした原因
 # だったが、誤りは ratio を使ったことではなく係数が小さすぎたことだった。
@@ -66,73 +68,32 @@ REPORT_RATIO_COEF = 0.45
 
 # 2026-09-16: 発表を独立した軸にした。PRESENTATION_BASE は「発表があること自体の
 # 負担」―― 人前に立つ・日程が動かせない・グループなら他人と合わせる、という
-# レポートとは違う性質の重さ。20 では発表のみの科目がレポートのみと同じ 55 点になり
-# 分けた意味が無く、25 では band の地形が崩れ（最大 band 42.5%）、35 では出席のみ
-# （45）より重くなるので 30 にした（全7,906件で実測）。
+# レポートとは違う性質の重さ。
 PRESENTATION_BASE = 30.0
 PRESENTATION_RATIO_COEF = 0.25
 
-# 2026-09-03: 小テストを出席から独立させて4軸にした。下限が 0.10×4＝0.40 に
-# 増えたぶん、AXIS_SHARE を 0.58 → 0.48 に下げて合計 1.0 を保っている
-# （0.40 ＋ 0.48 ＋ SCALE_WEIGHT 0.12 ＝ 1.00）。
-# 2026-09-16: 下限は「内訳に出てくる軸」だけに付け、出てくる軸の重みを合計
-# 1 − SCALE_WEIGHT に正規化するようにした（dynamic_weights）。上の足し算は
-# もう成り立たないが、2つの定数の比（下限：比率ぶん）はそのまま使っている。
-AXIS_FLOOR = 0.10       # 内訳に出てくる軸それぞれの下限（正規化の前）
-AXIS_SHARE = 0.48       # 成績評価比率に応じて配分される分
-SCALE_WEIGHT = 0.12     # 規模・形態。事実ではなく推定なので最小固定
+# 事実層のうち試験が占める割合と、試験以外の項目どうしの重み。
+# **試験以外は、その科目に実際にある項目だけで正規化する**（aishoudo）。
+# 全項目に固定で配ると、無い項目の満点 100 が混ざり、試験なしの科目 3,959件が
+# 6点幅に潰れた。ある項目だけにすると 15.5点幅に広がる（実測）。
+EXAM_SHARE = 0.50
+OTHER_WEIGHTS = {"presentation": 0.20, "report": 0.15, "attendance": 0.15, "quiz": 0.10}
+
+# 体感層（口コミ）の取り分。中身の違う回答の人数で増やし、FEEL_FULL_AT 人で上限。
+# 1人 6.7% ／ 2人 13.3% ／ 3人以上 20%。上限が 20% なので、1人の回答で
+# band を何段も跨ぐ事故（2026-08-21 の 78.0 → 41.6）は起きない。
+FEEL_MAX_SHARE = 0.20
+FEEL_FULL_AT = 3
 
 # /api/meta 用の説明
 WEIGHTS = {
-    "model": "dynamic",
-    "axis_floor": AXIS_FLOOR,
-    "axis_share": AXIS_SHARE,
-    "scale": SCALE_WEIGHT,
-    "note": "試験・レポート・出席・小テスト・発表の重みは、その科目の成績評価内訳から動的に決まる。内訳に出てこない軸の重みは 0",
+    "model": "aishoudo",
+    "exam_share": EXAM_SHARE,
+    "other_weights": OTHER_WEIGHTS,
+    "feel_max_share": FEEL_MAX_SHARE,
+    "feel_full_at": FEEL_FULL_AT,
+    "note": "相性度 ＝ (1−体感の取り分)×事実層 ＋ 体感の取り分×体感層。事実層は試験と、その科目にある試験以外の項目で決まる",
 }
-
-
-
-def _min_for_scoring() -> int:
-    """口コミが採点に効き始める人数。正本は reviews.MIN_FOR_SCORING。
-
-    reviews.py は score.py を使う側なので、モジュール先頭で import すると
-    循環参照になる。呼ばれた時点で読む。
-    """
-    try:
-        import reviews
-        return int(reviews.MIN_FOR_SCORING)
-    except Exception:
-        return 3
-
-
-def dynamic_weights(course: dict) -> dict[str, float]:
-    """軸の重みを、その科目の成績評価内訳から決める。
-
-    2026-09-16: 下限（AXIS_FLOOR）を**内訳に出てくる軸だけ**に付けるようにした。
-    以前は内訳に出てこない軸にも 0.10 を付けていたので、発表を独立した軸にすると
-    「発表が無い約5,000科目」で満点 100 × 0.10 が総合値に混ざり、全科目が1か所に
-    寄った（実測 最大 band 63〜73%）。出てこない軸の重みは 0 にし、出てくる軸だけで
-    合計 1 − SCALE_WEIGHT に正規化する。weight_sum が「算出できた割合」である
-    ことは変わらないので、COVERAGE_MIN はそのまま使える（正規化しないと、
-    レポート100%だけの科目は重みが 0.48 になり COVERAGE_MIN を割る）。
-    """
-    er = course.get("eval_ratio") or {}
-    shares = {k: float(er.get(k) or 0)
-              for k in ("exam", "report", "attendance", "quiz", "presentation")}
-    total = sum(shares.values())
-    axis_total = 1.0 - SCALE_WEIGHT
-    if total <= 0:
-        # 評価内訳が不明な科目は均等配分にする（推測で偏らせない）。
-        # この科目は各軸の値が None になるので、配り方は総合値に影響しない。
-        w = {k: axis_total / len(shares) for k in shares}
-    else:
-        raw = {k: (AXIS_FLOOR + AXIS_SHARE * v / total) if v > 0 else 0.0
-               for k, v in shares.items()}
-        z = sum(raw.values())
-        w = {k: raw[k] / z * axis_total for k in raw}
-    w["scale"] = SCALE_WEIGHT
-    return w
 
 # 信頼度の判定に使う項目。ここが埋まっているほど信頼できる。
 EVIDENCE_FIELDS = [
@@ -150,64 +111,34 @@ def _clamp(v: float) -> float:
 
 
 def _exam_load(c: dict) -> tuple[float | None, list[str]]:
-    """試験の重さ。返り値は 0〜100 の「楽さ」（高いほど楽）。
+    """試験の楽さ。返り値は 0〜100（高いほど楽）。
 
-    以前は ease = 100 - 試験比率 だった。つまり「成績の100%が試験」＝
-    最も重い、としていた。これは間違い。**試験で評価されることは
-    難しさではなく、拘束の形**である。毎週の出席も課題も無く期末一発、
-    というのはバイトを優先したい学生にとってはむしろ軽い。
-    実データでも試験軸の平均が 32.8 まで落ち、1,112件中「軽め」が
-    9件しか残らない原因になっていた（2026-08-15）。
+    2026-09-17: 「試験があること」自体を重さとして数えるようにした（EXAM_BASE）。
+    それまでは「試験で評価されるのは難しさではなく形」として比率×0.15 しか引かず、
+    試験のみの科目がレポートのみの科目より軽く出ていた。方針は「多くの学生は
+    試験を嫌い、レポートのほうがまし」。
 
-    そこで2層に分ける。
-
-      1層目（ここ・KOANだけで分かる）── 試験が「ある」ことによる軽い加重。
-          レポート軸と同じ係数の考え方にする。あわせて、シラバスから
-          読める構造だけを見る：中間試験もあるか（＝試験が2回）、持込可か。
-      2層目（口コミが入ってから）── 「テストが難しい」という体感。
-          KOANには絶対に書いていないので、口コミが来るまでは加算しない。
-
-    したがって口コミが0件のうちは、この軸は「難しさ」を測っていない。
-    測っているのは形だけである。evidence にそう書いて画面に出す。
+    口コミの「テストの難しさ」はここには入れない。体感層（_feel）が持つ。
+    内訳そのものが読めない科目だけ None。試験が内訳に無いのは「試験なし」＝100。
     """
-    ratio = (c.get("eval_ratio") or {}).get("exam")
-    if ratio is None:
+    er = c.get("eval_ratio")
+    if er is None:
         return None, []
-
-    why = []
-    load = ratio * EXAM_RATIO_COEF
+    ratio = float(er.get("exam") or 0.0)
     if ratio == 0:
-        why.append("試験なし")
-    else:
-        why.append(f"試験が成績の{ratio:.0f}%")
-
-    # 中間と期末の両方があるなら、拘束される回数が増える。これは形の話。
+        return 100.0, ["試験なし"]
+    why = [f"試験が成績の{ratio:.0f}%"]
+    load = EXAM_BASE + ratio * EXAM_RATIO_COEF
     raw = c.get("eval_raw") or {}
     if any("中間" in k for k in raw) and any("期末" in k for k in raw):
-        load += 12
+        load += 8
         why.append("中間と期末の2回ある")
-
     if c.get("exam_type") == "持込可":
-        load -= 25
+        load -= 15
         why.append("持込可")
     elif c.get("exam_type") == "持込不可":
-        load += 8
+        load += 5
         why.append("持込不可")
-
-    # ── 2層目：口コミ由来の体感難易度（0=易しい 1=ふつう 2=難しい の平均）
-    # 規定人数（reviews.MIN_FOR_SCORING）に届いた口コミだけを読む。
-    # 1人の証言で総合値が半分になるのは根拠として弱すぎる、というのが
-    # 2026-08-21 の判断。門の手前の口コミは数字に触れず、画面が
-    # 「口コミがあります、中身を見てください」と出す（reviews.py の scored）。
-    rv = c.get("reviews") or {}
-    hard = rv.get("exam_hard") if rv.get("scored") else None
-    if hard is not None:
-        load += hard * 22
-        why.append(f"口コミ：テストは{['易しめ','ふつう','難しい'][round(hard)]}")
-    elif ratio:
-        why.append("難しさは口コミ待ち" if not rv.get("n")
-                   else f"口コミ{rv['n']}件あり ― 人数が足りず数字には未反映")
-
     return _clamp(100.0 - load), why
 
 
@@ -337,44 +268,6 @@ def _presentation_load(c: dict) -> tuple[float | None, list[str]]:
     return _clamp(100.0 - load), [f"発表が成績の{ratio:.0f}%"]
 
 
-def _scale_ease(c: dict) -> tuple[float | None, list[str]]:
-    """規模・開講形態。大人数講義ほど個別の詰めが甘くなりやすい、という経験則。
-
-    これは事実ではなく推定なので重みを最も低くしてある。
-    """
-    cap = c.get("capacity")
-    fmt = c.get("class_format")
-
-    # 定員は KOAN に無く、実データでは 1,112件すべてが None。
-    # 形態もほとんどが「講義科目」で、集中講義か演習でなければ何も分からない。
-    # にもかかわらず既定値 50 を返していたため、全科目の総合値の12%が
-    # 定数50で埋まり、分布全体が中央に引き寄せられていた（2026-08-15）。
-    # 測れないものに数字を置かない、はレポート軸と同じ扱いにする。
-    SIGNAL = {"集中講義", "演習", "セミナー"}
-    if cap is None and fmt not in SIGNAL:
-        return None, []
-
-    why = []
-    ease = 50.0
-    if cap is not None:
-        if cap >= 200:
-            ease, band = 85.0, "大講義（定員200名以上）"
-        elif cap >= 80:
-            ease, band = 70.0, f"中規模講義（定員{cap}名）"
-        elif cap >= 30:
-            ease, band = 45.0, f"中小規模（定員{cap}名）"
-        else:
-            ease, band = 25.0, f"少人数・演習形式（定員{cap}名）"
-        why.append(band)
-    if fmt == "集中講義":
-        ease += 10
-        why.append("集中講義（短期間で完結）")
-    if fmt == "演習" or fmt == "セミナー":
-        ease -= 15
-        why.append("演習形式（発表・議論の負担あり）")
-    return _clamp(ease), why
-
-
 def _schedule_note(c: dict) -> list[str]:
     """スコアには入れないが体感コストとして表示する情報。"""
     notes = []
@@ -392,8 +285,59 @@ AXES = [
     ("attendance", "出席拘束", _attendance_load),
     ("quiz", "小テスト", _quiz_load),
     ("presentation", "発表", _presentation_load),
-    ("scale", "規模・形態", _scale_ease),
 ]
+
+
+def _present_others(c: dict) -> list[str]:
+    """試験以外で、その科目に実際にある項目。比率が 0 の項目は入れない。
+
+    小テストは比率 0 でも、本文に「毎回小テスト」とあれば負担なので入れる。
+    """
+    er = c.get("eval_ratio") or {}
+    return [k for k in OTHER_WEIGHTS
+            if float(er.get(k) or 0.0) > 0 or (k == "quiz" and c.get("weekly_quiz"))]
+
+
+def _feel(c: dict) -> tuple[float | None, float]:
+    """体感層の楽さ（0〜100）と取り分。口コミから楽さが1つも取れなければ (None, 0.0)。
+
+    口コミの値はどれも 0〜2（2 が重い）。100 − 50 × 値 で楽さにして平均する。
+    テストの難しさは試験がある科目だけ見る。
+    「課題はなかった」は取り込み時に未回答と同じ None になっていて区別できない。
+    """
+    rv = c.get("reviews") or {}
+    if not rv.get("n"):
+        return None, 0.0
+    signals = []
+    has_exam = float((c.get("eval_ratio") or {}).get("exam") or 0.0) > 0
+    if has_exam and rv.get("exam_hard") is not None:
+        signals.append(100.0 - 50.0 * rv["exam_hard"])
+    for k in ("attendance", "in_class", "out_class"):
+        if rv.get(k) is not None:
+            signals.append(100.0 - 50.0 * rv[k])
+    if not signals:
+        return None, 0.0
+    people = rv.get("n_distinct") or rv["n"]
+    share = FEEL_MAX_SHARE * min(people, FEEL_FULL_AT) / FEEL_FULL_AT
+    return sum(signals) / len(signals), share
+
+
+def aishoudo(values: dict, present: list[str], feel: tuple[float | None, float],
+             exam_share: float = EXAM_SHARE,
+             other_weights: dict | None = None) -> float:
+    """相性度。values は各軸の楽さ、present は _present_others、feel は _feel の返り値。
+
+    exam_share と other_weights は、LINE のプリセットのように好みを変えて
+    並べ直すときだけ渡す（match）。既定は多数派の好み。
+    """
+    ow = OTHER_WEIGHTS if other_weights is None else other_weights
+    ws = sum(ow.get(k, 0.0) for k in present)
+    other = (100.0 if ws <= 0
+             else sum(values[k] * ow.get(k, 0.0) for k in present) / ws)
+    fact = exam_share * values["exam"] + (1 - exam_share) * other
+    ease, share = feel
+    total = fact if ease is None else (1 - share) * fact + share * ease
+    return round(total, 1)
 
 
 def confidence(c: dict) -> dict:
@@ -415,58 +359,42 @@ def confidence(c: dict) -> dict:
 
 
 def score(course: dict) -> dict:
-    """科目1件の楽単プロファイルを返す。
+    """科目1件の相性度プロファイルを返す。
 
-    総合値 (overall) は算出できた軸だけで重み付き平均を取り、
-    重みは実際に使えた軸の合計で正規化する。欠損を平均値で
-    埋めることはしない。
+    内訳が読めない科目、内訳が EVAL_TOTAL_MIN に届かない科目には総合値を出さない。
+    欠けた分を平均値で埋めることはしない。
     """
-    w = dynamic_weights(course)
     axes = {}
-    weighted, weight_sum = 0.0, 0.0
     for key, label, fn in AXES:
         value, why = fn(course)
-        axes[key] = {"label": label, "value": value,
-                     "weight": round(w[key], 3), "evidence": why}
-        if value is not None:
-            weighted += value * w[key]
-            weight_sum += w[key]
+        axes[key] = {"label": label, "value": value, "evidence": why}
 
-    # 成績評価の内訳が大きく欠けたままなら、軸の重みが実物とずれている。
-    # 欠けた分は「負担ゼロ」として満点に化けるので、ここで止める。
-    er_all = course.get("eval_ratio") or {}
-    eval_captured = round(sum(er_all.values()), 1) if er_all else None
-    partial_eval = eval_captured is not None and eval_captured < EVAL_TOTAL_MIN
-
-    # 重みの合計は 1.0（floor 0.30 ＋ share 0.58 ＋ scale 0.12）なので、
-    # weight_sum はそのまま「算出できた割合」になる。
-    # 一番重い軸が測れていない科目に総合値を出すと、残った軽い軸だけで
-    # 「軽め」が付いてしまう。カバレッジが足りなければ総合値は出さない。
-    overall = (round(weighted / weight_sum, 1)
-               if weight_sum >= COVERAGE_MIN and not partial_eval else None)
-    conf = confidence(course)
-    missing = [a["label"] for a in axes.values() if a["value"] is None]
-
-    # 試験・レポートの「難しさ」は KOAN に書いていない。書いてあるのは形だけ。
-    # 形だけで「軽め」と断言すると、成績の82%が一発試験の科目に楽単スコア
-    # 最高が付く（実データで確認）。口コミが1件入るまでは断言しない。
-    # 門をくぐっていない口コミは「難しさが確認されていない」ままとして扱う。
-    # ここを緩めると、1件の口コミで「拘束は軽い」が「軽め」に変わり、
-    # 誰も難しさを確かめていない一発試験の科目を推薦してしまう。
     er = course.get("eval_ratio") or {}
+    eval_captured = round(sum(er.values()), 1) if er else None
+    readable = (course.get("eval_ratio") is not None
+                and eval_captured is not None and eval_captured >= EVAL_TOTAL_MIN)
+    present = _present_others(course)
+    feel = _feel(course)
+    overall = (aishoudo({k: a["value"] for k, a in axes.items()}, present, feel)
+               if readable else None)
+    conf = confidence(course)
+
+    # 試験があるのに、口コミでテストの難しさを確かめた人がまだいない。
+    # おすすめ順の第1キー（build.py の preset_key）と band の「拘束は軽い」が読む。
     rv = course.get("reviews") or {}
-    scored_hard = rv.get("exam_hard") if rv.get("scored") else None
-    pending = bool(er.get("exam")) and scored_hard is None
+    pending = float(er.get("exam") or 0.0) > 0 and rv.get("exam_hard") is None
 
     return {
         "overall": overall,
-        "band": band_of(overall, conf["level"], weight_sum, pending),
+        "band": band_of(overall, conf["level"], 1.0 if er else 0.0, pending),
         "needs_review": pending,
-        "coverage": round(weight_sum, 3),
-        # 成績評価の内訳を何%拾えたか。100 未満なら総合値は出していない。
+        # LINE のプリセットで並べ直すとき（match）に、科目の中身を読まずに済むように持つ。
+        "present": present,
+        "feel": {"value": None if feel[0] is None else round(feel[0], 3),
+                 "share": round(feel[1], 3)},
         "eval_captured": eval_captured,
         "eval_unclassified": course.get("eval_unclassified"),
-        "missing_axes": missing,
+        "missing_axes": [a["label"] for a in axes.values() if a["value"] is None],
         "axes": axes,
         "confidence": conf,
         "notes": _schedule_note(course),
@@ -524,9 +452,14 @@ def score(course: dict) -> dict:
 #
 # 83 / 77 / 69 での分布は やや重め 2,322 ／ 重め 2,192 ／ 拘束は軽い 1,688 ／
 # 標準 1,190 ―― tools/test_report_axis.py の⑧が見る最大 band は 31.0%。
-LIGHT_MIN = 83
-NORMAL_MIN = 77
-HEAVYISH_MIN = 69
+# 2026-09-17: 採点を相性度に作り直し、ほぼ全科目の点数が動いた。83/77/69 は
+# その前の分布の値なので置き直す。選び方は同じ（±1 で 1.5pt 以下しか動かない
+# 平らな場所から、4つの band の最大が最も小さくなる3点）。
+# 試験の固定罰点 EXAM_BASE を 35 にすると最大 band 43.1% まで崩れた。
+# 係数を変えたら必ず測り直すこと。
+LIGHT_MIN = 84
+NORMAL_MIN = 71
+HEAVYISH_MIN = 65
 
 
 def band_of(overall: float | None, conf_level: str,
@@ -579,7 +512,6 @@ AXIS_LABEL = {
     "exam": "テストの楽さ",
     "quiz": "小テストの少なさ",
     "presentation": "発表の少なさ",
-    "scale": "成績の甘さ",   # 規模からの推定。口コミが貯まるまでは確度が低い
 }
 
 # よくあるタイプ。スライダーをいきなり出すと誰も触らないので、
@@ -590,10 +522,10 @@ AXIS_LABEL = {
 # LINE 側の作り直しは別セッションの担当。そこが終わるまでは消さないこと。
 # quiz は 5軸化に合わせて追加した（無いと小テストが順位に効かない）。
 PRESETS = {
-    "バイト優先":   {"attendance": 5, "quiz": 5, "report": 3, "exam": 2, "presentation": 3, "scale": 2},
-    "GPA重視":     {"attendance": 2, "quiz": 3, "report": 3, "exam": 3, "presentation": 3, "scale": 5},
-    "とにかく軽い": {"attendance": 4, "quiz": 4, "report": 4, "exam": 4, "presentation": 4, "scale": 4},
-    "テストが苦手": {"attendance": 2, "quiz": 4, "report": 3, "exam": 5, "presentation": 3, "scale": 3},
+    "バイト優先":   {"attendance": 5, "quiz": 5, "report": 3, "exam": 2, "presentation": 3},
+    "GPA重視":     {"attendance": 2, "quiz": 3, "report": 3, "exam": 3, "presentation": 3},
+    "とにかく軽い": {"attendance": 4, "quiz": 4, "report": 4, "exam": 4, "presentation": 4},
+    "テストが苦手": {"attendance": 2, "quiz": 4, "report": 3, "exam": 5, "presentation": 3},
 }
 DEFAULT_WEIGHTS = PRESETS["とにかく軽い"]
 
@@ -684,7 +616,7 @@ def parse_caps(params: dict) -> dict:
 def _unjudged_reason(course_score: dict) -> str:
     """総合値を出さないと決めた科目に、その理由を返す。
 
-    件数は reviews.MIN_FOR_SCORING が正本。ここに数字を書くと、門を変えたときに
+    件数は reviews.MIN_FOR_BACKFILL（旧 MIN_FOR_SCORING）が正本。ここに数字を書くと、門を変えたときに
     文言だけ古くなる（2026-08-24 まで門は3件なのに「1件入ると出ます」と出していた）。
 
     2026-09-03: eval_captured が None（＝シラバスに成績評価の内訳がそもそも
@@ -740,32 +672,40 @@ def _unjudged_reason(course_score: dict) -> str:
             "判定を出していません。")
 
 
-def match(course_score: dict, weights: dict | None = None) -> dict:
-    """学生の重みを掛けた相性と、その理由の文章を返す。
+def profile_from_weights(weights: dict) -> tuple[float, dict]:
+    """プリセットの重み（0〜5）を、試験の取り分と試験以外の重みに当てる。
 
-    数値だけ出しても「なぜ勧められたか」が伝わらないので、
-    重みの高い軸のうち満たしたもの／満たさなかったものを言葉にする。
+    試験の取り分 ＝ 試験の重み ÷（試験の重み ＋ 試験以外の重みの平均）。
+    すべて同じ重み（とにかく軽い）なら 0.50 で、既定の式と一致する。
+    """
+    others = {k: float(weights.get(k, 0)) for k in OTHER_WEIGHTS}
+    mean_other = sum(others.values()) / len(others)
+    exam_w = float(weights.get("exam", 0))
+    if exam_w + mean_other <= 0:
+        return EXAM_SHARE, dict(OTHER_WEIGHTS)
+    return exam_w / (exam_w + mean_other), others
+
+
+def match(course_score: dict, weights: dict | None = None) -> dict:
+    """学生の重み（LINE のプリセット）で並べ直した相性と、その理由の文章を返す。
+
+    2026-09-17: 中身を「軸の値の加重平均」から相性度の式（aishoudo）に替えた。
+    プリセットの重みは profile_from_weights で試験の取り分と試験以外の重みに当てる。
     """
     w = {**DEFAULT_WEIGHTS, **(weights or {})}
     axes = course_score["axes"]
 
     # 総合値を出さないと決めた科目に、相性の数字だけ出してはいけない。
-    # 学生が実際に見て比較するのはこの数字なので、ここを素通しにすると
-    # 「情報不足」の判定が画面上では無かったことになる（2026-08-15）。
     if course_score.get("overall") is None:
-        # 「口コミが入れば出る」と言えるのは、口コミで埋まる穴のときだけ。
-        # 成績評価の内訳そのものが欠けている科目は口コミでは直らない
-        # （シラバス側の問題）ので、同じ文言を出すと嘘になる。
         return {"fit": None, "reason": _unjudged_reason(course_score),
                 "weights": w, "labels": AXIS_LABEL}
 
-    total, wsum = 0.0, 0.0
-    for k, weight in w.items():
-        v = axes.get(k, {}).get("value")
-        if v is not None and weight > 0:
-            total += v * weight
-            wsum += weight
-    fit = round(total / wsum) if wsum > 0 else None
+    exam_share, other_weights = profile_from_weights(w)
+    feel = course_score.get("feel") or {}
+    fit = aishoudo({k: a.get("value") for k, a in axes.items()},
+                   course_score.get("present") or [],
+                   (feel.get("value"), feel.get("share", 0.0)),
+                   exam_share, other_weights)
 
     # 重視している順に見て、満たした軸／満たさない軸を拾う
     ranked = sorted(w.items(), key=lambda kv: -kv[1])

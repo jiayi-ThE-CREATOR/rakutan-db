@@ -264,7 +264,7 @@ def search(params: dict) -> dict:
         e = scoring.enrich(c)
         if min_conf and e["rakutan"]["confidence"]["level"] not in _conf_ok(min_conf):
             continue
-        # 画面に出すのは総合の楽単スコア。ユーザーの重みはもう無い。
+        # 画面に出すのは相性度（多数派の好みで計算した総合値）。
         # web/assets/app.js の matchLocal() と同じ内容にすること。
         e["match"] = scoring.explain(e["rakutan"])
         base.append(e)
@@ -600,7 +600,7 @@ class Handler(BaseHTTPRequestHandler):
                 "conditions": list(CONDITIONS),
                 "divisions": requirements_doc().get("divisions", []),
                 "presets": scoring.PRESETS,
-                "min_for_scoring": reviews_mod.MIN_FOR_SCORING,
+                "min_for_backfill": reviews_mod.MIN_FOR_BACKFILL,
                 "axis_labels": scoring.AXIS_LABEL,
                 "disclaimer": DATA_META["note"],
             })

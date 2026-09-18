@@ -114,14 +114,10 @@ check("quiz" in scoring.AXIS_LABEL, "AXIS_LABEL に quiz が無い")
 check([k for k, _, _ in scoring.AXES].count("quiz") == 1,
       "AXES に quiz 軸が無い")
 
-# 重みの合計は 1.0 のまま（AXIS_FLOOR×4 + AXIS_SHARE + SCALE_WEIGHT）。
-for er in ({"exam": 100.0},
-           {"exam": 25.0, "report": 25.0, "attendance": 25.0, "quiz": 25.0},
-           {}):
-    w = scoring.dynamic_weights({"eval_ratio": er})
-    check(abs(sum(w.values()) - 1.0) < 1e-9,
-          f"重みの合計が1.0でない（eval_ratio={er}）: {sum(w.values())}")
-    check("quiz" in w, f"重みに quiz が無い（eval_ratio={er}）")
+# 2026-09-17: 動的重みを廃止した。軸は5つで、規模・形態は消した。
+check([k for k, _, _ in scoring.AXES] == ["exam", "report", "attendance", "quiz", "presentation"],
+      f"AXES の並びが想定と違う: {[k for k, _, _ in scoring.AXES]}")
+check(not hasattr(scoring, "dynamic_weights"), "動的重みがまだ残っている")
 
 # 毎回の小テストの負担は小テスト軸が持つ。出席軸はもう二重に数えない。
 _, why = scoring._attendance_load({"eval_ratio": {"attendance": 20.0},
@@ -187,7 +183,8 @@ if BUILT.is_file():
     # 2026-09-16: 発表を独立した軸にし、保底を内訳に出てくる軸だけに付けた
     # （docs/superpowers/specs/2026-09-16-happyou-axis-design.md）。約7,300科目の
     # 点数が動いたので参照値を入れ替えた。閾値 83/77/69 での実測。
-    REF = {"軽い": 0.229, "標準": 0.161, "やや重め": 0.314, "重め": 0.296}
+    # 2026-09-17: 採点を相性度に作り直し、ほぼ全科目の点数が動いたので参照値を入れ替えた。
+    REF = {"軽い": 0.254, "標準": 0.273, "やや重め": 0.177, "重め": 0.296}
     TOL = 0.03
     # 焼き込んだ c["rakutan"] ではなく、いまの score.py で計算し直した値を見る。
     # 焼いた値と生きている定数を突き合わせると、build.py --rescore を流す前は

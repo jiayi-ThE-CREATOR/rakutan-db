@@ -499,7 +499,7 @@ def main() -> None:
             # 口コミが採点に効き始める人数。画面の文言がこれを読む。
             # 2026-08-24：門を3件にしたのに「1件入ると出ます」と
             # 表示し続けていたので、数字を持たせて食い違いを止める。
-            "min_for_scoring": reviews.MIN_FOR_SCORING,
+            "min_for_backfill": reviews.MIN_FOR_BACKFILL,
             # 授業内容タグのキー → 画面の表示名。語彙の正本は tools/subjects.py の VOCAB。
             # 画面側に表示名を書き写さない（axis_label と同じ置き方）。
             "subject_labels": subj.VOCAB,

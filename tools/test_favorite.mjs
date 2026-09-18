@@ -94,7 +94,12 @@ check(!(after.ids && after.ids[id]), "もう一度押しても外れない");
  * ここが見ているのは「詳細に星が戻っていないこと」。戻すと 2026-08-26 の
  * 「詳細の星がカード側の position:absolute を引きずって一覧の星に重なる」
  * 事故が再来する。星をもう一度出すなら、その置き方のテストも一緒に戻すこと。 */
-await page.locator(`${cardSel} .head`).click();
+/* 2026-09-17: 押す先を `.head` から `.head .title` に変えた。
+ * `.head` の中央には時間割コードのコピー（.ccC・2026-09-14 の #142 でこの行へ移動）が
+ * 来ることがあり、そこを押すとコピーが動いて詳細が開かない。カードの高さは科目名や
+ * 教員名の長さで変わるので、どの科目が先頭に来るか（＝並び順）でだけ再現する。
+ * コピーを押したらコピーされるのは仕様なので、テストの押す先を科目名に寄せた。 */
+await page.locator(`${cardSel} .head .title`).click();
 await page.waitForSelector("#inspector .detail");
 check(await page.locator("#inspector .favBtn").count() === 0,
       "#inspector の詳細に星が出ている（2026-09-01 にカード右上へ一本化したはず）");
@@ -118,7 +123,7 @@ const mfirst  = mpage.locator("#list > .card").first();
 const mid     = await mfirst.getAttribute("data-id");
 const mCardSel = `#list > .card[data-id="${mid}"]`;
 
-await mpage.locator(`${mCardSel} .head`).click();
+await mpage.locator(`${mCardSel} .head .title`).click();
 await mpage.waitForSelector(`${mCardSel} .detail .dSec`);
 
 const cardStar = mpage.locator(`${mCardSel} > .favBtn`);
