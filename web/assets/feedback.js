@@ -121,12 +121,22 @@
     count.textContent = `${text.value.length} / ${MAX}`;
   }
 
-  open.addEventListener("click", () => {
+  /* 前置き文つきで開けるようにする（授業内容タグの「タグが違う？」から呼ばれる）。
+     書きかけがあるときは上書きしない ―― 途中まで書いて開き直した人の文章を消さない。
+     カーソルは末尾に置く（前置きの続きから書き始められるように）。 */
+  function openBox(prefill){
     say("");
+    if (prefill && !text.value.trim()) text.value = prefill;
     sync();
     dlg.showModal();
     text.focus();
-  });
+    text.setSelectionRange(text.value.length, text.value.length);
+  }
+
+  open.addEventListener("click", () => openBox());
+  /* app.js から呼ぶための入口。意見箱は app.js と独立して動くので、
+     窓口をここに1つだけ出して、向こうから DOM を触らせない。 */
+  window.rkFeedback = { open: openBox };
 
   $("fbCancel").addEventListener("click", () => dlg.close());
   text.addEventListener("input", sync);

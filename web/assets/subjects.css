@@ -18,6 +18,13 @@ button.subjTag{cursor:pointer}
 button.subjTag:hover{border-color:var(--rule)}
 .subjTag.on{color:var(--brand-text);background:var(--brand-soft);border-color:var(--brand-line);font-weight:700}
 
+/* 訂正の入口（detail.js）。タグと同じ行の末尾に置くが、押すと絞り込みではなく
+   意見箱が開くので、丸い薬ではなく下線のある文字にして見分ける。 */
+.subjRep{font:inherit;font-size:var(--fs-xs);line-height:1.4;cursor:pointer;
+  color:var(--muted);background:none;border:none;text-decoration:underline;
+  padding:4px 6px;min-height:28px}
+.subjRep:hover{color:var(--ink)}
+
 /* ── 左の絞り込み ── */
 .subjOpen{font:inherit;width:100%;text-align:left;cursor:pointer;
   color:var(--ink);background:var(--card);border:1px solid var(--rule);

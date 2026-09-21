@@ -2098,6 +2098,21 @@ document.addEventListener("click", e => {
   toggleSubject(b.dataset.subject);
 });
 
+/* 「タグが違う？」（detail.js の .subjRep）。意見箱を、科目といまのタグを前置きした
+   状態で開く ―― どの科目の話か分からない訂正は台帳に戻せないので、こちらで書いておく。
+   前置きは事実だけにして、書き方の指示は入れない（消さずに送られると読み手の邪魔になる）。 */
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-subject-report]");
+  if (!b) return;
+  e.preventDefault();
+  const id = b.dataset.subjectReport;
+  const c = courses.find(x => x.id === id) || DATA.courses.find(x => x.id === id);
+  if (!c) return;
+  const L = (META && META.subject_labels) || {};
+  const now = (c.subjects || []).map(k => L[k]).filter(Boolean).join("、") || "なし";
+  window.rkFeedback?.open(`【タグの訂正】${c.title}（${c.id}）\nいまのタグ：${now}\n\n`);
+});
+
 $("#list").addEventListener("click", e => {
   const btn = e.target.closest(".favBtn");
   if (!btn) return;
