@@ -20,11 +20,23 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
    （7,877件／空きコマの数字も全部入りになる）。絞り込みはそこから始める。
    2026-08-26 まで 1年・秋冬 が既定で、初回表示は 319件だった。
    server.py の search() の既定も同じ値にしてある。片方だけ変えないこと。 */
+/* 好みの重さ。**既定値は score.py の EXAM_SHARE（0.50）と OTHER_WEIGHTS そのもの**で、
+   「みんなはテストをいちばん重く見ている」を画面に出すための数字でもある。
+   ここを動かすと、その項目の負担が (いまの目盛り ÷ 既定) 倍になる（prefMult）。
+   **重みとして使わないこと。** 試験以外は「その科目にある項目だけ」で正規化するので、
+   非試験の項目が1つの科目（レポートだけ等）は重みが消えて動かない（2026-09-21 実測）。 */
+const PREF_DEFAULT = { exam:50, presentation:20, report:15, attendance:15, quiz:10 };
+const PREF_KEY = "rk_konomi";
+const prefMult = k => (state.pref[k] ?? PREF_DEFAULT[k]) / PREF_DEFAULT[k];
+const prefTouched = () => Object.keys(PREF_DEFAULT).some(k => state.pref[k] !== PREF_DEFAULT[k]);
+
 const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), sort:"fit",
                 /* 配点の上限（%）。100＝制限なし。2026-09-03 に「重み 0〜5」から
                    置き換えた。**チップ「出席なし」等はここと同じ状態を指す** ――
                    別々に持つと片方を押したときにもう片方と食い違う。 */
                 caps:{ attendance:100, exam:100, quiz:100, report:100, presentation:100 },
+                /* 好みの重さ（上の PREF_DEFAULT）。caps（しぼり込み）とは別物。 */
+                pref:{ ...PREF_DEFAULT },
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
                 /* track2＝専攻語が「日本語」の学生が実際に履修するもう一つの専攻語。
@@ -413,6 +425,39 @@ function syncCaps(){
   history.replaceState(history.state, "", u.pathname + u.search + u.hash);
 }
 
+/* 好みを URL（?w=exam:25,report:30）と localStorage に往復させる。
+   既定のままの軸は書かない ―― 触っていない人の URL を長くしない。 */
+function syncPref(){
+  const diff = Object.keys(PREF_DEFAULT)
+    .filter(k => state.pref[k] !== PREF_DEFAULT[k])
+    .map(k => `${k}:${state.pref[k]}`);
+  const u = new URL(location.href);
+  if (diff.length) u.searchParams.set("w", diff.join(","));
+  else u.searchParams.delete("w");
+  history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+  try {
+    if (diff.length) localStorage.setItem(PREF_KEY, JSON.stringify(state.pref));
+    else localStorage.removeItem(PREF_KEY);
+  } catch (e) {}
+}
+
+/* 開いたときに好みを戻す。URL が最優先（共有されたリンクを開いた人は
+   自分の保存より、そのリンクの並びを見る）。 */
+function loadPref(){
+  let from = null;
+  const q = new URLSearchParams(location.search).get("w");
+  if (q){
+    from = {};
+    for (const part of q.split(",")){
+      const [k, v] = part.split(":");
+      if (k in PREF_DEFAULT && Number.isFinite(+v)) from[k] = Math.max(0, Math.min(100, +v));
+    }
+  } else {
+    try { from = JSON.parse(localStorage.getItem(PREF_KEY) || "null"); } catch (e) {}
+  }
+  if (from) state.pref = { ...PREF_DEFAULT, ...from };
+}
+
 /* ── 条件チップ ───────────────────────── */
 /* 「条件」は科目の属性（出席なし・持ち込み可…）で、「口コミあり」はデータの
    出所の話。種類が違うので枠を分けて描く。server.py の CONDITIONS には両方
@@ -725,8 +770,8 @@ function card(c){
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
       </div>
-      <div class="fit"><b>${r.overall ?? "—"}</b><small>相性度</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
+      <div class="fit"><b>${m.fit ?? r.overall ?? "—"}</b><small>相性度</small></div>
+      <div class="reason"><span class="band b${BAND_CLS[m.band ?? r.band] ?? 0}">${esc(m.band ?? r.band)}</span>${esc(m.reason)}</div>
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
@@ -979,6 +1024,35 @@ function matchLocal(r){
     return { fit:null, reason, labels:META.axis_labels };
   }
   const axes = r.axes;
+  /* 好みを反映した相性度。式は score.py の aishoudo と同じで、各軸の「負担」に
+     prefMult を掛けるところだけが違う。**score.py は触らない**（採点の正本は1つ。
+     好みはブラウザの中だけの話）。 */
+  const bend = (v, k) => v === null || v === undefined
+    ? v : Math.max(0, Math.min(100, 100 - (100 - v) * prefMult(k)));
+  const V = {};
+  for (const k of Object.keys(axes)) V[k] = bend((axes[k] || {}).value, k);
+  const OW = { presentation:20, report:15, attendance:15, quiz:10 };
+  const present = r.present || [];
+  const ws = present.reduce((s, k) => s + (OW[k] || 0), 0);
+  const other = (!present.length || ws <= 0) ? 100
+    : present.reduce((s, k) => s + V[k] * (OW[k] || 0), 0) / ws;
+  /* 試験だけは「取り分」も動かす。他の軸は倍率だけ ―― 試験以外は「その科目に
+     ある項目だけ」で正規化するので、重みを動かしても消える科目がある（実測）。 */
+  const examShare = (state.pref.exam ?? PREF_DEFAULT.exam) / 100;
+  const factLayer = examShare * V.exam + (1 - examShare) * other;
+  const feel = r.feel || {};
+  const sh = feel.share || 0;
+  const fit = Math.round(
+    ((feel.value === null || feel.value === undefined) ? factLayer
+      : (1 - sh) * factLayer + sh * feel.value) * 10) / 10;
+  /* band も同じ好みで数え直す。数字だけ変えて band を据え置くと
+     「62点なのに軽め」になる。score.py の band_of と同じ順序で、閾値も同じ
+     84/71/65。**「参考値」と「拘束は軽い」を先に見ること** ―― 閾値だけで
+     数え直すと、信頼度が低い科目を言い切り、難しさ未確認の一発試験を
+     「軽め」として薦めてしまう（band_of がその2つを先に返している理由）。 */
+  const band = (r.confidence && r.confidence.level === "low") ? "参考値"
+    : (r.needs_review && fit >= 84) ? "拘束は軽い"
+    : fit >= 84 ? "軽め" : fit >= 71 ? "標準" : fit >= 65 ? "やや重め" : "重め";
   const good = [], bad = [];
   for (const k of CAP_AXES){
     const v = (axes[k] || {}).value;
@@ -990,7 +1064,7 @@ function matchLocal(r){
   if (good.length) parts.push(`${good.slice(0,2).join("・")}が期待できます。`);
   if (bad.length)  parts.push(`${bad.slice(0,2).join("・")}は期待できません。`);
   if (!parts.length) parts.push("どの軸も平均的な科目です。");
-  return { fit: r.overall, reason: parts.join(""), labels: META.axis_labels };
+  return { fit, band, reason: parts.join(""), labels: META.axis_labels };
 }
 
 /* server.py の search() と同じ手順。
@@ -1953,6 +2027,11 @@ function applyPostMode() {
        位置と件数が食い違って「なぜこの件数なのか」が画面から読めなくなる。
        **CAP_STEP を直書きしないこと**（10 のまま置いていて、35% がURLの
        往復で 40% に化けた。tools/test_haiten_ui.mjs が見張っている）。 */
+    loadPref();
+    /* 読んだ好みをその場で書き戻す。共有リンク（?w=）で来た人も、次にこの
+       サイトを開いたときに同じ並びを見る ―― 好みは「その1回の絞り込み」では
+       なく本人の設定なので、caps と違って持ち越す。 */
+    syncPref();
     for (const k of CAP_AXES){
       const v = parseInt(urlParams.get("cap_" + k), 10);
       if (Number.isFinite(v))
