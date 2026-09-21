@@ -190,6 +190,20 @@
     <label class="fbLabel" for="fbContact">返事がほしいときだけ（任意）</label>
     <input id="fbContact" name="contact" type="text" maxlength="200" autocomplete="off" placeholder="Discord ID・メールなど">
 
+    <!-- 画像添付。<label for> で input と紐付けているので、クリックでの選択ダイアログ
+         表示に追加JSは要らない。ドラッグ＆ドロップと検証・プレビューだけ feedback.js が担う。 -->
+    <label class="fbLabel" for="fbImageInput">スクリーンショットがあれば（任意・5MBまで）</label>
+    <label class="fbDrop" id="fbDrop" for="fbImageInput">
+      <span class="fbDropHint" id="fbDropHint">ここに画像をドラッグ、またはタップして選ぶ</span>
+      <span class="fbDropPreview" id="fbDropPreview" hidden>
+        <img class="fbDropThumb" id="fbDropThumb" alt="">
+        <span class="fbDropMeta" id="fbDropMeta"></span>
+        <button type="button" class="fbDropRemove" id="fbDropRemove" aria-label="画像を外す">&#10005;</button>
+      </span>
+      <input type="file" id="fbImageInput" name="image" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+    </label>
+    <p class="fbMsg" id="fbImgMsg" role="status"></p>
+
     <!-- honeypot。人には見えないので、埋まっていれば bot。CSS で画面外へ出している。 -->
     <div class="fbHp" aria-hidden="true"><label>website<input type="text" id="fbWebsite" name="website" tabindex="-1" autocomplete="off"></label></div>
 

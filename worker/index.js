@@ -683,10 +683,17 @@ async function handleWebhook(request, env, ctx) {
  * webhook URL は secret で入れる（wrangler.toml には書かない）:
  *   npx wrangler secret put FEEDBACK_DISCORD_WEBHOOK
  * 未設定なら 503 を返す。受け取ったふりをして捨てるのが一番たちが悪い。
+ *
+ * 画像は任意で1枚まで（`image` に data URL）。クライアントを信じず、
+ * ここでも形式とサイズを見る。無ければ今まで通り JSON のまま Discord へ送り、
+ * 画像があるときだけ multipart（payload_json + files[0]）に切り替える。
  */
 const FB_MAX_TEXT = 1000;
 const FB_MAX_CONTACT = 200;
 const FB_MAX_FROM = 200;
+const FB_MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const FB_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const FB_IMAGE_RE = /^data:(image\/(?:png|jpeg|webp|gif));base64,([a-zA-Z0-9+/]+=*)$/;
 
 function fbClamp(v, max) {
   return typeof v === "string" ? v.trim().slice(0, max) : "";
@@ -697,6 +704,24 @@ function fbJson(status, body) {
     status,
     headers: { "content-type": "application/json; charset=utf-8" },
   });
+}
+
+// 戻り値: { ok:true, image:null|{mime,bytes} } | { ok:false, error }
+function fbParseImage(raw) {
+  if (raw === undefined || raw === null || raw === "") return { ok: true, image: null };
+  if (typeof raw !== "string") return { ok: false, error: "image_invalid" };
+  const m = FB_IMAGE_RE.exec(raw);
+  if (!m) return { ok: false, error: "image_invalid" };
+  const [, mime, b64] = m;
+  if (!FB_IMAGE_TYPES.has(mime)) return { ok: false, error: "image_invalid" };
+  let bytes;
+  try {
+    bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  } catch {
+    return { ok: false, error: "image_invalid" };
+  }
+  if (bytes.length > FB_MAX_IMAGE_BYTES) return { ok: false, error: "image_too_large" };
+  return { ok: true, image: { mime, bytes } };
 }
 
 async function handleFeedback(request, env) {
@@ -714,6 +739,9 @@ async function handleFeedback(request, env) {
   const text = fbClamp(body.text, FB_MAX_TEXT);
   if (!text) return fbJson(400, { ok: false, error: "empty" });
 
+  const parsedImage = fbParseImage(body.image);
+  if (!parsedImage.ok) return fbJson(400, { ok: false, error: parsedImage.error });
+
   const webhook = env.FEEDBACK_DISCORD_WEBHOOK;
   if (!webhook) return fbJson(503, { ok: false, error: "not_configured" });
 
@@ -725,15 +753,26 @@ async function handleFeedback(request, env) {
   if (contact) lines.push(`> 返信先: ${contact}`);
   lines.push("", text);
 
-  const res = await fetch(webhook, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      content: lines.join("\n"),
-      // 本文は利用者が書いたもの。@everyone と書かれても飛ばさない。
-      allowed_mentions: { parse: [] },
-    }),
-  });
+  const payload = {
+    content: lines.join("\n"),
+    // 本文は利用者が書いたもの。@everyone と書かれても飛ばさない。
+    allowed_mentions: { parse: [] },
+  };
+
+  let res;
+  if (parsedImage.image) {
+    const ext = parsedImage.image.mime.split("/")[1];
+    const fd = new FormData();
+    fd.append("payload_json", JSON.stringify(payload));
+    fd.append("files[0]", new Blob([parsedImage.image.bytes], { type: parsedImage.image.mime }), `feedback.${ext}`);
+    res = await fetch(webhook, { method: "POST", body: fd });
+  } else {
+    res = await fetch(webhook, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }
   if (!res.ok) {
     console.error("discord webhook failed", res.status);
     return fbJson(502, { ok: false, error: "relay_failed" });

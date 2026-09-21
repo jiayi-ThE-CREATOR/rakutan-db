@@ -17,6 +17,77 @@
 
 ---
 
+## 2026-09-18（2）｜ 意見箱に画像添付（ドラッグ＆ドロップ・5MBまで）を追加 ｜ Claude（松下） → 次の人
+
+意見箱（フッタの「サイトへのご意見・改善要望」）から画像を1枚（5MBまで・png/jpeg/webp/gif）
+添付できるようにした。本来 `feedback.js`／`feedback.css`／`worker/index.js` は wang さん担当だが、
+今回は松下さんの承認で横断して実装した。
+
+### 1. 何が動く状態か
+
+    node tools/test_feedback.mjs   # 51件通過（画像の正常系・5MB超・許可外形式・壊れたdata URLを含む）
+
+- `templates/shell.html` の意見箱フォームに、ドロップゾーン（`<label class="fbDrop" for="fbImageInput">`）
+  ＋プレビュー（サムネ・ファイル名/サイズ・✕で外す）を追加。`build.py` を流せば全ページに反映される
+  （今回は手元データが1,112件しか無く実データでの最終buildは自分では確認できていない。下記「次の人」参照）
+- `feedback.js`：ドラッグ＆ドロップ／タップ選択どちらも同じ検証（形式・5MB）→ `FileReader` で data URL 化 →
+  送信 JSON の `image` に乗せる。エラーはドロップゾーン直下の `#fbImgMsg` にその場で出す
+- `worker/index.js` の `handleFeedback`：`image` が無ければ今まで通り JSON で Discord へ、
+  あれば `FormData`（`payload_json` + `files[0]`）に切り替えて画像を実際の添付として中継する。
+  サーバー側でも mime・サイズを再検証（`FB_MAX_IMAGE_BYTES` = 5MB、`FB_IMAGE_TYPES`）
+- ブラウザでの動作確認は `javascript_tool` でファイル選択をシミュレートし、
+  プレビュー表示・5MB超/許可外形式のエラー文言・✕での取り消しを実機DOMで確認済み
+  （実際の Discord webhook へ本物の画像を送って見た目を確認したわけではない。下記②参照）
+
+### 2. 何をしていないか
+
+- **実際に Discord へ画像が届いて見える形で表示されるかは未確認。** webhook URL を手元に
+  持っていないため、テストは `fetch` をモックして「multipart で `files[0]` に画像バイト列が
+  正しく乗ること」までしか確認していない。webhook を持っている人に一度本番相当で送ってみてほしい
+- iOS/Android 実機でのカメラ起動・写真選択の細かい挙動は未確認（`<input type=file accept=image/*>`
+  のネイティブ挙動に乗っているだけなので大きくは崩れないはずだが、実機は見ていない）
+- 実データ（7,906件）での `python build.py` 最終確認ができていない（③参照）
+
+### 3. 次の人が最初にやること
+
+    node tools/test_feedback.mjs
+
+実データを持っている人は、そのうえで一度
+
+    PYTHONIOENCODING=utf-8 python build.py
+
+を流して `web/*.html` に画像添付欄が反映されていること（`git diff` が私の分＋データ更新だけに
+収まっていること）を確認してください。可能なら webhook 設定済みの環境で実際に画像を送り、
+Discord 側の見た目も確認してもらえると助かります。
+
+### 4. 踏んだ罠
+
+- **`[hidden]` 属性は CSS の `display` 指定に詳細度で負ける。** `.fbDropPreview{display:flex}` を
+  書いたせいで `hidden` を付けたプレビュー要素が最初から見えてしまっていた。
+  `.fbDropPreview[hidden]{display:none}` を明記して直した。`hidden` を使うクラスには毎回これが要る
+- **`web/index.html` の `<!--SHELL:HEAD-->` 区間に、`templates/shell.html` 側には無い
+  `<link rel="stylesheet" href="/assets/subjects.css">` が直書きされている。**
+  `build.py` を実行するたびに shell 注入でこの行が静かに消える（今回の作業中に実際に消えて気づき、
+  手で戻した）。意見箱と無関係の既存の罠なので直さず報告だけにする。おそらく `app.css`／`tokens.css`
+  と同じく「ページ固有なので SHELL:HEAD の外（`index.html` 側、`app.css` の下）に出す」で直る
+- **Windows のデフォルトコンソール（cp932）は `build.py` や `tools/test_reviews.py` が出す
+  ⚠・✗ などの記号でクラッシュする。** `PYTHONIOENCODING=utf-8` を前に付けると回避できる
+  （例: `PYTHONIOENCODING=utf-8 python build.py`）
+- **Node 24 + Windows では `import(path.join(ROOT, "worker/index.js"))` が
+  `ERR_UNSUPPORTED_ESM_URL_SCHEME` で落ちる。** `tools/test_feedback.mjs` だけ
+  `pathToFileURL(...).href` で包んで直した（`tools/test_bot_flow.mjs` に既にある書き方と同じ）。
+  同じパターンを使っている `test_analytics.mjs`／`test_index_gate.mjs`／`test_kuchikomi_relay.mjs`／
+  `test_traffic_report.mjs` も恐らく同じ問題を抱えているが、今回は触っていない
+- **ブラウザでの動作確認中、`<script src="/assets/feedback.js" defer>` の実際の読み込みだけが
+  強いキャッシュに乗り、ページを ctrl+shift+r で強制再読み込みしても中身が更新されないことがあった**
+  （`fetch(url,{cache:'no-store'})` は最新を取れるのに、`<script>` タグの実リクエストだけ古いまま）。
+  検証は「fetch で最新のソースを取り、`eval` して実行する」で回避した。検証ツール（Claude の
+  ブラウザペイン）側の癖の可能性が高く、本番配信では無関係のはず
+- `python build.py` は手元の `data/courses.json`（1,112件）で流すと、既存の `courses.built.json`
+  （7,906件）より少なくなるため `--allow-fewer-courses` を付けないと止まる仕様（意図通り）。
+  一度付けて流し、`web/data/courses.built.json`／`reviews.built.json`／`timetable.json` が
+  ローカルの少ないデータで上書きされたので、確認後に `git checkout --` で戻した。
+  同じ穴に気づかず `--allow-fewer-courses` のままコミットしないよう注意
 ## 2026-09-18 ｜ 授業内容タグの件数が曜限を無視していた＋スマホで決定しても一覧に飛ばない ｜ Claude → 次の人
 
 ブランチ `fix/subject-facet-day`（worktree `.worktrees/subjfacet`）。9/17 に出した
