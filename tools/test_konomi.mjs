@@ -68,6 +68,12 @@ check(after <= before, "✕ を押しても件数が減らない");
 check(await p6.$eval("#s_exam", e => e.value) === "50",
       "✕ を押したら目盛り（好み）まで動いた ―― 役割が混ざっている");
 
+/* ⑦ 目盛りは誰でも動く。静的配信では /api/me が無いので fail-open（✕ も動く）。
+   ここで見るのは「目盛りが門の中に入っていないこと」だけ。 */
+const p7 = await open(base);
+check(await p7.$eval("#s_exam", e => !e.closest("[inert]") && !e.closest("[data-gate]")),
+      "好みの目盛りが門（data-gate / inert）の中に入っている");
+
 console.log(`  通過 ${n - fails.length} 件 / ${n} 件`);
 for (const m of fails) console.log("  NG ", m);
 await b.close();

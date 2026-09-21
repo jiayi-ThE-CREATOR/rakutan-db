@@ -120,7 +120,10 @@
 
       <section>
         <h2>配点でしぼる</h2>
-        <div data-gate>
+        <!-- ここは節ごと覆わない。目盛り（好みの重さ）は相性度そのものなので、
+             初めて来た人にこそ触ってほしい。登録が要るのは ✕（しぼり込み）だけで、
+             その判定は app.js の ✕ のハンドラが window.rkGate.linked() を見て行う。 -->
+        <div>
           <button class="toggle" id="tog">配点スライダーを閉じる</button>
           <div class="sliders open" id="sliders"></div>
           <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も

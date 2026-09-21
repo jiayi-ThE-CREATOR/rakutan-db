@@ -403,6 +403,13 @@ function buildSliders(){
     load();
   });
   $("#sliders").querySelectorAll(".xBtn").forEach(x => x.onclick = () => {
+    /* しぼり込みは登録した人だけ（#139 の「見えるけど押せない」と同じ扱い）。
+       目盛り（好み）は誰でも動かせる ―― 相性度そのものなので初めての人にこそ触ってほしい。 */
+    if (window.rkGate && !window.rkGate.linked()){
+      const next = location.pathname + location.search + location.hash;
+      location.href = "/line/login?next=" + encodeURIComponent(next);
+      return;
+    }
     const k = x.dataset.k;
     state.caps[k] = state.caps[k] === 0 ? NO_CAP : 0;
     /* チップの点灯はここから導く（別に持たない）。件数も動くので描き直す。 */
