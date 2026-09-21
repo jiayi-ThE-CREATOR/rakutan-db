@@ -225,6 +225,39 @@ function divisionChip(d, facets){
        + `${esc(d.label)}${badge}<span class="n">${n}</span></button>`;
 }
 
+/* 開け閉めする箱の頭に置くボタン。「学部を選ぶ」の枠（#facSec .pick）と同じ形で出し、
+   文字は**何が選べるか**だけを言う。開いているかどうかは右の印で表す。
+   印を隣の select と同じ三角にしたのは、押したあとに起きること（下に選択肢が
+   出る）が同じだから。
+
+   2026-09-21 まではオレンジの下線リンクで「卒業要件で絞り込む」と書いていた。
+   周り（学部を選ぶ・何の話？）と形が違ううえ、押すまで何が出るのか読めない
+   ――「押してみないと何のためのボタンか分からない」。形と言い方をそろえた。 */
+function setPick(btn, open, label){
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  btn.querySelector(".pickLabel").textContent = label;
+  btn.querySelector(".pickMark").textContent = open ? "▲" : "▼";
+}
+
+/* 畳んだまま選択が残ると、効いている絞り込みが画面から消える。
+   閉じているあいだだけ「◯つ選択中」に差し替えて、消えないようにする。 */
+function syncDivsPick(){
+  const box = $("#divs"), open = !box.hidden;
+  const n = box.querySelectorAll(".chip.on").length;
+  setPick($("#divsTog"), open,
+    (!open && n) ? `全学部共通の区分：${n}つ選択中` : "全学部共通の区分を選ぶ");
+}
+
+/* 卒業要件外のぶん。括弧の数は「中にいくつ入っているか」―― 閉じたままでは
+   何個隠れているのか分からないので、下線リンクだった頃から出している。 */
+function syncDivOffPick(){
+  const box = $("#divsOff"), open = !box.hidden;
+  const n = box.querySelectorAll(".chip.on").length;
+  setPick($("#divTog"), open,
+    (!open && n) ? `卒業要件外の区分：${n}つ選択中`
+                 : `卒業要件外の区分も選ぶ（${box.dataset.n || 0}）`);
+}
+
 function buildFaculty(facets){
   if (!REQ || !divisionsOf().length) return;   // 要件表が無い環境では出さない
 
@@ -235,8 +268,11 @@ function buildFaculty(facets){
     // 3段に分ける。上は全学部に共通の区分で、学部を選んでいなくても意味がある。
     // 下は選んだ学部にしか無い区分なので、選ぶまで丸ごと隠す。
     sec.innerHTML =
-      `<h2>全学部共通の区分でしぼる</h2>
-       <button class="toggle" id="divsTog"></button>
+      `<h2>卒業要件でしぼる</h2>
+       <button type="button" class="pick" id="divsTog"
+               aria-expanded="false" aria-controls="divs">
+         <span class="pickLabel"></span><span class="pickMark" aria-hidden="true">▼</span>
+       </button>
        <div class="chips" id="divs"></div>
 
        <h2 class="facH">学部学科からさがす</h2>
@@ -250,7 +286,10 @@ function buildFaculty(facets){
          <h2 class="facH" id="facOwnH"></h2>
          <div class="chips" id="divsOwn"></div>
        </div>
-       <button class="toggle" id="divTog" hidden></button>
+       <button type="button" class="pick" id="divTog" hidden
+               aria-expanded="false" aria-controls="divsOff">
+         <span class="pickLabel"></span><span class="pickMark" aria-hidden="true">▼</span>
+       </button>
        <div class="chips" id="divsOff" hidden></div>
        <p class="railNote" id="facNotes"></p>`;
     const years = $("#years").closest("section");
@@ -274,20 +313,16 @@ function buildFaculty(facets){
     $("#trackSel2").onchange = e => { state.track2 = e.target.value; load(); };
     // 既定は閉じる。すでに区分を選んでいる状態（URL復元など）なら、
     // 選択が見えなくならないよう開いたままにする。
-    const startOpen = state.division.size > 0;
-    $("#divs").hidden = !startOpen;
-    $("#divsTog").textContent = startOpen ? "卒業要件を閉じる" : "卒業要件で絞り込む";
+    $("#divs").hidden = state.division.size === 0;
     $("#divsTog").onclick = () => {
       const box = $("#divs");
       box.hidden = !box.hidden;
-      $("#divsTog").textContent = box.hidden ? "卒業要件で絞り込む" : "卒業要件を閉じる";
+      syncDivsPick();
     };
     $("#divTog").onclick = () => {
       const box = $("#divsOff");
       box.hidden = !box.hidden;
-      $("#divTog").textContent = box.hidden
-        ? `卒業要件外の区分も表示する (${box.dataset.n})`
-        : "卒業要件外の区分を隠す";
+      syncDivOffPick();
     };
   }
   $("#facSel").value = state.faculty;
@@ -350,10 +385,11 @@ function buildFaculty(facets){
   box.dataset.n = plan.off.length;
   if (plan.off.length){
     box.innerHTML = plan.off.map(d => divisionChip(d, facets)).join("");
-    if (box.hidden) tog.textContent = `卒業要件外の区分も表示する (${plan.off.length})`;
   } else {
     box.innerHTML = ""; box.hidden = true;
   }
+  syncDivsPick();
+  syncDivOffPick();
 
   $("#facNotes").innerHTML = plan.notes.map(t => esc(t)).join("<br>");
 
