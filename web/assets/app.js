@@ -376,7 +376,25 @@ function buildFaculty(facets){
   });
 }
 
-/* ── 配点でしぼる（上限スライダー） ───────────────
+/* 「重さを既定に戻す」の出し入れ。**目盛りごと作り直さないこと** ――
+   つまみを掴んでいる要素を innerHTML で入れ替えると、ドラッグが途中で切れる。 */
+function togglePrefReset(){
+  const box = $("#sliders");
+  if (!box) return;
+  const cur = $("#prefReset");
+  if (prefTouched() === !!cur) return;
+  if (cur){ cur.closest("p").remove(); return; }
+  /* 既定から動かしている人にだけ出す。触っていない人の画面に「戻す」だけ
+     置いても、何から戻るのか読めない。 */
+  box.insertAdjacentHTML("beforeend",
+    `<p class="railNote"><button type="button" class="toggle" id="prefReset">重さを既定に戻す</button></p>`);
+  $("#prefReset").onclick = () => {
+    state.pref = { ...PREF_DEFAULT };
+    syncPref(); buildSliders(); load();
+  };
+}
+
+/* ── 重さの見かた（好みの目盛り＋しぼり込みの ✕） ───────────────
    数字はシラバスの「成績評価の内訳」そのもの。
    「出席率 30%」＝ 出席・平常点が成績の30%以下の科目だけ出す、の意味。
 
@@ -395,11 +413,15 @@ function buildSliders(){
        <span class="v" id="v_${k}">${state.pref[k]}</span>
        <button type="button" class="xBtn" id="x_${k}" data-k="${k}"
                aria-pressed="${state.caps[k] === 0}"
-               title="${esc(CAP_LABEL[k])}がある授業を見ない">✕</button></div>`).join("");
+               title="${esc(CAP_LABEL[k])}がある授業を見ない">✕</button>
+       <span class="def">既定 ${PREF_DEFAULT[k]}</span></div>`).join("");
   $("#sliders").querySelectorAll("input[type=range]").forEach(i => i.oninput = () => {
     state.pref[i.dataset.k] = +i.value;
     $("#v_"+i.dataset.k).textContent = i.value;
     syncPref();
+    /* 「既定に戻す」の出し入れ。**buildSliders() を呼び直さないこと** ――
+       つまみを掴んでいる要素ごと作り直すと、ドラッグが途中で切れる。 */
+    togglePrefReset();
     load();
   });
   $("#sliders").querySelectorAll(".xBtn").forEach(x => x.onclick = () => {
@@ -416,6 +438,7 @@ function buildSliders(){
     syncCaps();
     load();
   });
+  togglePrefReset();
   updateCapWarn();
 }
 
@@ -2128,7 +2151,7 @@ function applyPostMode() {
   buildYearRow(); buildHardSelect();
   $("#tog").onclick = () => {
     const o = $("#sliders").classList.toggle("open");
-    $("#tog").textContent = o ? "配点スライダーを閉じる" : "配点で細かくしぼる";
+    $("#tog").textContent = o ? "重さの目盛りを閉じる" : "重さを自分に合わせる";
   };
 
   /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると

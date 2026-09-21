@@ -367,6 +367,12 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 .sl .xBtn{border:1px solid var(--rule);background:none;border-radius:6px;
   width:26px;height:26px;padding:0;line-height:1;font-size:11px;color:var(--muted);cursor:pointer}
 .sl .xBtn[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
+/* 「既定 50」＝みんなの重さの位置。行の2段目に敷く（横に並べると 240px の
+   レールでつまみが潰れる）。上げても並びがほとんど動かないテストで、
+   上げ幅の効果を過大に見せないための目印でもある。 */
+.sl .def{grid-column:1/5;margin-top:-5px;font-size:10px;color:var(--muted);text-align:right}
+/* 欄の頭に置く1〜2行の説明。見出しのすぐ下なので上の余白は詰める。 */
+.railLead{margin-top:calc(var(--sp-2) * -1);margin-bottom:var(--sp-3);color:var(--muted);line-height:1.5}
 .toggle{background:none;border:none;color:var(--brand-text);font:inherit;font-size:12.5px;
   padding:8px 0 0;cursor:pointer;text-decoration:underline}
 
