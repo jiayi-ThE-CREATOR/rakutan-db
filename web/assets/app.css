@@ -283,9 +283,21 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
    display:block だと崩れ、▼だけ文字の下に落ちる（2026-08-29 本人指摘）。
    [hidden] に勝つのに要るのは値ではなく #facSec select というセレクタの
    詳細度なので、block → flex に変えても次のコメントの効果は変わらない。 */
-#facSec select{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;font:inherit;font-size:var(--fs-base);
+/* .pick ＝ 押すと中身（区分のチップ）が出る箱。select と**同じ枠**に入れるのは、
+   左の絞り込みで「押すと選択肢が出る」ものの形を1つにそろえるため
+   （授業内容でさがすの .subjOpen も同じ形）。2026-09-21 まで .pick の部分は
+   オレンジの下線リンクで、周りと形が違ううえ押すまで用途が読めなかった。 */
+#facSec select,#facSec .pick{display:flex;align-items:center;justify-content:space-between;width:100%;padding:11px 14px;font:inherit;font-size:var(--fs-base);
   border:1px solid var(--rule);border-radius:var(--r-md);background:var(--card);color:var(--ink);
   margin-bottom:var(--sp-2)}
+/* 指で押す相手なので 44px。text-align は button の既定（中央）を打ち消す。 */
+#facSec .pick{gap:var(--sp-2);min-height:44px;text-align:left;cursor:pointer}
+#facSec .pick:hover{border-color:var(--brand-line)}
+/* display:flex は UA の [hidden]{display:none} に勝つ（.chips と同じ対処）。
+   これが無いと、卒業要件外の区分が無い学部でも下のボタンが出たままになる。 */
+#facSec .pick[hidden]{display:none}
+/* 開いているかどうかの印。文字（用途）より弱く出す ―― 主役は用途のほう。 */
+#facSec .pickMark{flex:none;color:var(--soft);font-size:var(--fs-sm)}
 /* [hidden] の既定（display:none）に勝つため。これが無いと学科・専攻を持たない
    学部（文学部など）でも #trackSel が出たままになる ―― しかも中身は前に
    選んでいた学部のもの。「文学部なのに専攻語を選ぶ」が出るのはこれが原因だった。 */
