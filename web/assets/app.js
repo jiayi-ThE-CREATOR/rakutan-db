@@ -1122,10 +1122,13 @@ function matchLocal(r){
   const ws = present.reduce((s, k) => s + (OW[k] || 0), 0);
   const other = (!present.length || ws <= 0) ? 100
     : present.reduce((s, k) => s + V[k] * (OW[k] || 0), 0) / ws;
-  /* 試験だけは「取り分」も動かす。他の軸は倍率だけ ―― 試験以外は「その科目に
-     ある項目だけ」で正規化するので、重みを動かしても消える科目がある（実測）。 */
-  const examShare = (state.pref.exam ?? PREF_DEFAULT.exam) / 100;
-  const factLayer = examShare * V.exam + (1 - examShare) * other;
+  /* 試験の取り分は score.py の EXAM_SHARE（0.50）のまま**動かさない**。
+     目盛りが効くのは倍率（bend）だけ。取り分まで動かすと、試験の目盛りを
+     いじった人の画面で**試験の無い科目まで動く**（試験の楽さ 100 が別の重みで
+     混ざるため）。実測 2026-09-21：取り分も動かすと テスト75 で 標準が 0.5%・
+     軽め 51.8%・重め 46.5% の二極になり、band の意味が壊れた。
+     倍率だけなら試験の無い科目は 1件も動かず、軽め 25.1% が据え置きになる。 */
+  const factLayer = 0.50 * V.exam + 0.50 * other;
   const feel = r.feel || {};
   const sh = feel.share || 0;
   const fit = Math.round(
