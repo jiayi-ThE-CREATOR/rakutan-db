@@ -286,16 +286,6 @@ def search(params: dict) -> dict:
     if divisions:
         base = [e for e in base if (e.get("division") or "other") in divisions]
 
-    # 授業内容タグの件数＝「いま選んでいるタグに、そのタグを足したら残る件数」。
-    # AND なので、選択を掛けたあとの集合で各タグを数えればそのまま共起件数になる。
-    # 曜限フィルタの「前」で数える（空きコマと同じ理由。コマを押した瞬間に
-    # タグが全部0件になって次の一手が打てなくなる）。app.js の queryLocal() と同じ順序。
-    subject_facets = {k: 0 for k in subject_labels}
-    for e in base:
-        for s in e.get("subjects") or []:
-            if s in subject_facets:
-                subject_facets[s] += 1
-
     # 空きコマグリッドと条件チップの件数（曜限フィルタは掛けない）
     slots = {d: {p: 0 for p in PERIODS} for d in DAYS}
     for e in base:
@@ -309,6 +299,19 @@ def search(params: dict) -> dict:
         results = [e for e in results if (e.get("day_period") or "").startswith(day)]
     if period:
         results = [e for e in results if (e.get("day_period") or "").endswith(period)]
+
+    # 授業内容タグの件数＝「いま選んでいるタグに、そのタグを足したら残る件数」。
+    # AND なので、選択を掛けたあとの集合で各タグを数えればそのまま共起件数になる。
+    # 空きコマ・条件チップと違い、曜限フィルタの「後」で数える ―― タグの数字は
+    # ダイアログの中で「決定（N件）」と並ぶので、前で数えると食い違う
+    # （2026-09-18 実測：歴史＋月1 で「文化・地域 530」と「決定（17件）」が同じ画面に出た）。
+    # コマを押して0件になったタグは並べないだけで、コマはいつでも外せる。
+    # app.js の queryLocal() と同じ順序。
+    subject_facets = {k: 0 for k in subject_labels}
+    for e in results:
+        for s in e.get("subjects") or []:
+            if s in subject_facets:
+                subject_facets[s] += 1
 
     sort = get("sort") or "fit"
     if sort == "fit":

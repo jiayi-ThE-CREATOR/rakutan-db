@@ -88,6 +88,58 @@ Discord 側の見た目も確認してもらえると助かります。
   一度付けて流し、`web/data/courses.built.json`／`reviews.built.json`／`timetable.json` が
   ローカルの少ないデータで上書きされたので、確認後に `git checkout --` で戻した。
   同じ穴に気づかず `--allow-fewer-courses` のままコミットしないよう注意
+## 2026-09-18 ｜ 授業内容タグの件数が曜限を無視していた＋スマホで決定しても一覧に飛ばない ｜ Claude → 次の人
+
+ブランチ `fix/subject-facet-day`（worktree `.worktrees/subjfacet`）。9/17 に出した
+「授業内容でさがす」（PR #151）の後始末2件。**画面の作りは変えていない。**
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8231 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8231
+
+- **① タグの件数を曜限フィルタの「後」で数える**（`app.js` の `queryLocal()` と
+  `server.py` の `search()` の両方。順序は2つを必ず揃える）
+  - それまで：`?subject=rekishi` ＋ 月1 で、一覧は 17件なのにダイアログには
+    「文化・地域 **530**」と「決定（**17**件）」が同時に出ていた。押すと 10件しか残らない
+  - いま：同じ操作で「文化・地域 **10**」。ダイアログの数字＝押したあとの実件数（実測で一致）
+  - 空きコマグリッドと条件チップは**これまでどおり「前」**で数える（コマを押した瞬間に
+    他のコマが全部0件になると次の一手が打てないため）。タグにその問題が無いのは、
+    0件のタグを並べないだけで、コマ自体は上の帯からいつでも外せるから
+- **② タグを変えたら一覧の帯まで画面を送る**（`app.js` の `focusResults()`）
+  - 390px では授業内容の節が 788px、一覧が 2,173px にあり、その間は他の絞り込みで埋まっている。
+    「決定」を押しても目の前は絞り込みの続きのままで、何も起きなかったように見えていた
+  - 送るのは「選択が変わったとき」だけ。開いて何も変えずに閉じた人は動かさない。
+    帯がすでに見えていれば動かさない（PC はたいていこちら）
+  - ダイアログが開いている間は動かさない（幕の裏で動くだけ）。閉じるときに `subjects.js` が
+    `api.done()` で呼ぶ。`focus({preventScroll:true})` なのは、フォーカスを戻す `focus()` が
+    先に画面をボタンまで引き戻してしまうから
+
+### 2. 何をしていないか
+
+- 見た目・語彙・タグのデータは触っていない（`data/subjects.ai.tsv` そのまま）
+- レビューで挙がった残り4件は**別 PR**：初期表示のタグを意味の順に並べ直す／カードのタグが
+  押せると分かる見た目にする／未選択時の「決定（7906件）」／詳細に「タグが違う？」の入口
+  （`data/subjects.manual.tsv` は仕組みだけあって空のまま・入口が無い）
+- 版（`docs/version-pending.md`）には**載せていない**。9/17 の [new] がまだ公開前で、
+  その中身の手直しだから（本人判断待ち）
+
+### 3. 次の人が最初に打つコマンド
+
+    git switch fix/subject-facet-day
+    cd web && python3 -m http.server 8231 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8231 /tmp/shots
+
+### 4. 踏んだ罠
+
+- **`server.py` は worktree の `data/courses.json`（サンプル30件）を読む。** 本物は本体の
+  `data/`（gitignore なので worktree には無い）。API 側を実データで確かめるときは
+  `ln -s ~/Developer/rakutan-db/data/courses.json data/courses.json` して、**終わったら消す**
+- **`html{scroll-behavior:smooth}`（app.css）なので、Playwright の `click()` が要素を画面に
+  入れるスクロールもアニメーションする。** 直後に `scrollY` を測ると途中の値を拾う
+  ―― テストは止まるまで待つ `settle()` を通す
+- 本番は静的配信なので、利用者に効くのは `app.js` 側。`server.py` を直さないと
+  開発時だけ数え方が違う状態が残る（今回は両方直した）
 
 ---
 
