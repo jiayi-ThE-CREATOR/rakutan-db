@@ -356,10 +356,17 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 /* 3列目は 2026-09-03 に 16px → 44px。目盛りが「4」（1桁）から「100%」に
    変わったので、16px のままだと数字が枠の外へはみ出して「1」しか読めない。
    tools/test_haiten_ui.mjs が行のはみ出しを見張っている。 */
-.sl{display:grid;grid-template-columns:88px 1fr 44px;gap:10px;align-items:center;margin-bottom:7px}
+/* 4列目は ✕（しぼり込み）。目盛り（好み）とは別の状態なので、同じ行に置きつつ
+   見た目を分ける（2026-09-21）。3列目は「%」が付かなくなったぶん狭めた。 */
+.sl{display:grid;grid-template-columns:84px 1fr 28px 26px;gap:8px;align-items:center;margin-bottom:7px}
 .sl label{font-size:var(--fs-sm);color:var(--soft)}
 .sl input{width:100%;accent-color:var(--brand)}
 .sl .v{font-family:var(--data);font-size:12px;color:var(--muted);text-align:right}
+/* 目盛りの右の「✕」。押すとその項目がある授業を外す（しぼり込み）。
+   目盛り（好み）とは別の状態なので、押されている間は塗って区別する。 */
+.sl .xBtn{border:1px solid var(--rule);background:none;border-radius:6px;
+  width:26px;height:26px;padding:0;line-height:1;font-size:11px;color:var(--muted);cursor:pointer}
+.sl .xBtn[aria-pressed="true"]{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}
 .toggle{background:none;border:none;color:var(--brand-text);font:inherit;font-size:12.5px;
   padding:8px 0 0;cursor:pointer;text-decoration:underline}
 

@@ -383,15 +383,28 @@ function buildFaculty(facets){
    0% にすると、対応する条件チップ（出席なし・小テストなし）と**同じ状態**に
    なる。チップはこのスライダーのショートカットであって別の判定ではない。 */
 function buildSliders(){
+  /* 目盛りは「その項目をどれくらい重く見るか」。既定は score.py と同じ数字で、
+     テストがいちばん大きい＝みんなの既定をそのまま画面に出している。
+     ✕ は「その項目がある授業を見ない」＝しぼり込みで、caps（0 か 100）が持つ。
+     2つを同じ行に置くが、状態は別 ―― 混ぜると「しぼったら好みまで変わった」になる。 */
   $("#sliders").innerHTML = CAP_AXES.map(k =>
     `<div class="sl"><label for="s_${k}">${esc(CAP_LABEL[k])}</label>
-       <input type="range" id="s_${k}" min="0" max="100" step="${CAP_STEP}"
-              value="${state.caps[k]}" data-k="${k}"
-              aria-label="${esc(CAP_LABEL[k])}が成績に占める割合の上限">
-       <span class="v" id="v_${k}">${state.caps[k]}%</span></div>`).join("");
-  $("#sliders").querySelectorAll("input").forEach(i => i.oninput = () => {
-    state.caps[i.dataset.k] = +i.value;
-    $("#v_"+i.dataset.k).textContent = i.value + "%";
+       <input type="range" id="s_${k}" min="0" max="100" step="${PREF_STEP}"
+              value="${state.pref[k]}" data-k="${k}"
+              aria-label="${esc(CAP_LABEL[k])}をどれくらい重く見るか">
+       <span class="v" id="v_${k}">${state.pref[k]}</span>
+       <button type="button" class="xBtn" id="x_${k}" data-k="${k}"
+               aria-pressed="${state.caps[k] === 0}"
+               title="${esc(CAP_LABEL[k])}がある授業を見ない">✕</button></div>`).join("");
+  $("#sliders").querySelectorAll("input[type=range]").forEach(i => i.oninput = () => {
+    state.pref[i.dataset.k] = +i.value;
+    $("#v_"+i.dataset.k).textContent = i.value;
+    syncPref();
+    load();
+  });
+  $("#sliders").querySelectorAll(".xBtn").forEach(x => x.onclick = () => {
+    const k = x.dataset.k;
+    state.caps[k] = state.caps[k] === 0 ? NO_CAP : 0;
     /* チップの点灯はここから導く（別に持たない）。件数も動くので描き直す。 */
     syncCaps();
     load();
@@ -401,7 +414,12 @@ function buildSliders(){
 
 /* 上限の合計が100%を下回ると、成績評価の内訳の合計が100%である以上、
    条件を満たす科目は**原理的に存在しない**。0件になってから気付かせるのでは
-   なく、そうなる前に理由を出す。score.py の caps_impossible と同じ判定。 */
+   なく、そうなる前に理由を出す。score.py の caps_impossible と同じ判定。
+
+   2026-09-21: ✕ は上限を 0 か 100 にしかしないので、この式が真になるのは
+   **全軸に ✕ を入れたとき**だけになった（1本でも外せば合計100%）。
+   判定は score.py と同じものを使い続ける ―― 条件チップ（「レポートのみ」＝
+   4軸を0）も同じ式を通るので、ここを ✕ 専用に書き換えると食い違う。 */
 function updateCapWarn(){
   const el = $("#capWarn");
   if (el) el.hidden = !capsImpossible(state.caps);
@@ -410,12 +428,11 @@ function updateCapWarn(){
 /* スライダー・チップ・URL を1つの状態から描き直す。 */
 function syncCaps(){
   updateCapWarn();
+  /* 目盛りは好みのものなので caps では動かさない。チップから来た変更で
+     動かすのは ✕ の見た目だけ。 */
   for (const k of CAP_AXES){
-    const i = $("#s_"+k);
-    if (i && +i.value !== state.caps[k]){
-      i.value = state.caps[k];
-      $("#v_"+k).textContent = state.caps[k] + "%";
-    }
+    const x = $("#x_"+k);
+    if (x) x.setAttribute("aria-pressed", String(state.caps[k] === 0));
   }
   const u = new URL(location.href);
   for (const k of CAP_AXES){
@@ -913,6 +930,9 @@ const NO_CAP = 100;
    刻みを変えるときはここだけ直すこと。URL復元の丸めもこの値を見ている
    （以前 10 を直書きしていて、5刻みにしたとき 35% が往復で 40% に化けた）。 */
 const CAP_STEP = 10;
+/* 好みの目盛りの刻み。上限（caps）はもう 0 か 100 しか使わないので、
+   刻みを見ているのはこちらだけ。URL の cap_ を丸める側は CAP_STEP のまま。 */
+const PREF_STEP = 5;
 const NO_CAPS = { attendance:NO_CAP, exam:NO_CAP, quiz:NO_CAP, report:NO_CAP,
                   presentation:NO_CAP };
 const CAP_LABEL = { attendance:"出席・平常点", exam:"期末テスト",
@@ -1767,6 +1787,8 @@ function resetAllFilters(reload = true){
   state.day = ""; state.period = "";
   state.cond.clear();
   for (const k of CAP_AXES) state.caps[k] = NO_CAP;
+  /* 好みは「条件」ではないので、条件の解除では戻さない。戻す口は
+     目盛りの下の「重さを既定に戻す」に置く。 */
   state.division.clear();
   state.subject.clear(); syncSubjectsUrl();
   state.faculty = ""; state.track = ""; state.track2 = "";

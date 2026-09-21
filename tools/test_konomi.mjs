@@ -56,6 +56,18 @@ await pLow.waitForSelector("#list > .card");
 const again = await snap(pLow);
 check(again.ids.join() === low.ids.join(), "リロードすると好みが消える（localStorage に残っていない）");
 
+/* ⑥ 目盛りは好み、✕ はしぼり込み。役割が分かれていること */
+const p6 = await open(base);
+check(await p6.$eval("#s_exam", e => e.value) === "50", "テストの目盛りの既定が 50 でない");
+check(await p6.$("#x_exam") !== null, "テストの ✕ が無い");
+const before = (await p6.$$("#list > .card")).length;
+await p6.click("#x_exam");
+await p6.waitForTimeout(400);
+const after = (await p6.$$("#list > .card")).length;
+check(after <= before, "✕ を押しても件数が減らない");
+check(await p6.$eval("#s_exam", e => e.value) === "50",
+      "✕ を押したら目盛り（好み）まで動いた ―― 役割が混ざっている");
+
 console.log(`  通過 ${n - fails.length} 件 / ${n} 件`);
 for (const m of fails) console.log("  NG ", m);
 await b.close();
