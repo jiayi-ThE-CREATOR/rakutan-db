@@ -302,7 +302,7 @@ def resubject(out: Path) -> None:
     持っていない人でも台帳の変更を本番へ出せるようにする。
     **採点はしない。** rescore を通すと、score.py がその後に変わっていた場合に
     タグと無関係な band まで動く。触るのは subjects / subjects_source と
-    _meta.subject_labels だけ。
+    _meta.subject_labels / _meta.subject_groups だけ。
     """
     payload = json.loads(out.read_text(encoding="utf-8"))
     ai, manual = load_subjects()
@@ -311,6 +311,7 @@ def resubject(out: Path) -> None:
         c["subjects"], c["subjects_source"] = subjects_of(c["id"], ai, manual)
         by_src[c["subjects_source"]] = by_src.get(c["subjects_source"], 0) + 1
     payload["_meta"]["subject_labels"] = subj.VOCAB
+    payload["_meta"]["subject_groups"] = subj.groups_meta()
     out.write_text(json.dumps(payload, ensure_ascii=False,
                               separators=(",", ":")), encoding="utf-8")
     tagged = sum(1 for c in payload["courses"] if c["subjects"])

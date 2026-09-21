@@ -256,6 +256,55 @@ for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
   await p.close();
 }
 
+/* ── 最初の画面は意味の塊・選んだあとは件数順（2026-09-21）──────────────
+   件数の多い順だけで並べると「物理 851 → 政治・法 804 → 数学 696 → 医療・健康 693」と
+   分野が交互に出て、「理系が見たい」人が目で追えない。塊の正本は tools/subjects.py の
+   GROUPS で、_meta.subject_groups として画面に渡る。 */
+for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
+  const p = await newPage(w, h);
+  await gotoRetry(p, base + "/");
+  await p.waitForSelector("#subjSec #subjOpen", { timeout: 15000 });
+  await p.click("#subjOpen");
+  await p.waitForSelector("#subjDlg[open] #subjOpts .chip");
+
+  const heads = await p.$$eval("#subjOpts .subjGrpH", els => els.map(e => e.textContent.trim()));
+  check(heads.length === 5, `${label}並び: 最初の画面に塊の見出しが5つ出ていない (${heads.join("/")})`);
+  const order = await p.$$eval("#subjOpts .chip", bs => bs.map(b => b.dataset.subject));
+  check(order.length === 31, `${label}並び: 最初の画面に31語出ていない (${order.length})`);
+  /* 語彙の定義順＝文学(549) が 歴史(950) より先。件数順ならこの2つは逆になる。 */
+  check(order.indexOf("bungaku") < order.indexOf("rekishi"),
+    `${label}並び: 最初の画面が件数順のままになっている (${order.slice(0,5).join(",")})`);
+  /* 見出しの下は、その塊のキーだけが並ぶ。 */
+  const firstGroup = await p.$$eval("#subjOpts .chips", bs =>
+    [...bs[0].querySelectorAll(".chip")].map(b => b.dataset.subject));
+  check(firstGroup[0] === "kotoba" && firstGroup.includes("bunka") && !firstGroup.includes("shakai"),
+    `${label}並び: 1つ目の塊の中身が違う (${firstGroup.join(",")})`);
+
+  /* 未選択のうちは「決定」するものが無い。 */
+  const done0 = await p.$eval("#subjDone", e => e.textContent.trim());
+  check(done0 === "閉じる", `${label}並び: 未選択のボタンが「閉じる」でない (${done0})`);
+
+  /* 1つ選んだら見出しが消えて件数の多い順になる（次の一手の収穫が大きい順）。 */
+  await p.click('#subjOpts .chip[data-subject="rekishi"]');
+  await p.waitForFunction(() => document.querySelectorAll("#subjOpts .subjGrpH").length === 0,
+    null, { timeout: 8000 }).catch(() => {});
+  const heads1 = await p.$$eval("#subjOpts .subjGrpH", els => els.length);
+  check(heads1 === 0, `${label}並び: 選んだあとも見出しが残っている (${heads1})`);
+  const ns = await p.$$eval("#subjOpts .chip .n", els => els.map(e => +e.textContent));
+  check(ns.every((v, i) => i === 0 || ns[i-1] >= v),
+    `${label}並び: 選んだあとが件数順になっていない (${ns.slice(0,6).join(",")})`);
+  const done1 = await p.$eval("#subjDone", e => e.textContent.trim());
+  check(/^決定（\d+件）$/.test(done1), `${label}並び: 選んだあとのボタンが違う (${done1})`);
+
+  /* 検索中も見出し無しの件数順（探している人に塊は要らない）。 */
+  await p.fill("#subjFind", "学");
+  await p.waitForTimeout(300);
+  const heads2 = await p.$$eval("#subjOpts .subjGrpH", els => els.length);
+  check(heads2 === 0, `${label}並び: 検索中に見出しが出ている (${heads2})`);
+  if (p.errors.length) fails.push(`${label}並び: console/page error: ${p.errors.slice(0,3).join(" | ")}`);
+  await p.close();
+}
+
 await browser.close();
 console.log(fails.length ? "✗ " + fails.length + "件\n  - " + fails.join("\n  - ") : "✓ すべて通過");
 process.exit(fails.length ? 1 : 0);

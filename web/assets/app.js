@@ -1145,6 +1145,7 @@ async function boot(){
     axis_labels: m.axis_label,
     // 授業内容タグの表示名。API モードは /api/meta が同じ名前で返す。
     subject_labels: m.subject_labels || {},
+    subject_groups: m.subject_groups || [],
     eval_total_min: m.eval_total_min,
     disclaimer: m.note || "",
   };
@@ -2064,6 +2065,7 @@ function applyPostMode() {
   });
   window.rkSubjects?.init({
     labels:   () => (META && META.subject_labels) || {},
+    groups:   () => (META && META.subject_groups) || [],
     selected: () => state.subject,
     facets:   () => subjectFacets,
     count:    () => subjectCount,
