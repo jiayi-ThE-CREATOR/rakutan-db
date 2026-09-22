@@ -47,19 +47,39 @@ async function open(path, { me, storage } = {}){
   return page;
 }
 
-/* ── トップ：2つの節が覆われる ─────────────────────
+/* ── トップ：3つの節が覆われる ─────────────────────
    2026-09-21 に「配点でしぼる」の節が覆いから外れて 3→2 になった。目盛りは
    好みの重さ（＝相性度そのもの）なので初めての人にも触らせる。登録が要るのは
-   その行の ✕（しぼり込み）だけで、判定は app.js が rkGate.linked() で行う。 */
+   その行の ✕（しぼり込み）だけで、判定は app.js が rkGate.linked() で行う。
+   2026-09-22 に「授業内容でさがす」が加わって 2→3（wang 判断）。この節だけは
+   HTML ではなく subjects.js が差し込むので、app.js が init のあとに
+   rkGate.apply() を呼び直している ―― そこが抜けると覆いが1つ足りなくなる。 */
 {
   const page = await open("/", { me: ME.notLoggedIn });
   const veils = await page.$$(".gateVeil");
-  check(veils.length === 2, `トップの覆いが2つでない（${veils.length}）`);
+  check(veils.length === 3, `トップの覆いが3つでない（${veils.length}）`);
 
   /* 覆う相手は HTML の data-gate。JS 側にセレクタを持たせない作りなので、
      HTML から data-gate が消えたらここで気づく。 */
   const marked = await page.$$("[data-gate]");
-  check(marked.length === 2, `data-gate が2つでない（${marked.length}）`);
+  check(marked.length === 3, `data-gate が3つでない（${marked.length}）`);
+
+  /* 授業内容：見出しは覆いの外、中身（「何の話？」）は覆いの中で inert。 */
+  check(await page.$eval("#subjSec h2", e => !e.closest("[data-gate]")),
+        "授業内容の見出しまで覆われている");
+  check(await page.$eval("#subjOpen", e => !!e.closest("[inert]")),
+        "授業内容の「何の話？」が押せる状態のまま（覆いの中に入っていない）");
+
+  /* カードのタグは覆う器が無いので、押したら LINE の入口へ送る（app.js の toggleSubject）。 */
+  const tag = await page.$("#list .card button.subjTag");
+  if (tag){
+    await tag.dispatchEvent("click");
+    await page.waitForTimeout(600);
+    check(page.url().includes("/line/login"),
+          `カードのタグを押しても入口へ送られない（${page.url()}）`);
+  } else check(false, "カードに押せるタグが無い（前提が崩れている）");
+  await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await page.waitForTimeout(700);
 
   const inner = await page.evaluate(() => {
     const el = document.querySelector(".gated > .gateInner");
@@ -173,7 +193,7 @@ async function open(path, { me, storage } = {}){
   const page = await open("/", {
     me: ME.notLoggedIn, storage: { rk_line_linked: "1" },
   });
-  check((await page.$$(".gateVeil")).length === 2,
+  check((await page.$$(".gateVeil")).length === 3,
         "localStorage の rk_line_linked=1 で覆いが外れた（押すだけで通れる穴）");
   await page.close();
 }
