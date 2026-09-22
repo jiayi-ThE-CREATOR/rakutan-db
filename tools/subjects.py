@@ -74,6 +74,36 @@ VOCAB: dict[str, str] = {
     "energy":    "エネルギー",
 }
 
+# ── 画面の初期表示で並べる塊 ──────────────────────
+# ダイアログを開いた直後だけ、この5つに見出しを付けて並べる。中の順は VOCAB の順。
+# 件数の多い順に並べると「物理 851 → 政治・法 804 → 数学 696 → 医療・健康 693」と
+# 分野が交互に出て、「理系の授業が見たい」人が目で追えない（2026-09-18 レビュー）。
+# **タグを1つでも選んだあとは件数の多い順に戻す** ―― そのときの並びが答えるのは
+# 「次にどれを足すと収穫が大きいか」であって、意味の近さではない。
+#
+# 見出しも VOCAB と同じで**学生の言葉**にする（「人文科学」ではなく「ことば・文化」）。
+# 語彙を足すときはこの表にも足す。下の assert が漏れを落とす。
+GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("ことば・文化",   ("kotoba", "bungaku", "rekishi", "tetsugaku", "shukyo", "geijutsu", "bunka")),
+    ("社会・人間",     ("shakai", "seiji", "keizai", "shinri", "kyoiku", "media", "gender", "kokusai")),
+    ("自然・宇宙",     ("sugaku", "tokei", "butsuri", "kagaku", "kankyo", "uchu")),
+    ("からだ・いのち", ("ikimono", "nou", "iryo", "shoku", "sports")),
+    ("技術・ものづくり", ("joho", "ai", "kikai", "monodukuri", "energy")),
+)
+
+_grouped = [k for _, keys in GROUPS for k in keys]
+assert len(_grouped) == len(set(_grouped)), "GROUPS に同じキーが2回出ている"
+assert set(_grouped) == set(VOCAB), (
+    "GROUPS と VOCAB が食い違っている: "
+    f"{sorted(set(VOCAB) - set(_grouped))} が塊に入っていない／"
+    f"{sorted(set(_grouped) - set(VOCAB))} は語彙に無い")
+
+
+def groups_meta() -> list[dict]:
+    """画面に渡す形（`_meta.subject_groups`）。表示名は subject_labels 側を引く。"""
+    return [{"label": label, "keys": list(keys)} for label, keys in GROUPS]
+
+
 # ── レンズタグ ──────────────────────────────────
 # 単独で成立する授業は少なく、ほぼ常に他のタグに乗る
 # （日本語の**歴史**／**環境**経済学／**ジェンダー**と法）。

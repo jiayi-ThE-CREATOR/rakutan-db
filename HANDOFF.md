@@ -147,6 +147,55 @@
 - `python3 server.py` はデータが無いとダミー30件で立ち上がる。その状態だと区分チップがほぼ
   全部 `disabled`（0件）になり、UI の確認にならない。**実データで見るなら
   `python3 -m http.server 8140 --directory web`**（`web/data/courses.built.json` を読む）
+## 2026-09-21（2）｜ タグの並びを意味の塊に・押せる見た目に・未選択の「決定」をやめた ｜ Claude → 次の人
+
+ブランチ `feat/subject-order`（worktree `.worktrees/subjorder`）。**`feat/subject-report` の上に積んである**
+（PR #156 → この PR の順で入れる）。9/18 のレビューで挙げた4件のうち、残りの3件。
+
+### 1. 何が動く状態か
+
+    python3 tools/test_subjects.py
+    cd web && python3 -m http.server 8242 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8242
+
+- **① 最初の画面だけ意味の塊で並べる**（見出し5つ：ことば・文化／社会・人間／自然・宇宙／
+  からだ・いのち／技術・ものづくり）。**タグを選んだあとと検索中は件数の多い順**に戻す
+  ―― そこでの並びは「次にどれを足すと収穫が大きいか」であって、意味の近さではない
+  - 塊の正本は `tools/subjects.py` の `GROUPS`。`groups_meta()` → `_meta.subject_groups`
+    （`build.py --subjects` と `server.py` の両方）→ `app.js` → `subjects.js`。
+    **語彙を足したら塊にも足す** ―― import 時の assert と `test_subjects.py` が落とす
+  - 塊の中の順は語彙の定義順に固定（`test_subjects.py` が見張る）
+- **② カードと詳細の押せるタグに枠を付けた**（`button.subjTag`）。押せない灰色の薬と
+  同じ見た目で、touch には hover も無く「押せる」と分からなかった。
+  `--muted` の枠（`test_tokens.py` に「押せるタグの枠」として登録ずみ・図形なので 3.0）
+- **③ 何も選んでいないときのボタンは「閉じる」**。以前は「決定（7906件）」＝
+  決めるものが無いのに決めさせる文だった
+
+### 2. 何をしていないか
+
+- `web/data/courses.built.json` は **`build.py --subjects` で焼き直した**。
+  差分は `_meta.subject_groups` の1項目だけで、科目側は0件変化（確認ずみ）。採点はしていない
+- 塊の**名前**（「からだ・いのち」等）は学生の言葉で置いただけ。しっくり来なければ
+  `GROUPS` の見出しだけ差し替えればよい（キーの割り当てはそのまま）
+- 版（`docs/version-pending.md`）には載せていない
+
+### 3. 次の人が最初に打つコマンド
+
+    git switch feat/subject-order
+    python3 tools/test_subjects.py
+    cd web && python3 -m http.server 8242 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8242 /tmp/shots
+
+### 4. 踏んだ罠
+
+- **`_meta` に項目を足すと、焼き済みの `courses.built.json` も焼き直しが要る。**
+  本番は静的配信なので、`server.py` だけ直しても画面には出ない。
+  `--subjects` は採点を触らないので安全（`rescore` を通すと band まで動く）
+- **塊の中の順を VOCAB と揃える規則は、書いた直後に自分で破った**
+  （`環境・地球` を `宇宙` の後ろに置いた）。`test_subjects.py` の新しい検査が拾った
+
+---
+
 ## 2026-09-21 ｜ 授業内容タグに「タグが違う？」＝訂正の入口を付けた ｜ Claude → 次の人
 
 ブランチ `feat/subject-report`（worktree `.worktrees/tagfix`）。9/18 のレビューで挙げた4件のうち、

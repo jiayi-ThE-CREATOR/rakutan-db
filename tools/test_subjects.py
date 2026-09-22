@@ -99,7 +99,24 @@ for key, label in V.items():
     check(label in prompt, f"プロンプトに表示名 {label} が載っていない")
 check("最大5個" in prompt, "個数の上限がプロンプトに書かれていない")
 
-print(f"{n - len(fails)}/{n} 件が通過（語彙 {len(V)}語）")
+# ── ⑥ 画面の初期表示で並べる塊（GROUPS / groups_meta）────────
+# 語彙を足して塊に入れ忘れると、そのタグは最初の画面から消える（見出しの下にしか出ない）。
+# import 時の assert でも落ちるが、何が起きたか分かる形でもう一度見る。
+flat = [k for _, keys in subjects.GROUPS for k in keys]
+check(len(flat) == len(set(flat)), f"塊に同じキーが2回出ている: {flat}")
+check(set(flat) == set(V),
+      f"塊と語彙が食い違う: 塊に無い {sorted(set(V) - set(flat))} / 語彙に無い {sorted(set(flat) - set(V))}")
+meta = subjects.groups_meta()
+check(len(meta) == len(subjects.GROUPS), f"groups_meta の数が違う: {len(meta)}")
+check(all(g.get("label") and isinstance(g.get("keys"), list) for g in meta),
+      f"groups_meta の形が違う: {meta[:1]}")
+check([k for g in meta for k in g["keys"]] == flat, "groups_meta の順が GROUPS と違う")
+# 塊の中はどれも語彙の定義順（画面はこの順で出す）。
+for label, keys in subjects.GROUPS:
+    order = [list(V).index(k) for k in keys]
+    check(order == sorted(order), f"塊「{label}」の中が語彙の順になっていない: {keys}")
+
+print(f"{n - len(fails)}/{n} 件が通過（語彙 {len(V)}語・塊 {len(subjects.GROUPS)}）")
 for m in fails:
     print("  ✗", m)
 sys.exit(1 if fails else 0)

@@ -71,6 +71,7 @@ for _c in COURSES:
 DATA_META: dict = dict(_raw.get("_meta") or {})
 # /api/meta で画面へ渡す。静的配信では build.py が courses.built.json の _meta に焼いている。
 DATA_META["subject_labels"] = subj.VOCAB
+DATA_META["subject_groups"] = subj.groups_meta()
 DATA_META["is_sample"] = IS_SAMPLE
 DATA_META.setdefault(
     "note",

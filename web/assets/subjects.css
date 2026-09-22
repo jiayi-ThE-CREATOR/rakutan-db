@@ -14,8 +14,10 @@
 .subjTag{font:inherit;font-size:var(--fs-xs);line-height:1.4;
   color:var(--soft);background:var(--dim);border:1px solid transparent;
   border-radius:var(--r-pill);padding:4px 10px;min-height:28px}
-button.subjTag{cursor:pointer}
-button.subjTag:hover{border-color:var(--rule)}
+/* 押せるタグ（カードと詳細）。押せない灰色の薬と同じ見た目だと、touch では
+   hover も無く「押せる」と分からない（2026-09-18 レビュー）。枠を常に出して見分ける。 */
+button.subjTag{cursor:pointer;border-color:var(--muted)}
+button.subjTag:hover{color:var(--brand-text);border-color:var(--brand-line)}
 .subjTag.on{color:var(--brand-text);background:var(--brand-soft);border-color:var(--brand-line);font-weight:700}
 
 /* 訂正の入口（detail.js）。タグと同じ行の末尾に置くが、押すと絞り込みではなく
@@ -51,6 +53,10 @@ button.subjTag:hover{border-color:var(--rule)}
 .subjLead,.subjEmpty{margin:0;font-size:var(--fs-sm);color:var(--muted)}
 .subjNote{margin:0;font-size:var(--fs-xs);color:var(--muted)}
 .subjDlg .chips .chip{min-height:40px}
+/* 最初の画面だけ、意味の塊に見出しを付けて縦に積む（subjects.js の renderDialog）。 */
+.subjGroups{display:flex;flex-direction:column;gap:var(--sp-3)}
+.subjGrpH{margin:0 0 var(--sp-2);font-size:var(--fs-xs);font-weight:700;
+  color:var(--muted);letter-spacing:.09em}
 /* 選択肢が多くても決定ボタンが画面の外に出ないように、カードの下端に貼り付ける。 */
 .subjFoot{display:flex;gap:var(--sp-2);justify-content:flex-end;position:sticky;bottom:0;
   background:var(--card);border-top:1px solid var(--rule);margin:0 calc(-1 * var(--pad));
