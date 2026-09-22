@@ -71,16 +71,26 @@ check("下3ケタ" in got["raw"], "raw から学籍番号の範囲が落ちて�
 # ── 本物の HTML（あるときだけ）────────────────────────
 detail = pathlib.Path(__file__).resolve().parent.parent / "data" / "raw" / "detail"
 real = sorted(detail.glob("*.html")) if detail.is_dir() else []
+blank = []
 for f in real:
     got = parse_eligibility(f.read_text(errors="replace"))
     check(got is not None, f"{f.name}: 実ページから欄を見つけられない")
-    if got:
-        check(got["raw"] != "", f"{f.name}: 値が空で返った")
+    if got and got["raw"] == "":
+        blank.append(f.stem)
+# 「欄はあるが中身が空」はシラバス側の実態で、読み違いではない。
+# 2026-09-22 実測: 手元の 1,112ページ中 5件（135259 / 135437 / 135491 /
+# 137181 / 137359）が <TD></TD>。**ここを「1件でもあればNG」にしないこと** ――
+# 空欄は「履修対象の指定なし」として扱う側の話で、抽出の不具合ではない。
+# 桁で見張るのは、抽出が壊れて全部空になったときに気づくため。
+if real:
+    check(len(blank) * 20 < len(real),
+          f"値が空のページが多すぎる（{len(blank)}/{len(real)}件）―― "
+          f"抽出が壊れていないか見ること: {', '.join(blank[:5])}")
 
 if fails:
     print("NG")
     for f in fails:
         print("  -", f)
     sys.exit(1)
-print(f"  通過 {n} 件（実ページ {len(real)} 件を含む）")
+print(f"  通過 {n} 件（実ページ {len(real)} 件を含む。うち履修対象が空欄なのは {len(blank)} 件）")
 print("OK")
