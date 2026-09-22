@@ -120,10 +120,11 @@
 
       <section>
         <h2>配点でしぼる</h2>
-        <!-- ここは節ごと覆わない。目盛り（好みの重さ）は相性度そのものなので、
-             初めて来た人にこそ触ってほしい。登録が要るのは ✕（しぼり込み）だけで、
-             その判定は app.js の ✕ のハンドラが window.rkGate.linked() を見て行う。 -->
-        <div>
+        <!-- 2026-09-22: 目盛りも覆いの中に戻した（wang 判断）。**覆いは中身を
+             隠さない**ので、既定の重さ（テスト50…）は薄いまま読める ―― 何が
+             使えるようになるのか分からないと、登録する理由も伝わらない。
+             押したときに入口へ直行せず、まず理由を出すのが #gateDlg。 -->
+        <div data-gate>
           <button class="toggle" id="tog">配点スライダーを閉じる</button>
           <div class="sliders open" id="sliders"></div>
           <!-- 上限の合計が100%を下回ると、内訳の合計が100%である以上どの科目も
@@ -277,6 +278,19 @@
      中身を作れないボタンだけが残ることはない。 -->
 <button type="button" class="verFab" id="verFab" hidden aria-haspopup="dialog"
         aria-label="バージョン＆最新機能"><span class="verFabNum" id="verFabNum"></span><span class="verFabTxt">バージョン＆最新機能</span><span class="verDot" id="verDot" aria-hidden="true" hidden></span></button>
+
+<!-- 覆われた機能を押したときの説明。**入口へ直行しない** ―― 何のために
+     LINE へ飛ばされるのか分からないまま画面が変わると、戻ってこない
+     （2026-09-22 wang 指摘）。中身は gate.js が連携の状態ごとに書く。 -->
+<dialog class="gateDlg" id="gateDlg" aria-labelledby="gateDlgTitle">
+  <div class="gateDlgCard">
+    <div class="gateDlgHead">
+      <h2 id="gateDlgTitle"></h2>
+      <button type="button" class="gateDlgClose" id="gateDlgClose" aria-label="閉じる">✕</button>
+    </div>
+    <div id="gateDlgBody"></div>
+  </div>
+</dialog>
 
 <dialog class="verDlg" id="verDlg" aria-labelledby="verTitle">
   <div class="verCard">

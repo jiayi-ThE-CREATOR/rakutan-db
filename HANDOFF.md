@@ -17,6 +17,46 @@
 
 ---
 
+## 2026-09-22 ｜ 覆いを押したら、入口へ直行せず説明を出す ｜ Claude → 次の人
+
+**この日のうちに、下の「好みの重さ」の記事の一部が古くなった。** 目盛りは
+覆いの外に出していたが、**同じ日に覆いの中へ戻した**（wang 判断）。
+目盛りを動かすことも ✕ も LINE 登録した人の機能。
+
+### 1. 何が動く状態か
+
+    python3 -m http.server 8791 --directory web &
+    node tools/test_gate.mjs http://localhost:8791     # 30件 全通過
+
+- 覆われた節（条件 ／ 配点でしぼる ／ 口コミ）を押すと、**LINE へ直行せず**
+  `#gateDlg` が開く。「何ができるようになるか」「登録は無料」と、入口のリンクを出す
+- 閉じられる。読んだうえで「いまはやめる」が選べる
+- ダイアログの無いページ（マイページ等）では今までどおり直行する（`gate.js` の `prompt()`）
+- 覆いは**中身を隠さない**（opacity .42）。既定の重さ（テスト50…）は薄いまま読める ――
+  何が使えるようになるのか見えないと、登録する理由も伝わらない
+
+### 2. 何をしていないか
+
+- 覆いそのものの文面（`veilHTML`）は変えていない。説明はダイアログ側に足した
+- `tools/test_conds_layout.mjs` は**main でも 8回中 2回落ちる**（`#conds .chip` の
+  可視待ちがタイムアウト）。このブランチが持ち込んだものではない。直していない
+
+### 3. 次の人が最初に打つコマンド
+
+    git fetch origin && git checkout feat/gate-dialog
+    python3 -m http.server 8791 --directory web &
+    node tools/test_gate.mjs http://localhost:8791
+
+### 4. 踏んだ罠
+
+- `/api/me` の結果（`state`）は `apply()` のローカル変数だった。ダイアログは
+  「ログイン済みだが友だちでない」で文面が変わるので、モジュールの持ち物へ上げた
+- **静的配信では覆いは掛からない**（`/api/me` が無い＝fail-open）。覆いの
+  ふるまいを試すときは `page.route("**/api/me", ...)` で返り値を作ること
+  （`tools/test_gate.mjs` の `open()` がやっている）
+
+---
+
 ## 2026-09-22 ｜「配点でしぼる」を好みの重さにした（採点の作り直しの3段目）｜ Claude → 次の人
 
 設計 `docs/superpowers/specs/2026-09-21-konomi-design.md`、手順 `docs/superpowers/plans/2026-09-21-konomi.md`。

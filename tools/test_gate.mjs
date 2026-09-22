@@ -47,19 +47,20 @@ async function open(path, { me, storage } = {}){
   return page;
 }
 
-/* ── トップ：2つの節が覆われる ─────────────────────
-   2026-09-21 に「配点でしぼる」の節が覆いから外れて 3→2 になった。目盛りは
-   好みの重さ（＝相性度そのもの）なので初めての人にも触らせる。登録が要るのは
-   その行の ✕（しぼり込み）だけで、判定は app.js が rkGate.linked() で行う。 */
+/* ── トップ：3つの節が覆われる ─────────────────────
+   2026-09-21 に「配点でしぼる」を覆いから外し、2026-09-22 に戻した（wang 判断）。
+   目盛りを動かすことも ✕ も登録した人の機能。**覆いは中身を隠さない**ので、
+   既定の重さ（テスト50…）は薄いまま読める ―― 何が使えるようになるのか
+   見えないと、登録する理由も伝わらない。 */
 {
   const page = await open("/", { me: ME.notLoggedIn });
   const veils = await page.$$(".gateVeil");
-  check(veils.length === 2, `トップの覆いが2つでない（${veils.length}）`);
+  check(veils.length === 3, `トップの覆いが3つでない（${veils.length}）`);
 
   /* 覆う相手は HTML の data-gate。JS 側にセレクタを持たせない作りなので、
      HTML から data-gate が消えたらここで気づく。 */
   const marked = await page.$$("[data-gate]");
-  check(marked.length === 2, `data-gate が2つでない（${marked.length}）`);
+  check(marked.length === 3, `data-gate が3つでない（${marked.length}）`);
 
   const inner = await page.evaluate(() => {
     const el = document.querySelector(".gated > .gateInner");
@@ -81,7 +82,7 @@ async function open(path, { me, storage } = {}){
      覆いの位置は描き直しのたびに動くので、測る時点によって結果が変わる
      （実際に false/true のどちらも出た）。属性と計算済みスタイルで見る。 */
   const blocked = await page.evaluate(() => {
-    const s = document.querySelector("#conds .chip");
+    const s = document.querySelector("#sliders input");
     if (!s) return null;
     return {
       /* ① inert … タブ移動もクリックも中身へ届かない（親に付いている） */
@@ -93,27 +94,41 @@ async function open(path, { me, storage } = {}){
     };
   });
   if (blocked){
-    check(blocked.inert, "条件チップが inert の中に無い（キーボードでも操作できてしまう）");
+    check(blocked.inert, "目盛りが inert の中に無い（キーボードでも動かせてしまう）");
     check(blocked.pe === "none", `中身の pointer-events が none でない（${blocked.pe}）`);
     check(blocked.veilPe !== "none", "覆いの pointer-events が none（押しても促しが出ない）");
   }
 
-  /* 好みの目盛りは覆いの外。✕ は覆いの外にあるが、押すと入口へ送る。 */
-  check(await page.$eval("#s_exam", e => !e.closest("[data-gate]") && !e.closest("[inert]")),
-        "好みの目盛りが覆いの中に入っている（登録前でも動かせるべき）");
-  await page.click("#x_exam").catch(() => {});
-  await page.waitForTimeout(800);
-  check(page.url().includes("access.line.me") || page.url().includes("/line/login"),
-        `未連携で ✕ を押しても LINE の入口へ行かない（${page.url()}）`);
-  await page.goto(BASE + "/", { waitUntil: "networkidle" });
-  await page.waitForTimeout(700);
+  /* 覆いの中の数字は読めること。何が使えるようになるのか見えないと、
+     登録する理由も伝わらない（覆いは隠すためのものではない）。 */
+  check(await page.$eval("#s_exam", e => e.value) === "50",
+        "覆いの中で目盛りの既定（テスト50）が読めない");
 
-  /* 覆いを押したら入口へ送る（ボタン以外を押しても動く）。 */
+  /* 覆いを押したら、**入口へ直行せず**まず説明を出す（2026-09-22 wang 指摘）。
+     ボタン以外を押しても出ること。 */
+  const before = page.url();
   await page.click(".gateVeil", { position: { x: 5, y: 5 } }).catch(() => {});
-  await page.waitForTimeout(800);
-  const url = page.url();
-  check(url.includes("access.line.me") || url.includes("/line/login"),
-        `覆いを押しても LINE の入口へ行かない（${url}）`);
+  await page.waitForTimeout(600);
+  check(await page.$eval("#gateDlg", e => e.open) === true,
+        "覆いを押しても説明のダイアログが出ない");
+  check(page.url() === before, `説明を出さずに画面を移した（${page.url()}）`);
+  const dlgBody = await page.textContent("#gateDlgBody");
+  check(/無料/.test(dlgBody), "説明に「登録は無料」が書かれていない");
+  const href = await page.$eval("#gateDlgBody .gateBtn", e => e.getAttribute("href"));
+  check(/\/line\/login/.test(href || ""), `説明の中に入口のリンクが無い（${href}）`);
+
+  /* 閉じられること（読んだうえで「いまはやめる」が選べる）。 */
+  await page.click("#gateDlgClose");
+  await page.waitForTimeout(300);
+  check(await page.$eval("#gateDlg", e => e.open) === false, "説明を閉じられない");
+
+  /* 中のボタンを押したときだけ入口へ進む。 */
+  await page.click(".gateVeil", { position: { x: 5, y: 5 } }).catch(() => {});
+  await page.waitForTimeout(400);
+  await page.click("#gateDlgBody .gateBtn");
+  await page.waitForTimeout(1500);
+  check(page.url().includes("access.line.me") || page.url().includes("/line/login"),
+        `説明のボタンを押しても LINE の入口へ行かない（${page.url()}）`);
   await page.close();
 }
 
@@ -173,7 +188,7 @@ async function open(path, { me, storage } = {}){
   const page = await open("/", {
     me: ME.notLoggedIn, storage: { rk_line_linked: "1" },
   });
-  check((await page.$$(".gateVeil")).length === 2,
+  check((await page.$$(".gateVeil")).length === 3,
         "localStorage の rk_line_linked=1 で覆いが外れた（押すだけで通れる穴）");
   await page.close();
 }
