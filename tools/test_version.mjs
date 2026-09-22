@@ -55,6 +55,19 @@ for (const page of pages) {
 // version.js はブラウザ用の IIFE なので import できない。
 // 配列リテラルだけ取り出して評価する。
 const src = read("web/assets/version.js");
+
+// 文法だけ先に見る。version.js が1文字でも壊れると入口ごと消えるのに、
+// ここまでのテストは中の配列しか読まないので素通りしていた
+// （2026-09-22：編集で余った `};` に気づかず、更新履歴が開かなくなった）。
+// new Function は本文をコンパイルするだけで、実行はしない。
+try {
+  new Function(src);
+  n++;
+} catch (e) {
+  n++;
+  fails.push(`version.js の文法が壊れている: ${e.message}`);
+}
+
 const start = src.indexOf("const RELEASES = [");
 check(start > -1, "version.js に const RELEASES = [ が無い");
 let releases = [];
