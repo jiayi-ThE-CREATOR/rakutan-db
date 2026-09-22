@@ -13,8 +13,13 @@
  *   — リンクを隠している（飛び先がこの画面に無い。PC だけの機能をスマホ幅で見たとき）
  *   ✗ それ以外（id が消えた・画面外・ダイアログが閉じない）
  *
- * tools/serve.py も拡張子なし（/about）は解決しないので、別ページの飛び先は
- * .html を直接開いて確かめる（本番の Workers 静的配信は解決する）。
+ * 配信によって別ページの開き方が違う:
+ *   本番の Workers    /about がそのまま開く（/about.html は 307 で /about へ戻される）
+ *   ローカルの静的配信 /about は 404。/about.html を直接開く必要がある
+ * どちらかを決め打ちすると、もう一方で全滅する。起動時に一度だけ叩いて見分ける。
+ *
+ * 本番に向けても使える:
+ *   node tools/test_version_links.mjs https://rakuhan.nocode-sol.co.jp
  */
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
@@ -42,6 +47,16 @@ for (const rel of RELEASES) {
 }
 if (!links.length) { console.log("✓ リンクが1件も無い（確かめるものが無い）"); process.exit(0); }
 
+/* 拡張子なし（/about）を解決する配信かを一度だけ確かめる。
+   ローカルの静的配信は 404 を返すので、そのときだけ .html を足す。 */
+let extensionless = false;
+try {
+  const r = await fetch(base + "/about", { redirect: "follow" });
+  extensionless = r.ok && (r.headers.get("content-type") || "").includes("text/html");
+} catch (e) { /* 繋がらなければ下の goto が本来のエラーを出す */ }
+const pageSuffix = extensionless ? "" : ".html";
+console.log(`${base}  別ページ: ${extensionless ? "/about" : "/about.html"} で開く`);
+
 const browser = await chromium.launch();
 const rows = [];
 
@@ -63,7 +78,10 @@ for (const width of [1280, 390]) {   // PC と スマホ。幅で出方が変わ
       await page.waitForTimeout(200);
 
       const a = page.locator(`#verList a.verJump[href="${href}"]`).first();
-      if (await page.locator(`#verList a.verJump[href="${href}"]`).count() === 0) {
+      // 1回数えて終わりにしない。回線が遅いと、数えた時点ではまだ描き終わっていない
+      try {
+        await a.waitFor({ state: "attached", timeout: 5000 });
+      } catch (e) {
         push(false, "リンクが DOM に無い"); await page.close(); continue;
       }
       if (await a.evaluate((el) => el.hidden)) {
@@ -74,7 +92,7 @@ for (const width of [1280, 390]) {   // PC と スマホ。幅で出方が変わ
       const hash = href.includes("#") ? "#" + href.split("#")[1] : null;
       const cross = wantPath !== "/";
       if (cross) {
-        await page.goto(base + wantPath + ".html" + (hash || ""), { waitUntil: "domcontentloaded" });
+        await page.goto(base + wantPath + pageSuffix + (hash || ""), { waitUntil: "domcontentloaded" });
         await page.waitForTimeout(800);
       } else {
         await a.scrollIntoViewIfNeeded();
@@ -92,7 +110,7 @@ for (const width of [1280, 390]) {   // PC と スマホ。幅で出方が変わ
           visible: r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight };
       }, hash);
 
-      const pathOk = cross ? res.path === wantPath + ".html"
+      const pathOk = cross ? res.path === wantPath + pageSuffix
                            : (res.path === wantPath || res.path === wantPath + "/");
       if (!pathOk) push(false, `遷移先が ${res.path}`);
       else if (!res.found) push(false, `飛び先の id ${hash} が無い`);

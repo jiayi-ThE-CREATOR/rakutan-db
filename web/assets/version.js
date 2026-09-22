@@ -30,8 +30,14 @@
  *   「新しく増えたもの」は、読んだその場で見に行けるようにする。
  *   href を書くと見出しの下に「見てみる →」が出る。
  *
- *     href: "/#sliders"          同じページの中 ―― ダイアログを閉じて、その場所へ飛んで光らせる
- *     href: "/mypage#mpTimetable" 別ページ ―― ふつうに遷移する
+ *     href: "/#sliders"       同じページの中 ―― ダイアログを閉じて、その場所へ飛んで光らせる
+ *     href: "/about#strength" 別ページ ―― ふつうに遷移する
+ *
+ *   ★ 別ページに `#…` を付けてよいのは、**その id が HTML に最初から書いてある**
+ *     ページだけ（/about など）。マイページのように JS が中身を作るページでは、
+ *     ブラウザが HTML を読んだ時点でその id がまだ無く、飛ばずに上で止まる
+ *     ―― 飛んだつもりで飛んでいないので、`#` を付けずにページだけを指す
+ *     （2026-09-22 本番で実測。#mpTimetable は上のほうに在るので偶然それらしく見えていた）
  *
  *   ・サイトの中（"/" で始まる）だけ。外部リンクは書けない（テストが落とす）
  *   ・**いま行ってもその機能が見えるもの**にだけ付ける。科目を選ばないと出ない
@@ -141,13 +147,13 @@
         { tag: "new", icon: "star", href: "/mypage",
           head: "マイページができました",
           text: "学部・学年を覚えるので、来るたびに選び直さなくて済みます" },
-        { tag: "new", icon: "calendar", href: "/mypage#mpTimetable",
+        { tag: "new", icon: "calendar", href: "/mypage",
           head: "「私の時間割」",
           text: "曜限のマスに科目を入れて、埋まっているコマを残せます" },
-        { tag: "new", icon: "mobile", href: "/mypage#mpTimetable",
+        { tag: "new", icon: "mobile", href: "/mypage",
           head: "スマホのカレンダーへ連携",
           text: "祝日・休講日・振替授業日は公式の学年暦に合わせています" },
-        { tag: "new", lead: "気になる科目に★", href: "/mypage#mpFavorites",
+        { tag: "new", lead: "気になる科目に★", href: "/mypage",
           text: "お気に入りはマイページからまとめて見られます" },
         { tag: "new", lead: "最初に学部と学年をたずねる",
           text: "答えると絞り込みの初期値になります（飛ばせます）" },
@@ -323,8 +329,13 @@
     if (url.pathname !== location.pathname || !url.hash) return true;
     const t = document.querySelector(url.hash);
     if (!t) return false;
-    const r = t.getBoundingClientRect();
-    return r.width > 0 && r.height > 0;
+    /* 見るのは「CSS で消されているか」であって、「いま大きさがあるか」ではない。
+       #sliders / #list / #grid は静的な HTML に在るが、app.js がデータを入れるまで
+       高さ 0 で立っている。大きさで判定すると、回線が遅い人には最初の数秒だけ
+       リンクが消える（本番で実測。ローカルは速くて気づけなかった）。
+       消したいのは PC 限定の機能（.gripRail{display:none}）のほうだけ。 */
+    if (typeof t.checkVisibility === "function") return t.checkVisibility();
+    return t.offsetParent !== null;   // checkVisibility が無いブラウザ
   };
 
   const jump = (href) => {
