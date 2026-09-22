@@ -73,7 +73,29 @@ if (start > -1) {
 
 check(Array.isArray(releases) && releases.length >= 1, "RELEASES が空（1件も版が無い）");
 
+// 主打カードのアイコンも version.js の中にある（ICONS）。
+// 名前を間違えると画面には無地の枠だけが出るので、実在するものだけを通す。
+const iStart = src.indexOf("const ICONS = {");
+check(iStart > -1, "version.js に const ICONS = { が無い");
+let iconNames = [];
+if (iStart > -1) {
+  const from = src.indexOf("{", iStart);
+  let depth = 0, end = -1;
+  for (let i = from; i < src.length; i++) {
+    if (src[i] === "{") depth++;
+    else if (src[i] === "}" && --depth === 0) { end = i + 1; break; }
+  }
+  check(end > -1, "ICONS の { } が閉じていない");
+  if (end > -1) iconNames = Object.keys(new Function("return " + src.slice(from, end))());
+}
+check(iconNames.length >= 1, "ICONS が空（アイコンが1つも無い）");
+
 const TAGS = new Set(["new", "improve", "fix"]);
+// 主打カードは「一目で読める」ことが仕事なので、長さに上限を掛ける。
+// ここを緩めると、また一覧の流し書きに戻る。
+const HEAD_MAX = 24;   // 主打カードの見出し
+const BODY_MAX = 60;   // 主打カードの、その下の一文
+const LEAD_MAX = 20;   // 畳みの中の項目の見出し（太字）
 const seenVersions = new Set();
 let prev = null;
 for (const rel of releases) {
@@ -88,8 +110,53 @@ for (const rel of releases) {
   check(Array.isArray(rel.items) && rel.items.length > 0, `${where}: items が空`);
   for (const it of rel.items || []) {
     check(TAGS.has(it.tag), `${where}: tag "${it.tag}" は new / improve / fix のどれでもない`);
-    check(typeof it.text === "string" && it.text.trim().length > 0, `${where}: text が空`);
+    // 見出しは必ず要る。head なら主打カード、lead なら畳みの中の1件。
+    // どちらも無い＝ただの長文が一行流れるだけ ―― 元の流し書きに戻る入口なので塞ぐ。
+    const label = it.head !== undefined ? it.head : it.lead;
+    check(label !== undefined,
+      `${where}: head も lead も無い項目がある ―― 太字の見出しを付ける「${(it.text || "").slice(0, 24)}…」`);
+    check(!(it.head !== undefined && it.lead !== undefined),
+      `${where}: head と lead は同時に書かない（主打にするなら head だけ）`);
+    if (it.text !== undefined) {
+      check(typeof it.text === "string" && it.text.trim().length > 0, `${where}: text が空`);
+    }
+    if (it.lead !== undefined) {
+      check(typeof it.lead === "string" && it.lead.trim().length > 0, `${where}: lead が空`);
+      check([...it.lead].length <= LEAD_MAX,
+        `${where}: lead が ${LEAD_MAX} 文字を超えている（説明は text へ）「${it.lead}」`);
+    }
+    // リンクはサイトの中だけ。外部 URL やプロトコルを書けないようにする
+    // （更新履歴は誰でも文案を足せる場所なので、出口をここで閉じておく）。
+    if (it.href !== undefined) {
+      check(typeof it.href === "string" && it.href.startsWith("/"),
+        `${where}: href はサイトの中（"/" で始まる）だけ「${it.href}」`);
+      check(!/^\/\//.test(it.href), `${where}: href が "//" で始まっている（外部扱いになる）「${it.href}」`);
+    }
   }
+  // ── 主打（head 付きの項目）────────────────
+  // 流し書きに戻らないための門。版ごとに「今回いちばん変わったこと」を
+  // 1〜3件、必ず選ばせる。選ばずに項目を並べただけだと、ここで落ちる。
+  const heads = (rel.items || []).filter((it) => it.head !== undefined);
+  check(heads.length >= 1,
+    `${where}: 主打（head）が1件も無い ―― 「今回いちばん変わったこと」を1件は選ぶ`);
+  check(heads.length <= 3,
+    `${where}: 主打（head）が ${heads.length} 件。3件までにする（4件目からは折り畳みへ）`);
+  for (const it of heads) {
+    check(typeof it.head === "string" && it.head.trim().length > 0, `${where}: head が空`);
+    check([...(it.head || "")].length <= HEAD_MAX,
+      `${where}: head が ${HEAD_MAX} 文字を超えている「${it.head}」`);
+    check([...(it.text || "")].length <= BODY_MAX,
+      `${where}: 主打の text が ${BODY_MAX} 文字を超えている（一文に要約する）「${it.head}」`);
+    check(iconNames.includes(it.icon),
+      `${where}: icon "${it.icon}" は ICONS に無い（使えるのは ${iconNames.join(" / ")}）`);
+  }
+  // 折り畳みの中ではアイコンを出さないので、head の無い項目に icon は書かせない。
+  for (const it of rel.items || []) {
+    if (it.head === undefined) {
+      check(it.icon === undefined, `${where}: head の無い項目に icon は要らない「${it.lead}」`);
+    }
+  }
+
   // 新しいものが上。画面はこの配列の順にそのまま出すので、
   // 並びが崩れると古い版が一番上に出る。
   if (prev !== null) check(t <= prev, `${where}: 日付が上の版より新しい（新しいものを上に）`);
