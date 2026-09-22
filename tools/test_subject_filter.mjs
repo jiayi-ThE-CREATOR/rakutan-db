@@ -134,7 +134,9 @@ for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
        #list への委譲で受けているので、実際の操作と同じ経路を通る。タグのあるカードを選ぶ。 */
     await p2.locator("#list .card:has(.subjRow) .head").first().dispatchEvent("click");
     await p2.waitForSelector("#list .card.open .detail .dSec", { timeout: 8000 }).catch(() => {});
-    const dup = await p2.$$eval("#list .card.open .detail .subjRow", els => els.length);
+    /* 数えるのは .subjRow ではなくタグそのもの ―― 行には「タグが違う？」が同居していて、
+       そちらはスマホにも出る（2026-09-21）。 */
+    const dup = await p2.$$eval("#list .card.open .detail .subjRow .subjTag", els => els.length);
     check(dup === 0, "sp: カード内の詳細にタグが重複して出ている");
   }
   for (const pg of [p, p2]) if (pg.errors.length) fails.push(`${label}: console/page error: ${pg.errors.slice(0,3).join(" | ")}`);
@@ -204,6 +206,53 @@ for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
   const y1 = await settle(p);
   check(Math.abs(y1 - y0) < 8, `sp送り: 何も変えずに閉じたのに画面が動いた (${y0}→${y1})`);
   if (p.errors.length) fails.push(`sp送り: console/page error: ${p.errors.slice(0,3).join(" | ")}`);
+  await p.close();
+}
+
+/* ── 「タグが違う？」から意見箱が前置きつきで開く（2026-09-21）────────────
+   data/subjects.manual.tsv は for_course() が AI より優先して読むのに、直す入口が
+   どこにも無かった。詳細（PC は右カラム・スマホはカードの中）から意見箱を、
+   科目といまのタグを前置きした状態で開く。 */
+for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
+  const p = await newPage(w, h);
+  await gotoRetry(p, base + "/");
+  await p.waitForSelector("#list .card", { timeout: 15000 });
+  await p.locator("#list .card:has(.subjRow) .head").first().dispatchEvent("click");
+  const scope = label === "pc" ? "#inspector" : "#list .card.open";
+  const rep = p.locator(`${scope} .detail .subjRep`);
+  await rep.waitFor({ timeout: 8000 }).catch(() => {});
+  if (!(await rep.count())){ check(false, `${label}報告: 詳細に「タグが違う？」が無い`); await p.close(); continue; }
+  const seen = await p.evaluate(sc => {
+    const b = document.querySelector(sc + " .detail .subjRep");
+    const card = document.querySelector(sc + " .detail")?.closest(".card");
+    return { id: b.dataset.subjectReport,
+             title: (card || document.querySelector(sc))?.querySelector("h3")?.textContent.trim() || "",
+             tags: [...document.querySelectorAll(sc + " .detail .subjRow .subjTag")].map(x => x.textContent.trim()) };
+  }, scope);
+  check(label === "pc" ? seen.tags.length > 0 : seen.tags.length === 0,
+    `${label}報告: 詳細のタグの出し方が想定と違う (${seen.tags.length}個)`);
+  await rep.dispatchEvent("click");
+  const opened = await p.waitForFunction(() => document.querySelector("#fbDlg")?.open, null, { timeout: 5000 })
+    .then(() => true).catch(() => false);
+  check(opened, `${label}報告: 意見箱が開かない`);
+  if (opened){
+    const t = await p.$eval("#fbText", e => e.value);
+    check(t.includes("【タグの訂正】"), `${label}報告: 前置きの見出しが無い (${t.slice(0,40)})`);
+    check(t.includes(seen.id), `${label}報告: 前置きに科目の id が無い (${t.slice(0,60)})`);
+    for (const tag of seen.tags)
+      check(t.includes(tag), `${label}報告: 前置きに「${tag}」が無い`);
+    check(!(await p.$eval("#fbSend", e => e.disabled)), `${label}報告: 前置きを入れたのに送信が押せない`);
+    /* 書きかけを上書きしない ―― 開き直しても前に書いた文が残ること。 */
+    await p.fill("#fbText", t + "この授業は歴史の話です");
+    await p.click("#fbCancel");
+    await p.waitForFunction(() => !document.querySelector("#fbDlg").open);
+    await rep.dispatchEvent("click");
+    await p.waitForFunction(() => document.querySelector("#fbDlg")?.open, null, { timeout: 5000 }).catch(() => {});
+    const t2 = await p.$eval("#fbText", e => e.value);
+    check(t2.endsWith("この授業は歴史の話です"), `${label}報告: 開き直したら書きかけが消えた`);
+    await p.click("#fbCancel");
+  }
+  if (p.errors.length) fails.push(`${label}報告: console/page error: ${p.errors.slice(0,3).join(" | ")}`);
   await p.close();
 }
 
