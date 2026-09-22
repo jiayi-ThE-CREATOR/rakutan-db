@@ -274,6 +274,20 @@
      Cookie を置かず、個人を特定する情報も送らない。
      自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
 <script src="/assets/analytics.js" defer></script>
+<!-- 覆われた機能を押したときの説明。**入口へ直行しない** ―― 何のために
+     LINE へ飛ばされるのか分からないまま画面が変わると、戻ってこない
+     （2026-09-22 wang 指摘）。中身は gate.js が連携の状態ごとに書く。
+     2026-09-22: index.html だけに置いていたのを外殻へ移した ―― マイページには
+     無かったので、覆いを押すと説明なしで LINE へ直行していた。 -->
+<dialog class="gateDlg" id="gateDlg" aria-labelledby="gateDlgTitle">
+  <div class="gateDlgCard">
+    <div class="gateDlgHead">
+      <h2 id="gateDlgTitle"></h2>
+      <button type="button" class="gateDlgClose" id="gateDlgClose" aria-label="閉じる">✕</button>
+    </div>
+    <div id="gateDlgBody"></div>
+  </div>
+</dialog>
 <!-- 覆いは app.js / mypage.js が描き終わってから掛ける（gate.js 内で待つ）。 -->
 <script src="/assets/gate.js" defer></script>
 <!--/SHELL:FOOTER-->

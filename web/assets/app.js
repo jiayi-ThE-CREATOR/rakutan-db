@@ -725,6 +725,12 @@ document.addEventListener("click", async e => {
   }, 1600);
 }, true);
 
+/* 連携していないか。gate.js がまだ読めていない・落ちたときは false＝
+   伏せない（fail-open）。覆いと同じ考え方（gate.js の冒頭参照）。 */
+function gateLocked(){
+  return !!(window.rkGate && window.rkGate.linked && !window.rkGate.linked());
+}
+
 /* 口コミの件数表示。件数そのものは操作バーの「口コミ N件を読む」が持つので、
    ここが返すのは「まだ採点に入っていない」の注意帯だけ（2026-09-06）。
    導線の文言（「タップして中身を見る ↓」）も外した ―― 読む先は
@@ -781,7 +787,10 @@ function bandNoteText(c){
 function cardActsHtml(c){
   const n = c.reviews?.n || 0;
   const readable = c.reviews?.notes?.length || 0;
-  const first = (c.reviews?.notes || [])[0] || "";
+  /* 一言のプレビューは口コミ本文そのもの。未登録に見せると、ゲートの意味が
+     一覧の時点で崩れる（2026-09-22 きむら指摘）。件数は出してよい ――
+     何が読めるようになるのか分からないと、登録する理由も伝わらない。 */
+  const first = gateLocked() ? "" : ((c.reviews?.notes || [])[0] || "");
   const write = `/kuchikomi?c=${encodeURIComponent(c.id)}`;
   let read;
   if (readable){
@@ -1447,6 +1456,21 @@ function panelSetOpen(open){
 }
 
 async function openPanel(id, push = true){
+  /* 口コミを読むのは登録した人だけ（2026-09-22 きむら指摘：ゲートが掛かっている
+     はずなのに普通に読めてしまう）。入口はカードの .rvBtn だけでなく、共有リンク
+     ?c=<id> と履歴の戻る操作もここを通るので、判定はこの1か所に置く。
+     入口へ直行せず gate.js の説明を出すのは、配点の ✕ と同じ作法。 */
+  if (window.rkGate && !window.rkGate.linked()){
+    window.rkGate.prompt();
+    /* 共有リンクで来た人は ?c= が残ったままだと、閉じるたびに開こうとする。
+       アドレスから外しておく（一覧はそのまま見られる）。 */
+    if (!push){
+      const url = new URL(location.href);
+      url.searchParams.delete("c");
+      history.replaceState({}, "", url);
+    }
+    return;
+  }
   const c = await findCourse(id);
   if (!c) return;
 
@@ -2241,9 +2265,16 @@ function applyPostMode() {
 
   /* ?c=<科目id> で入ってきた人。push はしない（履歴を二重に積まない）。
      共有リンクは既定の絞り込みで開くので、その科目が一覧に無いことは
-     普通に起きる ―― findCourse が1件だけ取りに行く。 */
+     普通に起きる ―― findCourse が1件だけ取りに行く。
+
+     **連携の判定を待ってから開く。** 待たないと、/api/me の応答より先に
+     ここが走り、fail-open の初期値（linked=true）のまま口コミが開いてしまう
+     ―― 覆いを足しても共有リンクから素通りできる（2026-09-22）。 */
   const initId = new URL(location.href).searchParams.get("c");
-  if (initId) openPanel(initId, false);
+  if (initId){
+    await window.rkGate?.ready?.catch?.(() => {});
+    openPanel(initId, false);
+  }
 })();
 
 /* お気に入りの星。カードは絞り込みのたびに作り直されるので、

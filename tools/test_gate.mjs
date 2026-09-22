@@ -80,7 +80,9 @@ async function open(path, { me, storage } = {}){
   });
   check(inner, "覆いの中身（.gateInner）が無い");
   if (inner){
-    check(inner.opacity > 0.15, `中身が薄すぎて見えない（opacity ${inner.opacity}）`);
+    /* 2026-09-22 きむら指摘「配点が完全に見えない」。薄くしすぎたうえに
+       覆いの地色と中央の案内カードを重ねていたのが原因。読める濃さを守る。 */
+    check(inner.opacity >= 0.8, `中身が薄くて読めない（opacity ${inner.opacity}）`);
     check(inner.opacity < 1, "中身が薄くなっていない（ロック中に見えない）");
     check(inner.display !== "none", "中身を display:none で隠している（指定は「見えるけど押せない」）");
     check(inner.visibility !== "hidden", "中身を visibility:hidden で隠している");
@@ -112,6 +114,19 @@ async function open(path, { me, storage } = {}){
      登録する理由も伝わらない（覆いは隠すためのものではない）。 */
   check(await page.$eval("#s_exam", e => e.value) === "50",
         "覆いの中で目盛りの既定（テスト50）が読めない");
+
+  /* 覆い自身が中身を塗りつぶしていないこと。案内は右上の印だけにして、
+     説明は押したときに出す（2026-09-22 きむら指摘への直接の答え）。 */
+  const veilStyle = await page.evaluate(() => {
+    const v = document.querySelector(".gateVeil");
+    const cs = getComputedStyle(v);
+    return { bg: cs.backgroundColor, badges: v.querySelectorAll(".gateBadge").length,
+             boxes: v.querySelectorAll(".gateBox").length };
+  });
+  check(/rgba\(0, 0, 0, 0\)|transparent/.test(veilStyle.bg),
+        `覆いが地色で中身を塗っている（${veilStyle.bg}）`);
+  check(veilStyle.badges === 1, "ロック中の印（.gateBadge）が覆いに無い");
+  check(veilStyle.boxes === 0, "中央の案内カードが残っている（中身が隠れる）");
 
   /* 覆いを押したら、**入口へ直行せず**まず説明を出す（2026-09-22 wang 指摘）。
      ボタン以外を押しても出ること。 */
@@ -154,6 +169,49 @@ async function open(path, { me, storage } = {}){
   await page.waitForTimeout(1500);
   check(page.url().includes("access.line.me") || page.url().includes("/line/login"),
         `説明のボタンを押しても LINE の入口へ行かない（${page.url()}）`);
+  await page.close();
+}
+
+/* ── 口コミは未登録では読めない（2026-09-22 きむら指摘）──────────
+   「LINE 登録しないと口コミは見えないはずなのに、普通にアクセスできる」。
+   原因は、覆っていたのが「口コミあり」の絞り込みチップだけで、**読む導線**
+   （カードの「口コミ N件を読む」・共有リンク ?c=）には何も無かったこと。
+   入口は openPanel 1か所に寄せてあるので、ここが通れば全部塞がる。 */
+{
+  const page = await open("/", { me: ME.notLoggedIn });
+  const rv = await page.$("#list .rvBtn");
+  check(!!rv, "カードに口コミの入口（.rvBtn）が無い（前提が崩れている）");
+  if (rv){
+    await rv.click();
+    await page.waitForTimeout(700);
+    check(await page.$eval("#panel", e => !e.classList.contains("open")),
+          "未登録なのに口コミのモーダルが開いた（2026-09-22 の穴）");
+    check(await page.$eval("#gateDlg", e => e.open) === true,
+          "口コミを押しても説明のダイアログが出ない");
+    await page.click("#gateDlgClose");
+    await page.waitForTimeout(200);
+  }
+  /* 一覧のカードに口コミ本文（一言のプレビュー）が出ていないこと。
+     件数は出してよい ―― 何が読めるようになるのか伝える必要がある。 */
+  check((await page.$$("#list .rvBtn small")).length === 0,
+        "未登録の一覧に口コミの一言が出ている（本文が読めてしまう）");
+  await page.close();
+}
+{
+  /* 共有リンクで直接来ても開かない。**判定より先に開かないこと**が肝で、
+     gate.js の ready を待たないと fail-open の初期値のまま開いてしまう。 */
+  const page = await open("/?c=135327", { me: ME.notLoggedIn });
+  await page.waitForTimeout(900);
+  check(await page.$eval("#panel", e => !e.classList.contains("open")),
+        "共有リンク（?c=）から未登録で口コミが開けた");
+  await page.close();
+}
+{
+  /* 塞ぎすぎていないこと ―― 友だちなら今までどおり読める。 */
+  const page = await open("/?c=135327", { me: ME.friend });
+  await page.waitForTimeout(1200);
+  check(await page.$eval("#panel", e => e.classList.contains("open")),
+        "友だち済みでも口コミのモーダルが開かない（塞ぎすぎ）");
   await page.close();
 }
 
