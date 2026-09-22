@@ -1,6 +1,6 @@
 /* 条件チップが、表示している件数どおりに絞り込めるかを実ブラウザで確かめる。
  *
- *   cd web && python3 -m http.server 8144 &
+ *   python3 tools/serve.py 8144 &
  *   node tools/test_conditions.mjs http://localhost:8144
  *
  * ■ なぜブラウザ側にも要るか

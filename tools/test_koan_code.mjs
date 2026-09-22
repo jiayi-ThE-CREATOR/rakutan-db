@@ -1,6 +1,6 @@
 /* 時間割コード（KOAN の履修登録で打ち込む6桁）が各科目に出ていること。
  *
- *   cd web && python3 -m http.server 8203 &
+ *   python3 tools/serve.py 8203 &
  *   node tools/test_koan_code.mjs http://localhost:8203
  *
  * 見ているのは4か所：一覧カード／詳細のコピーチップ／検索／マイページの時間割。

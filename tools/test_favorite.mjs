@@ -1,5 +1,5 @@
 /* お気に入りの星が「押せて」「残って」「詳細を開かない」ことを実ブラウザで見る。
- *   cd web && python3 -m http.server 8140 &
+ *   python3 tools/serve.py 8140 &
  *   node tools/test_favorite.mjs http://localhost:8140
  *
  * 静的配信に当てるのが肝。本番で動くのは web/assets/app.js のほう。

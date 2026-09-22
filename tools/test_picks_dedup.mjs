@@ -1,6 +1,6 @@
 /* 「あなたに合う◯件」の枠に出した科目が、すぐ下の一覧にも並んでいないかを見る。
  *
- *   cd web && python3 -m http.server 8144 &
+ *   python3 tools/serve.py 8144 &
  *   node tools/test_picks_dedup.mjs http://localhost:8144
  *
  * ■ なぜ2ページ目まで見るか（2026-09-11 の指摘）

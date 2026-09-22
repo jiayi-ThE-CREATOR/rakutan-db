@@ -1,5 +1,5 @@
 /* 開屏の問診。「降りるのは問診そのもの、設問ごとではない」を守れているか。
- *   cd web && python3 -m http.server 8140 &
+ *   python3 tools/serve.py 8140 &
  *   node tools/test_onboard.mjs http://localhost:8140
  */
 import { chromium } from "playwright";

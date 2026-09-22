@@ -5,7 +5,7 @@
  * 各軸の ✕（#x_<軸>）が引き継いでいて、これが caps を 0 か 100 にする。
  * **目盛りと ✕ は同じ行にあるが状態は別**（混ぜると「しぼったら好みまで変わった」になる）。
  *
- *   cd web && python3 -m http.server 8146 &
+ *   python3 tools/serve.py 8146 &
  *   node tools/test_haiten_ui.mjs http://localhost:8146
  *
  * ■ なぜブラウザ側にも要るか

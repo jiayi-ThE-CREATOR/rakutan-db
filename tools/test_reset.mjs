@@ -1,6 +1,6 @@
 /* 「条件をリセット」を実ブラウザで見張る。
  *
- *   cd web && python3 -m http.server 8144 &
+ *   python3 tools/serve.py 8144 &
  *   node tools/test_reset.mjs http://localhost:8144
  *
  * ■ 何を見ているか（2026-09-11 の指摘）
