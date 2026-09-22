@@ -24,7 +24,6 @@
      ページ固有（about は app.css を使う／使わないが将来変わりうる）ので各ページ側に残す。 -->
 <link rel="stylesheet" href="/assets/feedback.css">
 <link rel="stylesheet" href="/assets/version.css">
-<link rel="stylesheet" href="/assets/subjects.css">
 <!-- LINE 登録しないと使えない機能の覆い（data-gate を持つ節）。
      判定は localStorage ではなくサーバー（GET /api/me）。理由は gate.js の頭。 -->
 <link rel="stylesheet" href="/assets/gate.css">
@@ -279,19 +278,6 @@
 <button type="button" class="verFab" id="verFab" hidden aria-haspopup="dialog"
         aria-label="バージョン＆最新機能"><span class="verFabNum" id="verFabNum"></span><span class="verFabTxt">バージョン＆最新機能</span><span class="verDot" id="verDot" aria-hidden="true" hidden></span></button>
 
-<!-- 覆われた機能を押したときの説明。**入口へ直行しない** ―― 何のために
-     LINE へ飛ばされるのか分からないまま画面が変わると、戻ってこない
-     （2026-09-22 wang 指摘）。中身は gate.js が連携の状態ごとに書く。 -->
-<dialog class="gateDlg" id="gateDlg" aria-labelledby="gateDlgTitle">
-  <div class="gateDlgCard">
-    <div class="gateDlgHead">
-      <h2 id="gateDlgTitle"></h2>
-      <button type="button" class="gateDlgClose" id="gateDlgClose" aria-label="閉じる">✕</button>
-    </div>
-    <div id="gateDlgBody"></div>
-  </div>
-</dialog>
-
 <dialog class="verDlg" id="verDlg" aria-labelledby="verTitle">
   <div class="verCard">
     <div class="verHead">
@@ -315,6 +301,20 @@
      Cookie を置かず、個人を特定する情報も送らない。
      自分たち（開発者・チーム）を数から外す URL は analytics.js の先頭。 -->
 <script src="/assets/analytics.js" defer></script>
+<!-- 覆われた機能を押したときの説明。**入口へ直行しない** ―― 何のために
+     LINE へ飛ばされるのか分からないまま画面が変わると、戻ってこない
+     （2026-09-22 wang 指摘）。中身は gate.js が連携の状態ごとに書く。
+     2026-09-22: index.html だけに置いていたのを外殻へ移した ―― マイページには
+     無かったので、覆いを押すと説明なしで LINE へ直行していた。 -->
+<dialog class="gateDlg" id="gateDlg" aria-labelledby="gateDlgTitle">
+  <div class="gateDlgCard">
+    <div class="gateDlgHead">
+      <h2 id="gateDlgTitle"></h2>
+      <button type="button" class="gateDlgClose" id="gateDlgClose" aria-label="閉じる">✕</button>
+    </div>
+    <div id="gateDlgBody"></div>
+  </div>
+</dialog>
 <!-- 覆いは app.js / mypage.js が描き終わってから掛ける（gate.js 内で待つ）。 -->
 <script src="/assets/gate.js" defer></script>
 <!--/SHELL:FOOTER-->

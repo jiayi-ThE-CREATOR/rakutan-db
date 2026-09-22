@@ -4,34 +4,42 @@
 
 .gated{position:relative}
 
-/* 中身。opacity だけで薄くする ―― filter:blur を使うと「読めない」に
-   なってしまい、何がロックされているのか分からなくなる。 */
-.gated > .gateInner{opacity:.42;pointer-events:none;user-select:none}
+/* 中身。薄くするのは「押せない」と分かる程度まで。**読めなくしない** ――
+   2026-09-22 きむら指摘「配点でしぼるが完全に見えない」。原因は .42 まで
+   落としたうえに、覆いの地色（card 72%）と中央の案内カードを重ねていたこと。
+   暗いテーマではこれで中身が消える。薄いのは .88 までにとどめる。
+
+   上に余白を取るのは、右上の印（.gateBadge）が中身に重ならないようにするため。
+   最初の直しで印を重ねたところ、条件の「持ち込み可」チップが隠れた ――
+   見せるために直したのに別のものを隠しては元も子もない。 */
+.gated > .gateInner{opacity:.88;pointer-events:none;user-select:none;padding-top:30px}
 
 /* 覆い。中身の上に重ね、クリックを全部受ける。
-   中身が透けて見える程度の地色にする（完全に塗ると「見える」が死ぬ）。 */
+   **地色は塗らない。** 塗ると中身が読めなくなり、「何が使えるようになるのか」が
+   伝わらない（2026-09-22 きむら指摘）。ロック中であることは右上の印だけで示し、
+   説明は押したときに #gateDlg で出す。 */
 .gateVeil{
   position:absolute;inset:0;z-index:2;
-  display:flex;align-items:center;justify-content:center;
-  padding:var(--sp-3);
+  display:flex;align-items:flex-start;justify-content:flex-end;
+  padding:var(--sp-2);
   border:1px dashed var(--brand-line);
   border-radius:var(--r-md);
-  background:color-mix(in srgb, var(--card) 72%, transparent);
+  background:transparent;
   cursor:pointer;
-  /* 覆い自体は装飾。読み上げ・タブ順は中のボタンが担う。 */
-  text-align:center;
 }
-.gateVeil:hover{background:color-mix(in srgb, var(--card) 84%, transparent)}
+/* 押せることが分かる程度に、触れたときだけごく薄く反応する。 */
+.gateVeil:hover{background:var(--brand-hover)}
 
-/* color-mix を解さないブラウザ向け。半透明が効かないだけで
-   「中身が見えない」にはならないよう、地色そのものは薄いものにする。 */
-@supports not (background: color-mix(in srgb, red 50%, transparent)){
-  .gateVeil{background:var(--brand-soft)}
+/* ロック中の印。中身の右上に小さく載せるだけ ―― 中央に置くと、また中身を
+   覆い隠すことになる。色は --brand と --brand-ink の組（tokens の既定の対）。 */
+.gateBadge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);
+  font-size:var(--fs-xs);font-weight:700;line-height:1.4;
+  white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:0 1px 4px var(--shadow-card);
 }
-
-.gateBox{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2);max-width:30em}
-.gateLead{margin:0;font-size:var(--fs-sm);font-weight:700;color:var(--ink);line-height:1.55}
-.gateSub{margin:0;font-size:var(--fs-xs);color:var(--soft);line-height:1.6}
 
 /* 促しボタン。フッタの LINE ボタンと同じ見た目に寄せる。 */
 .gateBtn{
@@ -43,11 +51,11 @@
 .gateBtn:hover{filter:brightness(1.06)}
 .gateBtn:focus-visible{outline:2px solid var(--brand-text);outline-offset:2px}
 
-/* 小さい画面では覆いの文字が中身より大きくなって潰れるので詰める。 */
+/* 小さい画面では印だけさらに詰める（中身の面積を奪わない）。 */
 @media (max-width:480px){
-  .gateVeil{padding:var(--sp-2)}
-  .gateLead{font-size:var(--fs-xs)}
-  .gateSub{display:none}
+  .gateVeil{padding:6px}
+  .gateBadge{padding:3px 8px}
+  .gated > .gateInner{padding-top:26px}
 }
 
 /* ── 覆いを押したときの説明 ─────────────────
@@ -73,4 +81,13 @@
 @media (min-width:700px){
   .gateDlg[open]{align-items:center}
   .gateDlgCard{border-radius:var(--r-lg);max-height:80vh}
+}
+
+/* 詳細の中で、口コミ本文の代わりに出す一行（detail.js）。覆う器が無い場所なので
+   中身そのものを差し替える ―― 件数は見出しに残す（何が読めるのか伝えるため）。 */
+.gateLocked{
+  margin:var(--sp-2) 0 0;padding:10px 12px;
+  border:1px dashed var(--brand-line);border-radius:var(--r-md);
+  background:var(--brand-soft);color:var(--brand-text);
+  font-size:var(--fs-sm);font-weight:700;line-height:1.6;
 }

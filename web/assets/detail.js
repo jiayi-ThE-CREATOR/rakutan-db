@@ -159,6 +159,13 @@ const rvLv = v => (v === null || v === undefined) ? "―" : RV_LV[Math.round(v)]
  */
 const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 2`;
 
+/* 連携していないか。口コミの集計と一言は「読める中身」なので、未登録には
+   出さない（2026-09-22 きむら指摘）。gate.js がまだ無い・落ちたときは
+   伏せない（fail-open）―― 覆いと同じ考え方。件数（secH の N件）は出す。 */
+function gateLocked(){
+  return !!(window.rkGate && window.rkGate.linked && !window.rkGate.linked());
+}
+
 /* 口コミの集計。モーダルの先頭に出す。
    一言3件（.rvn）は廃止した ―― モーダルに全件が1件ずつ出るので重複になる。
    値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。 */
@@ -259,8 +266,9 @@ function detailHtml(c, opts = {}){
       </div>
       ${rn ? `<div class="dSec">
         <div class="secH">口コミ <b>${rn}件</b></div>
-        ${reviewHtml(c)}
-        ${first ? `<p class="dQuote">${esc(first)}</p>` : ""}
+        ${gateLocked()
+          ? `<p class="gateLocked">🔒 口コミを読むには LINE 登録が要ります</p>`
+          : `${reviewHtml(c)}${first ? `<p class="dQuote">${esc(first)}</p>` : ""}`}
       </div>` : ""}
       <div class="dActs">
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>

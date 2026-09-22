@@ -27,24 +27,16 @@
      セレクタを並べると、HTML を直した人が気づけない）。 */
   const targets = () => Array.from(document.querySelectorAll("[data-gate]"));
 
+  /* 覆いに載せるのは小さな印だけ。**案内を中身の上に重ねない** ――
+     以前は中央に大きな案内カード（見出し＋説明＋ボタン）を置いていたため、
+     配点の目盛りが案内に隠れて読めなくなっていた（2026-09-22 きむら指摘）。
+     「何ができるようになるのか」は、触ったときに #gateDlg で出す。 */
   const veilHTML = (state) => {
     /* ログイン済みだが友だちでない人には、ログインではなく友だち追加を促す。
        ここを一緒にすると「ログインしたのに開かない」で行き止まりになる。 */
     const needFriend = state.loggedIn && !state.linked;
-    const lead = needFriend
-      ? "LINE で友だち追加すると使えます"
-      : "LINE 登録すると使えます";
-    const sub = needFriend
-      ? "ラクハン【公式】を友だち追加してから、もう一度お試しください。"
-      : "ラクハン【公式】と繋ぐと、この機能が使えます。登録は無料です。";
-    const btn = needFriend
-      ? `<a class="gateBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE で友だち追加</a>`
-      : `<button type="button" class="gateBtn" data-gate-login>LINE で続ける</button>`;
-    return `<div class="gateBox">
-        <p class="gateLead">${lead}</p>
-        <p class="gateSub">${sub}</p>
-        ${btn}
-      </div>`;
+    const lead = needFriend ? "LINE で友だち追加すると使えます" : "LINE 登録で使えます";
+    return `<span class="gateBadge">🔒 ${lead}</span>`;
   };
 
   function lock(el, state){
@@ -102,9 +94,9 @@
     dlg.querySelector("#gateDlgBody").innerHTML = needFriend
       ? `<p class="gateDlgLead">ラクハン【公式】を友だち追加してから、もう一度お試しください。</p>
          <a class="gateBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE で友だち追加</a>`
-      : `<p class="gateDlgLead">重さのつまみを自分に合わせて動かしたり、ある項目がある授業を
-           <b>✕</b> でまとめて外したり、授業内容のタグでしぼったりするには、
-           LINE 登録が要ります。</p>
+      : `<p class="gateDlgLead">重さのつまみを自分に合わせて動かしたり、条件や授業内容で
+           しぼったり、<b>口コミを読んだり</b>、マイページ（時間割・お気に入り）を
+           使うには、LINE 登録が要ります。</p>
          <p class="gateDlgSub">ラクハン【公式】と繋ぐだけです。<b>登録は無料</b>で、
            授業の情報はそのまま見られます。</p>
          <a class="gateBtn" href="${loginHref()}">LINE で続ける</a>`;
@@ -151,14 +143,22 @@
     else els.forEach(el => lock(el, state));
   }
 
+  /* 最初の判定が終わるまでを、外から待てるようにする。
+     **共有リンク ?c=<id> は init が即 openPanel を呼ぶ**ので、待たないと
+     linked の初期値（fail-open の true）のまま口コミが開いてしまう。
+     判定より先に開いてしまえば、覆いを何枚足しても意味がない。 */
+  let resolveReady;
+  const ready = new Promise(r => { resolveReady = r; });
+  const boot = () => { apply().finally(() => resolveReady()); };
+
   /* 他のスクリプト（app.js / mypage.js）が中身を描き終わってから覆う。
      先に覆うと、あとから innerHTML を書かれて覆いごと消える節がある。 */
   if (document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", () => setTimeout(apply, 0));
+    document.addEventListener("DOMContentLoaded", () => setTimeout(boot, 0));
   } else {
-    setTimeout(apply, 0);
+    setTimeout(boot, 0);
   }
 
   /* 描き直しの後にも掛け直せるよう、外から呼べる口を残す。 */
-  window.rkGate = { apply, linked: () => linked, prompt };
+  window.rkGate = { apply, linked: () => linked, prompt, ready };
 })();
