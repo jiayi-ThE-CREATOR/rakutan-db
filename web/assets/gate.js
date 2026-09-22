@@ -96,6 +96,11 @@
     location.href = "/line/login?next=" + encodeURIComponent(next);
   });
 
+  /* 連携しているか。app.js の ✕（しぼり込み）が押されたときの判定に使う。
+     まだ /api/me を聞けていない・届かないときは true（fail-open）―― 覆いと同じ考え方で、
+     障害で機能が死ぬより開いてしまう方がましという判断（このファイルの冒頭参照）。 */
+  let linked = true;
+
   async function apply(){
     let state = { linked: true, loggedIn: false, configured: false };
     try {
@@ -105,6 +110,7 @@
       /* 届かないときは開けたまま（fail-open）。 */
       return;
     }
+    linked = !!state.linked;
     const els = targets();
     if (state.linked) els.forEach(unlock);
     else els.forEach(el => lock(el, state));
@@ -119,5 +125,5 @@
   }
 
   /* 描き直しの後にも掛け直せるよう、外から呼べる口を残す。 */
-  window.rkGate = { apply };
+  window.rkGate = { apply, linked: () => linked };
 })();

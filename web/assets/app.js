@@ -20,11 +20,23 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
    （7,877件／空きコマの数字も全部入りになる）。絞り込みはそこから始める。
    2026-08-26 まで 1年・秋冬 が既定で、初回表示は 319件だった。
    server.py の search() の既定も同じ値にしてある。片方だけ変えないこと。 */
+/* 好みの重さ。**既定値は score.py の EXAM_SHARE（0.50）と OTHER_WEIGHTS そのもの**で、
+   「みんなはテストをいちばん重く見ている」を画面に出すための数字でもある。
+   ここを動かすと、その項目の負担が (いまの目盛り ÷ 既定) 倍になる（prefMult）。
+   **重みとして使わないこと。** 試験以外は「その科目にある項目だけ」で正規化するので、
+   非試験の項目が1つの科目（レポートだけ等）は重みが消えて動かない（2026-09-21 実測）。 */
+const PREF_DEFAULT = { exam:50, presentation:20, report:15, attendance:15, quiz:10 };
+const PREF_KEY = "rk_konomi";
+const prefMult = k => (state.pref[k] ?? PREF_DEFAULT[k]) / PREF_DEFAULT[k];
+const prefTouched = () => Object.keys(PREF_DEFAULT).some(k => state.pref[k] !== PREF_DEFAULT[k]);
+
 const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), sort:"fit",
                 /* 配点の上限（%）。100＝制限なし。2026-09-03 に「重み 0〜5」から
                    置き換えた。**チップ「出席なし」等はここと同じ状態を指す** ――
                    別々に持つと片方を押したときにもう片方と食い違う。 */
                 caps:{ attendance:100, exam:100, quiz:100, report:100, presentation:100 },
+                /* 好みの重さ（上の PREF_DEFAULT）。caps（しぼり込み）とは別物。 */
+                pref:{ ...PREF_DEFAULT },
                 /* 学部は絞り込みそのものには効かない ―― 効くのは区分だけ。
                    学部は「どの区分が自分に必要か」を並べ替えるためだけに持つ。 */
                 /* track2＝専攻語が「日本語」の学生が実際に履修するもう一つの専攻語。
@@ -225,6 +237,39 @@ function divisionChip(d, facets){
        + `${esc(d.label)}${badge}<span class="n">${n}</span></button>`;
 }
 
+/* 開け閉めする箱の頭に置くボタン。「学部を選ぶ」の枠（#facSec .pick）と同じ形で出し、
+   文字は**何が選べるか**だけを言う。開いているかどうかは右の印で表す。
+   印を隣の select と同じ三角にしたのは、押したあとに起きること（下に選択肢が
+   出る）が同じだから。
+
+   2026-09-21 まではオレンジの下線リンクで「卒業要件で絞り込む」と書いていた。
+   周り（学部を選ぶ・何の話？）と形が違ううえ、押すまで何が出るのか読めない
+   ――「押してみないと何のためのボタンか分からない」。形と言い方をそろえた。 */
+function setPick(btn, open, label){
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+  btn.querySelector(".pickLabel").textContent = label;
+  btn.querySelector(".pickMark").textContent = open ? "▲" : "▼";
+}
+
+/* 畳んだまま選択が残ると、効いている絞り込みが画面から消える。
+   閉じているあいだだけ「◯つ選択中」に差し替えて、消えないようにする。 */
+function syncDivsPick(){
+  const box = $("#divs"), open = !box.hidden;
+  const n = box.querySelectorAll(".chip.on").length;
+  setPick($("#divsTog"), open,
+    (!open && n) ? `全学部共通の区分：${n}つ選択中` : "全学部共通の区分を選ぶ");
+}
+
+/* 卒業要件外のぶん。括弧の数は「中にいくつ入っているか」―― 閉じたままでは
+   何個隠れているのか分からないので、下線リンクだった頃から出している。 */
+function syncDivOffPick(){
+  const box = $("#divsOff"), open = !box.hidden;
+  const n = box.querySelectorAll(".chip.on").length;
+  setPick($("#divTog"), open,
+    (!open && n) ? `卒業要件外の区分：${n}つ選択中`
+                 : `卒業要件外の区分も選ぶ（${box.dataset.n || 0}）`);
+}
+
 function buildFaculty(facets){
   if (!REQ || !divisionsOf().length) return;   // 要件表が無い環境では出さない
 
@@ -235,8 +280,11 @@ function buildFaculty(facets){
     // 3段に分ける。上は全学部に共通の区分で、学部を選んでいなくても意味がある。
     // 下は選んだ学部にしか無い区分なので、選ぶまで丸ごと隠す。
     sec.innerHTML =
-      `<h2>全学部共通の区分でしぼる</h2>
-       <button class="toggle" id="divsTog"></button>
+      `<h2>卒業要件でしぼる</h2>
+       <button type="button" class="pick" id="divsTog"
+               aria-expanded="false" aria-controls="divs">
+         <span class="pickLabel"></span><span class="pickMark" aria-hidden="true">▼</span>
+       </button>
        <div class="chips" id="divs"></div>
 
        <h2 class="facH">学部学科からさがす</h2>
@@ -250,7 +298,10 @@ function buildFaculty(facets){
          <h2 class="facH" id="facOwnH"></h2>
          <div class="chips" id="divsOwn"></div>
        </div>
-       <button class="toggle" id="divTog" hidden></button>
+       <button type="button" class="pick" id="divTog" hidden
+               aria-expanded="false" aria-controls="divsOff">
+         <span class="pickLabel"></span><span class="pickMark" aria-hidden="true">▼</span>
+       </button>
        <div class="chips" id="divsOff" hidden></div>
        <p class="railNote" id="facNotes"></p>`;
     const years = $("#years").closest("section");
@@ -274,20 +325,16 @@ function buildFaculty(facets){
     $("#trackSel2").onchange = e => { state.track2 = e.target.value; load(); };
     // 既定は閉じる。すでに区分を選んでいる状態（URL復元など）なら、
     // 選択が見えなくならないよう開いたままにする。
-    const startOpen = state.division.size > 0;
-    $("#divs").hidden = !startOpen;
-    $("#divsTog").textContent = startOpen ? "卒業要件を閉じる" : "卒業要件で絞り込む";
+    $("#divs").hidden = state.division.size === 0;
     $("#divsTog").onclick = () => {
       const box = $("#divs");
       box.hidden = !box.hidden;
-      $("#divsTog").textContent = box.hidden ? "卒業要件で絞り込む" : "卒業要件を閉じる";
+      syncDivsPick();
     };
     $("#divTog").onclick = () => {
       const box = $("#divsOff");
       box.hidden = !box.hidden;
-      $("#divTog").textContent = box.hidden
-        ? `卒業要件外の区分も表示する (${box.dataset.n})`
-        : "卒業要件外の区分を隠す";
+      syncDivOffPick();
     };
   }
   $("#facSel").value = state.faculty;
@@ -350,10 +397,11 @@ function buildFaculty(facets){
   box.dataset.n = plan.off.length;
   if (plan.off.length){
     box.innerHTML = plan.off.map(d => divisionChip(d, facets)).join("");
-    if (box.hidden) tog.textContent = `卒業要件外の区分も表示する (${plan.off.length})`;
   } else {
     box.innerHTML = ""; box.hidden = true;
   }
+  syncDivsPick();
+  syncDivOffPick();
 
   $("#facNotes").innerHTML = plan.notes.map(t => esc(t)).join("<br>");
 
@@ -364,32 +412,80 @@ function buildFaculty(facets){
   });
 }
 
-/* ── 配点でしぼる（上限スライダー） ───────────────
+/* 「重さを既定に戻す」の出し入れ。**目盛りごと作り直さないこと** ――
+   つまみを掴んでいる要素を innerHTML で入れ替えると、ドラッグが途中で切れる。 */
+function togglePrefReset(){
+  const box = $("#sliders");
+  if (!box) return;
+  const cur = $("#prefReset");
+  if (prefTouched() === !!cur) return;
+  if (cur){ cur.closest("p").remove(); return; }
+  /* 既定から動かしている人にだけ出す。触っていない人の画面に「戻す」だけ
+     置いても、何から戻るのか読めない。 */
+  box.insertAdjacentHTML("beforeend",
+    `<p class="railNote"><button type="button" class="toggle" id="prefReset">重さを既定に戻す</button></p>`);
+  $("#prefReset").onclick = () => {
+    state.pref = { ...PREF_DEFAULT };
+    syncPref(); buildSliders(); load();
+  };
+}
+
+/* ── 重さの見かた（好みの目盛り＋しぼり込みの ✕） ───────────────
    数字はシラバスの「成績評価の内訳」そのもの。
    「出席率 30%」＝ 出席・平常点が成績の30%以下の科目だけ出す、の意味。
 
    0% にすると、対応する条件チップ（出席なし・小テストなし）と**同じ状態**に
    なる。チップはこのスライダーのショートカットであって別の判定ではない。 */
 function buildSliders(){
+  /* 目盛りは「その項目をどれくらい重く見るか」。既定は score.py と同じ数字で、
+     テストがいちばん大きい＝みんなの既定をそのまま画面に出している。
+     ✕ は「その項目がある授業を見ない」＝しぼり込みで、caps（0 か 100）が持つ。
+     2つを同じ行に置くが、状態は別 ―― 混ぜると「しぼったら好みまで変わった」になる。 */
   $("#sliders").innerHTML = CAP_AXES.map(k =>
     `<div class="sl"><label for="s_${k}">${esc(CAP_LABEL[k])}</label>
-       <input type="range" id="s_${k}" min="0" max="100" step="${CAP_STEP}"
-              value="${state.caps[k]}" data-k="${k}"
-              aria-label="${esc(CAP_LABEL[k])}が成績に占める割合の上限">
-       <span class="v" id="v_${k}">${state.caps[k]}%</span></div>`).join("");
-  $("#sliders").querySelectorAll("input").forEach(i => i.oninput = () => {
-    state.caps[i.dataset.k] = +i.value;
-    $("#v_"+i.dataset.k).textContent = i.value + "%";
+       <input type="range" id="s_${k}" min="0" max="100" step="${PREF_STEP}"
+              value="${state.pref[k]}" data-k="${k}"
+              aria-label="${esc(CAP_LABEL[k])}をどれくらい重く見るか">
+       <span class="v" id="v_${k}">${state.pref[k]}</span>
+       <button type="button" class="xBtn" id="x_${k}" data-k="${k}"
+               aria-pressed="${state.caps[k] === 0}"
+               title="${esc(CAP_LABEL[k])}がある授業を見ない">✕</button>
+       <span class="def">既定 ${PREF_DEFAULT[k]}</span></div>`).join("");
+  $("#sliders").querySelectorAll("input[type=range]").forEach(i => i.oninput = () => {
+    state.pref[i.dataset.k] = +i.value;
+    $("#v_"+i.dataset.k).textContent = i.value;
+    syncPref();
+    /* 「既定に戻す」の出し入れ。**buildSliders() を呼び直さないこと** ――
+       つまみを掴んでいる要素ごと作り直すと、ドラッグが途中で切れる。 */
+    togglePrefReset();
+    load();
+  });
+  $("#sliders").querySelectorAll(".xBtn").forEach(x => x.onclick = () => {
+    /* しぼり込みは登録した人だけ（#139 の「見えるけど押せない」と同じ扱い）。
+       目盛り（好み）は誰でも動かせる ―― 相性度そのものなので初めての人にこそ触ってほしい。 */
+    if (window.rkGate && !window.rkGate.linked()){
+      const next = location.pathname + location.search + location.hash;
+      location.href = "/line/login?next=" + encodeURIComponent(next);
+      return;
+    }
+    const k = x.dataset.k;
+    state.caps[k] = state.caps[k] === 0 ? NO_CAP : 0;
     /* チップの点灯はここから導く（別に持たない）。件数も動くので描き直す。 */
     syncCaps();
     load();
   });
+  togglePrefReset();
   updateCapWarn();
 }
 
 /* 上限の合計が100%を下回ると、成績評価の内訳の合計が100%である以上、
    条件を満たす科目は**原理的に存在しない**。0件になってから気付かせるのでは
-   なく、そうなる前に理由を出す。score.py の caps_impossible と同じ判定。 */
+   なく、そうなる前に理由を出す。score.py の caps_impossible と同じ判定。
+
+   2026-09-21: ✕ は上限を 0 か 100 にしかしないので、この式が真になるのは
+   **全軸に ✕ を入れたとき**だけになった（1本でも外せば合計100%）。
+   判定は score.py と同じものを使い続ける ―― 条件チップ（「レポートのみ」＝
+   4軸を0）も同じ式を通るので、ここを ✕ 専用に書き換えると食い違う。 */
 function updateCapWarn(){
   const el = $("#capWarn");
   if (el) el.hidden = !capsImpossible(state.caps);
@@ -398,12 +494,11 @@ function updateCapWarn(){
 /* スライダー・チップ・URL を1つの状態から描き直す。 */
 function syncCaps(){
   updateCapWarn();
+  /* 目盛りは好みのものなので caps では動かさない。チップから来た変更で
+     動かすのは ✕ の見た目だけ。 */
   for (const k of CAP_AXES){
-    const i = $("#s_"+k);
-    if (i && +i.value !== state.caps[k]){
-      i.value = state.caps[k];
-      $("#v_"+k).textContent = state.caps[k] + "%";
-    }
+    const x = $("#x_"+k);
+    if (x) x.setAttribute("aria-pressed", String(state.caps[k] === 0));
   }
   const u = new URL(location.href);
   for (const k of CAP_AXES){
@@ -411,6 +506,39 @@ function syncCaps(){
     else u.searchParams.delete("cap_"+k);
   }
   history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+}
+
+/* 好みを URL（?w=exam:25,report:30）と localStorage に往復させる。
+   既定のままの軸は書かない ―― 触っていない人の URL を長くしない。 */
+function syncPref(){
+  const diff = Object.keys(PREF_DEFAULT)
+    .filter(k => state.pref[k] !== PREF_DEFAULT[k])
+    .map(k => `${k}:${state.pref[k]}`);
+  const u = new URL(location.href);
+  if (diff.length) u.searchParams.set("w", diff.join(","));
+  else u.searchParams.delete("w");
+  history.replaceState(history.state, "", u.pathname + u.search + u.hash);
+  try {
+    if (diff.length) localStorage.setItem(PREF_KEY, JSON.stringify(state.pref));
+    else localStorage.removeItem(PREF_KEY);
+  } catch (e) {}
+}
+
+/* 開いたときに好みを戻す。URL が最優先（共有されたリンクを開いた人は
+   自分の保存より、そのリンクの並びを見る）。 */
+function loadPref(){
+  let from = null;
+  const q = new URLSearchParams(location.search).get("w");
+  if (q){
+    from = {};
+    for (const part of q.split(",")){
+      const [k, v] = part.split(":");
+      if (k in PREF_DEFAULT && Number.isFinite(+v)) from[k] = Math.max(0, Math.min(100, +v));
+    }
+  } else {
+    try { from = JSON.parse(localStorage.getItem(PREF_KEY) || "null"); } catch (e) {}
+  }
+  if (from) state.pref = { ...PREF_DEFAULT, ...from };
 }
 
 /* ── 条件チップ ───────────────────────── */
@@ -725,8 +853,8 @@ function card(c){
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
       </div>
-      <div class="fit"><b>${r.overall ?? "—"}</b><small>相性度</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>${esc(m.reason)}</div>
+      <div class="fit"><b>${m.fit ?? r.overall ?? "—"}</b><small>相性度</small></div>
+      <div class="reason"><span class="band b${BAND_CLS[m.band ?? r.band] ?? 0}">${esc(m.band ?? r.band)}</span>${esc(m.reason)}</div>
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
       ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
@@ -868,6 +996,9 @@ const NO_CAP = 100;
    刻みを変えるときはここだけ直すこと。URL復元の丸めもこの値を見ている
    （以前 10 を直書きしていて、5刻みにしたとき 35% が往復で 40% に化けた）。 */
 const CAP_STEP = 10;
+/* 好みの目盛りの刻み。上限（caps）はもう 0 か 100 しか使わないので、
+   刻みを見ているのはこちらだけ。URL の cap_ を丸める側は CAP_STEP のまま。 */
+const PREF_STEP = 5;
 const NO_CAPS = { attendance:NO_CAP, exam:NO_CAP, quiz:NO_CAP, report:NO_CAP,
                   presentation:NO_CAP };
 const CAP_LABEL = { attendance:"出席・平常点", exam:"期末テスト",
@@ -979,6 +1110,38 @@ function matchLocal(r){
     return { fit:null, reason, labels:META.axis_labels };
   }
   const axes = r.axes;
+  /* 好みを反映した相性度。式は score.py の aishoudo と同じで、各軸の「負担」に
+     prefMult を掛けるところだけが違う。**score.py は触らない**（採点の正本は1つ。
+     好みはブラウザの中だけの話）。 */
+  const bend = (v, k) => v === null || v === undefined
+    ? v : Math.max(0, Math.min(100, 100 - (100 - v) * prefMult(k)));
+  const V = {};
+  for (const k of Object.keys(axes)) V[k] = bend((axes[k] || {}).value, k);
+  const OW = { presentation:20, report:15, attendance:15, quiz:10 };
+  const present = r.present || [];
+  const ws = present.reduce((s, k) => s + (OW[k] || 0), 0);
+  const other = (!present.length || ws <= 0) ? 100
+    : present.reduce((s, k) => s + V[k] * (OW[k] || 0), 0) / ws;
+  /* 試験の取り分は score.py の EXAM_SHARE（0.50）のまま**動かさない**。
+     目盛りが効くのは倍率（bend）だけ。取り分まで動かすと、試験の目盛りを
+     いじった人の画面で**試験の無い科目まで動く**（試験の楽さ 100 が別の重みで
+     混ざるため）。実測 2026-09-21：取り分も動かすと テスト75 で 標準が 0.5%・
+     軽め 51.8%・重め 46.5% の二極になり、band の意味が壊れた。
+     倍率だけなら試験の無い科目は 1件も動かず、軽め 25.1% が据え置きになる。 */
+  const factLayer = 0.50 * V.exam + 0.50 * other;
+  const feel = r.feel || {};
+  const sh = feel.share || 0;
+  const fit = Math.round(
+    ((feel.value === null || feel.value === undefined) ? factLayer
+      : (1 - sh) * factLayer + sh * feel.value) * 10) / 10;
+  /* band も同じ好みで数え直す。数字だけ変えて band を据え置くと
+     「62点なのに軽め」になる。score.py の band_of と同じ順序で、閾値も同じ
+     84/71/65。**「参考値」と「拘束は軽い」を先に見ること** ―― 閾値だけで
+     数え直すと、信頼度が低い科目を言い切り、難しさ未確認の一発試験を
+     「軽め」として薦めてしまう（band_of がその2つを先に返している理由）。 */
+  const band = (r.confidence && r.confidence.level === "low") ? "参考値"
+    : (r.needs_review && fit >= 84) ? "拘束は軽い"
+    : fit >= 84 ? "軽め" : fit >= 71 ? "標準" : fit >= 65 ? "やや重め" : "重め";
   const good = [], bad = [];
   for (const k of CAP_AXES){
     const v = (axes[k] || {}).value;
@@ -990,7 +1153,7 @@ function matchLocal(r){
   if (good.length) parts.push(`${good.slice(0,2).join("・")}が期待できます。`);
   if (bad.length)  parts.push(`${bad.slice(0,2).join("・")}は期待できません。`);
   if (!parts.length) parts.push("どの軸も平均的な科目です。");
-  return { fit: r.overall, reason: parts.join(""), labels: META.axis_labels };
+  return { fit, band, reason: parts.join(""), labels: META.axis_labels };
 }
 
 /* server.py の search() と同じ手順。
@@ -1693,6 +1856,8 @@ function resetAllFilters(reload = true){
   state.day = ""; state.period = "";
   state.cond.clear();
   for (const k of CAP_AXES) state.caps[k] = NO_CAP;
+  /* 好みは「条件」ではないので、条件の解除では戻さない。戻す口は
+     目盛りの下の「重さを既定に戻す」に置く。 */
   state.division.clear();
   state.subject.clear(); syncSubjectsUrl();
   state.faculty = ""; state.track = ""; state.track2 = "";
@@ -1953,6 +2118,11 @@ function applyPostMode() {
        位置と件数が食い違って「なぜこの件数なのか」が画面から読めなくなる。
        **CAP_STEP を直書きしないこと**（10 のまま置いていて、35% がURLの
        往復で 40% に化けた。tools/test_haiten_ui.mjs が見張っている）。 */
+    loadPref();
+    /* 読んだ好みをその場で書き戻す。共有リンク（?w=）で来た人も、次にこの
+       サイトを開いたときに同じ並びを見る ―― 好みは「その1回の絞り込み」では
+       なく本人の設定なので、caps と違って持ち越す。 */
+    syncPref();
     for (const k of CAP_AXES){
       const v = parseInt(urlParams.get("cap_" + k), 10);
       if (Number.isFinite(v))
@@ -2020,7 +2190,7 @@ function applyPostMode() {
   buildYearRow(); buildHardSelect();
   $("#tog").onclick = () => {
     const o = $("#sliders").classList.toggle("open");
-    $("#tog").textContent = o ? "配点スライダーを閉じる" : "配点で細かくしぼる";
+    $("#tog").textContent = o ? "重さの目盛りを閉じる" : "重さを自分に合わせる";
   };
 
   /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると

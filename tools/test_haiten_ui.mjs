@@ -1,4 +1,9 @@
-/* 配点スライダーと条件チップが「同じ1つの状態」を指しているかを実ブラウザで確かめる。
+/* 好みの目盛り・✕・条件チップが「役割どおりの状態」を指しているかを実ブラウザで確かめる。
+ *
+ * 2026-09-21: 目盛りは「上限%」から「好みの重さ」になった（相性度の重み。既定は
+ * score.py と同じ テスト50・発表20・レポート15・出席15・小テスト10）。しぼり込みは
+ * 各軸の ✕（#x_<軸>）が引き継いでいて、これが caps を 0 か 100 にする。
+ * **目盛りと ✕ は同じ行にあるが状態は別**（混ぜると「しぼったら好みまで変わった」になる）。
  *
  *   cd web && python3 -m http.server 8146 &
  *   node tools/test_haiten_ui.mjs http://localhost:8146
@@ -47,115 +52,124 @@ const clickChip = name => p.$$eval("#conds .chip", (els, nm) => {
   if (e) e.click();
 }, name);
 // input[type=range] は fill が効かないので値を入れて input を発火させる。
-const setCap = (k, v) => p.$eval(`#s_${k}`, (e, val) => {
+const setPref = (k, v) => p.$eval(`#s_${k}`, (e, val) => {
   e.value = String(val);
   e.dispatchEvent(new Event("input", { bubbles: true }));
 }, v);
+const xOn = k => p.$eval(`#x_${k}`, e => e.getAttribute("aria-pressed") === "true");
 
-/* ── ① 5本のスライダーがあり、既定は 100%（＝制限なし） ── */
+/* ── ① 5本の目盛りと5つの ✕ があり、目盛りの既定はみんなの重さ ── */
 const AXES = ["attendance", "exam", "quiz", "report", "presentation"];
 for (const k of AXES) {
-  check(await p.$(`#s_${k}`) !== null, `スライダー #s_${k} が無い`);
+  check(await p.$(`#s_${k}`) !== null, `目盛り #s_${k} が無い`);
+  check(await p.$(`#x_${k}`) !== null, `✕ ボタン #x_${k} が無い`);
 }
 check(await p.$("#presets") === null || await p.$$eval("#presets .chip", e => e.length) === 0,
       "「あなたの優先度」のプリセットチップがまだ残っている");
 
-/* 目盛りは「100%」まで入る。`.sl` の3列目は元は 16px（1桁ぶん）しか無く、
-   % を付けたときに数字が枠の外へはみ出して「1」しか見えなかった。
+/* 行からはみ出さないこと。`.sl` の3列目は元は 16px（1桁ぶん）しか無く、
+   数字が枠の外へはみ出して「1」しか見えなかった。2026-09-21 に4列目（✕）が
+   増えたので、同じ見張りで幅が足りているかを確かめる。
    はみ出しは行の scrollWidth が clientWidth を超えるかで検出できる。 */
 for (const k of AXES) {
   const fits = await p.$eval(`#s_${k}`, e => {
     const row = e.closest(".sl");
     return row.scrollWidth <= row.clientWidth + 1;
   });
-  check(fits, `${k} の行がはみ出している（目盛りの % が読めない）`);
+  check(fits, `${k} の行がはみ出している（数字か ✕ が読めない）`);
 }
 
-/* 目盛りは 10 刻み（2026-09-04 確定）。5本とも同じ刻みであること。 */
+/* 好みの目盛りは 5 刻み（app.js の PREF_STEP）。5本とも同じ刻みであること。 */
 const STEP = await p.$eval("#s_attendance", e => Number(e.step));
-check(STEP === 10, `目盛りが 10 刻みでない: ${STEP}`);
+check(STEP === 5, `目盛りが 5 刻みでない: ${STEP}`);
 for (const k of AXES) {
   check(await p.$eval(`#s_${k}`, e => Number(e.step)) === STEP,
         `${k} の刻みが他と違う`);
 }
 
 const all = await count();
+/* 既定は score.py の EXAM_SHARE と OTHER_WEIGHTS そのもの。ここが score.py と
+   ずれると、初めて来た人の並び（＝好みを触っていない人の相性度）と画面の
+   説明が食い違う。 */
+const PREF_DEF = { attendance:15, exam:50, quiz:10, report:15, presentation:20 };
 for (const k of AXES) {
-  check(await capOf(k) === 100, `${k} の既定が 100% でない`);
-  check((await labelOf(k)).includes("100%"), `${k} の目盛りが % 表示になっていない`);
+  check(await capOf(k) === PREF_DEF[k], `${k} の目盛りの既定が ${PREF_DEF[k]} でない`);
+  check((await labelOf(k)) === String(PREF_DEF[k]), `${k} の数字が目盛りと合っていない`);
+  check(await xOn(k) === false, `${k} の ✕ が最初から入っている`);
 }
 check(all > 7000, `既定で全件出ていない: ${all}件`);
 
-/* ── ② スライダーを 0% にすると、対応するチップが点灯する ── */
-await setCap("quiz", 0);
-await p.waitForTimeout(200);
+/* ── ② ✕ を押すとチップが点き、もう一度押すと消える ── */
+await p.click("#x_quiz");
+await p.waitForTimeout(250);
 check(await chipOn("小テストなし"),
-      "小テストを0%にしたのにチップ「小テストなし」が点灯しない");
+      "小テストに ✕ を入れたのにチップ「小テストなし」が点灯しない");
 const quizChip = await chipCount("小テストなし");
 check(await count() === quizChip,
-      `小テスト0%の件数 ${await count()} がチップの表示 ${quizChip} と違う`);
+      `小テストに ✕ を入れた件数 ${await count()} がチップの表示 ${quizChip} と違う`);
+await p.click("#x_quiz");
+await p.waitForTimeout(250);
+check(!(await chipOn("小テストなし")), "✕ を外したのにチップが点いたまま");
+check(await count() === all, "✕ を外したのに全件に戻らない");
 
-/* ── ③ 0% から動かすと、チップが消灯する ── */
-await setCap("quiz", 100);
-await p.waitForTimeout(200);
-check(!(await chipOn("小テストなし")),
-      "小テストを100%に戻したのにチップ「小テストなし」が点いたまま");
-check(await count() === all, "上限を戻したのに全件に戻らない");
-
-/* ── ④ チップを押すと、対応するスライダーが 0% へ動く ── */
+/* ── ③ チップを押すと ✕ が入る（同じ1つの状態を見ていること） ── */
 await clickChip("出席なし");
-await p.waitForTimeout(200);
-check(await capOf("attendance") === 0,
-      `チップ「出席なし」を押したのに出席スライダーが ${await capOf("attendance")}%`);
+await p.waitForTimeout(250);
+check(await xOn("attendance"), "チップ「出席なし」を押したのに出席の ✕ が入らない");
 check(await chipOn("出席なし"), "チップ「出席なし」が点灯していない");
 
-/* 「レポートのみ」は4本まとめて 0% にする（2026-09-16 に発表が加わった） */
+/* 「レポートのみ」は4本まとめて ✕ にする（2026-09-16 に発表が加わった） */
 await clickChip("出席なし");                 // 解除してから
 await p.waitForTimeout(150);
 await clickChip("レポートのみ");
-await p.waitForTimeout(200);
-for (const k of ["exam", "attendance", "quiz", "presentation"]) {
-  check(await capOf(k) === 0,
-        `「レポートのみ」なのに ${k} が ${await capOf(k)}%`);
-}
-check(await capOf("report") === 100, "「レポートのみ」でレポートまで0%になっている");
-
-/* ── ⑤ 上限の合計が100%を下回ると0件になり、先に警告が出る ── */
-await clickChip("レポートのみ");             // 解除
-await p.waitForTimeout(150);
-/* 5本とも 10% で合計 50%。2026-09-16 までは4本×20%＝80% で見ていたが、
-   発表を足して5本になると 20% ずつでは合計 100% になり、警告の条件を満たさない。 */
-for (const k of AXES) await setCap(k, 10);
 await p.waitForTimeout(250);
-check(await p.$eval("#capWarn", e => !e.hidden),
-      "上限の合計が50%なのに警告が出ていない");
-check(await count() === 0, `合計50%なのに ${await count()}件 出ている`);
-
-/* 1本でも戻せば警告は消える */
-await setCap("exam", 100);
+for (const k of ["exam", "attendance", "quiz", "presentation"]) {
+  check(await xOn(k), `「レポートのみ」なのに ${k} に ✕ が入っていない`);
+}
+check(!(await xOn("report")), "「レポートのみ」でレポートまで ✕ になっている");
+await clickChip("レポートのみ");             // 解除
 await p.waitForTimeout(200);
-check(await p.$eval("#capWarn", e => e.hidden),
-      "上限の合計が100%以上に戻ったのに警告が残っている");
 
-/* ── ⑥ URL に上限が載り、開き直しても同じ状態になる ── */
+/* ── ④ ✕ は好みを動かさない（役割が混ざっていないこと） ── */
+await p.click("#x_exam");
+await p.waitForTimeout(250);
+check(await capOf("exam") === PREF_DEF.exam,
+      "✕ を押したらテストの目盛り（好み）まで動いた");
+await p.click("#x_exam");
+await p.waitForTimeout(200);
+
+/* ── ⑤ 全部に ✕ を入れると0件になり、先に警告が出る ── */
+for (const k of AXES) await p.click(`#x_${k}`);
+await p.waitForTimeout(300);
+check(await p.$eval("#capWarn", e => !e.hidden),
+      "全部に ✕ を入れたのに警告が出ていない");
+check(await count() === 0, `全部に ✕ を入れたのに ${await count()}件 出ている`);
+
+/* 1本でも外せば警告は消える */
+await p.click("#x_exam");
+await p.waitForTimeout(250);
+check(await p.$eval("#capWarn", e => e.hidden),
+      "✕ を1つ外したのに警告が残っている");
+for (const k of AXES) if (await xOn(k)) await p.click(`#x_${k}`);
+await p.waitForTimeout(300);
+
+/* ── ⑥ URL に載り、開き直しても同じ状態になる ── */
+await p.click("#x_attendance");
+await p.waitForTimeout(250);
 const url = p.url();
-check(/cap_attendance=10/.test(url), `URL に上限が載っていない: ${url}`);
+check(/cap_attendance=0/.test(url), `URL に ✕ が載っていない: ${url}`);
 await p.goto(url, { waitUntil: "networkidle" });
 await p.waitForSelector("#list > .card, #list");
-check(await capOf("attendance") === 10, "URL から開き直すと上限が復元されない");
+check(await xOn("attendance"), "URL から開き直すと ✕ が復元されない");
 
-/* URL に目盛りへ乗らない値（35%）が来たら、目盛りに合わせて丸めること。
-   つまみの位置と件数が食い違うと「なぜこの件数なのか」が画面から読めない。
-   **刻みをここに直書きしない** ―― app.js の CAP_STEP を 10 直書きの丸めと
-   組み合わせていたせいで、5刻みにしたとき 35% が 40% に化けた。
-   ここは「丸めた結果が目盛りに乗っているか」だけを見る。 */
-await p.goto(`${base}?cap_attendance=35`, { waitUntil: "networkidle" });
+/* 好みも URL に載って往復すること（?w=exam:25）。**刻みをここに直書きしない** ――
+   app.js の PREF_STEP を見て、丸めた結果が目盛りに乗っているかだけを見る。 */
+await p.goto(`${base}?w=exam:25`, { waitUntil: "networkidle" });
 await p.waitForSelector("#list > .card, #list");
-const snapped = await capOf("attendance");
-check(snapped % STEP === 0,
-      `URL の 35% が目盛り（${STEP}刻み）に乗っていない: ${snapped}%`);
-check((await labelOf("attendance")) === `${snapped}%`,
-      "つまみの位置と表示している数字が食い違っている");
+check(await capOf("exam") === 25, `URL の好みが目盛りに入っていない: ${await capOf("exam")}`);
+check(await capOf("exam") % STEP === 0,
+      `URL の好みが目盛り（${STEP}刻み）に乗っていない`);
+check((await labelOf("exam")) === "25", "つまみの位置と表示している数字が食い違っている");
 
 check(errs.length === 0, `ページ内で例外: ${errs.join(" / ")}`);
 
