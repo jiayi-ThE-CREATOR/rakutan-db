@@ -1,8 +1,8 @@
 /* /kuchikomi?c=<id> で科目を選んだ状態にする（PR-2・受け側）。
- *   cd web && python3 -m http.server 8795 &
+ *   python3 tools/serve.py 8795 &
  *   node tools/test_kuchikomi_param.mjs http://127.0.0.1:8795
  *
- * python の http.server は Cloudflare Pages の拡張子なしルーティング
+ * tools/serve.py（python の http.server が土台）は Cloudflare Pages の拡張子なしルーティング
  * （/kuchikomi → kuchikomi.html）をしない（/kuchikomi は404、実体は
  * /kuchikomi.html）。ここで確かめたいのは kuchikomi.js が ?c= をどう読むかで
  * あって clean URL 解決そのものではないので、.html を直接指定して同じ
@@ -34,7 +34,7 @@ const check = (cond, msg) => { if (!cond) fails.push(msg); };
 
 const browser = await chromium.launch();
 
-// analytics.js のビーコンは静的配信（plain http.server）だと POST を
+// analytics.js のビーコンは静的配信（tools/serve.py）だと POST を
 // 受けられず 501 を返す ―― これは常に出るノイズで、ページ側のバグではない
 // （tools/test_sort.mjs と同じく、拾うのは未捕捉例外＝pageerror だけにする）。
 function collectErrors(p) {

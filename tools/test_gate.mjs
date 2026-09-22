@@ -1,6 +1,6 @@
 /* LINE 登録しないと使えない機能の覆い（gate.js）と、その判定。
  *
- *   cd web && python3 -m http.server 8151 &
+ *   python3 tools/serve.py 8151 &
  *   node tools/test_gate.mjs http://localhost:8151
  *
  * ■ ここが守っているもの

@@ -1,6 +1,6 @@
 /* 条件チップの並びと点灯を実ブラウザで見張る。
  *
- *   cd web && python3 -m http.server 8144 &
+ *   python3 tools/serve.py 8144 &
  *   node tools/test_conds_layout.mjs http://localhost:8144
  *
  * ■ 何を見ているか（2026-09-11 の指摘3件がそのまま項目になっている）

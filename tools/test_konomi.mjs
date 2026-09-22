@@ -1,6 +1,6 @@
 /* 好みの目盛り（配点でしぼる）が相性度と band に効くことを実ブラウザで確かめる。
  *
- *   python3 -m http.server 8791 --directory web &
+ *   python3 tools/serve.py 8791 &
  *   node tools/test_konomi.mjs http://localhost:8791
  *
  * 好みはブラウザの中だけで効く（score.py は触らない）。だから静的配信で確かめられる。

@@ -1,7 +1,7 @@
 /* 問診の答え（学部・学年）が「その場の1画面」ではなく、次回以降の
  * 訪問にも既定の絞り込みとして効くこと（final-review.md §3-④）。
  * ただし共有リンクの明示的な値（URL クエリ）には勝たせないこと。
- *   cd web && python3 -m http.server 8140 &
+ *   python3 tools/serve.py 8140 &
  *   node tools/test_profile_apply.mjs http://localhost:8140
  */
 import { chromium } from "playwright";

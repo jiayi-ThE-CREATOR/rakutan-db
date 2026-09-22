@@ -1,6 +1,6 @@
 /* 学部→区分フィルタの受け入れ確認。実ブラウザで19項目を見る。
  *
- *   python3 -m http.server 8140 --directory web   # 静的（Cloudflare 相当）
+ *   python3 tools/serve.py 8140   # 静的（Cloudflare 相当）
  *   node tools/check_division_ui.mjs http://localhost:8140 390
  *   node tools/check_division_ui.mjs http://localhost:8140 1280
  *   python3 server.py

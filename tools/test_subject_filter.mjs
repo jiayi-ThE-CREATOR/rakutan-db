@@ -1,6 +1,6 @@
 /* 授業内容タグで絞り込めることを、実ブラウザ（静的配信＝本番と同じ経路）で確かめる。
  *
- *   cd web && python3 -m http.server 8231 &
+ *   python3 tools/serve.py 8231 &
  *   node tools/test_subject_filter.mjs http://127.0.0.1:8231 [スクショの出力先]
  *
  * ■ とくに見張っていること
@@ -25,7 +25,7 @@ async function newPage(w, h){
   });
   p.errors = [];
   p.on("pageerror", e => p.errors.push(String(e)));
-  /* 「Failed to load resource」は数えない。静的配信（python3 -m http.server）では
+  /* 「Failed to load resource」は数えない。静的配信（tools/serve.py）では
      POST /api/hit（計測・501）、GET /api/health と /api/me（API モードかの探り・404）が
      必ず落ちる ―― main でも同じで、このテストの対象ではない。JS の例外とそれ以外のエラーだけ見る。 */
   p.on("console", m => {

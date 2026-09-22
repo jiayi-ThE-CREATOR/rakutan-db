@@ -17,6 +17,56 @@
 
 ---
 
+## 2026-09-22 ｜「ときどき落ちるテスト」は全部サーバ側だった ｜ Claude → 次の人
+
+`tools/test_conds_layout.mjs` と `tools/test_kuchikomi_modal.mjs` は、**単独なら
+通るのに機械が混んでいると落ちる**ので「既知のNG」として何度も PR と引き継ぎに
+書かれてきた。原因はサイトでもテストでもなく、**配っていたサーバ**だった。
+
+### 1. 何が動く状態か
+
+    python3 tools/serve.py 8791          # web/ を配る（-m http.server の代わり）
+    for t in tools/test_*.mjs; do node "$t" http://127.0.0.1:8791; done
+
+**54件すべて通る（NG 0件）。** 「既知のNG」は無くなった。
+
+### 2. 何が起きていたか（実測 2026-09-22）
+
+`python3 -m http.server` は listen backlog が **5**
+（`socketserver.TCPServer.request_queue_size`）。ブラウザは1ページ開くだけで
+10本以上の接続を同時に張るので、溢れたぶんが RST になる:
+
+    REQFAIL /assets/gate.js  net::ERR_SOCKET_NOT_CONNECTED
+    REQFAIL /assets/shell.js net::ERR_CONNECTION_RESET
+    PAGEERROR Cannot destructure property 'detailHtml' of 'window.rkDetail'
+
+スクリプトが1本でも落ちると画面が boot せず、`#conds` も `#list` も**空のまま**。
+テストは「チップが見えない」で 30秒待って落ちる ―― これが正体。
+
+同じ負荷をかけた A/B:
+
+    標準 http.server   6回中 NG 4回
+    tools/serve.py     6回中 NG 0回
+
+### 3. 次の人が最初に打つコマンド
+
+    git fetch origin && git checkout fix/test-server
+    python3 tools/serve.py 8791
+    node tools/test_conds_layout.mjs http://127.0.0.1:8791
+
+### 4. 踏んだ罠
+
+- **`Cache-Control: no-store` を足さないこと。** 「直したのに変わらない」対策の
+  つもりで入れたら、ブラウザが毎回取りに行って Playwright の
+  `waitUntil:"networkidle"` が成立しなくなり、`goto` が 30秒でタイムアウトした
+- 「ときどき落ちる」を timeout を伸ばして黙らせないこと。今回は伸ばしても
+  直らなかった（30秒あっても boot していないので永遠に見えない）。
+  **落ちた瞬間の DOM とネットワークのログを採る**のが近道だった
+- `tools/*.mjs` の先頭の起動コマンドは 18本とも書き換えた。過去の
+  `docs/` と HANDOFF の記録は歴史なので触っていない
+
+---
+
 ## 2026-09-22 ｜ 覆いを押したら、入口へ直行せず説明を出す ｜ Claude → 次の人
 
 **この日のうちに、下の「好みの重さ」の記事の一部が古くなった。** 目盛りは

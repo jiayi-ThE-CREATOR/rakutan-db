@@ -1,6 +1,6 @@
 /* 並び替えが実際にその順で並ぶかを実ブラウザで確かめる。
  *
- *   cd web && python3 -m http.server 8140 &     # 静的＝本番と同じ経路
+ *   python3 tools/serve.py 8140 &     # 静的＝本番と同じ経路
  *   node tools/test_sort.mjs http://localhost:8140
  *
  * **静的配信で確かめるのが肝**。本番は Cloudflare の静的アセットなので、
