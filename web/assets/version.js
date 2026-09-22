@@ -360,6 +360,25 @@
       target.scrollIntoView({ block: "center", behavior: "smooth" });
       target.classList.add("verFlash");
       setTimeout(() => target.classList.remove("verFlash"), 1600);
+
+      /* 一度運んで終わりにしない。飛んだ直後にも一覧は伸び続けていて
+         （app.js がデータを入れ終わるまで箱は空のまま立っている）、
+         運んだ先が画面の外へ押し出される ―― 本番で実測: 飛んだあとの
+         #sliders が top=1117、#list が top=1830（画面の高さは 900）。
+         ローカルは速いので一度も再現しなかった。
+         落ち着くまで、画面の上のほうに居るかを見張って運び直す。 */
+      let tries = 0;
+      const keep = () => {
+        if (++tries > 8) return;                       // 1.6秒であきらめる
+        const r = target.getBoundingClientRect();
+        // 「上端が画面の上半分に見えている」を落ち着いた状態とする。
+        // 一覧のように画面より高いものは、全体を入れようとすると永遠に決まらない。
+        if (!(r.top >= 0 && r.top < innerHeight * 0.6)) {
+          target.scrollIntoView({ block: "center", behavior: "auto" });
+        }
+        setTimeout(keep, 200);
+      };
+      setTimeout(keep, 200);
     });
     return a;
   };
