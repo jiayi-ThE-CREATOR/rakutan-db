@@ -30,6 +30,12 @@ await p.addInitScript(() => {
 await p.goto(url, { waitUntil: "networkidle" });
 await p.waitForSelector(".card", { timeout: 15000 });
 
+/* 上段の区分は畳んで出る（「全学部共通の区分を選ぶ ▼」）。開かないとチップを押せない。
+   ここが抜けていて、この確認は 2026-09-21 まで 98 行目のクリックで止まっていた
+   ―― 畳んで出すようにした時点で通らなくなっていた（当時は下線リンク）。
+   開閉の状態は buildFaculty() の作り直しでは戻らないので、最初に1回だけでよい。 */
+if (await p.$eval("#divs", el => el.hidden)) await p.click("#divsTog");
+
 const ok = [], ng = [];
 const t = (name, cond, extra="") => (cond ? ok : ng).push(name + (extra ? ` — ${extra}` : ""));
 
