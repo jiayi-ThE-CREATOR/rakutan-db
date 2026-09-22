@@ -34,6 +34,15 @@ button.subjTag:hover{color:var(--brand-text);border-color:var(--brand-line)}
 .subjOpen:hover{border-color:var(--brand-line)}
 .subjPicked{margin-top:var(--sp-2)}
 
+/* LINE 登録の覆い（gate.js / gate.css）。覆いは中身の上に absolute で重なるので、
+   ふつうの節（条件チップ・配点）は中身のほうが背が高くて収まる。ここは中身が
+   「何の話？」の1行しかなく、覆いの文（3行＋ボタン）が節からはみ出して
+   見出しに重なった（2026-09-22 実測）。2つを同じマス目に置いて、背の高い方に箱を合わせる。 */
+#subjSec [data-gate].gated{display:grid}
+#subjSec [data-gate].gated > .gateInner,
+#subjSec [data-gate].gated > .gateVeil{grid-area:1 / 1}
+#subjSec [data-gate].gated > .gateVeil{position:relative;inset:auto}
+
 /* ── ダイアログ ── */
 .subjDlg{border:none;padding:0;background:none;max-width:none;max-height:none;
   width:100%;height:100%;margin:0}

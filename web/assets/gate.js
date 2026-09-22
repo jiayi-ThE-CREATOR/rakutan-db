@@ -103,7 +103,8 @@
       ? `<p class="gateDlgLead">ラクハン【公式】を友だち追加してから、もう一度お試しください。</p>
          <a class="gateBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE で友だち追加</a>`
       : `<p class="gateDlgLead">重さのつまみを自分に合わせて動かしたり、ある項目がある授業を
-           <b>✕</b> でまとめて外したりするには、LINE 登録が要ります。</p>
+           <b>✕</b> でまとめて外したり、授業内容のタグでしぼったりするには、
+           LINE 登録が要ります。</p>
          <p class="gateDlgSub">ラクハン【公式】と繋ぐだけです。<b>登録は無料</b>で、
            授業の情報はそのまま見られます。</p>
          <a class="gateBtn" href="${loginHref()}">LINE で続ける</a>`;

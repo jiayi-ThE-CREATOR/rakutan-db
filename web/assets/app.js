@@ -1771,6 +1771,10 @@ function focusResults(){
 
 function toggleSubject(k){
   if (!((META && META.subject_labels) || {})[k]) return;
+  /* 授業内容でしぼるのは登録した人だけ（2026-09-22 wang 判断）。左の節は gate.js が
+     覆うが、カードと詳細のタグには覆う器が無いので、押されたらここで受ける。
+     入口へ直行せず gate.js の説明を出す ―― 配点の ✕ と同じ（2026-09-22 wang 指摘）。 */
+  if (window.rkGate && !window.rkGate.linked()){ window.rkGate.prompt(); return; }
   state.subject.has(k) ? state.subject.delete(k) : state.subject.add(k);
   syncSubjectsUrl();
   /* PC の右カラムの詳細は load() では描き直さないので、押した状態だけ合わせる。 */
@@ -2225,6 +2229,9 @@ function applyPostMode() {
     clear:    clearSubjects,
     done:     focusResults,
   });
+  /* 授業内容の節は上で差し込んだばかりなので、gate.js の最初の apply には
+     間に合っていない。掛け直す（mypage.js が描き終わりに呼ぶのと同じ）。 */
+  window.rkGate?.apply?.();
   await load();
   window.dispatchEvent(new CustomEvent("rk:app-ready"));
   /* マイページの時間割のコマから来た人（?open=）。?c= より先に処理する

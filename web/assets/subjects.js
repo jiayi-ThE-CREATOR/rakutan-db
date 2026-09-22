@@ -29,7 +29,13 @@ function chip(k, label, { on = false, n = null } = {}){
 }
 
 /* ── 左の絞り込み ─────────────────────────
-   置き場所は「空きコマからさがす」の直下。空きコマと並ぶ、検索語を持たない人の入口なので。 */
+   置き場所は「空きコマからさがす」の直下。空きコマと並ぶ、検索語を持たない人の入口なので。
+
+   中身は `data-gate` で包む ―― **LINE 登録しないと使えない**（2026-09-22 wang 判断。
+   条件チップ・配点の ✕・口コミと同じ扱い）。覆うのは gate.js で、見出しは覆いの外に置く
+   （index.html の他の節と同じ形：`<h2>` の下に `<div data-gate>`）。
+   この節は JS で後から差し込むので、app.js が init のあとに `rkGate.apply()` を呼び直す。
+   カードと詳細のタグを押したときの判定は app.js の toggleSubject（配点の ✕ と同じやり方）。 */
 function mountRail(){
   if (document.getElementById("subjSec")) return;
   const grid = document.getElementById("grid");
@@ -38,8 +44,10 @@ function mountRail(){
   const sec = document.createElement("section");
   sec.id = "subjSec";
   sec.innerHTML = `<h2>授業内容でさがす</h2>
-    <button type="button" class="subjOpen" id="subjOpen" aria-haspopup="dialog"></button>
-    <div class="chips subjPicked" id="subjPicked" hidden></div>`;
+    <div data-gate>
+      <button type="button" class="subjOpen" id="subjOpen" aria-haspopup="dialog"></button>
+      <div class="chips subjPicked" id="subjPicked" hidden></div>
+    </div>`;
   anchor.after(sec);
   sec.querySelector("#subjOpen").addEventListener("click", open);
   sec.querySelector("#subjPicked").addEventListener("click", e => {
