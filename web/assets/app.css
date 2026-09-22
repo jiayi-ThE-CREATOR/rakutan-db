@@ -696,26 +696,6 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
   cursor:pointer;white-space:nowrap}
 .cardActs .ttAddBtn[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);}
 
-/* 口コミが「まだ数字に入っていない」ことの注意喚起（2026-08-24）。
-   3件そろうまで採点に入れない方針にしたため、1人が「テストが難しい」と
-   書いていても総合値は動かない。つまり「とにかく軽い」で並べ替えると
-   その科目が上位に来る。バッジ1個では並べ替えの上位で見落とされるので、
-   カードの枠色を変えたうえで幅いっぱいの帯にしている。
-   scored が true になったらこの帯は出ず、件数は .cardActs の .rvBtn に出る
-   （2026-09-06、旧・件数バッジ .rvb は操作バーに統合されて廃止）。
-   2026-08-24 本番実測：scored:false は 87科目（全体の7.8%）。
-   うち総合値が出て「軽い順」に並ぶのが 45科目。
-
-   色は --alert-face / --alert-ink（地の反転）。
-   色相を1つも増やさないために、--brand 系にも --scale-* 系にも寄せていない。
-   詳しい理由と実測値は tokens.css のコメントにある。 */
-.card.unscored{border-color:var(--alert-face)}
-.rvAlert{grid-column:1/3;display:flex;gap:var(--sp-2);align-items:flex-start;
-  margin-top:var(--sp-2);background:var(--alert-face);color:var(--alert-ink);
-  border-radius:var(--r-sm);padding:var(--sp-2) var(--sp-3);
-  font-size:var(--fs-sm);font-weight:700;line-height:1.5}
-.rvAlert i{font-style:normal;flex:none}
-
 /* 「拘束は軽い」が「軽め」と言い切れない理由。band だけでは学生に伝わらない。
    2026-08-24 本番実測：502科目（全体の45%）に立つ。「軽い順」の上位40件では
    40件すべてに出る。だから口コミの帯と同じ強さにはしない

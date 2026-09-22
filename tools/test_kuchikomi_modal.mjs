@@ -316,6 +316,24 @@ async function readableCount(p, id){
   }, id);
 }
 
+/* 回答の総数（n）。readableCount と対になる。「口コミ N件を見る」
+   （readable=0 のカードのボタン、2026-09-22）は readable ではなく n を出す
+   ので、readableCount では確かめられない（app.js の cardActsHtml 注記）。 */
+async function totalCount(p, id){
+  return p.evaluate(async (id) => {
+    try {
+      const r = await fetch(`/api/courses/${encodeURIComponent(id)}`);
+      if (r.ok){
+        const c = await r.json();
+        if (c && c.id) return c.reviews?.n || 0;
+      }
+    } catch (e) {}
+    const all = await (await fetch("/data/courses.built.json")).json();
+    const c = (all.courses || []).find(x => x.id === id);
+    return c?.reviews?.n || 0;
+  }, id);
+}
+
 /* ── Change 1: 書かれた口コミが無い科目（回答はある）── */
 {
   /* 135059：n=1・notes=[]（readable=0）。Change 1 の実測で
@@ -347,7 +365,12 @@ async function readableCount(p, id){
   const cardBtn = await p.evaluate(id =>
     document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn`)?.textContent.trim() || null,
     ID);
-  check(cardBtn === "📊 みんなの回答を見る",
+  /* 2026-09-22：文言を「みんなの回答を見る」→「口コミ N件を見る」に変えた。
+     .rvAlert（詳細を開くまでの黒い帯）を消したので、readable=0 の科目で
+     回答の総数（n）が見える場所がここだけになったため（wang 指摘：帯は
+     下のボタンと二重表示だった）。n はビルドで動くので data から読む。 */
+  const total = await totalCount(p, ID);
+  check(cardBtn === `📊 口コミ ${total}件を見る`,
         `[readable=0] カードのボタン文言が違う（${cardBtn}）`);
   await p.close();
 }
@@ -469,7 +492,12 @@ function assertRowsAligned(rows, label){
   const p = await page(1280, 900, true);
   await p.goto(base + "/", { waitUntil: "networkidle" });
   await p.waitForSelector(".card");
-  await p.click(".card .head");
+  /* .head 全体ではなく .title を狙って押す。.head の bounding box 中心は
+     カードの高さ次第でどの行に当たるか動く ―― 2026-09-22 に .rvAlert を
+     消して1行分縮んだら、中心が .meta の中の「⧉ コピー」（.ccC、
+     stopPropagation する）に重なり、ここが「開かない」まま落ちた。
+     .title は常に .head の中にあり、他の押せる要素と重ならない。 */
+  await p.click(".card .title");
   await p.waitForTimeout(400);
   check(await p.evaluate(() => document.getElementById("inspector").innerHTML.trim().length > 0),
         "[1280px・選択中] #inspector が埋まっていない（前提が崩れている）");
@@ -497,7 +525,7 @@ function assertRowsAligned(rows, label){
   });
   check(before, "[900px] 先頭行に相方のカードが無い（検証できない）");
   if (before){
-    await p.click(".card .head");
+    await p.click(".card .title"); // 理由は1280px・選択中ブロックの注記と同じ
     await p.waitForTimeout(400);
     const after = await p.evaluate(id =>
       document.querySelector(`.card[data-id="${id}"]`)?.getBoundingClientRect().height ?? null,
