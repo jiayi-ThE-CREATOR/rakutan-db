@@ -38,6 +38,9 @@
  *     もの（詳細パネルの中身）や、もう作り直した機能には付けない ――
  *     飛んだ先に何も無いのが、リンクが一度も押されなくなる一番の近道
  *   ・飛び先の id は app.js 側の持ち物。消えていないかは、版を出すときに一度押して確かめる
+ *   ・**同じページの飛び先がその画面に無いときは、リンク自体が出ない**
+ *     （PC だけの機能をスマホで読んだとき／id が消えたとき）。
+ *     別ページの飛び先は確かめようがないので出る ―― そこは人が確かめる
  *
  * ── 主打（head / icon）―― ここがこの画面の要 ─────
  *   head を書いた項目だけが、版の先頭に「カード」として大きく出る。
@@ -97,7 +100,7 @@
         { tag: "new", lead: "一覧から直接「時間割に追加」",
           text: "科目の詳細を開かなくても押せます" },
         { tag: "new", lead: "左の絞り込みを畳める", href: "/#grip",
-          text: "条件と一覧のあいだにある矢印を押すと畳めて、一覧が広がります" },
+          text: "条件と一覧のあいだにある矢印を押すと畳めて、一覧が広がります（PC）" },
         { tag: "new", lead: "科目の詳細を ✕ で閉じる",
           text: "Esc キーでも閉じます。閉じると一覧だけの画面に戻ります（PC）" },
         { tag: "new", lead: "About にスライドショー", href: "/about#strength",
@@ -304,6 +307,26 @@
      別ページならふつうの <a> のまま（遷移すればダイアログは消える）。
      href はサイトの中だけ（tools/test_version.mjs が外部リンクを落とす）ので、
      rel="noopener" のような外向けの用心は要らない。 */
+  /* 飛び先が「いまこの画面に」無いリンクは隠す。
+       ・PC だけの機能（左の絞り込みの矢印はスマホでは出ない）
+       ・app.js 側で id が消えたとき
+     どちらも押した先に何も無く、「押しても何も起きないリンク」がいちばん早く
+     信用を失う。別ページ（pathname が違う）は今この場で確かめようがないので
+     そのまま出す ―― 確かめるのは版を出す人の仕事（CLAUDE.md「リンク」）。
+
+     ★ この判定は描画時ではなく**ダイアログを開くたび**に走らせる。
+     version.js は読み込み直後に描くが、飛び先の多く（#list #grid #sliders）は
+     app.js がデータを取ってから作るので、描画時にはまだ存在しない。
+     ここで一度間違えて、出るべきリンクが全部消えた（2026-09-22）。 */
+  const reachable = (href) => {
+    const url = new URL(href, location.href);
+    if (url.pathname !== location.pathname || !url.hash) return true;
+    const t = document.querySelector(url.hash);
+    if (!t) return false;
+    const r = t.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
+
   const jump = (href) => {
     const a = el("a", "verJump", "見てみる");
     a.setAttribute("href", href);
@@ -433,6 +456,11 @@
 
   /* ── 開閉 ─────────────────────────────── */
   fab.addEventListener("click", () => {
+    /* 開くたびに、飛び先がいまの画面に在るリンクだけを残す
+       （画面の幅も、app.js が作り終えたかも、このときにしか分からない）。 */
+    list.querySelectorAll("a.verJump").forEach((a) => {
+      a.hidden = !reachable(a.getAttribute("href"));
+    });
     dlg.showModal();
     seen.set(latest.version);
     $("verDot").hidden = true;

@@ -137,6 +137,7 @@
 .verJump{display:inline-flex;align-items:center;gap:var(--sp-1);
   margin-top:var(--sp-1);font-size:var(--fs-sm);font-weight:700;
   color:var(--brand-text);text-decoration:none}
+.verJump[hidden]{display:none}   /* 飛び先が無いときは出さない（version.js が開くたびに見直す） */
 .verJump:hover{text-decoration:underline}
 .verJump:focus-visible{outline:2px solid var(--brand);outline-offset:2px;
   border-radius:var(--r-xs)}

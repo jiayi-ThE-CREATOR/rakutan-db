@@ -23,12 +23,14 @@
 版ごとに**主打を 1〜3件だけ大きく出し、残りは tag ごとに畳む**形にした。
 過去の版も1行に畳む。畳みの中も「太字の見出し＋説明」の2段に組み替えた。
 
-担当ファイルは `web/assets/version.js` / `version.css` / `tools/test_version.mjs`。
+担当ファイルは `web/assets/version.js` / `version.css` / `tools/test_version.mjs` / `tools/test_version_links.mjs`。
 `app.js` には触れていない（飛び先の id を読むだけ）。
 
 ### 1. 何が動く状態か
 
-    node tools/test_version.mjs    # 362件通過（180件から増やした）
+    node tools/test_version.mjs                                  # 362件通過
+    (cd web && python3 -m http.server 8140) &
+    node tools/test_version_links.mjs http://localhost:8140      # 「見てみる →」を全部押す
 
 - `RELEASES` の項目に4つのキーが増えた。**次に版を切る人が触るのはここだけ**
   - `head` ＋ `icon` … 主打カード。**版ごとに 1〜3件。0件でも4件でもテストが落ちる**
@@ -47,9 +49,9 @@
   `docs/version-pending.md` には1行も足していない
 - `build.py` を流していない。`version.js` / `version.css` はアセットなので
   ページ側の再生成は要らないが、`templates/shell.html` を触る変更と一緒に出すなら流すこと
-- `href` の飛び先 id は実機で押して確かめたのは `/#sliders` だけ。
-  残り（`/#grid` `/#conds` `/#rail` `/#grip` `/#list` `/mypage#mpTimetable`
-  `/mypage#mpFavorites` `/about#strength` `/kuchikomi`）は id の存在を grep で確認しただけ
+- `href` の飛び先は `tools/test_version_links.mjs` で12件すべて、PC幅とスマホ幅の
+  両方で実際に押して確認ずみ（`/#grip` はスマホでは PC 限定なのでリンクを隠す＝想定どおり）。
+  ただし**確かめたのはローカルの静的配信**で、本番の Workers 配信では見ていない
 - `docs/version-pending.md` の ★ 3件（重さの出し方 / 口コミ / 発表）は**仮置き**。
   水曜に版を切るとき、主打をこの3件にするかを本人に必ず確認する
 
@@ -62,8 +64,15 @@
 
 ### 4. 踏んだ罠
 
-- **`[class*=splash]` で開屏の覆いを消そうとすると `<html class="splash-skip">` に当たって
-  ページごと消える。** スクショを撮るときは `div.splash` と `div.onboard` を名指しで消す
+- **開屏と問診は DOM を消して黙らせない。** `[class*=splash]` は
+  `<html class="splash-skip">` に当たってページごと消える。正しいのは
+  `localStorage.rk_onboarded = "1"` ／ `sessionStorage.rk_splash_seen = "1"` を
+  `addInitScript` で先に入れる（`smoke.mjs` と同じ）
+- **飛び先が app.js の作るものだと、version.js の描画時にはまだ存在しない。**
+  「飛び先が無いリンクは描かない」を描画時に判定して、`#list` `#grid` `#sliders` の
+  リンクが全部消えた。判定は**ダイアログを開くたび**に走らせる
+- **ローカルの `python3 -m http.server` は拡張子なし（`/about`）を解決しない。**
+  本番の Workers 静的配信は解決する。別ページの飛び先をローカルで確かめるときは `.html` を付ける
 - **左の絞り込み（`#rail`）は v1.2 から畳める。** 畳んだまま `#sliders` へ飛ぶと
   何も見えないので、`jump()` は `#grip` の `aria-expanded` を見て先に開いている。
   app.js 側で id が変わったらここが黙って効かなくなる
