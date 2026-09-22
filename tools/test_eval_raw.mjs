@@ -4,7 +4,7 @@
  *   python3 server.py --port 8149 &                 # API モード
  *   node tools/test_eval_raw.mjs http://127.0.0.1:8149
  *
- *   (cd web && python3 -m http.server 8150) &        # 静的モード（Cloudflare相当）
+ *   python3 tools/serve.py 8150 &        # 静的モード（Cloudflare相当）
  *   node tools/test_eval_raw.mjs http://127.0.0.1:8150
  *
  * **両方で流すこと。** 静的モードでしか踏めない科目がある（下の ③）。

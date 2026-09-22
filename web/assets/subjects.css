@@ -14,9 +14,18 @@
 .subjTag{font:inherit;font-size:var(--fs-xs);line-height:1.4;
   color:var(--soft);background:var(--dim);border:1px solid transparent;
   border-radius:var(--r-pill);padding:4px 10px;min-height:28px}
-button.subjTag{cursor:pointer}
-button.subjTag:hover{border-color:var(--rule)}
+/* 押せるタグ（カードと詳細）。押せない灰色の薬と同じ見た目だと、touch では
+   hover も無く「押せる」と分からない（2026-09-18 レビュー）。枠を常に出して見分ける。 */
+button.subjTag{cursor:pointer;border-color:var(--muted)}
+button.subjTag:hover{color:var(--brand-text);border-color:var(--brand-line)}
 .subjTag.on{color:var(--brand-text);background:var(--brand-soft);border-color:var(--brand-line);font-weight:700}
+
+/* 訂正の入口（detail.js）。タグと同じ行の末尾に置くが、押すと絞り込みではなく
+   意見箱が開くので、丸い薬ではなく下線のある文字にして見分ける。 */
+.subjRep{font:inherit;font-size:var(--fs-xs);line-height:1.4;cursor:pointer;
+  color:var(--muted);background:none;border:none;text-decoration:underline;
+  padding:4px 6px;min-height:28px}
+.subjRep:hover{color:var(--ink)}
 
 /* ── 左の絞り込み ── */
 .subjOpen{font:inherit;width:100%;text-align:left;cursor:pointer;
@@ -24,6 +33,15 @@ button.subjTag:hover{border-color:var(--rule)}
   border-radius:var(--r-md);padding:10px 12px;min-height:44px}
 .subjOpen:hover{border-color:var(--brand-line)}
 .subjPicked{margin-top:var(--sp-2)}
+
+/* LINE 登録の覆い（gate.js / gate.css）。覆いは中身の上に absolute で重なるので、
+   ふつうの節（条件チップ・配点）は中身のほうが背が高くて収まる。ここは中身が
+   「何の話？」の1行しかなく、覆いの文（3行＋ボタン）が節からはみ出して
+   見出しに重なった（2026-09-22 実測）。2つを同じマス目に置いて、背の高い方に箱を合わせる。 */
+#subjSec [data-gate].gated{display:grid}
+#subjSec [data-gate].gated > .gateInner,
+#subjSec [data-gate].gated > .gateVeil{grid-area:1 / 1}
+#subjSec [data-gate].gated > .gateVeil{position:relative;inset:auto}
 
 /* ── ダイアログ ── */
 .subjDlg{border:none;padding:0;background:none;max-width:none;max-height:none;
@@ -44,6 +62,10 @@ button.subjTag:hover{border-color:var(--rule)}
 .subjLead,.subjEmpty{margin:0;font-size:var(--fs-sm);color:var(--muted)}
 .subjNote{margin:0;font-size:var(--fs-xs);color:var(--muted)}
 .subjDlg .chips .chip{min-height:40px}
+/* 最初の画面だけ、意味の塊に見出しを付けて縦に積む（subjects.js の renderDialog）。 */
+.subjGroups{display:flex;flex-direction:column;gap:var(--sp-3)}
+.subjGrpH{margin:0 0 var(--sp-2);font-size:var(--fs-xs);font-weight:700;
+  color:var(--muted);letter-spacing:.09em}
 /* 選択肢が多くても決定ボタンが画面の外に出ないように、カードの下端に貼り付ける。 */
 .subjFoot{display:flex;gap:var(--sp-2);justify-content:flex-end;position:sticky;bottom:0;
   background:var(--card);border-top:1px solid var(--rule);margin:0 calc(-1 * var(--pad));

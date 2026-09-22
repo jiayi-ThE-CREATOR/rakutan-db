@@ -1,6 +1,6 @@
 /* LINE 登録しないと使えない機能の覆い（gate.js）と、その判定。
  *
- *   cd web && python3 -m http.server 8151 &
+ *   python3 tools/serve.py 8151 &
  *   node tools/test_gate.mjs http://localhost:8151
  *
  * ■ ここが守っているもの
@@ -47,16 +47,29 @@ async function open(path, { me, storage } = {}){
   return page;
 }
 
-/* ── トップ：3つの節が覆われる ───────────────────── */
+/* ── トップ：3つの節が覆われる ─────────────────────
+   2026-09-21 に「配点でしぼる」を覆いから外し、2026-09-22 に戻した（wang 判断）。
+   目盛りを動かすことも ✕ も登録した人の機能。**覆いは中身を隠さない**ので、
+   既定の重さ（テスト50…）は薄いまま読める ―― 何が使えるようになるのか
+   見えないと、登録する理由も伝わらない。
+   同じ 2026-09-22 に「授業内容でさがす」が加わって 3→4（wang 判断）。この節だけは
+   HTML ではなく subjects.js が差し込むので、app.js が init のあとに
+   rkGate.apply() を呼び直している ―― そこが抜けると覆いが1つ足りなくなる。 */
 {
   const page = await open("/", { me: ME.notLoggedIn });
   const veils = await page.$$(".gateVeil");
-  check(veils.length === 3, `トップの覆いが3つでない（${veils.length}）`);
+  check(veils.length === 4, `トップの覆いが4つでない（${veils.length}）`);
 
   /* 覆う相手は HTML の data-gate。JS 側にセレクタを持たせない作りなので、
      HTML から data-gate が消えたらここで気づく。 */
   const marked = await page.$$("[data-gate]");
-  check(marked.length === 3, `data-gate が3つでない（${marked.length}）`);
+  check(marked.length === 4, `data-gate が4つでない（${marked.length}）`);
+
+  /* 授業内容：見出しは覆いの外、中身（「何の話？」）は覆いの中で inert。 */
+  check(await page.$eval("#subjSec h2", e => !e.closest("[data-gate]")),
+        "授業内容の見出しまで覆われている");
+  check(await page.$eval("#subjOpen", e => !!e.closest("[inert]")),
+        "授業内容の「何の話？」が押せる状態のまま（覆いの中に入っていない）");
 
   const inner = await page.evaluate(() => {
     const el = document.querySelector(".gated > .gateInner");
@@ -90,17 +103,57 @@ async function open(path, { me, storage } = {}){
     };
   });
   if (blocked){
-    check(blocked.inert, "スライダーが inert の中に無い（キーボードでも操作できてしまう）");
+    check(blocked.inert, "目盛りが inert の中に無い（キーボードでも動かせてしまう）");
     check(blocked.pe === "none", `中身の pointer-events が none でない（${blocked.pe}）`);
     check(blocked.veilPe !== "none", "覆いの pointer-events が none（押しても促しが出ない）");
   }
 
-  /* 覆いを押したら入口へ送る（ボタン以外を押しても動く）。 */
+  /* 覆いの中の数字は読めること。何が使えるようになるのか見えないと、
+     登録する理由も伝わらない（覆いは隠すためのものではない）。 */
+  check(await page.$eval("#s_exam", e => e.value) === "50",
+        "覆いの中で目盛りの既定（テスト50）が読めない");
+
+  /* 覆いを押したら、**入口へ直行せず**まず説明を出す（2026-09-22 wang 指摘）。
+     ボタン以外を押しても出ること。 */
+  const before = page.url();
   await page.click(".gateVeil", { position: { x: 5, y: 5 } }).catch(() => {});
-  await page.waitForTimeout(800);
-  const url = page.url();
-  check(url.includes("access.line.me") || url.includes("/line/login"),
-        `覆いを押しても LINE の入口へ行かない（${url}）`);
+  await page.waitForTimeout(600);
+  check(await page.$eval("#gateDlg", e => e.open) === true,
+        "覆いを押しても説明のダイアログが出ない");
+  check(page.url() === before, `説明を出さずに画面を移した（${page.url()}）`);
+  const dlgBody = await page.textContent("#gateDlgBody");
+  check(/無料/.test(dlgBody), "説明に「登録は無料」が書かれていない");
+  const href = await page.$eval("#gateDlgBody .gateBtn", e => e.getAttribute("href"));
+  check(/\/line\/login/.test(href || ""), `説明の中に入口のリンクが無い（${href}）`);
+
+  /* 閉じられること（読んだうえで「いまはやめる」が選べる）。 */
+  await page.click("#gateDlgClose");
+  await page.waitForTimeout(300);
+  check(await page.$eval("#gateDlg", e => e.open) === false, "説明を閉じられない");
+
+  /* カードのタグ（授業内容）には覆う器が無いので、押されたら app.js が同じ説明を出す。
+     ここが抜けると、登録していない人が一覧をタグで絞れてしまう。 */
+  const tag = await page.$("#list .card button.subjTag");
+  if (tag){
+    const url0 = page.url();
+    await tag.dispatchEvent("click");
+    await page.waitForTimeout(600);
+    check(await page.$eval("#gateDlg", e => e.open) === true,
+          "カードのタグを押しても説明のダイアログが出ない");
+    check(page.url() === url0, `カードのタグで画面を移した（${page.url()}）`);
+    check(!new URL(page.url()).searchParams.getAll("subject").length,
+          "未登録なのにカードのタグでしぼり込めた");
+    await page.click("#gateDlgClose");
+    await page.waitForTimeout(300);
+  } else check(false, "カードに押せるタグが無い（前提が崩れている）");
+
+  /* 中のボタンを押したときだけ入口へ進む。 */
+  await page.click(".gateVeil", { position: { x: 5, y: 5 } }).catch(() => {});
+  await page.waitForTimeout(400);
+  await page.click("#gateDlgBody .gateBtn");
+  await page.waitForTimeout(1500);
+  check(page.url().includes("access.line.me") || page.url().includes("/line/login"),
+        `説明のボタンを押しても LINE の入口へ行かない（${page.url()}）`);
   await page.close();
 }
 
@@ -130,6 +183,7 @@ async function open(path, { me, storage } = {}){
 /* ── マイページ ─────────────────────────────── */
 {
   const page = await open("/mypage.html", { me: ME.notLoggedIn });
+  /* マイページは3つのまま ―― 授業内容の節はトップにしか無い（2026-09-22）。 */
   check((await page.$$(".gateVeil")).length === 3,
         "マイページの覆いが3つでない");
   check(!(await page.$("#mpLine .gateVeil")),
@@ -160,7 +214,7 @@ async function open(path, { me, storage } = {}){
   const page = await open("/", {
     me: ME.notLoggedIn, storage: { rk_line_linked: "1" },
   });
-  check((await page.$$(".gateVeil")).length === 3,
+  check((await page.$$(".gateVeil")).length === 4,
         "localStorage の rk_line_linked=1 で覆いが外れた（押すだけで通れる穴）");
   await page.close();
 }

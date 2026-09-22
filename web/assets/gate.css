@@ -49,3 +49,28 @@
   .gateLead{font-size:var(--fs-xs)}
   .gateSub{display:none}
 }
+
+/* ── 覆いを押したときの説明 ─────────────────
+   入口（LINE）へ直行せず、まず「何ができるようになるのか」を site の中で出す。
+   作りは version.css の .verDlg と同じ（スマホは下から、700px 以上は中央）。 */
+.gateDlg{border:none;padding:0;background:none;max-width:none;max-height:none;
+  width:100%;height:100%;margin:0}
+.gateDlg::backdrop{background:var(--scrim)}
+.gateDlg[open]{display:flex;align-items:flex-end;justify-content:center}
+.gateDlgCard{background:var(--card);color:var(--ink);width:100%;max-width:460px;
+  border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px var(--pad) 24px;
+  max-height:86vh;overflow:auto;font-size:var(--fs-base)}
+.gateDlgHead{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--sp-3)}
+.gateDlgHead h2{margin:0;font-size:var(--fs-lg)}
+.gateDlgClose{background:none;border:none;color:var(--muted);font:inherit;
+  font-size:var(--fs-lg);line-height:1;padding:var(--sp-1);cursor:pointer;flex:none}
+.gateDlgLead{margin:var(--sp-3) 0 0;font-size:var(--fs-sm);color:var(--soft);line-height:1.7}
+.gateDlgSub{margin:var(--sp-2) 0 0;font-size:var(--fs-sm);color:var(--muted);line-height:1.7}
+/* ダイアログの中のボタンは覆いのものより1段大きく出す（ここが行き先）。
+   覆いの中では <button> なので下線は出ないが、ここは <a> なので消しておく。 */
+.gateDlgCard .gateBtn{display:block;margin-top:var(--sp-4);text-align:center;text-decoration:none}
+
+@media (min-width:700px){
+  .gateDlg[open]{align-items:center}
+  .gateDlgCard{border-radius:var(--r-lg);max-height:80vh}
+}

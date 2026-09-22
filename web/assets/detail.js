@@ -205,9 +205,14 @@ function subjectTagsHtml(keys, { labels = {}, selected = null, interactive = fal
   }).join("");
 }
 
-/* opts.subjectLabels を渡したときだけ「授業内容」の段を出す。
-   PC の右カラム（#inspector）は渡す。スマホはカードの中で開くので渡さない ――
-   カードにもう同じタグが出ていて、2回並ぶことになる。 */
+/* 「授業内容」の段は、タグを持つ科目なら必ず出す。
+   タグそのものを並べるのは opts.subjectLabels を渡したときだけ ―― PC の右カラム
+   （#inspector）は渡す。スマホはカードの中で開くので渡さない（カードにもう同じタグが
+   出ていて、2回並ぶことになる）。
+   「タグが違う？」＝訂正の入口は**どちらにも**出す。押すと意見箱が科目名といまのタグを
+   前置きした状態で開く（受けるのは app.js）。訂正の行き先は data/subjects.manual.tsv で、
+   tools/subjects.py の for_course() が AI のタグより優先して読む ―― 入口が無いと、
+   仕組みだけあって誰も直せない。 */
 function detailHtml(c, opts = {}){
   /* ── 詳細の並び（2026-09-10・口コミの集計を詳細にも出す）──────────
    *
@@ -237,11 +242,15 @@ function detailHtml(c, opts = {}){
    * 目印として待っている（2026-09-07）。 */
   const rn = c.reviews?.n || 0;
   const first = (c.reviews?.notes || [])[0] || "";
-  const subj = opts.subjectLabels && (c.subjects || []).length
+  const tags = opts.subjectLabels
+    ? subjectTagsHtml(c.subjects, { labels: opts.subjectLabels,
+        selected: opts.subjectSelected, interactive: !!opts.subjectInteractive })
+    : "";
+  const subj = (c.subjects || []).length
     ? `<div class="dSec">
         <div class="secH">授業内容</div>
-        <div class="subjRow">${subjectTagsHtml(c.subjects, { labels: opts.subjectLabels,
-            selected: opts.subjectSelected, interactive: !!opts.subjectInteractive })}</div>
+        <div class="subjRow">${tags}<button type="button" class="subjRep"
+          data-subject-report="${esc(c.id)}">タグが違う？</button></div>
       </div>`
     : "";
   return `${subj}<div class="dSec">

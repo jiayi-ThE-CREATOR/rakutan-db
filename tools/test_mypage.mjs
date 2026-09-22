@@ -1,5 +1,5 @@
 /* マイページ。まずは「在ること」と「プロフィールが往復すること」。
- *   cd web && python3 -m http.server 8140 &
+ *   python3 tools/serve.py 8140 &
  *   node tools/test_mypage.mjs http://localhost:8140
  */
 import { chromium } from "playwright";

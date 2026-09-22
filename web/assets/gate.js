@@ -84,7 +84,34 @@
     }
   }
 
-  /* 覆いのどこを押しても入口へ送る（ボタンだけ有効だと、薄い中身を
+  const loginHref = () =>
+    "/line/login?next=" + encodeURIComponent(location.pathname + location.search + location.hash);
+
+  /* 覆われた機能を押したときの説明。**入口へ直行しない。**
+     直行すると、押した人の画面がいきなり LINE になり「何のために飛ばされたのか」
+     が分からない（2026-09-22 wang 指摘）。先に「何ができるようになるのか」と
+     「登録は無料」を site の中で出し、入口へ進むかどうかは本人に選ばせる。 */
+  function prompt(){
+    const dlg = document.getElementById("gateDlg");
+    /* ダイアログの無いページ（マイページ等）では今までどおり直行する ――
+       説明が出せないなら、何も起きないより入口へ着くほうがまし。 */
+    if (!dlg || typeof dlg.showModal !== "function"){ location.href = loginHref(); return; }
+    const needFriend = state.loggedIn && !state.linked;
+    dlg.querySelector("#gateDlgTitle").textContent =
+      needFriend ? "LINE で友だち追加すると使えます" : "LINE 登録すると使えます";
+    dlg.querySelector("#gateDlgBody").innerHTML = needFriend
+      ? `<p class="gateDlgLead">ラクハン【公式】を友だち追加してから、もう一度お試しください。</p>
+         <a class="gateBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE で友だち追加</a>`
+      : `<p class="gateDlgLead">重さのつまみを自分に合わせて動かしたり、ある項目がある授業を
+           <b>✕</b> でまとめて外したり、授業内容のタグでしぼったりするには、
+           LINE 登録が要ります。</p>
+         <p class="gateDlgSub">ラクハン【公式】と繋ぐだけです。<b>登録は無料</b>で、
+           授業の情報はそのまま見られます。</p>
+         <a class="gateBtn" href="${loginHref()}">LINE で続ける</a>`;
+    dlg.showModal();
+  }
+
+  /* 覆いのどこを押しても説明を出す（ボタンだけ有効だと、薄い中身を
      押した人には何も起きず「壊れている」に見える）。 */
   document.addEventListener("click", (e) => {
     const veil = e.target.closest?.(".gateVeil");
@@ -92,12 +119,25 @@
     /* 友だち追加の <a> は素通し（新しいタブで LINE を開かせる）。 */
     if (e.target.closest("a")) return;
     e.preventDefault();
-    const next = location.pathname + location.search + location.hash;
-    location.href = "/line/login?next=" + encodeURIComponent(next);
+    prompt();
   });
 
+  /* 閉じる。幕（カードの外）を押しても閉じる ―― version.js と同じ作法。 */
+  document.addEventListener("click", (e) => {
+    const dlg = document.getElementById("gateDlg");
+    if (!dlg || !dlg.open) return;
+    if (e.target === dlg || e.target.closest?.("#gateDlgClose")) dlg.close();
+  });
+
+  /* 連携しているか。app.js の ✕（しぼり込み）が押されたときの判定に使う。
+     まだ /api/me を聞けていない・届かないときは true（fail-open）―― 覆いと同じ考え方で、
+     障害で機能が死ぬより開いてしまう方がましという判断（このファイルの冒頭参照）。 */
+  let linked = true;
+  /* 直近に聞いた /api/me。覆いを描くときと、説明のダイアログを出すときの
+     両方が読む（「ログイン済みだが友だちでない」で文面が変わるため）。 */
+  let state = { linked: true, loggedIn: false, configured: false };
+
   async function apply(){
-    let state = { linked: true, loggedIn: false, configured: false };
     try {
       const res = await fetch("/api/me", { credentials: "same-origin" });
       if (res.ok) state = await res.json();
@@ -105,6 +145,7 @@
       /* 届かないときは開けたまま（fail-open）。 */
       return;
     }
+    linked = !!state.linked;
     const els = targets();
     if (state.linked) els.forEach(unlock);
     else els.forEach(el => lock(el, state));
@@ -119,5 +160,5 @@
   }
 
   /* 描き直しの後にも掛け直せるよう、外から呼べる口を残す。 */
-  window.rkGate = { apply };
+  window.rkGate = { apply, linked: () => linked, prompt };
 })();

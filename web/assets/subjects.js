@@ -29,7 +29,13 @@ function chip(k, label, { on = false, n = null } = {}){
 }
 
 /* ── 左の絞り込み ─────────────────────────
-   置き場所は「空きコマからさがす」の直下。空きコマと並ぶ、検索語を持たない人の入口なので。 */
+   置き場所は「空きコマからさがす」の直下。空きコマと並ぶ、検索語を持たない人の入口なので。
+
+   中身は `data-gate` で包む ―― **LINE 登録しないと使えない**（2026-09-22 wang 判断。
+   条件チップ・配点の ✕・口コミと同じ扱い）。覆うのは gate.js で、見出しは覆いの外に置く
+   （index.html の他の節と同じ形：`<h2>` の下に `<div data-gate>`）。
+   この節は JS で後から差し込むので、app.js が init のあとに `rkGate.apply()` を呼び直す。
+   カードと詳細のタグを押したときの判定は app.js の toggleSubject（配点の ✕ と同じやり方）。 */
 function mountRail(){
   if (document.getElementById("subjSec")) return;
   const grid = document.getElementById("grid");
@@ -38,8 +44,10 @@ function mountRail(){
   const sec = document.createElement("section");
   sec.id = "subjSec";
   sec.innerHTML = `<h2>授業内容でさがす</h2>
-    <button type="button" class="subjOpen" id="subjOpen" aria-haspopup="dialog"></button>
-    <div class="chips subjPicked" id="subjPicked" hidden></div>`;
+    <div data-gate>
+      <button type="button" class="subjOpen" id="subjOpen" aria-haspopup="dialog"></button>
+      <div class="chips subjPicked" id="subjPicked" hidden></div>
+    </div>`;
   anchor.after(sec);
   sec.querySelector("#subjOpen").addEventListener("click", open);
   sec.querySelector("#subjPicked").addEventListener("click", e => {
@@ -126,20 +134,44 @@ function renderDialog(){
   dlg.querySelector("#subjSelWrap").hidden = !picked.length;
   dlg.querySelector("#subjSel").innerHTML = picked.map(k => chip(k, L[k], { on: true })).join("");
 
-  /* 0件になるタグは出さない ―― 押しても何も残らない選択肢は並べない。
-     並びは件数の多い順、同数は語彙の定義順（_meta.subject_labels のキーの順）。 */
+  /* 0件になるタグは出さない ―― 押しても何も残らない選択肢は並べない。 */
   const keys = Object.keys(L);
-  const opts = keys
-    .filter(k => !sel.has(k) && (f[k] || 0) > 0)
-    .filter(k => !q || L[k].toLowerCase().includes(q) || k.includes(q))
-    .sort((a, b) => (f[b] - f[a]) || (keys.indexOf(a) - keys.indexOf(b)));
+  const avail = k => !sel.has(k) && (f[k] || 0) > 0
+                  && (!q || L[k].toLowerCase().includes(q) || k.includes(q));
+  const opts = keys.filter(avail);
+  const box = dlg.querySelector("#subjOpts");
+
+  /* 並べ方は状態で変える。
+     ・まだ何も選んでいない最初の画面 … 意味の塊（_meta.subject_groups、正本は
+       tools/subjects.py の GROUPS）で見出しを付け、中は語彙の定義順。
+       件数の多い順にすると「物理 851 → 政治・法 804 → 数学 696 → 医療・健康 693」と
+       分野が交互に出て、「理系が見たい」人が目で追えない（2026-09-18 レビュー）
+     ・選んだあと（さらにしぼる）と検索中 … 件数の多い順。ここで知りたいのは
+       「次にどれを足すと収穫が大きいか」であって、意味の近さではない */
+  const groups = api.groups ? api.groups() : [];
   dlg.querySelector("#subjLead").textContent = picked.length ? "さらにしぼる" : "タグを選ぶ";
-  dlg.querySelector("#subjOpts").innerHTML = opts.map(k => chip(k, L[k], { n: f[k] })).join("");
+  if (!picked.length && !q && groups.length){
+    box.className = "subjGroups";
+    box.innerHTML = groups.map(g => {
+      const ks = (g.keys || []).filter(k => L[k] && avail(k));
+      return ks.length
+        ? `<h3 class="subjGrpH">${esc(g.label)}</h3>`
+          + `<div class="chips">${ks.map(k => chip(k, L[k], { n: f[k] })).join("")}</div>`
+        : "";
+    }).join("");
+  } else {
+    box.className = "chips subjOpts";
+    const byCount = [...opts].sort((a, b) => (f[b] - f[a]) || (keys.indexOf(a) - keys.indexOf(b)));
+    box.innerHTML = byCount.map(k => chip(k, L[k], { n: f[k] })).join("");
+  }
   const empty = dlg.querySelector("#subjEmpty");
   empty.hidden = opts.length > 0;
   empty.textContent = raw ? `「${raw}」に当てはまるタグはありません`
                           : "これ以上しぼれるタグはありません";
-  dlg.querySelector("#subjCount").textContent = api.count();
+  /* 何も選んでいないときに「決定（7906件）」と出すと、決めるものが無いのに
+     決めさせる文になる（全件＝何もしていない状態）。閉じるだけのボタンにする。 */
+  dlg.querySelector("#subjDone").innerHTML =
+    picked.length ? `決定（<b id="subjCount">${api.count()}</b>件）` : "閉じる";
   dlg.querySelector("#subjClear").disabled = !picked.length;
 
   if (had){

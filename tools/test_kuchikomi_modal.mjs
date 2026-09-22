@@ -265,21 +265,32 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
   check(!inTT(afterRemove.tt, ttId),
         "外した後も localStorage(rk_timetable) に id が残っている（空スロットやextraの掃除漏れ）");
 
-  /* 詳細に口コミの入口や操作ボタンが残っていないこと（同じ操作を2箇所に置かない）。 */
+  /* 詳細に**操作**が二重に置かれていないこと（同じ操作を2箇所に置かない）。
+     ただし**集計（.rv）は別**。2026-09-10 に wang の依頼で「モーダルを開かなくても
+     出席・課題・テストの数字が詳細で見える」ようにしたので、口コミのある科目には
+     出るのが正しい（detail.js の detailHtml のコメント参照）。
+     2026-09-22 まで、ここは「.rv が残っている」を不合格にしていて main でも落ちていた
+     ―― 画面の仕様が変わったのにテストを直していなかった。 */
   await p.evaluate(() => document.querySelector(".card .head").click());
   await p.waitForTimeout(400);
   const dup = await p.evaluate(() => {
-    const d = document.querySelector(".card.open .detail") || document.querySelector(".card .detail");
+    const card = document.querySelector(".card.open") || document.querySelector(".card");
+    const d = card?.querySelector(".detail");
     return { panelBtn: !!d?.querySelector(".panelBtn"),
              tt: !!d?.querySelector(".ttAddBtn"),
              review: !!d?.querySelector(".reviewBtn"),
              rv: !!d?.querySelector(".rv"),
+             /* 口コミがある科目かどうかは、カードの操作バーの「読む」ボタンで見る
+                （どちらも c.reviews.n から出ているので、片方だけ出ていたら不整合）。 */
+             hasReviews: !!card?.querySelector(".cardActs .rvBtn"),
              koan: !!d?.querySelector(".koanLink") };
   });
   check(!dup.panelBtn, "詳細に .panelBtn が残っている");
   check(!dup.tt, "詳細に .ttAddBtn が残っている（操作バーと重複）");
   check(!dup.review, "詳細に .reviewBtn が残っている（本番では出せないフォームを開く）");
-  check(!dup.rv, "詳細に口コミの集計（.rv）が残っている");
+  check(dup.rv === dup.hasReviews,
+        dup.hasReviews ? "口コミのある科目なのに詳細に集計（.rv）が出ていない"
+                       : "口コミの無い科目の詳細に集計（.rv）が出ている");
   check(dup.koan, "詳細から KOAN リンクまで消えている");
 
   await p.close();

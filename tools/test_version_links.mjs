@@ -1,6 +1,7 @@
 /* 更新履歴（右下「バージョン＆最新機能」）の「見てみる →」が、
  * 本当にその機能の場所へ着くかを実ブラウザで確かめる。
- *   node tools/test_version_links.mjs http://localhost:8140
+ *   python3 tools/serve.py 8791 &
+ *   node tools/test_version_links.mjs http://127.0.0.1:8791
  *
  * 飛び先の id（#sliders #grid #rail #grip #list / #mpTimetable …）は
  * app.js・mypage.js 側の持ち物なので、向こうが名前を変えた瞬間に
@@ -12,15 +13,15 @@
  *   — リンクを隠している（飛び先がこの画面に無い。PC だけの機能をスマホ幅で見たとき）
  *   ✗ それ以外（id が消えた・画面外・ダイアログが閉じない）
  *
- * ローカルの静的サーバは拡張子なし（/about）を解決しないので、
- * 別ページの飛び先は .html を直接開いて確かめる（本番の配信は解決する）。
+ * tools/serve.py も拡張子なし（/about）は解決しないので、別ページの飛び先は
+ * .html を直接開いて確かめる（本番の Workers 静的配信は解決する）。
  */
 import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
-const base = process.argv[2] || "http://localhost:8140";
+const base = process.argv[2] || "http://127.0.0.1:8791";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 // version.js はブラウザ用の IIFE なので import できない。

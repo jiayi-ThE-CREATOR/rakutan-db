@@ -141,8 +141,8 @@ tag ごとに畳まれていて、開かないと見えない。だから版を�
   `app.js`・`mypage.js` 側の持ち物。向こうが名前を変えるとリンクは黙って死ぬので、
   **版を出す前に機械に押させる**：
 
-      (cd web && python3 -m http.server 8140) &
-      node tools/test_version_links.mjs http://localhost:8140
+      python3 tools/serve.py 8791 &
+      node tools/test_version_links.mjs http://127.0.0.1:8791
 
 - **飛び先がその画面に無いリンクは、version.js がダイアログを開くたびに隠す**。
   PC だけの機能をスマホで読んだとき（左の絞り込みの矢印）と、id が消えたときの保険。

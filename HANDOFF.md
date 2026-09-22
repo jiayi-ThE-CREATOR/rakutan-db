@@ -29,8 +29,8 @@
 ### 1. 何が動く状態か
 
     node tools/test_version.mjs                                  # 362件通過
-    (cd web && python3 -m http.server 8140) &
-    node tools/test_version_links.mjs http://localhost:8140      # 「見てみる →」を全部押す
+    python3 tools/serve.py 8791 &
+    node tools/test_version_links.mjs http://127.0.0.1:8791      # 「見てみる →」を全部押す
 
 - `RELEASES` の項目に4つのキーが増えた。**次に版を切る人が触るのはここだけ**
   - `head` ＋ `icon` … 主打カード。**版ごとに 1〜3件。0件でも4件でもテストが落ちる**
@@ -71,8 +71,11 @@
 - **飛び先が app.js の作るものだと、version.js の描画時にはまだ存在しない。**
   「飛び先が無いリンクは描かない」を描画時に判定して、`#list` `#grid` `#sliders` の
   リンクが全部消えた。判定は**ダイアログを開くたび**に走らせる
-- **ローカルの `python3 -m http.server` は拡張子なし（`/about`）を解決しない。**
-  本番の Workers 静的配信は解決する。別ページの飛び先をローカルで確かめるときは `.html` を付ける
+- **ローカルの静的サーバ（`tools/serve.py` も `-m http.server` も）は
+  拡張子なし（`/about`）を解決しない。** 本番の Workers 静的配信は解決する。
+  別ページの飛び先をローカルで確かめるときは `.html` を付ける
+- **`-m http.server` は backlog が 5 で、ページを開くだけで接続が溢れて落ちる。**
+  `python3 tools/serve.py 8791` を使う（2026-09-22 に別セッションが突き止めた）
 - **左の絞り込み（`#rail`）は v1.2 から畳める。** 畳んだまま `#sliders` へ飛ぶと
   何も見えないので、`jump()` は `#grip` の `aria-expanded` を見て先に開いている。
   app.js 側で id が変わったらここが黙って効かなくなる
@@ -80,6 +83,363 @@
   食い違って、既読の人にオレンジの点がもう一度出る（2026-09-03 に一度やっている）
 - worktree（`.worktrees/verui`）には `node_modules` が無い。
   本体から `ln -s ../../node_modules node_modules` を張ってから playwright を動かす
+## 2026-09-22 ｜「ときどき落ちるテスト」は全部サーバ側だった ｜ Claude → 次の人
+
+`tools/test_conds_layout.mjs` と `tools/test_kuchikomi_modal.mjs` は、**単独なら
+通るのに機械が混んでいると落ちる**ので「既知のNG」として何度も PR と引き継ぎに
+書かれてきた。原因はサイトでもテストでもなく、**配っていたサーバ**だった。
+
+### 1. 何が動く状態か
+
+    python3 tools/serve.py 8791          # web/ を配る（-m http.server の代わり）
+    for t in tools/test_*.mjs; do node "$t" http://127.0.0.1:8791; done
+
+**54件すべて通る（NG 0件）。** 「既知のNG」は無くなった。
+
+### 2. 何が起きていたか（実測 2026-09-22）
+
+`python3 -m http.server` は listen backlog が **5**
+（`socketserver.TCPServer.request_queue_size`）。ブラウザは1ページ開くだけで
+10本以上の接続を同時に張るので、溢れたぶんが RST になる:
+
+    REQFAIL /assets/gate.js  net::ERR_SOCKET_NOT_CONNECTED
+    REQFAIL /assets/shell.js net::ERR_CONNECTION_RESET
+    PAGEERROR Cannot destructure property 'detailHtml' of 'window.rkDetail'
+
+スクリプトが1本でも落ちると画面が boot せず、`#conds` も `#list` も**空のまま**。
+テストは「チップが見えない」で 30秒待って落ちる ―― これが正体。
+
+同じ負荷をかけた A/B:
+
+    標準 http.server   6回中 NG 4回
+    tools/serve.py     6回中 NG 0回
+
+### 3. 次の人が最初に打つコマンド
+
+    git fetch origin && git checkout fix/test-server
+    python3 tools/serve.py 8791
+    node tools/test_conds_layout.mjs http://127.0.0.1:8791
+
+### 4. 踏んだ罠
+
+- **`Cache-Control: no-store` を足さないこと。** 「直したのに変わらない」対策の
+  つもりで入れたら、ブラウザが毎回取りに行って Playwright の
+  `waitUntil:"networkidle"` が成立しなくなり、`goto` が 30秒でタイムアウトした
+- 「ときどき落ちる」を timeout を伸ばして黙らせないこと。今回は伸ばしても
+  直らなかった（30秒あっても boot していないので永遠に見えない）。
+  **落ちた瞬間の DOM とネットワークのログを採る**のが近道だった
+- `tools/*.mjs` の先頭の起動コマンドは 18本とも書き換えた。過去の
+  `docs/` と HANDOFF の記録は歴史なので触っていない
+
+---
+
+## 2026-09-22 ｜ 覆いを押したら、入口へ直行せず説明を出す ｜ Claude → 次の人
+
+**この日のうちに、下の「好みの重さ」の記事の一部が古くなった。** 目盛りは
+覆いの外に出していたが、**同じ日に覆いの中へ戻した**（wang 判断）。
+目盛りを動かすことも ✕ も LINE 登録した人の機能。
+
+### 1. 何が動く状態か
+
+    python3 -m http.server 8791 --directory web &
+    node tools/test_gate.mjs http://localhost:8791     # 30件 全通過
+
+- 覆われた節（条件 ／ 配点でしぼる ／ 口コミ）を押すと、**LINE へ直行せず**
+  `#gateDlg` が開く。「何ができるようになるか」「登録は無料」と、入口のリンクを出す
+- 閉じられる。読んだうえで「いまはやめる」が選べる
+- ダイアログの無いページ（マイページ等）では今までどおり直行する（`gate.js` の `prompt()`）
+- 覆いは**中身を隠さない**（opacity .42）。既定の重さ（テスト50…）は薄いまま読める ――
+  何が使えるようになるのか見えないと、登録する理由も伝わらない
+
+### 2. 何をしていないか
+
+- 覆いそのものの文面（`veilHTML`）は変えていない。説明はダイアログ側に足した
+- `tools/test_conds_layout.mjs` は**main でも 8回中 2回落ちる**（`#conds .chip` の
+  可視待ちがタイムアウト）。このブランチが持ち込んだものではない。直していない
+
+### 3. 次の人が最初に打つコマンド
+
+    git fetch origin && git checkout feat/gate-dialog
+    python3 -m http.server 8791 --directory web &
+    node tools/test_gate.mjs http://localhost:8791
+
+### 4. 踏んだ罠
+
+- `/api/me` の結果（`state`）は `apply()` のローカル変数だった。ダイアログは
+  「ログイン済みだが友だちでない」で文面が変わるので、モジュールの持ち物へ上げた
+- **静的配信では覆いは掛からない**（`/api/me` が無い＝fail-open）。覆いの
+  ふるまいを試すときは `page.route("**/api/me", ...)` で返り値を作ること
+  （`tools/test_gate.mjs` の `open()` がやっている）
+## 2026-09-22（2）｜ 授業内容も LINE 登録が要るようにした／版の文を直した／口コミのテストを直した ｜ Claude → 次の人
+
+ブランチ `feat/subject-gate`（worktree `.worktrees/subjgate`）。本人指示の3件。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8245 &
+    node tools/test_gate.mjs http://127.0.0.1:8245
+    node tools/test_kuchikomi_modal.mjs http://127.0.0.1:8245
+
+- **① 授業内容でさがすに覆いを掛けた**（条件チップ・配点・口コミと同じ扱い。本人判断 2026-09-22。**トップの覆いは 3 → 4**）
+  - 節の中身を `subjects.js` の `mountRail()` で `<div data-gate>` に包んだ。見出しは覆いの外
+  - **この節は JS で後から差し込むので、gate.js の最初の apply には間に合わない。**
+    `app.js` が `rkSubjects.init()` のあとに `rkGate.apply()` を呼び直す（mypage.js と同じ）
+  - カードと詳細のタグには覆う器が無いので、押されたら `toggleSubject()` が
+    `rkGate.prompt()` で説明を出す（入口へ直行しない。配点の ✕ と同じ ―― #162 に合わせた）
+  - `gate.js` の説明文は配点のことしか書いていなかったので、授業内容のタグも足した
+  - **`?subject=` で共有リンクから来た人は、未登録でも絞り込まれた一覧を見られる**
+    （配点・条件の URL 復元と同じ扱い。変える・足すには登録が要る）
+  - 覆いの高さ：中身が「何の話？」1行しかないので、覆いの文（3行＋ボタン）が節から
+    はみ出して見出しに重なった。`subjects.css` で中身と覆いを同じマス目に置いて解決
+- **② 版の文**（`docs/version-pending.md`）：授業内容の [new] 1行に
+  「LINE 登録が要ります」と「タグが違う？から教えてください」を足した。
+  9/21〜9/22 の手直し（件数のずれ・画面送り・並び・枠・ボタン）は**行を足さずに畳んだ**
+  ―― まだ版として知らせていない機能なので、「直した」と言う相手がいない
+- **③ `test_kuchikomi_modal.mjs` を直した**（main でずっと落ちていた）。
+  「詳細に口コミの集計（.rv）が残っている」を不合格にしていたが、
+  2026-09-10 に本人の依頼で**集計を詳細に出すようにした**ので仕様のほうが新しい。
+  いまは「口コミのある科目なら出る・無い科目なら出ない」を見る
+  （カードの `.rvBtn` の有無と突き合わせる）。**これで JS 30/30 が揃った**
+
+### 2. 何をしていないか
+
+- トップの見出しの「登録もログインもしなくていい。」は触っていない。左の絞り込みは
+  5節中4節が LINE 必須になったので、文と実物がずれてきている（本人に伝えた）
+- 意見箱に届いたタグの訂正を `data/subjects.manual.tsv` に書く作業は、まだ人が手でやる
+
+### 3. 次の人が最初に打つコマンド
+
+    git switch feat/subject-gate
+    cd web && python3 -m http.server 8245 &
+    node tools/test_gate.mjs http://127.0.0.1:8245
+
+### 4. 踏んだ罠
+
+- **JS で差し込む節に `data-gate` を付けても、それだけでは覆われない。**
+  gate.js は読み込み直後に1回 `apply()` するだけ。差し込んだ側が呼び直す
+- **覆いは中身より背が高くなることがある。** `.gateVeil` は absolute なので、
+  中身が1行だけの節では外へはみ出して隣の見出しに重なる
+
+---
+
+## 2026-09-22 ｜「配点でしぼる」を好みの重さにした（採点の作り直しの3段目）｜ Claude → 次の人
+
+設計 `docs/superpowers/specs/2026-09-21-konomi-design.md`、手順 `docs/superpowers/plans/2026-09-21-konomi.md`。
+ブランチ `feat/konomi-toggles`（**未マージ**）。
+
+いままで左の「配点でしぼる」の目盛りは**上限%**（出席30%以下の科目だけ残す）だった。
+これを**好みの重さ**にした。既定は `score.py` と同じ **テスト50・発表20・レポート15・
+出席15・小テスト10** で、「みんなはテストをいちばん重く見ている」を画面にそのまま出す。
+しぼり込みは各行の **✕** が引き継ぐ。
+
+### 1. 何が動く状態か
+
+    python3 -m http.server 8791 --directory web &
+    node tools/test_konomi.mjs http://localhost:8791      # 14件 全通過
+    node tools/test_haiten_ui.mjs http://localhost:8791   # 59件 全通過
+    node tools/test_gate.mjs http://localhost:8791        # 26件 全通過
+
+- 目盛りを動かすと、その項目の負担が **いまの目盛り ÷ 既定** 倍になる（`bend`）。
+  相性度と band を同じ好みで数え直す（閾値は既定と同じ 84/71/65）
+- ✕ は `state.caps` を 0 か 100 にするだけ。条件チップ（「出席なし」等）と同じ状態を指していて、
+  どちらを押してももう片方が動く
+- **目盛りは誰でも動かせる。✕ は未連携なら `/line/login` へ送る**（`window.rkGate.linked()`）。
+  「配点でしぼる」の節から `data-gate` を外したので、トップの覆いは 3→2 になった
+- 好みは URL（`?w=exam:25`）と localStorage（`rk_konomi`）に残る。URL が最優先
+- 条件の解除（リセット）で戻すのは ✕ だけ。好みは本人の設定なので残す
+  （戻す口は目盛りの下の「重さを既定に戻す」）
+
+### 2. 何をしていないか
+
+- **`score.py` は触っていない。** 好みはブラウザの中だけ。LINE の `preset_top` も既定のまま
+- **テストの目盛りは、おすすめ順の並びをほとんど変えない。** おすすめ順の第1キーは
+  `needs_review`（難しさ未確認の試験）で、試験のある科目はもともと下のかたまりに居るため。
+  実測 TOP20 据え置き 20/20。動くのは**数字と band**のほう
+  （試験100%の科目で 既定70.0やや重め → テスト25 で 85.0 → テスト75 で 55.0）
+- `docs/version-pending.md` に載せるかは未決（wang に聞く）
+- 木村さんの「しぼり込みは見えるが動かすには登録」と同じ場所（`web/index.html`・
+  `web/assets/gate.js`）を触っている。マージ順に注意
+
+### 3. 次の人が最初に打つコマンド
+
+    git fetch origin && git checkout feat/konomi-toggles
+    python3 -m http.server 8791 --directory web &
+    node tools/test_konomi.mjs http://localhost:8791
+
+### 4. 踏んだ罠
+
+- **目盛りを「重み」として使ってはいけない。** 試験以外は「その科目にある項目だけ」で
+  正規化するので、非試験の項目が1つの科目（レポートだけ等）は重みが消えて動かない
+  （実測：レポートの重み .15→.45 で対象の順位の中央値 +12、p10 −914／p90 +864）。
+  だから重みではなく**負担に倍率**を掛ける
+- **試験の「取り分」（EXAM_SHARE 0.50）は目盛りに繋がないこと。** 繋ぐと試験の**無い**
+  科目まで動く（試験の楽さ 100 が別の重みで混ざる）。実測 テスト75 で 標準 0.5%・
+  軽め 51.8%・重め 46.5% の二極になり band が壊れた。倍率だけなら試験の無い科目は 1件も動かない
+- **band を閾値だけで数え直さないこと。** `score.py` の `band_of` は「参考値」（信頼度が低い）と
+  「拘束は軽い」（難しさ未確認の試験が最上位に来た）を先に返している。閾値だけで書くと、
+  信頼度の低い科目を言い切り、難しさ未確認の一発試験を「軽め」として薦めることになる
+- **「既定に戻す」の出し入れで `buildSliders()` を呼ばないこと。** つまみを掴んでいる要素ごと
+  `innerHTML` で入れ替わり、ドラッグが途中で切れる（`togglePrefReset()` が `<p>` だけを足し引きする）
+- **出席の効きを「全科目まとめて」測ると 0 に見える**（上がる科目と下がる科目が打ち消す）。
+  配点の帯で分けること。出席50%以上の 1,825件は 15→30 で中央値 312位 沈む
+- `?q=` は URL から復元されない（検索欄に打ち込む必要がある）。テストで特定の科目を
+  出したいときは `p.fill("#q", ...)` を使う
+
+### 実測（2026-09-22、既定の分布は #153 から変わっていない）
+
+    既定            判定できた科目 7,482   軽め1,878 標準2,022 やや重め1,305 重め2,188 参考値89
+    テスト 50→25    軽め25.1% 標準61.8% やや重め5.5% 重め2.3%   TOP20据え置き 20/20
+    テスト 50→75    軽め25.1% 標準26.8% やや重め0.2% 重め46.8%  TOP20据え置き 20/20
+    レポート 15→30  対象3,607件 順位中央値 −504   TOP20据え置き  2/20
+    出席 15→30      対象1,825件 順位中央値 −312   TOP20据え置き 13/20
+    発表 20→40      対象2,402件 順位中央値 −517   TOP20据え置き 20/20
+
+---
+
+## 2026-09-21｜ 左の絞り込み「卒業要件」を、学部選択と同じ枠のボタンにそろえる ｜ Claude（はやし） → 次の人
+
+左の絞り込みで「卒業要件で絞り込む」だけがオレンジの下線リンクで、周り
+（「学部を選ぶ ▼」「何の話？ ▸」）と形が違った。**押してみないと何のための
+ボタンなのか分からない**という指摘を受けて、形と言い方をそろえた。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8140 &
+    node tools/check_division_ui.mjs http://localhost:8140 1280   # NG 0件
+    node tools/check_division_ui.mjs http://localhost:8140 390    # NG 0件
+
+- 見出しを `全学部共通の区分でしぼる` → **`卒業要件でしぼる`**（ボタンと言葉を1つにした）
+- 下線リンク → **枠付きのボタン `#facSec .pick`**（`#facSec select` と同じ枠・同じ高さ48px）。
+  文字は「**全学部共通の区分を選ぶ**」＝何が選べるかだけを言い、開閉は右の ▼ / ▲ で表す
+- 「卒業要件外の区分も表示する (1)」も同じ形に統一（`卒業要件外の区分も選ぶ（1）` ＋ ▼ / ▲）
+- 畳んだまま区分を選んでいるときだけ、文字が `全学部共通の区分：2つ選択中` に替わる
+  ―― 畳むと効いている絞り込みが画面から消えるのを防ぐため
+- `aria-expanded` / `aria-controls` を両方のボタンに付けた（下線リンクのときは無かった）
+- 触ったのは `web/assets/app.js`（`setPick` / `syncDivsPick` / `syncDivOffPick` を追加）と
+  `web/assets/app.css`（`#facSec select` の規則に `.pick` を相乗り）の2つだけ。HTML は触っていない
+
+### 2. 何をしていないか
+
+- **About の強みスライド（`web/assets/strengths/grade-faculty.png` と `-dark.png`）が古いまま。**
+  あの画像には今回消した「卒業要件で絞り込む」の下線リンクが写っている
+  （もともと見出しも `学部からさがす` で、現在の `学部学科からさがす` と食い違っていた）。
+  544×720 の枠に収めて撮り直そうとしたが、ボタンが1行リンク（約30px）から48pxの箱になったぶん
+  **同じ枠に「学年＋卒業要件＋学部＋学科」が入らない**。隣に並ぶ `conditions-score.png` と
+  縦横比をそろえる必要があるので、2枚セットで撮り直すか、枠の寸法ごと変えるかの判断が要る
+- 版（`web/assets/version.js`）には**足していない**。判定④（見た目の改善）で、9月の重要度の門は
+  通らないため `docs/version-pending.md` に1行貯めた。出すのは 10/07（水）の初回版
+- 配点の「配点スライダーを閉じる」（`#tog`）は下線リンクのまま。あちらは既定で開いていて
+  中身が見えているので「押す前に用途が分からない」問題が無い。揃えるなら別タスク
+
+### 3. 次の人が最初にやること
+
+    cd web && python3 -m http.server 8140 &
+    node tools/check_division_ui.mjs http://localhost:8140 1280
+    node tools/smoke.mjs http://localhost:8140
+
+`smoke.mjs` は静的サーバーだと `POST /api/hit` が 501 になるので「エラー1件」と出る。
+これは環境のせいで、変更とは関係ない（`python3 server.py` 側では出ない）。
+
+### 4. 踏んだ罠
+
+- **`tools/check_division_ui.mjs` は 2026-09-21 より前から落ちていた。** 上段の区分は畳んで
+  出るようになっていたのに、この確認は `#divs button` を直接クリックしていて、Playwright が
+  「見えない要素」で30秒待って死ぬ。今回、頭に「畳まれていたら開く」の1行を足して直した。
+  **壊れた確認は「無い」より悪い** ―― 落ちるのが当たり前になると誰も読まなくなる
+- `#facSec .pick` に `display:flex` を持たせた以上、`[hidden]` には `display:none` を
+  明示しないと効かない（UA の `[hidden]{display:none}` に負ける）。`.chips[hidden]` と同じ罠で、
+  これが無いと卒業要件外の区分が無い学部でもボタンが出たままになる
+- `python3 server.py` はデータが無いとダミー30件で立ち上がる。その状態だと区分チップがほぼ
+  全部 `disabled`（0件）になり、UI の確認にならない。**実データで見るなら
+  `python3 -m http.server 8140 --directory web`**（`web/data/courses.built.json` を読む）
+## 2026-09-21（2）｜ タグの並びを意味の塊に・押せる見た目に・未選択の「決定」をやめた ｜ Claude → 次の人
+
+ブランチ `feat/subject-order`（worktree `.worktrees/subjorder`）。**`feat/subject-report` の上に積んである**
+（PR #156 → この PR の順で入れる）。9/18 のレビューで挙げた4件のうち、残りの3件。
+
+### 1. 何が動く状態か
+
+    python3 tools/test_subjects.py
+    cd web && python3 -m http.server 8242 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8242
+
+- **① 最初の画面だけ意味の塊で並べる**（見出し5つ：ことば・文化／社会・人間／自然・宇宙／
+  からだ・いのち／技術・ものづくり）。**タグを選んだあとと検索中は件数の多い順**に戻す
+  ―― そこでの並びは「次にどれを足すと収穫が大きいか」であって、意味の近さではない
+  - 塊の正本は `tools/subjects.py` の `GROUPS`。`groups_meta()` → `_meta.subject_groups`
+    （`build.py --subjects` と `server.py` の両方）→ `app.js` → `subjects.js`。
+    **語彙を足したら塊にも足す** ―― import 時の assert と `test_subjects.py` が落とす
+  - 塊の中の順は語彙の定義順に固定（`test_subjects.py` が見張る）
+- **② カードと詳細の押せるタグに枠を付けた**（`button.subjTag`）。押せない灰色の薬と
+  同じ見た目で、touch には hover も無く「押せる」と分からなかった。
+  `--muted` の枠（`test_tokens.py` に「押せるタグの枠」として登録ずみ・図形なので 3.0）
+- **③ 何も選んでいないときのボタンは「閉じる」**。以前は「決定（7906件）」＝
+  決めるものが無いのに決めさせる文だった
+
+### 2. 何をしていないか
+
+- `web/data/courses.built.json` は **`build.py --subjects` で焼き直した**。
+  差分は `_meta.subject_groups` の1項目だけで、科目側は0件変化（確認ずみ）。採点はしていない
+- 塊の**名前**（「からだ・いのち」等）は学生の言葉で置いただけ。しっくり来なければ
+  `GROUPS` の見出しだけ差し替えればよい（キーの割り当てはそのまま）
+- 版（`docs/version-pending.md`）には載せていない
+
+### 3. 次の人が最初に打つコマンド
+
+    git switch feat/subject-order
+    python3 tools/test_subjects.py
+    cd web && python3 -m http.server 8242 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8242 /tmp/shots
+
+### 4. 踏んだ罠
+
+- **`_meta` に項目を足すと、焼き済みの `courses.built.json` も焼き直しが要る。**
+  本番は静的配信なので、`server.py` だけ直しても画面には出ない。
+  `--subjects` は採点を触らないので安全（`rescore` を通すと band まで動く）
+- **塊の中の順を VOCAB と揃える規則は、書いた直後に自分で破った**
+  （`環境・地球` を `宇宙` の後ろに置いた）。`test_subjects.py` の新しい検査が拾った
+
+---
+
+## 2026-09-21 ｜ 授業内容タグに「タグが違う？」＝訂正の入口を付けた ｜ Claude → 次の人
+
+ブランチ `feat/subject-report`（worktree `.worktrees/tagfix`）。9/18 のレビューで挙げた4件のうち、
+**訂正の入口だけ**を先に出す。並べ方・押せる見た目・未選択時のボタンは別 PR。
+
+### 1. 何が動く状態か
+
+    cd web && python3 -m http.server 8231 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8231
+
+- 詳細の「授業内容」に **「タグが違う？」**（`.subjRep`）。押すと意見箱が
+  `【タグの訂正】<科目名>（<id>）／いまのタグ：…` を前置きした状態で開く
+- **PC（右カラム）もスマホ（カードの中）も出る。** タグそのものを並べるのは PC だけ
+  （スマホはカードに同じタグが出ているので重複させない）―― 従来どおり
+- 書きかけがあるときは前置きで**上書きしない**（`feedback.js` の `openBox`）
+- 窓口は `window.rkFeedback.open(prefill)` の1つだけ。意見箱は app.js と独立して動くので、
+  app.js から意見箱の DOM を触らせない
+
+### 2. 何をしていないか
+
+- **`data/subjects.manual.tsv` はまだ無い。** 届いた訂正を手で書くときに作る
+  （`tools/subjects.py` の `for_course()` が AI より優先して読む。ファイルが無ければ空扱い）
+- 訂正は Discord に流れるだけで、台帳に**自動では入らない**。人が読んで書く
+- 意見箱の説明文「科目の口コミではなく、サイトそのものへの意見をここへ」は**触っていない**。
+  タグの誤りは口コミではなくサイトのデータなので筋は通るが、押した人が迷うようなら
+  前置きの時だけ一文を足す余地がある（wang 判断）
+- 版（`docs/version-pending.md`）には載せていない
+
+### 3. 次の人が最初に打つコマンド
+
+    git switch feat/subject-report
+    cd web && python3 -m http.server 8231 &
+    node tools/test_subject_filter.mjs http://127.0.0.1:8231
+
+### 4. 踏んだ罠
+
+- **`.subjRow` は「タグが並ぶ行」ではなくなった。** 訂正の入口が同居している。
+  スマホの詳細にタグが重複していないことを見る検査は、行の数ではなく
+  `.subjRow .subjTag` の数で数える（`test_subject_filter.mjs` を直した）
 
 ---
 

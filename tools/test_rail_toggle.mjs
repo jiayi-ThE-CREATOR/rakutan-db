@@ -1,7 +1,7 @@
 /* 左の絞り込みを畳めること・畳むと一覧が2列になること・長い科目名が
  * 2行で頭打ちになりホバーで流れることを実ブラウザで見る。
  *
- *   cd web && python3 -m http.server 8141 &
+ *   python3 tools/serve.py 8141 &
  *   node tools/test_rail_toggle.mjs http://localhost:8141
  *
  * 見張っているのは主に3つの回帰:

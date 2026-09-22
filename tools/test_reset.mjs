@@ -1,6 +1,6 @@
 /* 「条件をリセット」を実ブラウザで見張る。
  *
- *   cd web && python3 -m http.server 8144 &
+ *   python3 tools/serve.py 8144 &
  *   node tools/test_reset.mjs http://localhost:8144
  *
  * ■ 何を見ているか（2026-09-11 の指摘）
@@ -117,7 +117,12 @@ for (const [label, width] of [["PC", 1280], ["スマホ", 390]]) {
     year: document.querySelector("#years .chip.on")?.textContent.trim(),
     sem: document.querySelector("#sems .chip.on")?.textContent.trim(),
     conds: [...document.querySelectorAll("#conds .chip.on")].length,
-    caps: [...document.querySelectorAll('.sl input[type=range]')].map(i => +i.value),
+    /* 2026-09-21: 目盛りは「上限%」ではなく「好みの重さ」になった。
+       しぼり込みは ✕（.sl .xBtn）が持つ。条件の解除で戻すのは ✕ のほうだけで、
+       好みは本人の設定なので残す（戻す口は「重さを既定に戻す」）。 */
+    xs: [...document.querySelectorAll('.sl .xBtn')]
+          .filter(b => b.getAttribute("aria-pressed") === "true").length,
+    prefs: [...document.querySelectorAll('.sl input[type=range]')].map(i => +i.value),
     fac: document.getElementById("facSel")?.value ?? "",
     tr:  document.getElementById("trackSel")?.value ?? "",
   }));
@@ -125,7 +130,9 @@ for (const [label, width] of [["PC", 1280], ["スマホ", 390]]) {
   check(st.year === "すべて", `学年が「すべて」に戻る（実測 ${st.year}）`);
   check(st.sem === "すべて", `学期が「すべて」に戻る（実測 ${st.sem}）`);
   check(st.conds === 0, `条件チップが全部消灯（実測 ${st.conds}個）`);
-  check(st.caps.every(v => v === 100), `配点スライダーが全部100%（実測 ${st.caps.join(",")}）`);
+  check(st.xs === 0, `✕（しぼり込み）が全部外れる（実測 ${st.xs}個 残っている）`);
+  check(st.prefs.join(",") === "15,50,10,15,20",
+        `好みの重さは条件の解除では戻さない（実測 ${st.prefs.join(",")}）`);
   check(st.fac === "", `学部が未選択に戻る（実測「${st.fac}」）`);
   check(st.tr === "", `専攻が未選択に戻る（実測「${st.tr}」）`);
 
