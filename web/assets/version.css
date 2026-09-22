@@ -57,9 +57,9 @@
 .verNow{margin:var(--sp-1) 0 var(--sp-4);font-size:var(--fs-sm);color:var(--muted)}
 
 .verList{list-style:none;margin:0;padding:0}
-/* 版と版のあいだの区切り。1件しか無いうちは罫が出ない。 */
-.verRel + .verRel{margin-top:var(--sp-5);padding-top:var(--sp-4);
-  border-top:1px solid var(--rule)}
+
+/* ── 最新版 ─────────────────────────────
+   開いた瞬間に目に入るのはここだけ。過去の版は下で1行に畳む。 */
 .verRelHead{display:flex;align-items:center;gap:var(--sp-2)}
 .verDate{font-family:var(--data);font-size:var(--fs-sm);color:var(--soft);font-weight:700}
 .verVer{font-family:var(--data);font-size:var(--fs-xs);font-weight:700;
@@ -72,19 +72,108 @@
   border-radius:var(--r-pill);padding:2px 8px;letter-spacing:.04em}
 .verRelTitle{margin:var(--sp-2) 0 var(--sp-3);font-size:var(--fs-base)}
 
-.verItems{list-style:none;margin:0;padding:0}
-.verItems li{display:flex;align-items:flex-start;gap:var(--sp-2);
-  margin-top:var(--sp-2);font-size:var(--fs-sm);line-height:1.65;color:var(--soft)}
-/* タグは3色。データ目盛り（--scale-*）の色を借りているのは「改善」だけで、
-   4軸バーと同じ場所には出ないので取り違えは起きない。
-   新しい色相は足さない ―― tokens.css の役割分担を崩さないため。 */
-.verTag{flex:none;min-width:3.6em;text-align:center;
-  font-size:var(--fs-xs);font-weight:700;line-height:1.6;
-  border-radius:var(--r-xs);padding:2px 6px}
-.verTag-new{color:var(--brand-text);background:var(--brand-soft)}
-.verTag-improve{color:var(--scale-light-text);background:var(--scale-light-soft)}
-.verTag-fix{color:var(--soft);background:var(--dim)}
-.verItemText{min-width:0}
+/* ── 主打カード ─────────────────────────
+   版ごとに1〜3枚だけ（tools/test_version.mjs が件数を見張っている）。
+   ここを「一目で読める塊」に保つことが、この画面の全部。
+   枚数が少ないので横に並べず、常に縦積み ―― 3枚を横に割ると
+   1枚あたりが痩せて、結局また小さい字の一覧になる。 */
+.verHeads{list-style:none;margin:0 0 var(--sp-4);padding:0;
+  display:grid;gap:var(--sp-2)}
+.verHeadItem{display:flex;align-items:flex-start;gap:var(--sp-3);
+  background:var(--paper);border:1px solid var(--rule);
+  border-radius:var(--r-md);padding:var(--sp-3)}
+.verIcon{flex:none;display:flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:var(--r-md);
+  background:var(--brand-soft);color:var(--brand-text)}
+/* 線画のみ・単色。塗りと階調を持たせない（ブランドは単色） */
+.verIcon svg{width:20px;height:20px;fill:none;stroke:currentColor;
+  stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.verHeadBody{min-width:0}
+.verHeadTitle{display:block;font-size:var(--fs-base);font-weight:700;
+  line-height:1.45;color:var(--ink)}
+.verHeadText{display:block;margin-top:2px;font-size:var(--fs-sm);
+  line-height:1.6;color:var(--soft)}
+
+/* ── 畳んだ一覧（新しい機能 / 改善 / 直した不具合）───
+   既定は閉じたまま。<details> なので開閉の JS は要らず、
+   キーボードと読み上げは最初から通る。 */
+.verGroup{border-top:1px solid var(--rule)}
+.verGroupSum{display:flex;align-items:center;gap:var(--sp-2);
+  padding:var(--sp-3) 0;cursor:pointer;list-style:none;
+  font-size:var(--fs-sm);font-weight:700;color:var(--soft)}
+.verGroupSum::-webkit-details-marker{display:none}
+/* 三角は CSS で作る（文字だと字体によって大きさが揃わない）。
+   過去の版の行（.verOldSum）にも同じものを付ける ――
+   押せると見た目でわからない畳みは、誰にも開かれない。 */
+.verGroupSum::before,.verOldSum::before{content:"";flex:none;
+  border-left:5px solid currentColor;
+  border-top:4px solid transparent;border-bottom:4px solid transparent;
+  transition:transform var(--dur) var(--ease-out)}
+.verGroup[open] > .verGroupSum::before,
+.verOld[open] > .verOldSum::before{transform:rotate(90deg)}
+.verOldSum::before{color:var(--muted)}
+.verGroupSum:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.verGroupNum{font-family:var(--data);font-size:var(--fs-xs);color:var(--muted);
+  background:var(--dim);border-radius:var(--r-pill);padding:1px 7px}
+
+/* 畳みの中は tag ごとに分かれているので、項目側にタグは付けない
+   （見出しと同じ語を全行に繰り返さない）。
+   代わりに1件を「太字の見出し＋弱い色の説明」の2段に組む ――
+   開いた人は全部を読まず、太字だけを縦に拾って自分に関係あるかを決める。
+   ここを1段の文にすると、畳みの中がまた流し書きに戻る。 */
+.verItems{list-style:none;margin:0;padding:0 0 var(--sp-3)}
+.verItem{position:relative;margin-top:var(--sp-3);padding-left:var(--sp-4)}
+/* 見出しの行頭にだけ点を置く。説明の行には置かない（2段が1件だとわかるように） */
+.verItem::before{content:"";position:absolute;left:3px;top:.5em;
+  width:5px;height:5px;border-radius:var(--r-pill);background:var(--brand)}
+.verItemLead{display:block;font-size:var(--fs-sm);font-weight:700;
+  line-height:1.5;color:var(--ink)}
+.verItemText{display:block;margin-top:1px;font-size:var(--fs-sm);
+  line-height:1.65;color:var(--soft)}
+
+/* ── 「見てみる →」──────────────────────
+   増えた機能を、読んだその場で見に行ける口。
+   ボタンにはしない ―― 版の中に押せる面が増えると、主打カードが埋もれる。 */
+.verJump{display:inline-flex;align-items:center;gap:var(--sp-1);
+  margin-top:var(--sp-1);font-size:var(--fs-sm);font-weight:700;
+  color:var(--brand-text);text-decoration:none}
+.verJump[hidden]{display:none}   /* 飛び先が無いときは出さない（version.js が開くたびに見直す） */
+.verJump:hover{text-decoration:underline}
+.verJump:focus-visible{outline:2px solid var(--brand);outline-offset:2px;
+  border-radius:var(--r-xs)}
+.verJumpArrow{transition:transform var(--dur) var(--ease-out)}
+.verJump:hover .verJumpArrow{transform:translateX(2px)}
+.verHeadBody .verJump{margin-top:var(--sp-2)}
+
+/* 飛んだ先を一瞬だけ囲む。押した人が「どこに来たか」を見失わないため。
+   1.6 秒で JS が class を外す。 */
+.verFlash{animation:verFlashRing 1.6s var(--ease-out) both;border-radius:var(--r-md)}
+@keyframes verFlashRing{
+  0%{outline:3px solid transparent;outline-offset:4px}
+  20%,65%{outline:3px solid var(--brand);outline-offset:4px}
+  100%{outline:3px solid transparent;outline-offset:4px}
+}
+/* 動きを減らす設定では光らせず、同じ時間だけ静かに囲む */
+@media (prefers-reduced-motion:reduce){
+  .verFlash{animation:none;outline:3px solid var(--brand);outline-offset:4px}
+}
+
+/* ── 過去の版 ───────────────────────────
+   1版＝1行。開くと中身は最新版と同じ形（主打カード＋畳み）。 */
+.verPast{margin:var(--sp-5) 0 0}
+.verPastTitle{margin:0;font-size:var(--fs-xs);font-weight:700;
+  color:var(--muted);letter-spacing:.04em}
+.verRelOld{border-top:1px solid var(--rule)}
+.verOldSum{display:flex;align-items:center;gap:var(--sp-2);
+  padding:var(--sp-3) 0;cursor:pointer;list-style:none}
+.verOldSum::-webkit-details-marker{display:none}
+.verOldSum:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.verOldTitle{min-width:0;font-size:var(--fs-sm);color:var(--soft);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.verOldBody{padding-bottom:var(--sp-2)}
+/* 畳みの中の畳み。入れ子だとわかるように、左に罫を1本入れる。 */
+.verOldBody .verGroup{border-top:none}
+.verOldBody .verHeads{margin-bottom:var(--sp-3)}
 
 .verMore{margin:var(--sp-5) 0 0;font-size:var(--fs-sm)}
 .verMore a{color:var(--brand-text);font-weight:600}

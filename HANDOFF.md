@@ -17,6 +17,72 @@
 
 ---
 
+## 2026-09-22｜ 更新履歴の見せ方を作り直した（主打カード＋畳み＋リンク） ｜ Claude（wang） → 次の人
+
+右下「バージョン＆最新機能」を開くと 40件の箇条書きが並んでいたのをやめ、
+版ごとに**主打を 1〜3件だけ大きく出し、残りは tag ごとに畳む**形にした。
+過去の版も1行に畳む。畳みの中も「太字の見出し＋説明」の2段に組み替えた。
+
+担当ファイルは `web/assets/version.js` / `version.css` / `tools/test_version.mjs` / `tools/test_version_links.mjs`。
+`app.js` には触れていない（飛び先の id を読むだけ）。
+
+### 1. 何が動く状態か
+
+    node tools/test_version.mjs                                  # 362件通過
+    python3 tools/serve.py 8791 &
+    node tools/test_version_links.mjs http://127.0.0.1:8791      # 「見てみる →」を全部押す
+
+- `RELEASES` の項目に4つのキーが増えた。**次に版を切る人が触るのはここだけ**
+  - `head` ＋ `icon` … 主打カード。**版ごとに 1〜3件。0件でも4件でもテストが落ちる**
+  - `lead` … 畳みの中の太字の見出し（20文字まで）。説明は `text` に分ける
+  - `href` … 「見てみる →」。同じページなら閉じて飛んで光らせる。サイトの中だけ
+- アイコンは `version.js` の `ICONS`（単色 SVG 11個）。`score` `search` `filter`
+  `calendar` `star` `chat` `data` `mobile` `link` `check` `sparkle`
+- 畳みは `<details>`。開閉の JS は持っていない
+- 過去4版（v1.0〜v1.2）も新しい形に書き直した。**版番号は変えていない**
+- 書き方の正本は `CLAUDE.md`「主打」「畳みの中の項目」「リンク」の3節と
+  `docs/version-pending.md` の先頭（仮置きの13件も新しい書き方に直してある）
+
+### 2. 何をしていないか
+
+- **この変更自体は版に載せていない**（本人判断 2026-09-22「載せない」）。
+  `docs/version-pending.md` には1行も足していない
+- `build.py` を流していない。`version.js` / `version.css` はアセットなので
+  ページ側の再生成は要らないが、`templates/shell.html` を触る変更と一緒に出すなら流すこと
+- `href` の飛び先は `tools/test_version_links.mjs` で12件すべて、PC幅とスマホ幅の
+  両方で実際に押して確認ずみ（`/#grip` はスマホでは PC 限定なのでリンクを隠す＝想定どおり）。
+  ただし**確かめたのはローカルの静的配信**で、本番の Workers 配信では見ていない
+- `docs/version-pending.md` の ★ 3件（重さの出し方 / 口コミ / 発表）は**仮置き**。
+  水曜に版を切るとき、主打をこの3件にするかを本人に必ず確認する
+
+### 3. 次の人が最初に打つコマンド
+
+    cd ~/Developer/rakutan-db && git pull
+    node tools/test_version.mjs
+    (cd web && python3 -m http.server 8140) &
+    open http://127.0.0.1:8140/        # 右下の v1.2 を押す
+
+### 4. 踏んだ罠
+
+- **開屏と問診は DOM を消して黙らせない。** `[class*=splash]` は
+  `<html class="splash-skip">` に当たってページごと消える。正しいのは
+  `localStorage.rk_onboarded = "1"` ／ `sessionStorage.rk_splash_seen = "1"` を
+  `addInitScript` で先に入れる（`smoke.mjs` と同じ）
+- **飛び先が app.js の作るものだと、version.js の描画時にはまだ存在しない。**
+  「飛び先が無いリンクは描かない」を描画時に判定して、`#list` `#grid` `#sliders` の
+  リンクが全部消えた。判定は**ダイアログを開くたび**に走らせる
+- **ローカルの静的サーバ（`tools/serve.py` も `-m http.server` も）は
+  拡張子なし（`/about`）を解決しない。** 本番の Workers 静的配信は解決する。
+  別ページの飛び先をローカルで確かめるときは `.html` を付ける
+- **`-m http.server` は backlog が 5 で、ページを開くだけで接続が溢れて落ちる。**
+  `python3 tools/serve.py 8791` を使う（2026-09-22 に別セッションが突き止めた）
+- **左の絞り込み（`#rail`）は v1.2 から畳める。** 畳んだまま `#sliders` へ飛ぶと
+  何も見えないので、`jump()` は `#grip` の `aria-expanded` を見て先に開いている。
+  app.js 側で id が変わったらここが黙って効かなくなる
+- **過去の版の番号は書き換えない。** `localStorage` の `rakuhan.seenVersion` と
+  食い違って、既読の人にオレンジの点がもう一度出る（2026-09-03 に一度やっている）
+- worktree（`.worktrees/verui`）には `node_modules` が無い。
+  本体から `ln -s ../../node_modules node_modules` を張ってから playwright を動かす
 ## 2026-09-22 ｜「ときどき落ちるテスト」は全部サーバ側だった ｜ Claude → 次の人
 
 `tools/test_conds_layout.mjs` と `tools/test_kuchikomi_modal.mjs` は、**単独なら
