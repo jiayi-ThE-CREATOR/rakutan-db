@@ -63,6 +63,14 @@ const rows = [];
 for (const width of [1280, 390]) {   // PC と スマホ。幅で出方が変わるリンクがある
   for (const { href, label } of links) {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
+    /* 科目データをわざと遅らせる。ローカルは速すぎて、本番で出る
+       「飛び先が伸びて画面外へ逃げる」不具合を一度も再現できなかった
+       （2026-09-22。本番では3回とも出た）。遅いほうだけを試せば、
+       速いほうは自動的に通る。 */
+    await page.route("**/courses.built.json", async (r) => {
+      await new Promise((ok) => setTimeout(ok, 2500));
+      await r.continue();
+    });
     // 開屏と問診は済んだことにする（smoke.mjs と同じ）
     await page.addInitScript(() => {
       try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
@@ -97,7 +105,9 @@ for (const width of [1280, 390]) {   // PC と スマホ。幅で出方が変わ
       } else {
         await a.scrollIntoViewIfNeeded();
         await a.click();
-        await page.waitForTimeout(1200);   // スムーススクロールの着地を待つ
+        // 遅らせたデータ（2.5秒）が届いて一覧が伸び切り、
+        // version.js が運び直し終わるまで待つ
+        await page.waitForTimeout(4500);
       }
 
       const res = await page.evaluate((h) => {

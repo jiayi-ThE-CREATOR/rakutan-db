@@ -357,9 +357,53 @@
       if (grip && rail && rail.contains(target) && grip.getAttribute("aria-expanded") === "false") {
         grip.click();
       }
+      /* 運んで、一瞬だけ光らせる。 */
+      let flashOff = 0;
+      const flash = () => {
+        target.classList.remove("verFlash");
+        void target.offsetWidth;            // アニメーションを頭から流し直す
+        target.classList.add("verFlash");
+        clearTimeout(flashOff);
+        flashOff = setTimeout(() => target.classList.remove("verFlash"), 1600);
+      };
       target.scrollIntoView({ block: "center", behavior: "smooth" });
-      target.classList.add("verFlash");
-      setTimeout(() => target.classList.remove("verFlash"), 1600);
+      flash();
+
+      /* 一度運んで終わりにしない。飛んだ直後にも一覧は伸び続けていて
+         （app.js がデータを入れ終わるまで箱は空のまま立っている）、
+         運んだ先が画面の外へ押し出される ―― 本番で実測: 飛んだあとの
+         #sliders が top=1117、#list が top=1830（画面の高さは 900）。
+
+         「◯秒だけ見張る」では駄目だった。データが届くのが 2.5秒で、
+         1.6秒の見張りはその前に終わっている（2026-09-22 に実際に外した）。
+         見るべきは時間ではなく**ページの高さが変わったかどうか**なので、
+         伸びるたびに運び直し、利用者が自分で動かしたらすぐ手を離す。 */
+      const settle = () => {
+        const r = target.getBoundingClientRect();
+        // 「上端が画面の上半分に見えている」を落ち着いた状態とする。
+        // 一覧のように画面より高いものは、全体を入れようとすると永遠に決まらない。
+        if (r.top >= 0 && r.top < innerHeight * 0.6) return;
+        target.scrollIntoView({ block: "center", behavior: "auto" });
+        flash();
+      };
+      let ro = null, timer = 0;
+      const release = () => {
+        if (ro) ro.disconnect();
+        clearTimeout(timer);
+        removeEventListener("wheel", release);
+        removeEventListener("touchstart", release);
+        removeEventListener("keydown", release);
+      };
+      /* 利用者が自分で動かし始めたら、もう運び直さない。
+         "scroll" は自分の scrollIntoView でも鳴るので使えない。 */
+      addEventListener("wheel", release, { passive: true, once: true });
+      addEventListener("touchstart", release, { passive: true, once: true });
+      addEventListener("keydown", release, { once: true });
+      timer = setTimeout(release, 6000);   // 伸び終わらなくても6秒で手を離す
+      if (typeof ResizeObserver === "function") {
+        ro = new ResizeObserver(settle);
+        ro.observe(document.documentElement);
+      }
     });
     return a;
   };
