@@ -17,6 +17,63 @@
 
 ---
 
+## 2026-09-22｜ 更新履歴の見せ方を作り直した（主打カード＋畳み＋リンク） ｜ Claude（wang） → 次の人
+
+右下「バージョン＆最新機能」を開くと 40件の箇条書きが並んでいたのをやめ、
+版ごとに**主打を 1〜3件だけ大きく出し、残りは tag ごとに畳む**形にした。
+過去の版も1行に畳む。畳みの中も「太字の見出し＋説明」の2段に組み替えた。
+
+担当ファイルは `web/assets/version.js` / `version.css` / `tools/test_version.mjs`。
+`app.js` には触れていない（飛び先の id を読むだけ）。
+
+### 1. 何が動く状態か
+
+    node tools/test_version.mjs    # 362件通過（180件から増やした）
+
+- `RELEASES` の項目に4つのキーが増えた。**次に版を切る人が触るのはここだけ**
+  - `head` ＋ `icon` … 主打カード。**版ごとに 1〜3件。0件でも4件でもテストが落ちる**
+  - `lead` … 畳みの中の太字の見出し（20文字まで）。説明は `text` に分ける
+  - `href` … 「見てみる →」。同じページなら閉じて飛んで光らせる。サイトの中だけ
+- アイコンは `version.js` の `ICONS`（単色 SVG 11個）。`score` `search` `filter`
+  `calendar` `star` `chat` `data` `mobile` `link` `check` `sparkle`
+- 畳みは `<details>`。開閉の JS は持っていない
+- 過去4版（v1.0〜v1.2）も新しい形に書き直した。**版番号は変えていない**
+- 書き方の正本は `CLAUDE.md`「主打」「畳みの中の項目」「リンク」の3節と
+  `docs/version-pending.md` の先頭（仮置きの13件も新しい書き方に直してある）
+
+### 2. 何をしていないか
+
+- **この変更自体は版に載せていない**（本人判断 2026-09-22「載せない」）。
+  `docs/version-pending.md` には1行も足していない
+- `build.py` を流していない。`version.js` / `version.css` はアセットなので
+  ページ側の再生成は要らないが、`templates/shell.html` を触る変更と一緒に出すなら流すこと
+- `href` の飛び先 id は実機で押して確かめたのは `/#sliders` だけ。
+  残り（`/#grid` `/#conds` `/#rail` `/#grip` `/#list` `/mypage#mpTimetable`
+  `/mypage#mpFavorites` `/about#strength` `/kuchikomi`）は id の存在を grep で確認しただけ
+- `docs/version-pending.md` の ★ 3件（重さの出し方 / 口コミ / 発表）は**仮置き**。
+  水曜に版を切るとき、主打をこの3件にするかを本人に必ず確認する
+
+### 3. 次の人が最初に打つコマンド
+
+    cd ~/Developer/rakutan-db && git pull
+    node tools/test_version.mjs
+    (cd web && python3 -m http.server 8140) &
+    open http://127.0.0.1:8140/        # 右下の v1.2 を押す
+
+### 4. 踏んだ罠
+
+- **`[class*=splash]` で開屏の覆いを消そうとすると `<html class="splash-skip">` に当たって
+  ページごと消える。** スクショを撮るときは `div.splash` と `div.onboard` を名指しで消す
+- **左の絞り込み（`#rail`）は v1.2 から畳める。** 畳んだまま `#sliders` へ飛ぶと
+  何も見えないので、`jump()` は `#grip` の `aria-expanded` を見て先に開いている。
+  app.js 側で id が変わったらここが黙って効かなくなる
+- **過去の版の番号は書き換えない。** `localStorage` の `rakuhan.seenVersion` と
+  食い違って、既読の人にオレンジの点がもう一度出る（2026-09-03 に一度やっている）
+- worktree（`.worktrees/verui`）には `node_modules` が無い。
+  本体から `ln -s ../../node_modules node_modules` を張ってから playwright を動かす
+
+---
+
 ## 2026-09-18（2）｜ 意見箱に画像添付（ドラッグ＆ドロップ・5MBまで）を追加 ｜ Claude（松下） → 次の人
 
 意見箱（フッタの「サイトへのご意見・改善要望」）から画像を1枚（5MBまで・png/jpeg/webp/gif）
