@@ -28,7 +28,6 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
 const PREF_DEFAULT = { exam:50, presentation:20, report:15, attendance:15, quiz:10 };
 const PREF_KEY = "rk_konomi";
 const prefMult = k => (state.pref[k] ?? PREF_DEFAULT[k]) / PREF_DEFAULT[k];
-const prefTouched = () => Object.keys(PREF_DEFAULT).some(k => state.pref[k] !== PREF_DEFAULT[k]);
 
 const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), sort:"fit",
                 /* 配点の上限（%）。100＝制限なし。2026-09-03 に「重み 0〜5」から
@@ -412,30 +411,12 @@ function buildFaculty(facets){
   });
 }
 
-/* 「重さを既定に戻す」の出し入れ。**目盛りごと作り直さないこと** ――
-   つまみを掴んでいる要素を innerHTML で入れ替えると、ドラッグが途中で切れる。 */
-function togglePrefReset(){
-  const box = $("#sliders");
-  if (!box) return;
-  const cur = $("#prefReset");
-  if (prefTouched() === !!cur) return;
-  if (cur){ cur.closest("p").remove(); return; }
-  /* 既定から動かしている人にだけ出す。触っていない人の画面に「戻す」だけ
-     置いても、何から戻るのか読めない。 */
-  box.insertAdjacentHTML("beforeend",
-    `<p class="railNote"><button type="button" class="toggle" id="prefReset">重さを既定に戻す</button></p>`);
-  $("#prefReset").onclick = () => {
-    state.pref = { ...PREF_DEFAULT };
-    syncPref(); buildSliders(); load();
-  };
-}
+/* ── 配点でしぼる（好みの目盛り＋しぼり込みの ✕） ───────────────
+   目盛りは「その項目をどれくらい重く見るか」（好み）。既定は score.py と同じ。
+   ✕ は「その項目がある授業を見ない」（しぼり込み）で、caps を 0 か 100 にする。
 
-/* ── 重さの見かた（好みの目盛り＋しぼり込みの ✕） ───────────────
-   数字はシラバスの「成績評価の内訳」そのもの。
-   「出席率 30%」＝ 出席・平常点が成績の30%以下の科目だけ出す、の意味。
-
-   0% にすると、対応する条件チップ（出席なし・小テストなし）と**同じ状態**に
-   なる。チップはこのスライダーのショートカットであって別の判定ではない。 */
+   ✕ は対応する条件チップ（出席なし・小テストなし）と**同じ状態**を指す。
+   チップはこの ✕ のショートカットであって別の判定ではない。 */
 function buildSliders(){
   /* 目盛りは「その項目をどれくらい重く見るか」。既定は score.py と同じ数字で、
      テストがいちばん大きい＝みんなの既定をそのまま画面に出している。
@@ -450,14 +431,19 @@ function buildSliders(){
        <button type="button" class="xBtn" id="x_${k}" data-k="${k}"
                aria-pressed="${state.caps[k] === 0}"
                title="${esc(CAP_LABEL[k])}がある授業を見ない">✕</button>
-       <span class="def">既定 ${PREF_DEFAULT[k]}</span></div>`).join("");
+       <span class="def">既定 ${PREF_DEFAULT[k]}</span></div>`).join("")
+    /* 「既定に戻す」は**常に出す**（触るまで隠すと、動かしたあとに戻し方を探す
+       ことになる）。目盛りと一緒に描くので、つまみを掴んでいる最中に
+       この行が生えてレイアウトが動くこともない。 */
+    + `<p class="railNote"><button type="button" class="toggle" id="prefReset">重さを既定に戻す</button></p>`;
+  $("#prefReset").onclick = () => {
+    state.pref = { ...PREF_DEFAULT };
+    syncPref(); buildSliders(); load();
+  };
   $("#sliders").querySelectorAll("input[type=range]").forEach(i => i.oninput = () => {
     state.pref[i.dataset.k] = +i.value;
     $("#v_"+i.dataset.k).textContent = i.value;
     syncPref();
-    /* 「既定に戻す」の出し入れ。**buildSliders() を呼び直さないこと** ――
-       つまみを掴んでいる要素ごと作り直すと、ドラッグが途中で切れる。 */
-    togglePrefReset();
     load();
   });
   $("#sliders").querySelectorAll(".xBtn").forEach(x => x.onclick = () => {
@@ -474,7 +460,6 @@ function buildSliders(){
     syncCaps();
     load();
   });
-  togglePrefReset();
   updateCapWarn();
 }
 
@@ -2191,7 +2176,7 @@ function applyPostMode() {
   buildYearRow(); buildHardSelect();
   $("#tog").onclick = () => {
     const o = $("#sliders").classList.toggle("open");
-    $("#tog").textContent = o ? "重さの目盛りを閉じる" : "重さを自分に合わせる";
+    $("#tog").textContent = o ? "配点スライダーを閉じる" : "配点で細かくしぼる";
   };
 
   /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると
