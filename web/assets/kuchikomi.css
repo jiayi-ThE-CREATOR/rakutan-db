@@ -171,6 +171,11 @@ select:focus-visible,input:focus-visible,button:focus-visible{
 .form-section{margin-top:var(--sp-4)}
 .form-section:first-child{margin-top:0}
 .form-section label{display:block;margin-bottom:7px;font-size:13.5px;color:var(--soft)}
+/* 一言の欄の注意書き（README 5章 禁止事項2）。.modal-desc と同じ大きさ・色で、
+   禁止と公開の2点だけ太字にする。赤にはしない ―― 書く前に読む説明であって、
+   エラーではないため。 */
+.kkCaution{margin:var(--sp-2) 0 0;font-size:var(--fs-xs);color:var(--muted);line-height:1.6}
+.kkCaution b{color:var(--soft)}
 .modal-subject-search{margin-bottom:var(--sp-2)}
 .no-subjects{margin-top:var(--sp-2)}
 .no-subjects p{margin:0;font-size:var(--fs-sm);color:var(--muted)}
