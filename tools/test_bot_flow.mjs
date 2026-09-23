@@ -136,6 +136,24 @@ if (condBlock) {
   }
 }
 
+
+/* 学年・学部を覚えている人の経路（おかえり…）。**初回の問診だけ直して
+   ここを忘れていた**ので、常連ほど古い選択肢が出ていた（2026-09-23 きむら報告）。
+   選択肢は初回と同じ条件7つ＋「学年・学部を変える」。 */
+const known = mod.knownProfileMessage({ grade: "3", fac: "foreign-s" });
+const kLabels = labels(known);
+check(/どんな条件がいい/.test(known.text),
+      `記憶ありの設問が条件を聞いていない（いま「${known.text}」）`);
+check(!kLabels.includes("バイト優先"),
+      "記憶ありの経路に旧プリセット（バイト優先）が残っている");
+check(kLabels.includes("出席なし") && kLabels.includes("発表なし"),
+      "記憶ありの経路の選択肢がサイトの条件になっていない");
+check(kLabels.includes("学年・学部を変える"), "記憶ありの経路から学年・学部を変えられない");
+check(kLabels.length === 8, `記憶ありは条件7＋変更1の8択であるべき（いま ${kLabels.length}）`);
+check(kLabels.length <= 13, "quick reply の上限13を超えている");
+check(JSON.stringify(known).includes("action=cond"),
+      "記憶ありの経路が旧 action=preset のまま");
+
 console.log(fails.length ? `NG ${fails.length}/${n}` : `OK ${n} checks`);
 for (const f2 of fails) console.log("  -", f2);
 process.exit(fails.length ? 1 : 0);

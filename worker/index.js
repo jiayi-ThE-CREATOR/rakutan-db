@@ -223,14 +223,15 @@ function coursesReply(heading, courses, siteOrigin, answers) {
   ];
 }
 
-// grade は "1"〜"6"、preset は PRESET_NAMES のいずれか。
+// grade は "1"〜"6"、name は CONDITION_NAMES（サイトと同じ条件）か、
+// 旧 PRESET_NAMES のいずれか。
 // handleText（自由入力）と postback（ボタン選択）の両方から呼ぶ共通ロジック。
 // 戻り値は「見つからなかった」場合は文字列、見つかった場合はLINEメッセージの配列。
 // answers は省略可 ―― 問診で答えた学部・学年を「ラクハンで見る」ボタンの
 // URLに載せたいときだけ handlePostback から渡ってくる。ここでも
 // presetTop[grade] の grade 以外には使わない（学部はスコアリングに一切
 // 入れない）。
-export function buildRecommendation(grade, name, data, siteOrigin, answers) {
+export function buildRecommendation(grade, name, data, siteOrigin, answers, label) {
   const courses = new Map(data.courses.map((c) => [c.id, c]));
   /* 条件（サイトと同じ7つ）は cond_top、旧プリセットは preset_top を引く。
      どちらも build.py が学年ごとに焼いたもので、判定は score.py の1か所。
@@ -239,11 +240,15 @@ export function buildRecommendation(grade, name, data, siteOrigin, answers) {
     ? (data.cond_top || {})
     : (data.preset_top || {});
   const ids = ((top[grade] || top["1"] || {})[name] || []).slice(0, 5);
+  /* 見出しに出す言葉は引き先のキーと別にできる。「とにかく楽単を知りたい」は
+     既定の重みの並び（＝サイトのおすすめ順）を使うが、その内部名「とにかく軽い」は
+     サイトのどこにも無いので表に出さない（2026-09-23）。 */
+  const shown = label || name;
   if (ids.length === 0) {
-    return `${GRADE_KANJI[grade] || grade}向けの「${name}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
+    return `${GRADE_KANJI[grade] || grade}向けの「${shown}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
   }
   const matched = ids.map((id) => courses.get(id)).filter(Boolean);
-  const heading = `${GRADE_KANJI[grade] || grade}「${name}」おすすめ TOP${matched.length}`;
+  const heading = `${GRADE_KANJI[grade] || grade}${label ? "の" : `「${name}」`}おすすめ TOP${matched.length}`;
   return coursesReply(heading, matched, siteOrigin, answers);
 }
 
@@ -482,7 +487,9 @@ export function handlePostback(data, evData, siteOrigin, save, reset) {
     // （とにかく楽単を知りたい＝何も聞いていない）。answers を渡すと
     // 「本人が1年と答えた」という嘘の記録をサイト側に残すことになるので、
     // ここは今までどおり answers なし。
-    return withSiteButton(buildRecommendation("1", "とにかく軽い", data, siteOrigin), siteOrigin);
+    return withSiteButton(
+      buildRecommendation("1", "とにかく軽い", data, siteOrigin, undefined, "おすすめ"),
+      siteOrigin);
   }
   return greetingMessage();
 }
@@ -548,15 +555,19 @@ export function knownProfileMessage(profile) {
   const gradeLabel = GRADE_KANJI[profile.grade] || `${profile.grade}年`;
   const facLabel = FACULTIES.find(([key]) => key === profile.fac)?.[1];
   const who = facLabel ? `${facLabel}・${gradeLabel}` : gradeLabel;
+  /* 2026-09-23: ここもサイトの「条件」7つに揃える。初回の問診（学年→学部→条件）
+     だけ直して**この経路を直し忘れていた** ―― 学年・学部を覚えている人は
+     おすすめを押すとここへ来るので、常連ほど古い選択肢のままになっていた
+     （きむら報告）。条件7つ＋「学年・学部を変える」で8件、quick reply の上限13内。 */
   return {
     type: "text",
-    text: `おかえり！前に聞いた${who}で探すね。何を優先する？`,
+    text: `おかえり！前に聞いた${who}で探すね。どんな条件がいい？`,
     quickReply: {
       items: [
-        ...PRESET_NAMES.map((name) =>
+        ...CONDITION_NAMES.map((name) =>
           qrPostback(
             name,
-            `action=preset&grade=${profile.grade}&fac=${encodeURIComponent(profile.fac || "")}&preset=${encodeURIComponent(name)}`,
+            `action=cond&grade=${profile.grade}&fac=${encodeURIComponent(profile.fac || "")}&cond=${encodeURIComponent(name)}`,
             name
           )
         ),
