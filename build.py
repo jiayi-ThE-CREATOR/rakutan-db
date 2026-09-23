@@ -265,6 +265,30 @@ def rank_presets(built: list[dict]) -> dict[str, dict[str, list[str]]]:
     return presets
 
 
+def rank_conditions(built: list[dict]) -> dict[str, dict[str, list[str]]]:
+    """学年 × 条件ごとの上位100件。LINE の選択肢がこれを読む（2026-09-23）。
+
+    条件はサイトの「条件」チップと同じ7つで、判定は score.py の CONDITIONS
+    （＝画面・server.py と同じ1か所）。**Worker 側で計算し直さない** ――
+    配点の上限判定を3つ目に増やすと、必ずどれかが古くなる。
+
+    並びは rank_presets と同じ preset_key（検証ずみを先に、次に相性度）。
+    重みは既定（とにかく軽い＝サイトの初期値）―― 条件は「落とす」側で、
+    順位は相性度が決める、というサイトの役割分担をそのまま持ってくる。
+    """
+    conds: dict[str, dict[str, list[str]]] = {}
+    for year in (1, 2, 3, 4, 5, 6):
+        pool = [c for c in built
+                if c["rakutan"]["overall"] is not None
+                and year in (c.get("eligible_years") or [])]
+        for name in scoring.LINE_CONDITIONS:
+            test = scoring.CONDITIONS[name]
+            hit = [c for c in pool if test(c)]
+            ranked = sorted(hit, key=lambda c: preset_key(c, scoring.DEFAULT_WEIGHTS))
+            conds.setdefault(str(year), {})[name] = [c["id"] for c in ranked[:100]]
+    return conds
+
+
 def represet(out: Path) -> None:
     """焼き済みの courses.built.json の preset_top だけ組み直す。
 
@@ -275,14 +299,21 @@ def represet(out: Path) -> None:
     """
     payload = json.loads(out.read_text(encoding="utf-8"))
     before = payload.get("preset_top") or {}
+    before_cond = payload.get("cond_top") or {}
     payload["preset_top"] = rank_presets(payload["courses"])
+    # 条件別も一緒に組み直す。LINE の選択肢はこちらを読むので、
+    # 片方だけ新しいと「サイトと同じ条件なのに並びが違う」が起きる。
+    payload["cond_top"] = rank_conditions(payload["courses"])
     out.write_text(json.dumps(payload, ensure_ascii=False,
                               separators=(",", ":")), encoding="utf-8")
     moved = sum(1 for y, ps in payload["preset_top"].items()
                 for n, ids in ps.items()
                 if ids != (before.get(y) or {}).get(n))
-    print(f"→ {out}  preset_top を組み直しました"
-          f"（学年×プリセット {moved} 通りで順位が変わりました）")
+    moved_cond = sum(1 for y, cs in payload["cond_top"].items()
+                     for n, ids in cs.items()
+                     if ids != (before_cond.get(y) or {}).get(n))
+    print(f"→ {out}  preset_top / cond_top を組み直しました"
+          f"（学年×プリセット {moved} 通り、学年×条件 {moved_cond} 通りで順位が変わりました）")
 
 
 def load_subjects() -> tuple[dict, dict]:
@@ -330,7 +361,8 @@ def rescore(out: Path) -> None:
       ① eval_raw から eval_ratio / eval_unclassified を作り直す
          （小テストを出席から独立させる変更が、ここで既存データに効く）
       ② rakutan（採点）を score.py で付け直す
-      ③ preset_top を組み直す ―― LINE が読むので、採点が動いたら必ず一緒に動かす
+      ③ preset_top と cond_top を組み直す ―― LINE が読むので、
+         採点が動いたら必ず一緒に動かす
       ④ _meta の weights / axis_label / presets を今の値にする
 
     **科目そのものは増減しない。** 読むのも書くのも既存の built ファイル。
@@ -359,6 +391,7 @@ def rescore(out: Path) -> None:
         after_band[c["rakutan"]["band"]] = after_band.get(c["rakutan"]["band"], 0) + 1
 
     payload["preset_top"] = rank_presets(courses)
+    payload["cond_top"] = rank_conditions(courses)
     judged = sum(1 for c in courses if c["rakutan"]["overall"] is not None)
     payload["_meta"].update({
         "judged": judged,
@@ -391,7 +424,7 @@ def main() -> None:
     ap.add_argument("--out-reviews", default=str(OUT_REVIEWS))
     ap.add_argument("--out-timetable", default=str(OUT_TIMETABLE))
     ap.add_argument("--represet", action="store_true",
-                    help="焼き済みの courses.built.json の preset_top だけ組み直す"
+                    help="焼き済みの courses.built.json の preset_top / cond_top を組み直す"
                          "（全所属ぶんの生データを持っていない人が並び順を直すとき）")
     ap.add_argument("--rescore", action="store_true",
                     help="焼き済みの courses.built.json を今の score.py で採点し直す"
@@ -481,6 +514,7 @@ def main() -> None:
     # 学年ごとに焼く。サイトの既定が1年なので、LINE も既定は "1" を読めばよい。
     # 1年生が履修できない科目を上位に出すと、選べない科目を薦めることになる。
     presets = rank_presets(built)
+    conds = rank_conditions(built)
 
     judged = sum(1 for c in built if c["rakutan"]["overall"] is not None)
     payload = {
@@ -510,6 +544,8 @@ def main() -> None:
                                    "（scrape/years.py）。既定の表示は1年生。",
         },
         "preset_top": presets,   # {"1": {プリセット名: [id,...]}, "2": {...}, ...}
+        # LINE の選択肢（サイトの「条件」と同じ7つ）がこれを読む。
+        "cond_top": conds,       # {"1": {条件名: [id,...]}, "2": {...}, ...}
         "courses": built,
     }
 

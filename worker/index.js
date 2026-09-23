@@ -46,6 +46,15 @@ import {
 // 登録した旧URL（*.workers.dev）のままになってしまうため（2026-08-25 吉村さん申請の新ドメイン）。
 const SITE_URL = "https://rakuhan.nocode-sol.co.jp";
 
+// LINE の選択肢は**サイトの「条件」と同じ7つ**（2026-09-23 きむら依頼）。
+// それまでは重みプリセット4つ（バイト優先など）を聞いていたが、サイトの画面に
+// その言葉はどこにも無く、LINE で選んだものをサイトで探せなかった。
+// 正本は score.py の LINE_CONDITIONS ―― 並びもサイトの「条件」枠と同じ。
+// ずれたら tools/test_bot_flow.mjs が落ちる。
+const CONDITION_NAMES = ["出席なし", "レポートのみ", "持ち込み可", "1限以外",
+                         "集中講義", "小テストなし", "発表なし"];
+// 旧プリセット。**選択肢には出さない**が、判定は残す ―― 過去のトーク履歴に
+// 残っているボタンを押した人と、「1年 とにかく軽い」と打つ癖のある人のため。
 const PRESET_NAMES = ["バイト優先", "GPA重視", "とにかく軽い", "テストが苦手"];
 const GRADE_KANJI = { 1: "1年", 2: "2年", 3: "3年", 4: "4年", 5: "5年", 6: "6年" };
 // 学部の問診用の一覧。表示用の写しで、正本は web/data/requirements.json の
@@ -59,7 +68,7 @@ const FACULTIES = [
   ["engineering", "工学部"], ["engr-sci", "基礎工学部"],
 ];
 const CACHE_TTL_MS = 5 * 60 * 1000;
-const USAGE_HINT = "「1年 とにかく軽い」のように送ると、おすすめを返します。";
+const USAGE_HINT = "「1年 出席なし」のように送ると、おすすめを返します。";
 const DATA_UNAVAILABLE_MESSAGE =
   "只今データを取得できませんでした。少し時間をおいて試してください。";
 
@@ -89,6 +98,11 @@ function gradeFromText(text) {
   return idx >= 0 ? hankaku[idx] : m[1];
 }
 
+function conditionFromText(text) {
+  return CONDITION_NAMES.find((name) => text.includes(name)) || null;
+}
+
+// 旧プリセット。選択肢からは消したが、打たれたら今までどおり答える。
 function presetFromText(text) {
   return PRESET_NAMES.find((name) => text.includes(name)) || null;
 }
@@ -216,15 +230,20 @@ function coursesReply(heading, courses, siteOrigin, answers) {
 // URLに載せたいときだけ handlePostback から渡ってくる。ここでも
 // presetTop[grade] の grade 以外には使わない（学部はスコアリングに一切
 // 入れない）。
-export function buildRecommendation(grade, preset, data, siteOrigin, answers) {
+export function buildRecommendation(grade, name, data, siteOrigin, answers) {
   const courses = new Map(data.courses.map((c) => [c.id, c]));
-  const presetTop = data.preset_top || {};
-  const ids = ((presetTop[grade] || presetTop["1"] || {})[preset] || []).slice(0, 5);
+  /* 条件（サイトと同じ7つ）は cond_top、旧プリセットは preset_top を引く。
+     どちらも build.py が学年ごとに焼いたもので、判定は score.py の1か所。
+     Worker 側で条件を計算し直さない ―― 判定を3つ目に増やすと必ずずれる。 */
+  const top = CONDITION_NAMES.includes(name)
+    ? (data.cond_top || {})
+    : (data.preset_top || {});
+  const ids = ((top[grade] || top["1"] || {})[name] || []).slice(0, 5);
   if (ids.length === 0) {
-    return `${GRADE_KANJI[grade] || grade}向けの「${preset}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
+    return `${GRADE_KANJI[grade] || grade}向けの「${name}」データが見つかりませんでした。\n\n使い方: ${USAGE_HINT}`;
   }
   const matched = ids.map((id) => courses.get(id)).filter(Boolean);
-  const heading = `${GRADE_KANJI[grade] || grade}「${preset}」おすすめ TOP${matched.length}`;
+  const heading = `${GRADE_KANJI[grade] || grade}「${name}」おすすめ TOP${matched.length}`;
   return coursesReply(heading, matched, siteOrigin, answers);
 }
 
@@ -232,8 +251,9 @@ function usageMessage() {
   return (
     "使い方だよ📖\n\n" +
     "・科目名を送る → 検索\n" +
-    "・「1年 とにかく軽い」のように学年＋条件を送る → おすすめ\n" +
-    "・条件は「バイト優先」「GPA重視」「とにかく軽い」「テストが苦手」の4つ\n" +
+    "・「1年 出席なし」のように学年＋条件を送る → おすすめ\n" +
+    "・条件はサイトと同じ7つ：出席なし／レポートのみ／持ち込み可／\n" +
+    "  1限以外／集中講義／小テストなし／発表なし\n" +
     "・下のメニューの「科目を検索」「おすすめ」からも同じことができるよ"
   );
 }
@@ -287,17 +307,18 @@ export function handleText(text, data, siteOrigin) {
   }
 
   const grade = gradeFromText(text);
-  const preset = presetFromText(text);
+  /* 条件（サイトと同じ言葉）を先に見る。見つからなければ旧プリセット。 */
+  const name = conditionFromText(text) || presetFromText(text);
 
-  if (preset) {
-    return buildRecommendation(grade, preset, data, siteOrigin);
+  if (name) {
+    return buildRecommendation(grade, name, data, siteOrigin);
   }
 
   const q = trimmed;
   if (!q) {
     return (
-      "科目名で検索するか、「バイト優先」「GPA重視」「とにかく軽い」「テストが苦手」の" +
-      "いずれかを送ってください（例:「1年 とにかく軽い」）。"
+      "科目名で検索するか、サイトと同じ条件（出席なし／レポートのみ／持ち込み可／" +
+      "1限以外／集中講義／小テストなし／発表なし）を送ってください（例:「1年 出席なし」）。"
     );
   }
   let matched = data.courses.filter((c) => (c.title || "").includes(q));
@@ -394,17 +415,21 @@ export function facultyQuestionMessage(grade) {
   };
 }
 
-// fac は学部キー（省略可）。推薦結果には使わない ―― preset_top は学年だけで
+// fac は学部キー（省略可）。推薦結果には使わない ―― cond_top は学年だけで
 // 引いているので、ここで受け取った fac は次の postback に引き継ぐだけ。
-export function presetQuestionMessage(grade, fac) {
-  const items = PRESET_NAMES.map((name) =>
+//
+// 2026-09-23: 聞くものを「何を優先する？」（重みプリセット4つ）から
+// **サイトと同じ条件7つ**へ変えた（きむら依頼）。LINE で選んだ言葉が
+// サイトの「条件」チップにそのまま在るので、続きをサイトで探せる。
+export function conditionQuestionMessage(grade, fac) {
+  const items = CONDITION_NAMES.map((name) =>
     qrPostback(name,
-      `action=preset&grade=${grade}&fac=${encodeURIComponent(fac || "")}&preset=${encodeURIComponent(name)}`,
+      `action=cond&grade=${grade}&fac=${encodeURIComponent(fac || "")}&cond=${encodeURIComponent(name)}`,
       name)
   );
   return {
     type: "text",
-    text: "何を優先する？",
+    text: "どんな条件がいい？",
     quickReply: { items },
   };
 }
@@ -429,11 +454,14 @@ export function handlePostback(data, evData, siteOrigin, save, reset) {
   }
   if (action === "faculty") {
     const grade = params.get("grade") || "1";
-    return presetQuestionMessage(grade, params.get("fac") || "");
+    return conditionQuestionMessage(grade, params.get("fac") || "");
   }
-  if (action === "preset") {
+  // action=cond … 今の問診の終点。action=preset は過去のトーク履歴に残っている
+  // ボタン用（2026-09-23 より前）。同じ処理に流す ―― 押した人に
+  // 「このボタンはもう使えません」と言わずに済ませる。
+  if (action === "cond" || action === "preset") {
     const grade = params.get("grade") || "1";
-    const preset = params.get("preset") || "とにかく軽い";
+    const preset = params.get("cond") || params.get("preset") || CONDITION_NAMES[0];
     const fac = params.get("fac") || "";
     // fac（学部）は推薦のロジックには一切入れない。preset_top は学年だけで
     // 引いており、buildRecommendation にはスコアリング用途では渡さない。
