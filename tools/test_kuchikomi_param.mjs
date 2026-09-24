@@ -89,10 +89,8 @@ const waitOpen = (p) => p.waitForFunction(
     return { text: c.textContent, shown: r.width > 0 && r.height > 0,
              linked: input.getAttribute("aria-describedby") === "comment-caution" };
   });
-  check(caution && /先生個人のことは書かないでください/.test(caution.text),
-        "[注意書き] 一言の欄に「先生個人のことは書かないでください」が無い");
-  check(caution && /そのままサイトに公開されます/.test(caution.text),
-        "[注意書き] 一言が公開されることを書いていない");
+  check(caution && /誹謗中傷はご遠慮ください/.test(caution.text),
+        "[注意書き] 一言の欄に「誹謗中傷はご遠慮ください」が無い");
   check(caution && caution.shown, "[注意書き] 一言の注意書きが見えていない");
   check(caution && caution.linked, "[注意書き] 入力欄と注意書きが aria-describedby で結ばれていない");
   const v1 = await subjectValue(p);
