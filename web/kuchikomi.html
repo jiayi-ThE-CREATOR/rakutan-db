@@ -376,8 +376,16 @@
         </div>
 
         <div class="form-section">
-          <label>一言（任意）</label>
-          <input type="text" id="comment" placeholder="例：過去問があれば余裕">
+          <label for="comment">一言（任意）</label>
+          <input type="text" id="comment" placeholder="例：過去問があれば余裕"
+                 aria-describedby="comment-caution">
+          <!-- README 5章 禁止事項2「口コミの自由記述に教員個人への言及を書かせない ――
+               投稿ガイドラインに明記し、投稿前の注意書きに出す」。2026-08-21 に旧フォーム
+               （index.html の #sheet）へ入れたが、8/25 に投稿が /kuchikomi へ移ったとき
+               この注意書きだけ移し損ねていた（2026-09-23 に気づいて戻した・#18 の文面）。
+               書いた一言は口コミのモーダルにそのまま出るので、公開されることも先に言う。 -->
+          <p class="kkCaution" id="comment-caution"><b>先生個人のことは書かないでください。</b>名前・人柄・評判など。評価の対象は科目であって人ではありません。<br>
+            書いた一言は<b>そのままサイトに公開されます</b>（誰が書いたかは出ません）。</p>
         </div>
       </div>
     </div>

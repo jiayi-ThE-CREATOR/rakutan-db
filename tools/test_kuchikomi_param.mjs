@@ -78,6 +78,23 @@ const waitOpen = (p) => p.waitForFunction(
   await waitOpen(p);
 
   check(await modalOpen(p), "[slot] 学期・学部が設定済みなのにモーダルが開いていない");
+
+  /* 一言の欄の注意書き（README 5章 禁止事項2）。フォームを移したときに一度
+     取りこぼしているので、移設や作り直しで消えたらここで気づく。 */
+  const caution = await p.evaluate(() => {
+    const c = document.getElementById("comment-caution");
+    const input = document.getElementById("comment");
+    if (!c || !input) return null;
+    const r = c.getBoundingClientRect();
+    return { text: c.textContent, shown: r.width > 0 && r.height > 0,
+             linked: input.getAttribute("aria-describedby") === "comment-caution" };
+  });
+  check(caution && /先生個人のことは書かないでください/.test(caution.text),
+        "[注意書き] 一言の欄に「先生個人のことは書かないでください」が無い");
+  check(caution && /そのままサイトに公開されます/.test(caution.text),
+        "[注意書き] 一言が公開されることを書いていない");
+  check(caution && caution.shown, "[注意書き] 一言の注意書きが見えていない");
+  check(caution && caution.linked, "[注意書き] 入力欄と注意書きが aria-describedby で結ばれていない");
   const v1 = await subjectValue(p);
   check(v1 === SLOT_ID, `[slot] #modal-subject-select の値が id と一致しない: ${v1}`);
   check(errors.length === 0, `[slot] コンソールエラー: ${errors.join(" / ")}`);
