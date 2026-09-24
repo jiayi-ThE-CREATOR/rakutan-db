@@ -731,21 +731,6 @@ function gateLocked(){
   return !!(window.rkGate && window.rkGate.linked && !window.rkGate.linked());
 }
 
-/* 口コミの件数表示。件数そのものは操作バーの「口コミ N件を読む」が持つので、
-   ここが返すのは「まだ採点に入っていない」の注意帯だけ（2026-09-06）。
-   導線の文言（「タップして中身を見る ↓」）も外した ―― 読む先は
-   すぐ下の操作バーに在る。 */
-function reviewMark(rv){
-  /* 2026-09-17: 「まだ数字には入っていません」は嘘になったので書き換えた。
-     口コミは1人目から相性度の体感層に入る（取り分は人数で増え、上限20%）。
-     帯そのものは消さない ―― 一言を書かず選択式だけ答えた回答しか無い科目では、
-     カードで回答の件数が見えるのはここだけ。「口コミが多い順」も回答の総数（n）で
-     並ぶので、ここで n を出しておかないと並びが画面から読めない（tools/test_sort.mjs）。 */
-  if (!rv?.n) return { alert:"" };
-  return { alert:`<div class="rvAlert"><i>💬</i><div>口コミ ${rv.n}件 ―
-      相性度に入っています。下のボタンで中身を見られます</div></div>` };
-}
-
 /* band の下の ※ の行。「口コミが集まれば数字が出る」科目にだけ出す。
    出す条件は2つ ―― テストの難しさ待ち（needs_review）と、総合値がまだ出せず
    その穴が口コミで埋まる科目（内訳は読めている）。後者は 2026-09-06 まで
@@ -753,8 +738,8 @@ function reviewMark(rv){
    2か所で言うのをやめ、投稿への誘い1本に寄せた（score.py の _unjudged_reason）。
 
    口コミが1件も無いなら「最初の1人」に誘う ―― ここが投稿への入口になる。
-   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、すぐ下の
-   口コミの件数帯（口コミ N件 ― 相性度に入っています）と矛盾するので、
+   口コミはあるが門を越えていない科目で「誰も書いていない」と言うと、操作バーの
+   「口コミ N件を読む／みんなの回答を見る」（cardActsHtml）と矛盾するので、
    足りない話（テストの難しさ）だけを書く。それも無いなら注意帯に任せて黙る。 */
 function bandNoteText(c){
   const r = c.rakutan;
@@ -783,6 +768,14 @@ function bandNoteText(c){
  *   readable===0, n>0    … 読める一言が無いが回答はある。「読む」ではなく
  *                          「見る」に言い換え、プレビューは出さない
  *                          （notes が空なので出す一言そのものが無い）。
+ *                          回答の総数（n）はここに出す ―― 2026-09-22 まで
+ *                          .rvAlert（詳細を開くまでの間の黒い帯）が肩代わり
+ *                          していたが、下のボタンと同じ情報を二重に出して
+ *                          いた（wang 指摘）ので帯を消した。この枝だけは
+ *                          カードのどこにも回答数が出ない唯一の場所だった
+ *                          ので、消す代わりにここへ n を出す。「口コミが
+ *                          多い順」（n で並ぶ）を画面で確かめられなくなる
+ *                          ため（tools/test_sort.mjs）。
  *   n===0                … 従来どおり最初の1人を誘う破線ボタン。 */
 function cardActsHtml(c){
   const n = c.reviews?.n || 0;
@@ -802,7 +795,7 @@ function cardActsHtml(c){
           title="この科目の口コミを書く">✎</a>`;
   } else if (n){
     read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
-         <span>📊 みんなの回答を見る</span>
+         <span>📊 口コミ ${n}件を見る</span>
        </button>
        <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
           title="この科目の口コミを書く">✎</a>`;
@@ -829,7 +822,6 @@ function card(c){
      web/line/worker/tools のどこからも他に参照されていない（確認済み）
      ―― 表示だけをやめる。条件チップ（r.tags）はそのまま残す。 */
   const tags = [...r.tags];
-  const rv = reviewMark(c.reviews);
   const note = bandNoteText(c);
   const fav = rkStore.isFavorite(c.id);
   /* 授業内容タグ。.head（role="button"＝押すと詳細）の「外」に置く ―― 中に置くと
@@ -838,7 +830,13 @@ function card(c){
     ? `<div class="subjRow">${window.rkDetail.subjectTagsHtml(c.subjects, {
         labels: META.subject_labels || {}, selected: state.subject, interactive: true })}</div>`
     : "";
-  return `<article class="card${rv.alert ? " unscored" : ""}" data-id="${esc(c.id)}">
+  /* data-reviews は回答の総数（reviewCount(c) と同じ値＝reviews.n）を、
+     文言とは切り離して機械可読に置く。カード本文の「口コミ N件を読む」は
+     readable（本人が書いた一言の数）を出すので n とは限らず一致しない
+     （cardActsHtml の注記）。「口コミが多い順」は n で並べる
+     （reviewCount 参照）ので、tools/test_sort.mjs はここを読んで並びを
+     確かめる ―― 表示文言をテストの都合で歪めない（2026-09-22）。 */
+  return `<article class="card" data-id="${esc(c.id)}" data-reviews="${reviewCount(c)}">
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
@@ -847,7 +845,6 @@ function card(c){
       <div class="fit"><b>${m.fit ?? r.overall ?? "—"}</b><small>相性度</small></div>
       <div class="reason"><span class="band b${BAND_CLS[m.band ?? r.band] ?? 0}">${esc(m.band ?? r.band)}</span>${esc(m.reason)}</div>
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
-      ${rv.alert}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
     ${subj}

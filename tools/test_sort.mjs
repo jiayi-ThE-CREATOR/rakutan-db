@@ -45,9 +45,15 @@ check(!(await optState("reviews_few")),  "「口コミあり」を押しても �
 /* 一覧の先頭には「あなたに合う N件」（.picks）が別枠で出る。あれは
    利用者の並び替えに追従しない ―― 追従させると「科目名順」のときに
    “名前が前の5件” を「あなたに合う5件」と呼ぶことになるため（app.js の
-   topPicks() の注記）。並び順を確かめるのは、その下の本体だけ。 */
+   topPicks() の注記）。並び順を確かめるのは、その下の本体だけ。
+
+   件数は文言（「口コミ N件を読む」等）から拾わない ―― N はカードの状態で
+   readable（読める一言の数）だったり n（回答の総数）だったりし、並びは
+   常に n（reviewCount）なので文言をスクレイプすると食い違う。card() が
+   data-reviews に n をそのまま置いているので、それを読む（2026-09-22、
+   .rvAlert 廃止のときに文言スクレイプから切り替えた）。 */
 const counts = () => p.$$eval("#list > .card", cs =>
-  cs.map(c => { const m = /口コミ\s*(\d+)\s*件/.exec(c.textContent); return m ? +m[1] : null; }));
+  cs.map(c => { const v = c.dataset.reviews; return v === undefined ? null : +v; }));
 const titles = () => p.$$eval("#list > .card .title", ts => ts.map(t => t.textContent.trim()));
 
 const sortBy = async v => { await p.selectOption("#sort", v); await p.waitForTimeout(500); };
@@ -55,7 +61,7 @@ const sortBy = async v => { await p.selectOption("#sort", v); await p.waitForTim
 await sortBy("reviews_many");
 const many = await counts();
 check(many.length > 1, `並べ替える対象が足りない（${many.length}件）`);
-check(many.every(x => x !== null), "「口コミあり」なのに件数の出ていないカードがある");
+check(many.every(x => x !== null && x > 0), "「口コミあり」なのに n が0/未設定のカードがある");
 check(many.every((x, i) => i === 0 || many[i - 1] >= x),
       `多い順になっていない: ${many.slice(0, 12).join(",")}`);
 
