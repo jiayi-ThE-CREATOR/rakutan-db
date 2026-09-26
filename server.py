@@ -98,15 +98,18 @@ def _norm(s: str) -> str:
 
 
 def _matches_query(c: dict, q: str) -> bool:
-    """検索語で当てるのは「科目名」と「時間割コード」の2つだけ。
+    """検索語で当てるのは「科目名」「担当教員名」「時間割コード」の3つ。
 
-    教員名は足さない ―― README「教員名の扱い」の線（教員を軸にした検索を
-    作らない）はここが入口になる。コードは6桁の数字なので、打たれた語から
+    教員名は 2026-09-26 に足した（wang 判断）。一致した科目を普段どおり並べる
+    だけで、教員ごとの集計・並び替えはしない ―― README「教員名の扱い」の線。
+    コードは6桁の数字なので、打たれた語から
     数字だけを抜いて部分一致で見る。全角で打つ学生がいるので半角に寄せる。
     3桁未満では見ない ―― 「1」で数千件が当たると科目名の検索が潰れる。
     web/assets/app.js の matchesQuery と同じ内容。片方だけ直さないこと。
     """
     if _norm(q) in _norm(c["title"]):
+        return True
+    if _norm(q) in _norm(c.get("instructor") or ""):
         return True
     digits = re.sub(r"\D", "", q.translate(_ZEN_DIGITS))
     return len(digits) >= 3 and digits in str(c.get("id") or "")
