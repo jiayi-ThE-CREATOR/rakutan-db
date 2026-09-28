@@ -335,9 +335,11 @@
           </div>
         </div>
 
-        <div id="exam-details-section" class="hidden">
+        <!-- kkFollow ＝「あり」を押したときだけ出る追加の質問をまとめる灰色の枠。
+             どの答えに付いてくる質問なのかを、↳ の記号ではなく枠で見せる（6・7・8 共通）。 -->
+        <div id="exam-details-section" class="kkFollow hidden">
           <div class="form-section">
-            <label>↳ テストの持ち込みは？ <span class="required">*</span></label>
+            <label>テストの持ち込みは？ <span class="required">*</span></label>
             <div class="button-group" id="group-exam">
               <button type="button" class="form-btn" data-value="可">可</button>
               <button type="button" class="form-btn" data-value="不可">不可</button>
@@ -347,7 +349,7 @@
           </div>
 
           <div class="form-section">
-            <label>↳ テストの難易度は？ (1:簡単 〜 10:難しい) <span class="required">*</span></label>
+            <label>テストの難易度は？ (1:簡単 〜 10:難しい) <span class="required">*</span></label>
             <div class="slider-container">
               <input type="range" id="exam-difficulty" min="1" max="10" step="1" value="5" class="styled-slider">
               <div class="slider-value-display">
@@ -365,13 +367,59 @@
           </div>
         </div>
 
-        <div class="form-section hidden" id="report-details-section">
-          <label>↳ レポートの語数は？ <span class="required">*</span></label>
-          <div class="slider-container">
-            <input type="range" id="report-word-count" min="500" max="30000" step="500" value="2000" class="styled-slider">
-            <div class="slider-value-display">
-              <span id="report-word-display" class="highlight-text">2000</span> 字 くらい
+        <div id="report-details-section" class="kkFollow hidden">
+          <div class="form-section">
+            <label>レポートの語数は？ <span class="required">*</span></label>
+            <div class="slider-container">
+              <input type="range" id="report-word-count" min="500" max="30000" step="500" value="2000" class="styled-slider">
+              <div class="slider-value-display">
+                <span id="report-word-display" class="highlight-text">2000</span> 字 くらい
+              </div>
             </div>
+          </div>
+        </div>
+
+        <!-- 教科書（2026-09-28 追加）。シラバスの「教科書」欄は書名までで、
+             本当に買わないと困るのか・いくらかかるのかは載っていない。
+             data-value はシートに入る文字列そのもの。変えると過去の行と混ざる。 -->
+        <div class="form-section">
+          <label>8 教科書は買う必要があった？ <span class="required">*</span></label>
+          <div class="button-group" id="group-textbook">
+            <button type="button" class="form-btn" data-value="必要">必要だった</button>
+            <button type="button" class="form-btn" data-value="指定あり・不要">買わずに済んだ</button>
+            <button type="button" class="form-btn" data-value="なし">教科書なし</button>
+          </div>
+          <p class="kkHint">「買わずに済んだ」＝指定はあったが、なくても困らなかった</p>
+        </div>
+
+        <div id="textbook-details-section" class="kkFollow hidden">
+          <div class="form-section">
+            <!-- 7 の語数と同じスライダー。目盛りは kuchikomi.js の PRICE_BUCKETS（11段階）。
+                 動かすまでは「未選択」で、つまみも灰色（最初の位置を答えと見せないため）。 -->
+            <label for="textbook-price">いくらだった？（何冊かあれば合計） <span class="required">*</span></label>
+            <div class="slider-container">
+              <input type="range" id="textbook-price" min="0" max="10" step="1" value="0" class="styled-slider kkUnset">
+              <div class="slider-value-display">
+                <span id="textbook-price-display" class="highlight-text">未選択</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <!-- ここだけ複数選択（data-multi）。生協で1冊・Amazon で1冊、がありうる。
+                 1つだけ選ぶボタンと見分けがつくよう、丸いタグ＋✓にしている（kkChips）。
+                 「他の書店」は画面の言葉だけ短くした。シートに入る値は data-value のまま。 -->
+            <label>どこで買った？ <span class="kkSub">いくつでも選べます</span> <span class="required">*</span></label>
+            <div class="button-group kkChips" id="group-textbook-place" data-multi>
+              <button type="button" class="form-btn" data-value="生協">生協</button>
+              <button type="button" class="form-btn" data-value="書店（生協以外）">他の書店</button>
+              <button type="button" class="form-btn" data-value="Amazon">Amazon</button>
+              <button type="button" class="form-btn" data-value="メルカリ">メルカリ</button>
+              <button type="button" class="form-btn" data-value="古本屋">古本屋</button>
+              <button type="button" class="form-btn" data-value="電子書籍">電子書籍</button>
+              <button type="button" class="form-btn" data-value="その他">その他</button>
+            </div>
+            <input type="text" id="textbook-place-other-text" class="hidden other-input" placeholder="例：先輩から買った">
           </div>
         </div>
 
