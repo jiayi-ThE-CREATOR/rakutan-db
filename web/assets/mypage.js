@@ -53,6 +53,9 @@ async function boot(){
     if (e.target === e.currentTarget) $("#mpPicker").close();
   });
 
+  /* 時間割を見ながら KOAN で登録するための入口（2026-09-28）。
+     URL は detail.js が持つ。ここで書き換えるのは、置き場所を1か所にするため。 */
+  if (window.rkDetail && window.rkDetail.KOAN_TOP) $("#mpKoan").href = window.rkDetail.KOAN_TOP;
   $("#mpAllCal").onclick = () => {
     const tt = rkStore.getTimetable(term);
     const ids = [...new Set(Object.values(tt.slots))];

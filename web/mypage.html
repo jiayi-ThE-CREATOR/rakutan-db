@@ -92,10 +92,16 @@
     <div data-gate>
     <div class="mpToolbar">
       <h3>私の時間割</h3>
+      <div class="mpToolActs">
       <button type="button" class="mpAllCal" id="mpAllCal">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/><path d="M12 14v4M10 16h4"/></svg>
         全てカレンダーに追加
       </button>
+      <!-- href は mypage.js が detail.js の KOAN_TOP で上書きする（URL を1か所に置くため）。
+           ここに書いてあるのは JS が落ちたとき用の同じ値。 -->
+      <a class="mpAllCal" id="mpKoan" href="https://koan.osaka-u.ac.jp/campusweb/campusportal.do"
+         target="_blank" rel="noopener noreferrer">KOANを開く ↗</a>
+      </div>
     </div>
     <div class="mpTerms" id="mpTerms"></div>
     <div class="mpGrid" id="mpGrid"></div>

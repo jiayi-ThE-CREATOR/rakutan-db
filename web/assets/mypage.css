@@ -137,6 +137,15 @@
 /* ── カレンダー連携 ─────────────────────────── */
 .mpToolbar{ display:flex; justify-content:space-between; align-items:center; gap:8px; margin:0 0 12px; }
 .mpToolbar h3{ margin:0; }
+/* ボタンが2つになった（カレンダー・KOAN）。360px 幅だと見出しと並ばないので、
+   ボタンの組ごと次の行へ落とせるようにする。 */
+.mpToolbar{ flex-wrap:wrap; }
+.mpToolActs{ display:flex; flex-wrap:wrap; gap:8px; }
+/* .mpAllCal の font-size:13px は、後ろの font:inherit に打ち消されて 15px で
+   出ていた。そのままだと 360px 幅で2つが横に並ばず、1つずつ縦に積まれる。
+   ここで 13px に戻し、左右の余白も少し詰める（2つで 300px 弱）。 */
+.mpToolActs .mpAllCal{ font-size:var(--fs-sm); padding:8px 12px; }
+a.mpAllCal{ text-decoration:none; }
 .mpAllCal{
   display:flex; align-items:center; gap:6px; padding:8px 14px; font-size:13px;
   border:1px solid var(--brand); border-radius:999px; background:var(--brand-soft);

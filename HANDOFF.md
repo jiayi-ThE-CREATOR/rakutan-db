@@ -17,6 +17,51 @@
 
 ---
 
+## 2026-09-28 ｜ 「KOANを開く」ボタンを足した ｜ Claude（しゅんや） → 次の人
+
+ラクハンで決めた科目を KOAN で登録するたびに、新しいタブで KOAN を探す手間があった。
+入口へ1回で飛べるボタンを2か所に置いた。ブランチ `feat/koan-open-button`（未 push）。
+
+- **科目の詳細**（一覧・マイページ共通、detail.js）… 「KOANを開いて履修登録する ↗」。
+  押すと KOAN が新しいタブで開き、**同時に時間割コードがクリップボードに入る**。KOAN で「未登録」を押したら貼るだけ
+- **マイページの「私の時間割」の上** … 「KOANを開く ↗」（「全てカレンダーに追加」の隣）
+
+### 1. 何が動く状態か
+
+    python3 tools/serve.py 8833 &
+    node tools/test_koan_link.mjs http://127.0.0.1:8833   # ✓12（PC・360px の両方で、タブが開く／コードがコピーされる／横にはみ出さない）
+    node tools/test_version.mjs                           # 516件 通過（version.js は触っていない）
+
+### 2. 何をしていないか
+
+- **KOAN の中へは直接入れない（登録済みにはできない）。** 履修登録はログインの奥にあり、
+  画面ごとに変わる鍵（`_flowExecutionKey`）で動くので、外から「この科目の登録画面」へは飛べない。
+  入口までにした。ブックマークレット／拡張で自動入力する案は、大学のシステムを自動で操作する形になるので見送り
+- **飛び先 `https://koan.osaka-u.ac.jp/campusweb/campusportal.do` は実機で開いて確かめていない。**
+  CampusSquare の標準の入口の URL。テストは KOAN へは繋がず「そこへ行こうとしたか」だけを見ている。
+  本番に出す前に、誰かが一度押してログイン画面が出るのを見ること。違ったら `detail.js` の `KOAN_TOP` の1か所を直せば両方変わる
+  （mypage.html にも JS が落ちたとき用に同じ値を書いてある）
+- 触ったのは `detail.js` / `mypage.js` / `mypage.html` / `app.css` / `mypage.css`。担当表に明記の無いファイルで、
+  最近は wang さんが触っている。**PR にする前に wang さんに一声**
+- 版に載せるかは未確定（`docs/version-pending.md` には未記入）
+
+### 3. 次の人が最初に打つコマンド
+
+    cd ~/Desktop/rakutan-koan-copy && git log --oneline -1   # worktree で作ってある
+    python3 tools/serve.py 8833 & open http://127.0.0.1:8833/mypage.html
+
+### 4. 踏んだ罠
+
+- **ローカルの `tools/serve.py` は `/mypage` を `mypage.html` に読み替えない**（404）。本番の Cloudflare は読み替える。テストは `/mypage.html` を叩く
+- **スマホ幅のテストで、初回案内（onboardCard）が詳細の上にかぶってクリックが吸われる。**
+  `localStorage.rk_onboarded = "1"` を先に入れる（他のテストも同じことをしている）
+- **KOAN への通信を `route.abort()` で止めると、開いたタブの URL は `chrome-error://` になる。**
+  タブが開いたかは、止めた通信の宛先を控えて見る
+- **`.mpAllCal` の `font-size:13px` は、後ろの `font:inherit` に打ち消されて 15px で出ていた。**
+  ボタンが2つになった途端、360px 幅で縦に積まれて見つかった。`.mpToolActs .mpAllCal` で 13px に戻してある
+
+---
+
 ## 2026-09-23 ｜ v1.3 を切った（重さの出し方の作り直し・授業内容でさがせる）｜ Claude（wang） → 次の人
 
 `docs/version-pending.md` に 9/11 から溜めていた17件を、1件の版として `RELEASES` の先頭へ移した。
