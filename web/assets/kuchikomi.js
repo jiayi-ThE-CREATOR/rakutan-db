@@ -35,6 +35,14 @@ const POST_URL = '/api/kuchikomi';
    full（通年）はどちらでも履修できるので必ず通す（app.js と同じ扱い）。 */
 const TERM_GROUPS = { spring: ['haru', 'full'], autumn: ['aki', 'full'] };
 
+/* 教科書の金額（設問8）のスライダーの目盛り。値 0〜10 がこの順に対応する。
+   文字列はシートに入るものそのもの ―― 変えると過去の行と混ざる。 */
+const PRICE_BUCKETS = [
+  '500円未満', '500〜999円', '1,000〜1,499円', '1,500〜1,999円',
+  '2,000〜2,499円', '2,500〜2,999円', '3,000〜3,499円', '3,500〜3,999円',
+  '4,000〜4,499円', '4,500〜4,999円', '5,000円以上',
+];
+
 /* 受講年度（モーダルの設問2）の選択肢。今年から5年ぶんと「それ以前」。
    **べた書きしない。** 年を書き足す作業を毎年発生させないため。
    値の形（"2026年度" / "2021年度以前"）は、しゅんやさんのシートに
@@ -106,6 +114,11 @@ const els = {
   examDetailsSection: document.getElementById('exam-details-section'),
   examDifficulty: document.getElementById('exam-difficulty'),
   examDifficultyDisplay: document.getElementById('exam-difficulty-display'),
+
+  textbookDetailsSection: document.getElementById('textbook-details-section'),
+  textbookPrice: document.getElementById('textbook-price'),
+  textbookPriceDisplay: document.getElementById('textbook-price-display'),
+  textbookPlaceOtherText: document.getElementById('textbook-place-other-text'),
 
   extraSection: document.getElementById('extra-section'),
   extraSearch: document.getElementById('extra-search'),
@@ -231,8 +244,14 @@ function init() {
   els.formButtons.forEach(btn => {
     btn.addEventListener('click', (e) => {
       const group = e.target.closest('.button-group');
-      group.querySelectorAll('.form-btn').forEach(b => b.classList.remove('selected'));
-      e.target.classList.add('selected');
+      /* data-multi の組（教科書の購入場所）だけは押すたびに付け外し。
+         ほかの組は1つだけ選べる。 */
+      if (group.hasAttribute('data-multi')) {
+        e.target.classList.toggle('selected');
+      } else {
+        group.querySelectorAll('.form-btn').forEach(b => b.classList.remove('selected'));
+        e.target.classList.add('selected');
+      }
 
       if (group.id === 'group-report') {
         els.reportDetailsSection.classList.toggle('hidden', e.target.dataset.value !== 'あり');
@@ -250,6 +269,18 @@ function init() {
         els.examOtherText.classList.toggle('hidden', !other);
         if (!other) els.examOtherText.value = '';
       }
+      if (group.id === 'group-textbook') {
+        /* 「必要」以外へ切り替えたら、金額と場所は中身ごと捨てる。
+           見えない所に答えが残ったまま送られるのを防ぐため。 */
+        const need = e.target.dataset.value === '必要';
+        els.textbookDetailsSection.classList.toggle('hidden', !need);
+        if (!need) clearTextbookDetails();
+      }
+      if (group.id === 'group-textbook-place' && e.target.dataset.value === 'その他') {
+        const other = e.target.classList.contains('selected');
+        els.textbookPlaceOtherText.classList.toggle('hidden', !other);
+        if (!other) els.textbookPlaceOtherText.value = '';
+      }
       checkModalFormReady();
     });
   });
@@ -257,6 +288,13 @@ function init() {
   els.modalSubjectSearch.addEventListener('input', renderModalSubjectOptions);
   els.modalSubjectSelect.addEventListener('change', checkModalFormReady);
   els.modalYearSelect.addEventListener('change', checkModalFormReady);
+  /* スライダーは最初から何かの値を持っているので、「一度でも動かしたか」で
+     答えたかどうかを見る（setTextbookPrice が dataset.set を立てる）。 */
+  els.textbookPrice.addEventListener('input', () => {
+    setTextbookPrice(Number(els.textbookPrice.value));
+    checkModalFormReady();
+  });
+  els.textbookPlaceOtherText.addEventListener('input', checkModalFormReady);
 
   /* 時間割に無い科目。理学部4年は1画面に343件出るので、絞り込みが要る。 */
   els.extraSearch.addEventListener('input', renderExtraSelect);
@@ -717,7 +755,47 @@ function restoreReview(review) {
       els.reportWordDisplay.textContent = review.reportWordCount;
     }
   }
+
+  restoreButtonGroup('group-textbook', review.textbook);
+  if (review.textbook === '必要') {
+    els.textbookDetailsSection.classList.remove('hidden');
+    const i = PRICE_BUCKETS.indexOf(review.textbookPrice);
+    if (i >= 0) setTextbookPrice(i);
+    /* 送る形は「生協、メルカリ、その他（…）」の1本の文字列。
+       「その他」は並びの最後に固定なので、そこから後ろを記入欄へ戻す
+       （記入欄に「、」が入っていても前の選択肢と混ざらない）。 */
+    const s = review.textbookPlaces || '';
+    const at = s.indexOf('その他（');
+    const fixed = (at < 0 ? s : s.slice(0, at)).split('、').filter(Boolean);
+    fixed.forEach(v => restoreButtonGroup('group-textbook-place', v));
+    if (at >= 0) {
+      restoreButtonGroup('group-textbook-place', 'その他');
+      els.textbookPlaceOtherText.classList.remove('hidden');
+      els.textbookPlaceOtherText.value = s.slice(at + 'その他（'.length, -1);
+    }
+  }
   els.commentInput.value = review.comment || '';
+}
+
+/* 「必要」以外に切り替えたとき・フォームを開き直したときに、
+   教科書の金額と場所を空に戻す。 */
+function clearTextbookDetails() {
+  els.textbookPrice.value = 0;
+  delete els.textbookPrice.dataset.set;
+  els.textbookPrice.classList.add('kkUnset');
+  els.textbookPriceDisplay.textContent = '未選択';
+  document.querySelectorAll('#group-textbook-place .form-btn')
+    .forEach(b => b.classList.remove('selected'));
+  els.textbookPlaceOtherText.value = '';
+  els.textbookPlaceOtherText.classList.add('hidden');
+}
+
+/* 金額のスライダーを i 段目（PRICE_BUCKETS の添字）で「答えた」状態にする。 */
+function setTextbookPrice(i) {
+  els.textbookPrice.value = i;
+  els.textbookPrice.dataset.set = '1';
+  els.textbookPrice.classList.remove('kkUnset');
+  els.textbookPriceDisplay.textContent = PRICE_BUCKETS[i];
 }
 
 function resetModalForm() {
@@ -737,6 +815,9 @@ function resetModalForm() {
   els.attendanceOtherText.classList.add('hidden');
   els.examOtherText.value = '';
   els.examOtherText.classList.add('hidden');
+
+  els.textbookDetailsSection.classList.add('hidden');
+  clearTextbookDetails();
 }
 
 function restoreButtonGroup(groupId, value) {
@@ -752,6 +833,21 @@ function checkModalFormReady() {
   let hasExam = false;
   if (examBtn) hasExam = examBtn.dataset.value === 'あり' ? sel('group-exam') !== null : true;
 
+  /* 教科書：「必要」なら 金額・場所1つ以上・（その他なら）記入 まで全部必須。 */
+  const textbookBtn = sel('group-textbook');
+  let hasTextbook = false;
+  if (textbookBtn) {
+    if (textbookBtn.dataset.value !== '必要') {
+      hasTextbook = true;
+    } else {
+      const otherOn = !!document.querySelector(
+        '#group-textbook-place .form-btn.selected[data-value="その他"]');
+      hasTextbook = els.textbookPrice.dataset.set === '1'
+        && sel('group-textbook-place') !== null
+        && (!otherOn || els.textbookPlaceOtherText.value.trim() !== '');
+    }
+  }
+
   els.saveReviewBtn.disabled = !(
     els.modalSubjectSelect.value !== ''
     && els.modalYearSelect.value !== ''
@@ -760,6 +856,7 @@ function checkModalFormReady() {
     && sel('group-assignment-outclass')
     && hasExam
     && sel('group-report')
+    && hasTextbook
   );
 }
 
@@ -891,6 +988,21 @@ function handleSaveReview() {
   }
 
   const reportPresence = document.querySelector('#group-report .selected').dataset.value;
+
+  /* 教科書。場所は複数選べるが、シートの1マスに入れるため
+     「生協、メルカリ、その他（…）」の1本の文字列にする。並びは画面の順
+     （「その他」が必ず最後 ―― restoreReview がそれを前提に戻している）。 */
+  const textbook = document.querySelector('#group-textbook .selected').dataset.value;
+  let textbookPrice = null;
+  let textbookPlaces = null;
+  if (textbook === '必要') {
+    textbookPrice = PRICE_BUCKETS[Number(els.textbookPrice.value)];
+    textbookPlaces = [...document.querySelectorAll('#group-textbook-place .form-btn.selected')]
+      .map(b => b.dataset.value === 'その他'
+        ? `その他（${els.textbookPlaceOtherText.value.trim()}）` : b.dataset.value)
+      .join('、');
+  }
+
   const review = {
     yearTaken: els.modalYearSelect.value,
     attendance: attendanceValue,
@@ -901,6 +1013,9 @@ function handleSaveReview() {
     examDifficulty: examPresenceBtnVal === 'あり' ? els.examDifficulty.value : null,
     reportPresence: reportPresence,
     reportWordCount: reportPresence === 'あり' ? els.reportWordCount.value : null,
+    textbook: textbook,
+    textbookPrice: textbookPrice,
+    textbookPlaces: textbookPlaces,
     comment: els.commentInput.value.trim(),
   };
 

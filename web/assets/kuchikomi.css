@@ -188,6 +188,32 @@ select:focus-visible,input:focus-visible,button:focus-visible{
 .form-btn.selected{background:var(--brand);border-color:var(--brand);
   color:var(--brand-ink);font-weight:700}
 .other-input{margin-top:6px}
+/* ボタンの下の補足（8 教科書の「買わずに済んだ」の意味）。ボタンの文字を
+   短く保って横1列に並べるため、長い説明はこちらへ逃がす。 */
+.kkHint{margin:6px 0 0;font-size:var(--fs-xs);color:var(--muted);line-height:1.6}
+
+/* 「あり」「必要だった」を押したときだけ出る追加の質問（6・7・8）。
+   地を1段沈めた枠でまとめ、どの答えに付いてくる質問かを見せる。 */
+.kkFollow{margin-top:var(--sp-2);padding:var(--sp-3);background:var(--paper);
+  border-radius:var(--r-md)}
+.kkSub{font-size:var(--fs-xs);color:var(--muted)}
+
+/* 複数選択（8 の購入場所）。1つだけ選ぶ .form-btn と見分けがつくよう、
+   丸いタグにして、選ぶと淡い地＋✓になる。塗りつぶしは「1つだけ」側に残す。 */
+.kkChips{display:flex;flex-wrap:wrap;gap:6px}
+.kkChips .form-btn{border-radius:var(--r-pill);padding:9px 14px}
+.kkChips .form-btn.selected{background:var(--brand-soft);border-color:var(--brand);
+  color:var(--brand-text)}
+.kkChips .form-btn.selected::before{content:"✓ "}
+
+/* 枠の地（--paper）の上では、スライダーの溝（--dim）がほぼ見えなくなる。1段濃くする。 */
+.kkFollow .styled-slider{background:var(--rule)}
+
+/* 動かす前のスライダー（8 の金額）。つまみと値を灰色にして「まだ答えていない」を見せる。
+   オレンジのままだと「未選択」が答えのように見える。 */
+.styled-slider.kkUnset::-webkit-slider-thumb{background:var(--muted)}
+.styled-slider.kkUnset::-moz-range-thumb{background:var(--muted)}
+.styled-slider.kkUnset + .slider-value-display .highlight-text{color:var(--muted);font-weight:400}
 
 /* スライダー。つまみだけブランド色、溝は中立。 */
 .slider-container{display:flex;align-items:center;gap:var(--sp-3)}
