@@ -769,6 +769,9 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
    ホバーを足す理由もない。.reviewBtn は2026-09-06に詳細から外れて使われなく
    なったので、セレクタからも外した ―― 使うのは .koanLink だけ。 */
 .koanLink{background:var(--brand-soft);color:var(--brand-text)}
+/* KOAN の入口へ（detail.js の KOAN_TOP）。2行目に「コードをコピーして開く」と
+   書いておく ―― 押したら何が起きるか（クリップボードが書き換わる）を先に言う。 */
+.koanReg small{display:block;margin-top:2px;font-size:var(--fs-xs);font-weight:400}
 
 /* ── 口コミを1件ずつ読む ─────────────────
    カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」

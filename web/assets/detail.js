@@ -135,6 +135,25 @@ function evalCompHtml(c){
 // その場合、全学教育推進機構以外の科目はリンクが無効になりうる）。
 const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flowId=SYW4201600-flow&nendo=2026&j_s_cd=${encodeURIComponent(c.shozoku_cd || "13")}&j_cd=${encodeURIComponent(c.id)}&langkbn=j`;
 
+/* KOAN の入口（ログイン画面）。履修登録はログインの奥にあり、画面ごとに
+   変わる鍵（_flowExecutionKey）で動くので、「この科目の登録画面」へ直接は
+   飛べない ―― 飛べるのは入口まで（2026-09-28）。
+   それでも置くのは、ラクハンで決めた科目を登録しに行くたびに
+   新しいタブで KOAN を探す手間を省くため。押した瞬間に時間割コードを
+   クリップボードへ入れておくので、KOAN で「未登録」を押したら貼るだけで済む。
+   mypage.js の時間割の上のボタンも同じ URL を使う（window.rkDetail 経由）。 */
+const KOAN_TOP = "https://koan.osaka-u.ac.jp/campusweb/campusportal.do";
+
+/* リンクそのものはブラウザに開かせる（preventDefault しない）。
+   window.open を自前で呼ぶとポップアップ扱いで止められることがあるため。
+   コピーは開くのと同時に走らせるだけで、失敗しても KOAN は開く
+   ―― http の確認環境では clipboard が無いので、黙って諦める。 */
+document.addEventListener("click", e => {
+  const a = e.target.closest("a.koanReg[data-code]");
+  if (!a || !navigator.clipboard || !window.isSecureContext) return;
+  navigator.clipboard.writeText(a.dataset.code).catch(() => {});
+});
+
 /* ── 口コミの中身 ─────────────────────
    数字だけ出しても「なぜ楽なのか」は伝わらない。件数・内訳・一言をまとめて出す。
    値は build.py が焼いた集計（複数件なら平均）。一言は publish:false のものを
@@ -271,6 +290,8 @@ function detailHtml(c, opts = {}){
           : `${reviewHtml(c)}${first ? `<p class="dQuote">${esc(first)}</p>` : ""}`}
       </div>` : ""}
       <div class="dActs">
+        <a class="koanLink koanReg" href="${KOAN_TOP}" target="_blank" rel="noopener noreferrer"
+           data-code="${esc(c.id)}">KOANを開いて履修登録する ↗<small>時間割コード ${esc(c.id)} をコピーして開きます</small></a>
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       </div>`;
 }
@@ -278,7 +299,7 @@ function detailHtml(c, opts = {}){
 /* 呼ぶ側（app.js / mypage.js）に渡すのはこれだけ。
    app.js は rvLv・RV_ATT も使う（口コミを1件ずつ出す panelEntry）ので出しておく。 */
 window.rkDetail = {
-  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl, subjectTagsHtml,
+  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl, KOAN_TOP, subjectTagsHtml,
   RV_ATT, rvLv, rvAvg,
 };
 
