@@ -8,13 +8,13 @@
           {
             "type": "command",
             "if": "Bash(gh pr create *)",
-            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"版に載せるか判断しましたか？ 物差しは CLAUDE.md「版に載せるかの判定」――利用者が自分の画面で違いに気づくなら載せる。載せるなら docs/version-pending.md に1行追記してから進めてください。\"}}'",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"版に載せるか判断しましたか？ 物差しは CLAUDE.md「版に載せるかの判定」――利用者が自分の画面で違いに気づくなら載せる。載せるなら docs/version-pending.md に1行追記してから進めてください。 あわせて「LINE の月1通知に回すか」を判断しましたか？（CLAUDE.md「LINE の月1通知」。不具合は回さない／小さいものは回さないと一言添える／影響の大きいものは聞く。回すなら docs/line-pending.md に1行）\"}}'",
             "statusMessage": "版に載せるか確認"
           },
           {
             "type": "command",
             "if": "Bash(gh pr merge *)",
-            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"版に載せるか判断しましたか？ 物差しは CLAUDE.md「版に載せるかの判定」――利用者が自分の画面で違いに気づくなら載せる。載せるなら docs/version-pending.md に1行追記してから進めてください。\"}}'",
+            "command": "echo '{\"hookSpecificOutput\": {\"hookEventName\": \"PreToolUse\", \"permissionDecision\": \"ask\", \"permissionDecisionReason\": \"版に載せるか判断しましたか？ 物差しは CLAUDE.md「版に載せるかの判定」――利用者が自分の画面で違いに気づくなら載せる。載せるなら docs/version-pending.md に1行追記してから進めてください。 あわせて「LINE の月1通知に回すか」を判断しましたか？（CLAUDE.md「LINE の月1通知」。不具合は回さない／小さいものは回さないと一言添える／影響の大きいものは聞く。回すなら docs/line-pending.md に1行）\"}}'",
             "statusMessage": "版に載せるか確認"
           }
         ]
