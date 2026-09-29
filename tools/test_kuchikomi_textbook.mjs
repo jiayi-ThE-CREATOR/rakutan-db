@@ -6,7 +6,8 @@
  *   1. 設問8で3択（必要／指定はあったが不要／教科書なし）が選べる
  *   2. 「必要」のときだけ 金額（11段階のスライダー）と購入場所（複数選択）が出る。
  *      他へ切り替えると引っ込み、中身も消える。「その他」のときだけ記入欄
- *   3. すべて必須。必要なら金額・場所1つ以上・（その他なら）記入まで
+ *   3. 設問8そのものは必須。「必要」のときに出る金額・場所・（その他の）記入は任意
+ *      （2026-09-29 松下と変更。答えなくても保存でき、答えなかった分は null で送る）
  *   4. 保存した科目を開き直すと元に戻る
  *   5. 送信データに textbook / textbookPrice / textbookPlaces が入る
  *
@@ -96,10 +97,10 @@ check(JSON.stringify(places) === JSON.stringify(
   ["生協", "書店（生協以外）", "Amazon", "メルカリ", "古本屋", "電子書籍", "その他"]),
   `[2] 購入場所の選択肢が違う: ${places}`);
 
-// ── 3. 必須の段階 ──
-check(!(await saveEnabled()), "[3] 必要なのに金額・場所なしで保存できる");
+// ── 3. 追加の質問は任意 ──
+check(await saveEnabled(), "[3] 金額・場所が任意なのに、答えないと保存できない");
 await p.fill("#textbook-price", "3");
-check(!(await saveEnabled()), "[3] 場所なしで保存できる");
+check(await saveEnabled(), "[3] 金額だけ答えると保存できない");
 
 // 複数選択できる（押しても他が外れない）・もう一度押すと外れる
 await click("group-textbook-place", "生協");
@@ -111,11 +112,11 @@ check(JSON.stringify(sel) === JSON.stringify(["生協", "メルカリ"]),
   `[2] 複数選択・解除が効いていない: ${sel}`);
 check(await saveEnabled(), "[3] 金額・場所がそろったのに保存できない");
 
-// その他 → 記入欄。空なら保存できない
+// その他 → 記入欄。空でも保存できる
 check(!(await visible("#textbook-place-other-text")), "[2] 「その他」前から記入欄が出ている");
 await click("group-textbook-place", "その他");
 check(await visible("#textbook-place-other-text"), "[2] 「その他」で記入欄が出ない");
-check(!(await saveEnabled()), "[3] 「その他」の記入が空なのに保存できる");
+check(await saveEnabled(), "[3] 「その他」の記入が空だと保存できない");
 await p.fill("#textbook-place-other-text", "先輩から");
 check(await saveEnabled(), "[3] 「その他」を記入したのに保存できない");
 

@@ -305,8 +305,9 @@ function init() {
     if (els.extraSelect.value) openEditor({ kind: 'extra', id: els.extraSelect.value });
   });
 
+  /* 語数も金額と同じく「一度でも動かしたか」で答えたかどうかを見る。 */
   els.reportWordCount.addEventListener('input', (e) => {
-    els.reportWordDisplay.textContent = e.target.value;
+    setReportWordCount(e.target.value);
   });
   els.examDifficulty.addEventListener('input', (e) => {
     els.examDifficultyDisplay.textContent = e.target.value;
@@ -750,10 +751,7 @@ function restoreReview(review) {
   restoreButtonGroup('group-report', review.reportPresence);
   if (review.reportPresence === 'あり') {
     els.reportDetailsSection.classList.remove('hidden');
-    if (review.reportWordCount) {
-      els.reportWordCount.value = review.reportWordCount;
-      els.reportWordDisplay.textContent = review.reportWordCount;
-    }
+    if (review.reportWordCount) setReportWordCount(review.reportWordCount);
   }
 
   restoreButtonGroup('group-textbook', review.textbook);
@@ -768,6 +766,9 @@ function restoreReview(review) {
     const at = s.indexOf('その他（');
     const fixed = (at < 0 ? s : s.slice(0, at)).split('、').filter(Boolean);
     fixed.forEach(v => restoreButtonGroup('group-textbook-place', v));
+    /* 記入が空の「その他」は括弧なしで送っている（上の fixed に入って選ばれる）。
+       選ばれた「その他」には記入欄を出しておく。 */
+    if (fixed.includes('その他')) els.textbookPlaceOtherText.classList.remove('hidden');
     if (at >= 0) {
       restoreButtonGroup('group-textbook-place', 'その他');
       els.textbookPlaceOtherText.classList.remove('hidden');
@@ -798,13 +799,23 @@ function setTextbookPrice(i) {
   els.textbookPriceDisplay.textContent = PRICE_BUCKETS[i];
 }
 
+/* 語数のスライダーを v 字で「答えた」状態にする。 */
+function setReportWordCount(v) {
+  els.reportWordCount.value = v;
+  els.reportWordCount.dataset.set = '1';
+  els.reportWordCount.classList.remove('kkUnset');
+  els.reportWordDisplay.textContent = `${v} 字 くらい`;
+}
+
 function resetModalForm() {
   els.formButtons.forEach(btn => btn.classList.remove('selected'));
   els.modalYearSelect.value = '';
 
   els.reportDetailsSection.classList.add('hidden');
   els.reportWordCount.value = 2000;
-  els.reportWordDisplay.textContent = 2000;
+  delete els.reportWordCount.dataset.set;
+  els.reportWordCount.classList.add('kkUnset');
+  els.reportWordDisplay.textContent = '未選択';
 
   els.examDetailsSection.classList.add('hidden');
   els.examDifficulty.value = 5;
@@ -833,21 +844,8 @@ function checkModalFormReady() {
   let hasExam = false;
   if (examBtn) hasExam = examBtn.dataset.value === 'あり' ? sel('group-exam') !== null : true;
 
-  /* 教科書：「必要」なら 金額・場所1つ以上・（その他なら）記入 まで全部必須。 */
-  const textbookBtn = sel('group-textbook');
-  let hasTextbook = false;
-  if (textbookBtn) {
-    if (textbookBtn.dataset.value !== '必要') {
-      hasTextbook = true;
-    } else {
-      const otherOn = !!document.querySelector(
-        '#group-textbook-place .form-btn.selected[data-value="その他"]');
-      hasTextbook = els.textbookPrice.dataset.set === '1'
-        && sel('group-textbook-place') !== null
-        && (!otherOn || els.textbookPlaceOtherText.value.trim() !== '');
-    }
-  }
-
+  /* 7 の語数と、8「必要」のときの金額・場所・（その他の）記入は任意（2026-09-29）。
+     ここでは見ない ―― 7 と 8 は「あり／なし」「必要／…」を選んでいれば足りる。 */
   els.saveReviewBtn.disabled = !(
     els.modalSubjectSelect.value !== ''
     && els.modalYearSelect.value !== ''
@@ -856,7 +854,7 @@ function checkModalFormReady() {
     && sel('group-assignment-outclass')
     && hasExam
     && sel('group-report')
-    && hasTextbook
+    && sel('group-textbook')
   );
 }
 
@@ -995,12 +993,17 @@ function handleSaveReview() {
   const textbook = document.querySelector('#group-textbook .selected').dataset.value;
   let textbookPrice = null;
   let textbookPlaces = null;
+  /* 答えなかった金額・場所は null（任意なので空のまま保存できる）。
+     「その他」の記入が空なら括弧を付けず「その他」とだけ送る。 */
   if (textbook === '必要') {
-    textbookPrice = PRICE_BUCKETS[Number(els.textbookPrice.value)];
+    if (els.textbookPrice.dataset.set === '1') {
+      textbookPrice = PRICE_BUCKETS[Number(els.textbookPrice.value)];
+    }
+    const other = els.textbookPlaceOtherText.value.trim();
     textbookPlaces = [...document.querySelectorAll('#group-textbook-place .form-btn.selected')]
-      .map(b => b.dataset.value === 'その他'
-        ? `その他（${els.textbookPlaceOtherText.value.trim()}）` : b.dataset.value)
-      .join('、');
+      .map(b => b.dataset.value === 'その他' && other
+        ? `その他（${other}）` : b.dataset.value)
+      .join('、') || null;
   }
 
   const review = {
@@ -1012,7 +1015,8 @@ function handleSaveReview() {
     exam: examValue,
     examDifficulty: examPresenceBtnVal === 'あり' ? els.examDifficulty.value : null,
     reportPresence: reportPresence,
-    reportWordCount: reportPresence === 'あり' ? els.reportWordCount.value : null,
+    reportWordCount: reportPresence === 'あり' && els.reportWordCount.dataset.set === '1'
+      ? els.reportWordCount.value : null,
     textbook: textbook,
     textbookPrice: textbookPrice,
     textbookPlaces: textbookPlaces,
