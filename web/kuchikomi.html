@@ -369,11 +369,13 @@
 
         <div id="report-details-section" class="kkFollow hidden">
           <div class="form-section">
-            <label>レポートの語数は？ <span class="required">*</span></label>
+            <!-- 任意（2026-09-29）。動かすまでは「未選択」で送らない ――
+                 最初の位置（2000）を、答えなかった人の分まで答えとして数えないため。 -->
+            <label for="report-word-count">レポートの語数は？ <span class="kkSub">任意</span></label>
             <div class="slider-container">
-              <input type="range" id="report-word-count" min="500" max="30000" step="500" value="2000" class="styled-slider">
+              <input type="range" id="report-word-count" min="500" max="30000" step="500" value="2000" class="styled-slider kkUnset">
               <div class="slider-value-display">
-                <span id="report-word-display" class="highlight-text">2000</span> 字 くらい
+                <span id="report-word-display" class="highlight-text">未選択</span>
               </div>
             </div>
           </div>
@@ -385,18 +387,18 @@
         <div class="form-section">
           <label>8 教科書は買う必要があった？ <span class="required">*</span></label>
           <div class="button-group" id="group-textbook">
-            <button type="button" class="form-btn" data-value="必要">必要だった</button>
-            <button type="button" class="form-btn" data-value="指定あり・不要">買わずに済んだ</button>
+            <button type="button" class="form-btn" data-value="必要">必要</button>
+            <button type="button" class="form-btn" data-value="指定あり・不要">不要</button>
             <button type="button" class="form-btn" data-value="なし">教科書なし</button>
           </div>
-          <p class="kkHint">「買わずに済んだ」＝指定はあったが、なくても困らなかった</p>
+          <p class="kkHint">「不要」＝指定はあったが、なくても困らなかった</p>
         </div>
 
         <div id="textbook-details-section" class="kkFollow hidden">
           <div class="form-section">
             <!-- 7 の語数と同じスライダー。目盛りは kuchikomi.js の PRICE_BUCKETS（11段階）。
                  動かすまでは「未選択」で、つまみも灰色（最初の位置を答えと見せないため）。 -->
-            <label for="textbook-price">いくらだった？（何冊かあれば合計） <span class="required">*</span></label>
+            <label for="textbook-price">いくらだった？（何冊かあれば合計） <span class="kkSub">任意</span></label>
             <div class="slider-container">
               <input type="range" id="textbook-price" min="0" max="10" step="1" value="0" class="styled-slider kkUnset">
               <div class="slider-value-display">
@@ -409,7 +411,7 @@
             <!-- ここだけ複数選択（data-multi）。生協で1冊・Amazon で1冊、がありうる。
                  1つだけ選ぶボタンと見分けがつくよう、丸いタグ＋✓にしている（kkChips）。
                  「他の書店」は画面の言葉だけ短くした。シートに入る値は data-value のまま。 -->
-            <label>どこで買った？ <span class="kkSub">いくつでも選べます</span> <span class="required">*</span></label>
+            <label>どこで買った？ <span class="kkSub">任意・いくつでも選べます</span></label>
             <div class="button-group kkChips" id="group-textbook-place" data-multi>
               <button type="button" class="form-btn" data-value="生協">生協</button>
               <button type="button" class="form-btn" data-value="書店（生協以外）">他の書店</button>
