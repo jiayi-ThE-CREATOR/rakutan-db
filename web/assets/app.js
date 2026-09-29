@@ -622,8 +622,9 @@ const { detailHtml, reviewHtml, rvLv, RV_ATT } = window.rkDetail;
  * だから一覧のカードにも出す（README「教員名の扱い」の載せる理由そのもの）。
  *
  * ただし同じ章が3つ禁じている。ここで守っているのは次の2つ：
- *   ・教員を軸にした集計・並び替え・検索を作らない
- *     → queryLocal() の検索は今まで通り title だけ。instructor は足さないこと
+ *   ・教員を軸にした集計・並び替えを作らない
+ *     → 検索（matchesQuery）で教員名に当てるのは可（2026-09-26 wang 判断）。
+ *       教員ごとの集計・ランキング・「この先生の他の科目」は作らないこと
  *   ・スコアの見出しの隣に置かない
  *     → 曜限・キャンパス・区分と同じ .meta（12px・灰）の中の1項目として出す。
  *       相性の数字（.fit）とは別ブロック
@@ -935,9 +936,10 @@ const DATA = { mode: null, courses: [] };
 
 const norm = s => String(s || "").replace(/[\s　]+/g, "").toLowerCase();
 
-/* 検索語で当てるのは「科目名」と「時間割コード」の2つだけ。
-   教員名は足さない ―― README「教員名の扱い」の線（教員を軸にした検索を
-   作らない）はここが入口になる。
+/* 検索語で当てるのは「科目名」「担当教員名」「時間割コード」の3つ。
+   教員名は 2026-09-26 に足した（wang 判断）。一致した科目を普段どおり並べる
+   だけで、教員ごとの集計・並び替えはしない ―― README「教員名の扱い」の線。
+   教員名は KOAN のカンマ区切りのまま、空白を詰めて部分一致で見る。
    コードは6桁の数字なので、打たれた語から数字だけを抜いて部分一致で見る。
    全角で打つ学生がいるので半角に寄せる。3桁未満では見ない ―― 「1」で
    7,000件のうち数千件が当たると、科目名の検索が使い物にならなくなる。
@@ -948,6 +950,7 @@ const codeDigits = q => String(q || "")
   .replace(/\D/g, "");
 function matchesQuery(c, q){
   if (norm(c.title).includes(norm(q))) return true;
+  if (norm(c.instructor).includes(norm(q))) return true;
   const d = codeDigits(q);
   return d.length >= 3 && String(c.id || "").includes(d);
 }

@@ -95,6 +95,16 @@ check(hit === 1, `コード検索の結果が1件でない（${hit}件）`);
 check(await page.locator(`.card[data-id="${firstId}"]`).count() === 1,
       "コードで検索したのに当の科目が出ていない");
 
+// 教員名で検索できること（2026-09-26）。全角空白を挟んで打っても当たる
+const firstIns = (await page.evaluate(id =>
+  (DATA.courses.find(c => c.id === id) || {}).instructor || "", firstId)).split(",")[0].trim();
+if (firstIns) {
+  await page.fill("#q", firstIns.replace(/[\s　]+/g, "　"));
+  await page.waitForTimeout(400);
+  check(await page.locator(`.card[data-id="${firstId}"]`).count() === 1,
+        `教員名（${firstIns}）で検索したのに当の科目が出ていない`);
+}
+
 // 科目名での検索が壊れていないこと（回帰）
 await page.fill("#q", "統計");
 await page.waitForTimeout(400);
