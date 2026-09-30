@@ -181,3 +181,57 @@
 
   sync();
 })();
+
+/* 問い合わせ ―― フッタの「ラクハンへの問い合わせ」→ <dialog>（2026-09-30）
+ *
+ * 意見箱の右隣。意見箱は匿名で投げるだけなので、返事が要る相談・広告のことは
+ * こちらで GUILD の Instagram の DM へ案内する。
+ * 以前は /about#who（About の「運営」の節）へ飛ばしていたが、意見箱と同じく
+ * その場でウィンドウが出る形にしてほしいという依頼で作り直し、節は消した。
+ *
+ * ウィンドウの HTML は6ページに書かず、ここで1回だけ組む（文言・QR を1か所で直すため）。
+ * 開く入口は [data-contact] の付いた <a>。href は Instagram そのものにしてあるので、
+ * この JS が落ちても押せば Instagram が開く。
+ *
+ * QR だけでは足りない：スマホで見ている人は、自分の画面の QR を読めない。
+ * だから「Instagram を開く」も並べる。見た目は意見箱（.fbDlg / .fbForm）をそのまま使う。 */
+(() => {
+  const IG_URL = "https://www.instagram.com/osaka_ai_commumity/?hl=ja";
+  const IG_ID = "@osaka_ai_commumity";
+  let dlg = null;
+
+  function build() {
+    dlg = document.createElement("dialog");
+    dlg.className = "fbDlg";
+    dlg.id = "ctDlg";
+    dlg.setAttribute("aria-labelledby", "ctTitle");
+    dlg.innerHTML = `
+      <div class="fbForm ctBody">
+        <h2 id="ctTitle">ラクハンへの問い合わせ</h2>
+        <p class="fbNote">運営へのお問い合わせ・広告掲載のご相談は、ラクハンを運営している学生団体
+          <b>GUILD の Instagram</b> に DM でお送りください。</p>
+        <img class="ctQr" src="/assets/guild-instagram-qr.png" width="1240" height="1240"
+             alt="GUILD 公式 Instagram（${IG_ID}）の QR コード" loading="lazy">
+        <p class="ctId">${IG_ID}</p>
+        <div class="fbBtns">
+          <button type="button" class="fbCancel" data-ct-close>閉じる</button>
+          <a class="fbSend ctIg" href="${IG_URL}" target="_blank" rel="noopener noreferrer">Instagram を開く</a>
+        </div>
+      </div>`;
+    document.body.appendChild(dlg);
+    dlg.querySelector("[data-ct-close]").addEventListener("click", () => dlg.close());
+    // 外側（背景）を押したら閉じる。意見箱と違って書きかけが無いので、閉じて失うものが無い。
+    dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  }
+
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a[data-contact]");
+    if (!a) return;
+    // 修飾キー・中クリックはブラウザに任せる（別タブで Instagram が開く）。
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    if (typeof HTMLDialogElement === "undefined") return;   // 古いブラウザは href のまま
+    e.preventDefault();
+    if (!dlg) build();
+    dlg.showModal();
+  });
+})();
