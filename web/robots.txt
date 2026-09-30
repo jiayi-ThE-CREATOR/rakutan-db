@@ -11,3 +11,5 @@ User-agent: *
 Allow: /
 
 Sitemap: https://rakuhan.nocode-sol.co.jp/sitemap.xml
+# 科目ごとの静的ページ（/c/<時間割コード>）7,906件。pages.py が焼く。
+Sitemap: https://rakuhan.nocode-sol.co.jp/sitemap-courses.xml

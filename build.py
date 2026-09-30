@@ -28,6 +28,7 @@ import json
 import re
 from pathlib import Path
 
+import pages
 import reviews
 import score as scoring
 from tools import engineering, faculty as faculty_mod, foreign_studies, senmon
@@ -412,6 +413,15 @@ def rescore(out: Path) -> None:
         print(f"    {band:8} {b:5d} → {a:5d}  ({a - b:+d})")
 
 
+def rebuild_pages(out: Path) -> None:
+    """科目ごとの静的ページ（web/c/）を built.json に揃える。
+
+    --out で別の場所へ焼いたとき（試し焼き）は触らない ―― 公開中のページが
+    試しのデータで上書きされるため。中身は pages.py の頭。"""
+    if out.resolve() == OUT.resolve():
+        pages.build_pages(out)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--full", action="store_true",
@@ -440,6 +450,7 @@ def main() -> None:
 
     if args.rescore:
         rescore(Path(args.out))
+        rebuild_pages(Path(args.out))   # テストの有無は eval_ratio から出すので焼き直す
         return
 
     if args.subjects:
@@ -642,6 +653,8 @@ def main() -> None:
     parts = read_shell()
     changed = [p.name for p in PAGES if inject_shell(p, parts)]
     print(f"  外殻を注入: {', '.join(changed)}" if changed else "  外殻に変更なし")
+
+    rebuild_pages(dest)
 
 if __name__ == "__main__":
     main()

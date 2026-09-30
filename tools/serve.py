@@ -40,6 +40,14 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass  # 1リクエスト1行のログは、テストの出力を埋めるだけ
 
+    def translate_path(self, path):
+        # Cloudflare の静的アセットは /about → about.html、/c/138531 → c/138531.html
+        # と拡張子なしで引ける。手元でも同じURLで開けるように揃える（2026-09-30）。
+        p = super().translate_path(path)
+        if not os.path.exists(p) and os.path.exists(p + ".html"):
+            return p + ".html"
+        return p
+
 
 def main(argv):
     port = int(argv[1]) if len(argv) > 1 else 8791
