@@ -17,6 +17,40 @@
 
 ---
 
+## 2026-09-30 ｜ フッタに「ラクハンへの問い合わせ」ボタンを足した ｜ Claude（しゅんや） → 次の人
+
+全ページのフッタで、「サイトへのご意見・改善要望」の右に「ラクハンへの問い合わせ」を置いた。
+押すと `/about#who`（「運営」の節。問い合わせ先の Instagram が書いてある）へ飛ぶ。ブランチ `feat/contact-button`。
+
+### 1. 何が動く状態か
+
+    python3 tools/serve.py 8844 &
+    node tools/test_feedback.mjs http://127.0.0.1:8844   # 51件 通過（意見箱の位置の見張りも通る）
+    open http://127.0.0.1:8844/about.html                # 一番下のフッタに2つ並ぶ
+
+- 6ページ（index / about / ads / kuchikomi / mypage / partners）すべてで href・横はみ出し無しを確認。
+  about.html だけ同じページ内なので `#who`
+- PC では横に並び、360px では幅が足りず次の行へ折り返す（`.fbLine` を flex-wrap にした）
+
+### 2. 何をしていないか
+
+- **飛び先は推測。** 依頼の「図二のところ」の画像が図一と同じだったので、サイト内で「運営へのお問い合わせ」と
+  書いてある `/about#who` にした（ads.html の「運営までお問い合わせ」も同じ先）。違ったら6つの HTML の `.fbContact` の href を直す
+- 問い合わせ先そのものは GUILD の Instagram のまま。ラクハン専用の窓口（メール・フォーム）は作っていない
+- 版に載せるかは未確定
+
+### 3. 次の人が最初に打つコマンド
+
+    cd ~/Desktop/rakutan-contact && git log --oneline -1
+
+### 4. 踏んだ罠
+
+- **ローカルの serve.py は `/about` も読み替えない**（`/mypage` と同じ）。`/about#who` を押すと 404。
+  本番の Cloudflare では開く。ローカルで位置を見るなら `about.html#who`
+- **Playwright の要素の切り抜き撮影（`locator.screenshot`）がフッタだと真っ黒になる。** ページの一番下までスクロールしてから画面ごと撮る
+
+---
+
 ## 2026-09-29 ｜ 口コミの追加の質問（7の語数・8の金額／購入場所）を任意にした ｜ Claude（松下） → 次の人
 
 ブランチ `fix/kuchikomi-followup-optional`（PR で main へマージ済み）。版には載せない（本人判断 2026-09-29：設問8の既存の1行に含まれる）。8 の選択肢の文言も同じブランチに入っている

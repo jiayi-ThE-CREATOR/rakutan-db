@@ -6,11 +6,15 @@
 /* 入口。フッタの一番下、GUILD の運営表記の下に置く。
    「押せるもの」なので --brand 系の文字色を当てるが、地は敷かない。
    ここで塗ると免責文よりフッタの方が目立ってしまう。 */
-.fbLine{margin-top:var(--sp-3)}
+.fbLine{margin-top:var(--sp-3);display:flex;flex-wrap:wrap;gap:var(--sp-2)}
 .fbOpen{background:none;border:1px solid var(--rule);border-radius:var(--r-pill);
   color:var(--brand-text);font:inherit;font-size:var(--fs-sm);font-weight:600;
   padding:8px 16px;cursor:pointer}
 .fbOpen:hover{border-color:var(--brand-line);background:var(--brand-soft)}
+/* 右隣の「ラクハンへの問い合わせ」（2026-09-30）。意見箱と同じ見た目の <a> で、
+   運営の連絡先が書いてある /about#who へ飛ぶ。意見箱（匿名で投げるだけ）と違い、
+   返事が要る相談・広告のことはこちら。360px で2つが並ばないときは折り返す。 */
+.fbContact{display:inline-block;text-decoration:none}
 
 /* 本体。<dialog> を使うのは ESC で閉じる・背後をフォーカスさせない、を
    自前で書かずに済ませるため。モバイルは下から、PC は中央に出す。 */
