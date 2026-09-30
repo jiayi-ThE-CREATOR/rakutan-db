@@ -12,9 +12,17 @@
   padding:8px 16px;cursor:pointer}
 .fbOpen:hover{border-color:var(--brand-line);background:var(--brand-soft)}
 /* 右隣の「ラクハンへの問い合わせ」（2026-09-30）。意見箱と同じ見た目の <a> で、
-   運営の連絡先が書いてある /about#who へ飛ぶ。意見箱（匿名で投げるだけ）と違い、
-   返事が要る相談・広告のことはこちら。360px で2つが並ばないときは折り返す。 */
-.fbContact{display:inline-block;text-decoration:none}
+   押すと feedback.js が問い合わせのウィンドウ（#ctDlg）を出す。href は Instagram
+   そのもの（JS が落ちたとき用）。360px で2つが並ばないときは折り返す。 */
+.fbContact{display:inline-flex;align-items:center;gap:4px;text-decoration:none}
+/* ✉ は文字のままだと 💡 より一回り小さく見えた（依頼で拡大）。絵文字の形（FE0F）で出し、
+   さらに少し大きくする。行の高さは変えない（line-height:1）。 */
+.fbIco{font-size:1.25em;line-height:1}
+
+/* 問い合わせのウィンドウの中身。枠・ボタンは .fbForm / .fbBtns を流用。 */
+.ctQr{display:block;width:min(240px,70%);height:auto;margin:6px auto 0;border-radius:var(--r-md)}
+.ctId{margin:8px 0 0;text-align:center;font-size:var(--fs-sm);color:var(--soft);font-weight:600}
+.ctIg{display:flex;align-items:center;justify-content:center;text-decoration:none}
 
 /* 本体。<dialog> を使うのは ESC で閉じる・背後をフォーカスさせない、を
    自前で書かずに済ませるため。モバイルは下から、PC は中央に出す。 */
