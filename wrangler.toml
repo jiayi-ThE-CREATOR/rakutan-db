@@ -29,6 +29,12 @@ main = "worker/index.js"
 [assets]
 directory = "./web"
 binding = "ASSETS"
+# 旧ドメイン（*.workers.dev）へ直接来た人を独自ドメインへ 301 するため、
+# ページのパスだけは Worker を先に通す（2026-10-01。理由は worker/index.js の
+# 「正本のホスト」）。/assets/・/data/ は通さない（数が多く、検索にも載らない）。
+# /mypage も通さない ―― noindex を web/_headers で付けていて、Worker 経由でも
+# _headers が効くかは未確認のため。
+run_worker_first = ["/", "/about", "/ads", "/kuchikomi", "/partners", "/c/*", "/robots.txt", "/sitemap.xml", "/sitemap-courses.xml"]
 # not_found_handling は既定（none）のまま。画面遷移は全部クエリ文字列
 # （?year=1&cond=…）で、パスは / しか無いので、SPA フォールバックを入れると
 # 存在しないURLまで index.html を返してしまう。

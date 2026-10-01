@@ -52,12 +52,29 @@ check(/noindex/.test(track.headers.get("x-robots-tag") || ""), "/l/kasai に noi
 check(track.headers.get("cache-control") === "no-store", "/l/kasai がキャッシュされる（別URLとして数えられなくなる）");
 check((await get(`https://${HOST}/l/dare-mo-shiranai`)).status === 404, "知らない slug が 404 でない");
 
-// 🚨 旧ドメインの「ページ」はここでは守れない。Workers の静的アセットは
-// Worker スクリプトより先に配られるので、index.html が存在する `/` は
-// この関数を通らない（2026-08-26 に本番で実測）。守っているのは canonical のほう。
-// ここで確かめられるのは「Worker が走る経路」だけ。
-const oldTrack = await get(`https://${OLD_HOST}/l/kasai`);
-check(/noindex/.test(oldTrack.headers.get("x-robots-tag") || ""), "旧ドメインの計測リンクに noindex が無い");
+// ── 旧ドメイン（2026-10-01〜）──────────────────────────
+// 本番の経路は「nginx → 旧ドメイン」で、Host は常に OLD_HOST。独自ドメインから来たかは
+// X-Forwarded-Host の値で見る（worker/index.js「正本のホスト」）。ここが崩れると
+// 独自ドメインが転送ループで全停止するので、nginx 経由の形をそのまま再現して確かめる。
+const viaNginx = (p, init = {}) => worker.fetch(new Request(`https://${OLD_HOST}${p}`, {
+  ...init, headers: { "X-Forwarded-Host": HOST, ...(init.headers || {}) },
+}), env, { waitUntil() {} });
+for (const p of ["/", "/about", "/c/138531", "/sitemap-courses.xml", "/api/me"]) {
+  const r = await viaNginx(p);
+  check(r.status !== 301 && !r.headers.get("location"), `nginx 経由の ${p} が転送される（独自ドメインが転送ループになる）`);
+}
+check((await viaNginx("/")).headers.get("x-robots-tag") === null, "nginx 経由の / に noindex が付く（run_worker_first で全ページが検索から消える）");
+check((await viaNginx("/c/138531")).headers.get("x-robots-tag") === null, "nginx 経由の /c/<id> に noindex が付く");
+check(/noindex/.test((await viaNginx("/l/kasai")).headers.get("x-robots-tag") || ""), "nginx 経由の /l/kasai に noindex が無い");
+check((await get(`https://${OLD_HOST}/`, )).headers.get("location") === `https://${HOST}/`, "旧ドメイン直の / が独自ドメインへ 301 しない");
+const oldC = await get(`https://${OLD_HOST}/c/138531?x=1`);
+check(oldC.status === 301 && oldC.headers.get("location") === `https://${HOST}/c/138531?x=1`, "旧ドメイン直の /c/<id> がパスとクエリを保ったまま 301 しない");
+const spoofed = await worker.fetch(new Request(`https://${OLD_HOST}/`, { headers: { "X-Forwarded-Host": "evil.example" } }), env, { waitUntil() {} });
+check(spoofed.status === 301, "X-Forwarded-Host が独自ドメイン以外のときに転送されない（有無ではなく値で見ること）");
+const oldApi = await get(`https://${OLD_HOST}/api/feedback`);
+check(oldApi.status === 301, "旧ドメイン直の GET /api/feedback が転送されない");
+const hook = await worker.fetch(new Request(`https://${OLD_HOST}/line/webhook`, { method: "POST", body: "{}" }), env, { waitUntil() {} });
+check(hook.status !== 301, "旧ドメインの POST /line/webhook が転送される（LINE は 301 を追えない）");
 const health = await get(`https://${OLD_HOST}/line/health`);
 check(health.status === 200 && (await health.text()) === "ok", "旧ドメインの /line/health が壊れた（LINE の Webhook もこのドメイン）");
 

@@ -1058,22 +1058,26 @@ async function handleTrackingLink(request, env, slug) {
 }
 
 /* ── 正本のホスト ───────────────────────────────────────
- * 旧ドメイン（rakutan-db.*.workers.dev）はいまも生きていて、独自ドメインと
- * 同じ本文を配っている。LINE Developers に登録した Webhook URL がこちらの
- * 可能性があるので止められない ―― だから「動かすが、検索には載せない」。
+ * 経路は「利用者 → nginx（吉村さんの VPS）→ 旧ドメイン rakutan-db.*.workers.dev」。
+ * nginx は Host を workers.dev に固定し（変えると Cloudflare が行き先を失う）、
+ * 元のホストを X-Forwarded-Host で渡す（8/26 から設定ずみ。2026-10-01 に
+ * /api/_via で Worker まで届くことを実測：独自ドメイン経由＝rakuhan.nocode-sol.co.jp、
+ * workers.dev 直＝ヘッダなし）。
  *
- * 🚨 ただし、ここで付ける noindex が届くのは **Worker が走る経路だけ**。
- * Workers の静的アセットは Worker スクリプトより先に配られるので、
- * `/` や `/about` のような「アセットが存在するパス」はこの関数を通らない
- * （2026-08-26 に本番で実測。`/l/kasai` には付くのに `/` には付かなかった）。
- * つまり旧ドメインのページを検索から外しているのは、実際には
- * 各ページの <link rel="canonical"> のほう。ここが効くのは
- * /l/<slug>・/api/*・/line/* といった Worker 側のURLに限られる。
+ * だから「利用者がどのドメインで開いたか」は request.url ではなく
+ * X-Forwarded-Host の**値**で判断する（有無ではなく一致。吉村さんの助言）。
+ * 以前は request.url の hostname で見ていたため、独自ドメインで開いても
+ * Worker の応答（/l/・/api/）には全部 noindex が付いていた。
  *
- * ページにも確実に付けたいなら wrangler.toml の [assets] に
- * run_worker_first = ["/", "/about", "/ads", "/kuchikomi", "/partners"]
- * を足す（＝ページ表示1回ごとに Worker が1回走る）。9/2 のピークを前に
- * 配信経路を変えたくないので、今日は入れていない。
+ * 旧ドメインへ直接来た GET/HEAD は独自ドメインの同じパスへ 301 する。
+ * /line/ は除く（LINE の Webhook が旧ドメインに登録されている可能性があり、
+ * POST は 301 を追えない）。静的なページにも効かせるため wrangler.toml の
+ * run_worker_first にページのパスを並べている ―― 並べていないパス
+ * （/assets/・/data/・/mypage）は従来どおり Worker より先に配られる。
+ *
+ * 🚨 X-Forwarded-Host が届かなくなると独自ドメインが転送ループで全停止する
+ * （8/26 に2分20秒止めた）。nginx を触るときは tools/test_index_gate.mjs の
+ * 「旧ドメイン」節と、本番の curl -I で Location が出ないことを確かめること。
  */
 const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
 
@@ -1153,9 +1157,17 @@ function markNoindex(res) {
 
 export default {
   async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const viaCanonical = url.hostname === CANONICAL_HOST
+      || request.headers.get("X-Forwarded-Host") === CANONICAL_HOST;
+    if (!viaCanonical && url.hostname.endsWith(".workers.dev")
+        && (request.method === "GET" || request.method === "HEAD")
+        && !url.pathname.startsWith("/line/")) {
+      return Response.redirect(`https://${CANONICAL_HOST}${url.pathname}${url.search}`, 301);
+    }
     const res = await route(request, env, ctx);
-    // 独自ドメイン以外（旧 workers.dev・ローカル）は検索に載せない。
-    return new URL(request.url).hostname === CANONICAL_HOST ? res : markNoindex(res);
+    // 独自ドメイン以外（旧 workers.dev の /line/・ローカル）は検索に載せない。
+    return viaCanonical ? res : markNoindex(res);
   },
 
   // wrangler.toml の [triggers]（JST 08:00）から呼ばれる。
@@ -1179,15 +1191,6 @@ async function route(request, env, ctx) {
   }
   if (url.pathname === "/line/health") {
     return new Response("ok");
-  }
-  /* 一時的な確認用（2026-10-01）。nginx が付ける X-Forwarded-Host が
-     Worker まで届いているかを見る。届いていれば、旧ドメインへ直接来た人だけを
-     独自ドメインへ 301 できる（吉村さんの nginx には 8/26 から入っている）。
-     確認が済んだら 301 の PR で消すこと。返すのは中継元のホスト名だけ。 */
-  if (url.pathname === "/api/_via") {
-    return new Response(`xfh=${request.headers.get("X-Forwarded-Host") || "-"}\n`, {
-      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
-    });
   }
   /* LINE ログイン。/line/webhook より後ろに置くこと（前に置くと
      startsWith 的な取り違えを将来やったときに webhook を食う）。 */
