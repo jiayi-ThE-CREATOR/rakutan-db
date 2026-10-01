@@ -1368,3 +1368,19 @@ html{scroll-behavior:smooth}
   font-size: .82rem;
   line-height: 1.5;
 }
+
+/* ── 科目ごとの静的ページ（/c/<時間割コード>・pages.py が焼く）──
+ * 載せるのは事実だけ。重さ（相性度）は「ラクハンで重さを見る」の先で出す。 */
+.cp .cpCrumb{font-size:var(--fs-sm);color:var(--muted);margin-bottom:var(--sp-2)}
+.cp .cpTitle{margin:0 0 var(--sp-1);font-size:var(--fs-lg)}
+.cp .cpSub{color:var(--soft);font-size:var(--fs-sm)}
+.cpActs{display:flex;flex-wrap:wrap;gap:var(--sp-2);margin:var(--sp-4) 0 var(--sp-5)}
+.cpActs a{display:inline-flex;align-items:center;min-height:44px;padding:0 var(--sp-4);
+  border-radius:var(--r-pill);font-weight:700;text-decoration:none}
+.prose .cpGo{background:var(--brand);color:var(--brand-ink)}
+.cpFacts{width:100%;border-collapse:collapse;margin-bottom:var(--sp-4);font-size:var(--fs-sm)}
+.cpFacts th,.cpFacts td{text-align:left;vertical-align:top;padding:var(--sp-2) var(--sp-2) var(--sp-2) 0;
+  border-bottom:1px solid var(--rule)}
+.cpFacts th{width:9em;color:var(--muted);font-weight:400}
+.cpFacts td{overflow-wrap:anywhere}
+.cp .cpNote{color:var(--soft);font-size:var(--fs-sm)}

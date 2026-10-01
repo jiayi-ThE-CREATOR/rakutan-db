@@ -17,6 +17,49 @@
 
 ---
 
+## 2026-09-30 ｜ 科目ごとの静的ページ（/c/<時間割コード>）を焼いた ｜ Claude（wang） → 次の人
+
+ROADMAP 5.5 の「SEO の本丸」。`/?c=<id>` はトップと同じ title・canonical なので、Google は全部トップの
+重複として捨てていた。**時間割コードごとに中身の違う静的 HTML を 7,906枚焼き、sitemap に載せた。**
+決めごと（2026-09-30 wang 決定）は `pages.py` の頭 ―― 単位はコマ／title に曜限・教員／載せるのは事実だけ／生成物は git に入れる。
+
+### 1. 何が動く状態か
+
+    python3 pages.py                                   # web/c/*.html 7,906枚＋ web/sitemap-courses.xml
+    python3 tools/test_course_pages.py                 # OK 19（1対1・title 一意・相性度/口コミ本文なし・焼き直しで差分なし）
+    node tools/test_index_gate.mjs                     # OK 192（robots の Sitemap 行・canonical・件数）
+    python3 tools/serve.py 8853 & open http://127.0.0.1:8853/c/138531
+
+- `build.py` は最後に `pages.py` を呼ぶ（`--rescore` のときも）。**built.json を変えたら web/c/ も一緒にコミットされる**
+- 生データが無くても `python3 pages.py` 単独で焼ける（入力は公開ずみの `courses.built.json` だけ）
+- title は「科目名（曜限・教員）｜テストの有無・成績評価｜ラクハン」。科目名＋曜限＋教員で重なる428組は学期を、
+  それでも重なる22組は時間割コードを足して全件一意にしている
+- 「ラクハンで重さを見る →」は `/?open=<id>`（マイページのコマと同じ入口）
+- `tools/serve.py` が `/c/138531` → `c/138531.html` のように拡張子なしで引けるようになった（Cloudflare と同じ）
+
+### 2. 何をしていないか
+
+- **Search Console は未登録。** 効いたかどうかはこれが無いと見えない（ROADMAP 5.5 の次の行）
+- 相性度・band・口コミの本文は**載せていない（意図的）**。好みはブラウザの中だけ、口コミ本文は未登録に伏せる約束（#168）
+- 同じ科目名の他のコマ・同じ教員の他の科目へのリンクは作っていない（README「教員名の扱い」）
+- アプリの詳細パネルから `/c/<id>` へのリンクは張っていない。共有リンクは今まで通り `?c=`
+- 「総合英語」のように中身がほぼ同じページは、Google が一部しか拾わない可能性が高い（承知の上）
+
+### 3. 次の人が最初に打つコマンド
+
+    cd ~/Developer/rakutan-db && git pull
+    python3 tools/test_course_pages.py
+
+### 4. 踏んだ罠
+
+- **`build.py` の本体は生データ（gitignore）が無いと動かない。** だからページ生成は別ファイル（`pages.py`）にして
+  built.json から焼く。build.py の中に書くと、生データを持っていない人がページだけ直せなくなる
+- shell の部品には注釈が多く（FOOTER は 9KB 中 3KB が注釈）、7,906枚に複製すると重い。`pages.py` は注入時に注釈を落とす
+  （正本の注釈は `templates/shell.html` に残っている）。それでも1枚 約10.8KB
+- sitemap に `lastmod` を付けると焼くたびに全行が変わるので付けていない
+
+---
+
 ## 2026-09-30（2）｜「ラクハンへの問い合わせ」をウィンドウにした ｜ Claude（しゅんや） → 次の人
 
 同日の #184（押すと `/about#who` へ飛ぶ）を、実際に触った本人の意見で作り直した。

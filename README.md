@@ -223,7 +223,7 @@ UI とスコアエンジンの挙動確認用に、意図的に
 | きむら | LINE 連携（新規） |
 | しゅんや | 口コミ収集（フォーム運用）。コードは触らない |
 | 笠井 | LINE公式アカウントのチャネル発行。コードは触らない |
-| wang | `score.py`、`server.py`、`build.py`、`scrape/`、集計 |
+| wang | `score.py`、`server.py`、`build.py`、`pages.py`（科目ごとの静的ページ）、`scrape/`、集計 |
 
 > **王立明さんは 2026-08-18 に離脱しました。** 担当だった `scrape/parse.py` の
 > `METHOD_RULES` は wang、データ品質チェックは政岡へ移しています。

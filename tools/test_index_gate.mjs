@@ -114,6 +114,25 @@ for (const name of pageNames) {
   }
 }
 
+// ── 科目ごとの静的ページ（/c/<時間割コード>・pages.py が焼く）────────
+// 検索に載せるためのページなので、noindex が付いていないこと・canonical が
+// 自分を指すこと・sitemap-courses.xml と robots.txt が揃っていることを見る。
+// 中身（title の一意・相性度を載せない…）は tools/test_course_pages.py の担当。
+check(/^\s*Sitemap:\s*https:\/\/[^/]+\/sitemap-courses\.xml\s*$/m.test(robotsTxt), "robots.txt に sitemap-courses.xml の Sitemap 行が無い");
+check(!/^\/c\//m.test(headersFile) || !/X-Robots-Tag/i.test(headersFile.split(/^\/c\//m)[1] || ""), "web/_headers で /c/ に X-Robots-Tag が付いている（科目ページが検索に載らない）");
+const coursePages = readdirSync(path.join(ROOT, "web/c")).filter((f) => f.endsWith(".html"));
+const courseMap = read("web/sitemap-courses.xml");
+check(coursePages.length > 1000, `web/c/ のページが少なすぎる（${coursePages.length}件） ―― pages.py を流したか`);
+check((courseMap.match(/<loc>/g) || []).length === coursePages.length, "sitemap-courses.xml の件数が web/c/ のページ数と違う");
+for (const f of coursePages.slice(0, 50)) {
+  const id = f.slice(0, -".html".length);
+  const url = `https://${HOST}/c/${id}`;
+  const html = read(`web/c/${f}`);
+  check(html.includes(`<link rel="canonical" href="${url}">`), `c/${f} の canonical が ${url} になっていない`);
+  check(!/name="robots"[^>]*noindex/i.test(html), `c/${f} に noindex の meta がある`);
+  check(courseMap.includes(`<loc>${url}</loc>`), `sitemap-courses.xml に ${url} が無い`);
+}
+
 // ── 5. /l/<slug> で開いても中身が出ること ───────────────
 // 計測リンクは転送しない（アドレス欄を /l/<slug> のまま残す）ので、
 // ページの基準URLは「/l/」になる。ここで相対パスの fetch が1本でも残ると

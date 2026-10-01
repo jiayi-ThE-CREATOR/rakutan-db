@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:url" content="{{url}}">
+<link rel="canonical" href="{{url}}">
+<link rel="icon" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14.4" fill="%23DB6209"/><svg x="12.16" y="12.16" width="39.68" height="39.68" viewBox="0 0 64 64" fill="none"><g stroke="%23fff" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"><path d="M26 14H48"/><path d="M15 29H45c5 0 6.5 4 3 7L30 51"/></g></svg></svg>'>
+<link rel="stylesheet" href="/assets/tokens.css">
+<link rel="stylesheet" href="/assets/app.css">
+<!--SHELL:HEAD--><!--/SHELL:HEAD-->
+</head>
+<body><!--SHELL:HEADER--><!--/SHELL:HEADER--><main class="wrap prose cp">
+<p class="cpCrumb"><a href="/">科目をさがす</a> ／ 時間割コード {{id}}</p>
+<h2 class="cpTitle">{{h1}}</h2>
+<p class="cpSub">{{sub}}</p>
+<div class="cpActs"><a class="cpGo" href="/?open={{id}}">ラクハンで重さを見る →</a><a class="koanLink cpKoan" href="{{koan}}" target="_blank" rel="noopener noreferrer">KOAN公式シラバスを見る ↗</a></div>
+<h3>シラバスの事実</h3>
+<table class="cpFacts"><tbody>
+{{facts}}
+</tbody></table>
+<h3>成績評価の内訳（シラバスの表記のまま）</h3>
+{{eval}}
+<p class="cpNote">{{reviews}}</p>
+</main><!--SHELL:FOOTER--><!--/SHELL:FOOTER-->
+<script src="/assets/shell.js" defer></script>
+</body>
+</html>
