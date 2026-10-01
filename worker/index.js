@@ -1180,6 +1180,15 @@ async function route(request, env, ctx) {
   if (url.pathname === "/line/health") {
     return new Response("ok");
   }
+  /* 一時的な確認用（2026-10-01）。nginx が付ける X-Forwarded-Host が
+     Worker まで届いているかを見る。届いていれば、旧ドメインへ直接来た人だけを
+     独自ドメインへ 301 できる（吉村さんの nginx には 8/26 から入っている）。
+     確認が済んだら 301 の PR で消すこと。返すのは中継元のホスト名だけ。 */
+  if (url.pathname === "/api/_via") {
+    return new Response(`xfh=${request.headers.get("X-Forwarded-Host") || "-"}\n`, {
+      headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+    });
+  }
   /* LINE ログイン。/line/webhook より後ろに置くこと（前に置くと
      startsWith 的な取り違えを将来やったときに webhook を食う）。 */
   if (url.pathname === "/line/login") {
