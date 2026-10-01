@@ -51,6 +51,7 @@ eq(len(rows), 2, "v4: 行数")
 
 a = rows[0]
 eq(a["course_id"], "135425", "v4: 科目コード → course_id")
+eq(a["grade"], "1年", "v4: 学年 → grade（書いた人のいまの学年）")
 eq(a["attendance"], 2, "v4: 出欠「毎回」→ 2")
 eq(a["attendance_raw"], "毎回", "v4: 出欠の原文を残す")
 eq(a["in_class"], 0, "v4: 授業中の課題「軽い」→ 0")

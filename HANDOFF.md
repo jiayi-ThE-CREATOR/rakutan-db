@@ -17,6 +17,34 @@
 
 ---
 
+## 2026-10-01 ｜ 口コミに「書いた人：3年」を出す配線（#57）を今の形で通した ｜ Claude（wang） → 次の人
+
+`/kuchikomi` は「いまの学年」を必須で聞いて GAS → シートの「学年」列に入っているのに、取り込みで捨てていた。
+#57（8/25）はその配線だが、**旧 Netlify の英語ヘッダ `grade` しか読んでおらず、いまの v4（日本語ヘッダ）では全件 None になる**ままだった。
+`V4_COLS` に `"grade": "学年"` を足して通した。値は `GRADES`（1年〜6年・修士・博士）と照合し、知らない値は None。採点には使わない。
+
+### 1. 何が動く状態か
+
+    python3 tools/test_ingest_reviews.py   # v4 の「学年」→ grade
+    python3 tools/test_reviews.py          # 公開形に grade・集計には混ざらない・白名単
+
+### 2. 何をしていないか
+
+- 🚨 **いまの `data/reviews.json`（162件）には grade が無い。** 取り込み時に捨てていて、原文も残していない。
+  画面に出すには、しゅんやさんのシートを書き出して `python3 tools/ingest_reviews.py <export.csv> --replace` → `python3 build.py`
+  （旧 Netlify の144件はそもそも学年を聞いていないので None のまま）。**それまではどの口コミにも何も出ない**
+- 口コミ本文と同じく、未登録の人には伏せられたまま（#168 の門の内側に出る）
+
+### 3. 次の人が最初に打つコマンド
+
+    python3 tools/ingest_reviews.py <シートの書き出し.csv> --dry-run
+
+### 4. 踏んだ罠
+
+- テストの v4 サンプル（`test_ingest_reviews.py` の `V4`）は実シートの列名から作られている。シートの列名を知りたいときはここを見る
+
+---
+
 ## 2026-10-01 ｜ 旧ドメイン（workers.dev）へ直接来た人を独自ドメインへ 301 ｜ Claude（wang） → 次の人
 
 `rakutan-db.wjy20050815.workers.dev` は nginx の中継先（＝本体）なので止められない。

@@ -127,6 +127,9 @@ V4_COLS = {
     "report_words": "レポート字数",
     "note": "一言コメント",
     "taken_year": "受講年度",
+    # 書いた人の「いまの学年」。値は GRADES と照合し、知らない値は normalize() で None。
+    # （2026-10-01 追加。それまで v4 では読んでおらず、grade は全件 None だった）
+    "grade": "学年",
 }
 
 
