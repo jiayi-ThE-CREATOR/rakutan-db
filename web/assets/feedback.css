@@ -33,8 +33,13 @@
 .fbForm{background:var(--card);color:var(--ink);width:100%;max-width:560px;
   border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px var(--pad) 24px;
   max-height:86vh;overflow:auto;font-size:var(--fs-base)}
-.fbForm h2{margin:0 0 4px;font-size:var(--fs-lg)}
-.fbNote{margin:0 0 14px;font-size:var(--fs-sm);color:var(--muted);line-height:1.6}
+.fbForm h2{margin:0 0 6px;font-size:var(--fs-lg);color:var(--ink);letter-spacing:normal;line-height:1.4}
+/* 見出しは app.css の素の h2（12px・--muted の小見出し）を引き継いで薄い灰色に
+   なっていた（色だけ上書きされず残っていた）。ウィンドウの見出しなので --ink に戻す。
+   説明文も --muted だと暗い面で読みにくい（本人指摘 2026-10-01）ので --soft に上げ、
+   太字の部分だけ --ink にして目が止まるようにする。意見箱・問い合わせの両方に効く。 */
+.fbNote{margin:0 0 14px;font-size:var(--fs-sm);color:var(--soft);line-height:1.7}
+.fbNote b{color:var(--ink)}
 .fbLabel{display:block;margin:14px 0 6px;font-size:var(--fs-sm);color:var(--soft);font-weight:600}
 .fbForm textarea,.fbForm input[type=text]{width:100%;box-sizing:border-box;
   background:var(--paper);color:var(--ink);border:1px solid var(--rule);
