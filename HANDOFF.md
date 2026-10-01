@@ -17,6 +17,46 @@
 
 ---
 
+## 2026-10-01 ｜ 問い合わせボタンを shell.html へ移した／ウィンドウの見出しと説明文を読みやすくした ｜ Claude（しゅんや） → 次の人
+
+ブランチ `fix/contact-dialog-text`。
+
+1. **#184・#185 の問い合わせボタンが `build.py` で消える問題を直した**（チームからの指摘）。
+   フッタは `templates/shell.html` の `<!--PART:FOOTER-->` が正本で、build.py が各ページへ毎回上書きする。
+   #184・#185 は各ページを直接書き換えていた。ボタンの1行を shell.html へ移した
+   （ウィンドウは feedback.js が実行時に組むので、HTML に移す `<dialog>` は無い）
+2. **意見箱・問い合わせのウィンドウの見出しが薄い灰色だった**のを直した。app.css の素の `h2{color:var(--muted)}`
+   （12px の小見出し用）を引き継いでいた。`.fbForm h2` を `--ink`、説明文 `.fbNote` を `--muted` → `--soft`、太字を `--ink` に
+
+### 1. 何が動く状態か
+
+    python3 -c "import build; print('問い合わせ' in build.read_shell()['FOOTER'])"   # True
+    python3 -c "import build; from pathlib import Path; p=build.read_shell(); print([build.inject_shell(Path(f'web/{n}.html'),p) for n in ['index','about','ads','kuchikomi','mypage','partners']])"
+    #  → [False]*6（焼き直しても6ページの中身が変わらない＝shell.html と一致）
+    python3 tools/serve.py 8866 & node tools/test_feedback.mjs http://127.0.0.1:8866   # 51件 通過
+
+- コントラスト（暗い面）：見出し 5.6 → 14.7、説明文 5.6 → 9.9。明るい面でも 17.8 / 10.3
+
+### 2. 何をしていないか
+
+- **`python3 build.py` を通しでは流していない。** 上の `inject_shell` だけを6ページにかけて「変化なし」を確かめた
+  （通しで流すとデータも焼き直すので、差分が大きくなる）
+- **科目ごとのページ（`/c/<時間割コード>`、#186）は焼き直していない。** 指摘をくれた人が `python3 pages.py` で焼き直す予定
+- 版に載せるかは未確定
+
+### 3. 次の人が最初に打つコマンド
+
+    python3 pages.py   # /c/ の 7,906ページのフッタにも問い合わせボタンを入れる
+
+### 4. 踏んだ罠
+
+- **フッタ・ヘッダは各ページの HTML を直接いじらない。** `<!--SHELL:FOOTER-->`〜`<!--/SHELL:FOOTER-->` の間は
+  `templates/shell.html` で上書きされる。直すのは shell.html だけ、ページへは build.py（の inject_shell）で配る
+- **app.css に素の `h2{...color:var(--muted)}` がある。** ダイアログの中に h2 を置くと、大きさは上書きしても色が残って薄くなる。
+  新しくダイアログを作るときは見出しの color も指定すること
+
+---
+
 ## 2026-09-30 ｜ 科目ごとの静的ページ（/c/<時間割コード>）を焼いた ｜ Claude（wang） → 次の人
 
 ROADMAP 5.5 の「SEO の本丸」。`/?c=<id>` はトップと同じ title・canonical なので、Google は全部トップの
