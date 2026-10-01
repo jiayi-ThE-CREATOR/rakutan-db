@@ -17,6 +17,42 @@
 
 ---
 
+## 2026-10-01 ｜ 旧ドメイン（workers.dev）へ直接来た人を独自ドメインへ 301 ｜ Claude（wang） → 次の人
+
+`rakutan-db.wjy20050815.workers.dev` は nginx の中継先（＝本体）なので止められない。
+**外から直接来た GET/HEAD だけを `rakuhan.nocode-sol.co.jp` の同じパスへ 301 する。** 見分けは nginx が付ける
+`X-Forwarded-Host` の**値**（吉村さんの nginx に 8/26 から入っていた。10/01 に `/api/_via`（#188・今回削除）で Worker まで届くことを実測）。
+
+### 1. 何が動く状態か
+
+    node tools/test_index_gate.mjs     # OK 204（nginx 経由は転送しない・noindex なし／旧ドメイン直は 301・/line/ は除外）
+    curl -sI https://rakuhan.nocode-sol.co.jp/ | grep -i location                         # 何も出ないこと（出たらループ）
+    curl -sI https://rakutan-db.wjy20050815.workers.dev/c/138531 | grep -i location       # https://rakuhan.nocode-sol.co.jp/c/138531
+
+- `wrangler.toml` の `run_worker_first` にページのパスだけを並べた（`/`・`/about`・`/ads`・`/kuchikomi`・`/partners`・`/c/*`・robots・sitemap 2本）
+- ついでの修正：独自ドメインで開いても Worker の応答に noindex が付いていた（`request.url` の hostname で見ていたため、Host は常に workers.dev）
+
+### 2. 何をしていないか
+
+- **LINE の Webhook URL はまだ旧ドメインのまま**（LINE Developers コンソールで独自ドメインへ変えるのは wang の作業）。だから `/line/` は転送から外している
+- `/assets/`・`/data/`・`/mypage` は旧ドメイン直でも転送しない（run_worker_first に入れていない。/mypage は `_headers` の noindex が Worker 経由でも効くか未確認のため）
+- `workers_dev = false` は引き続き禁止（nginx の中継先）
+
+### 3. 次の人が最初に打つコマンド
+
+    cd ~/Developer/rakutan-db && git pull
+    node tools/test_index_gate.mjs
+
+### 4. 踏んだ罠
+
+- 🚨 **`X-Forwarded-Host` が届かなくなると独自ドメインが転送ループで全停止する。** nginx 側の設定を変えるときは必ず上の curl 2本。
+  戻すときはこの PR を revert（約80秒）
+- **nginx に `proxy_set_header Host $host;` は入れない。** HANDOFF 8/26 の「案B」はそう書いていたが、Cloudflare は Host で行き先を決めるので
+  workers.dev に届かなくなる見込み。別ヘッダ（X-Forwarded-Host）で渡すのが正しい
+- **有無ではなく値で見る**（吉村さんの助言）。`X-Forwarded-Host: evil.example` でも転送されることを test_index_gate が見ている
+
+---
+
 ## 2026-10-01 ｜ 問い合わせボタンを shell.html へ移した／ウィンドウの見出しと説明文を読みやすくした ｜ Claude（しゅんや） → 次の人
 
 ブランチ `fix/contact-dialog-text`。
