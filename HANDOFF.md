@@ -17,6 +17,37 @@
 
 ---
 
+## 2026-10-02 ｜ 科目の詳細に「教科書」の節を足した ｜ Claude（wang） → 次の人
+
+シラバスの「教科書・指定教材」で**本が名指しされている科目だけ**、詳細（一覧カード・PC の右パネル・マイページ）の
+「成績評価の内訳」の下に **教科書** として文言のまま出す。全7,906件中 **2,714件**。
+
+### 1. 何が動く状態か
+
+    python3 tools/merge_textbook.py --raw data/raw --dry-run   # HTML 7909 件 → 教科書の名指しあり 2714 件
+
+- 判定は `scrape/parse.py` の `textbook_of`（正本）。ISBN／『』／出版社名／KOAN の「著者／書名／出版社」書式などがあれば名指し。
+  「教科書は用いない（が参考書は…）」と書いてあれば落とす。300字で切る
+- `build.py` の `KEEP` に `textbook`。`courses.built.json` は `tools/merge_textbook.py` で足した（他のフィールドは1バイトも変わっていないことを確認ずみ）
+
+### 2. 何をしていないか
+
+- **判定は正規表現で粗い。** 出版社名の無い書名だけの記載（例「カンデル神経科学 MEDSi」、ロシア語の書名）は漏れる。
+  「春夏は使わない／秋冬は『…』」のような学期で分かれる書き方も落としている
+- 科目ごとの静的ページ（`pages.py` → `/c/<id>`）には出していない
+- 口コミの設問8（教科書を買う必要があったか・金額）とはまだつないでいない
+
+### 3. 次の人が最初に打つコマンド
+
+    python3 -c "import json;b=json.load(open('web/data/courses.built.json'));print(sum(1 for c in b['courses'] if c.get('textbook')))"
+
+### 4. 踏んだ罠
+
+- `python3 server.py` は `data/courses.json`（gitignore）を読むので、worktree ではサンプル30件になって `textbook` が出ない。
+  画面の確認は `cd web && python3 -m http.server` で静的に配る（本番と同じ `courses.built.json` を読む）
+
+---
+
 ## 2026-10-02 ｜ PR ごとのテスト版（プレビュー URL）を使えるようにした ｜ Claude（wang） → 全員
 
 これから二手書（阪大教科書センターとの提携）など大きめの機能が入るので、

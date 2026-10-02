@@ -279,10 +279,20 @@ function detailHtml(c, opts = {}){
           data-subject-report="${esc(c.id)}">タグが違う？</button></div>
       </div>`
     : "";
+  /* 教科書（2026-10-02）。シラバスの「教科書・指定教材」で本が名指しされている
+     科目だけ、文言のまま出す。「特になし」「プリント配布」等の科目は節ごと出さない
+     （判定は scrape/parse.py の textbook_of）。 */
+  const book = c.textbook
+    ? `<div class="dSec">
+        <div class="secH">教科書</div>
+        <p class="compNote">${esc(c.textbook)}</p>
+      </div>`
+    : "";
   return `${subj}<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
       </div>
+      ${book}
       ${rn ? `<div class="dSec">
         <div class="secH">口コミ <b>${rn}件</b></div>
         ${gateLocked()
