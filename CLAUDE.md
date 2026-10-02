@@ -34,6 +34,24 @@
 
 ---
 
+## PR を出したら、テスト版の URL を確かめてから渡す
+
+PR を作ったら、Cloudflare がテスト版を作り終えるのを待ち（約1分）、
+**実際に開けることを確かめてから、その URL をユーザーへの返答に直接書く。**
+ユーザーに PR のコメントを探させない。
+
+```bash
+gh pr view <番号> --json comments --jq '.comments[].body' | grep -o "https://[a-z0-9-]*-rakutan-db[^']*"
+curl -sI <Branch Preview URL>/ | grep -iE "^HTTP|location"   # 200 で location が無いこと
+```
+
+- 渡すのは **Branch Preview URL**（`<ブランチ名>-rakutan-db.wjy20050815.workers.dev`。push のたびに最新へ更新される）
+- 変更した画面のパスまで付けて渡す（例：`…/kuchikomi`、`…/?c=138531`）
+- テスト版で確かめられないもの（LINE ログインが要る部分、D1 は本番と共有）に触れた PR は、その旨を一言添える
+- 詳細は README 7章「④ テスト版」
+
+---
+
 ## このプロジェクトで踏んではいけない線
 
 | やらないこと | 理由 |
