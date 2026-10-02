@@ -574,6 +574,7 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 /* 教科書（2026-10-02）。1冊1行。2冊以上なら行が分かれる。 */
 .bookList{margin:0;padding:0;list-style:none;font-size:var(--fs-sm);line-height:1.6}
 .bookList li+li{margin-top:4px}
+.bookList span+span{margin-left:.8em}
 
 /* ── 詳細の見出し（2026-09-01・案A）─────────────
    作り直し前は点線1本しか無く、担当教員・4軸・信頼度・口コミ・操作が
