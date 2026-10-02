@@ -1113,7 +1113,8 @@ function hitFromOurSite(request) {
   if (!raw) return true;
   let host;
   try { host = new URL(raw).hostname; } catch (e) { return false; }
-  return host === CANONICAL_HOST || host.endsWith(".workers.dev")
+  // PR のプレビュー（<ブランチ名>-rakutan-db.*.workers.dev）は数えない（2026-10-02）。
+  return host === CANONICAL_HOST || host === OLD_HOST
       || host === "localhost" || host === "127.0.0.1";
 }
 

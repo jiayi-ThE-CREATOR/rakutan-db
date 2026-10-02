@@ -209,6 +209,10 @@ async function post(body, { ua = UA, origin = ORIGIN, method = "POST", referer }
     "ヘッドレスブラウザを数えている");
   check((await post({ e: "pv" }, { origin: "https://example.com" })).written.length === 0,
     "他所のサイトから叩かれた分を数えている");
+  check((await post({ e: "pv" }, { origin: "https://feat-x-rakutan-db.wjy20050815.workers.dev" })).written.length === 0,
+    "PR のプレビュー（テスト版）から来た分を数えている");
+  check((await post({ e: "pv" }, { origin: "https://rakutan-db.wjy20050815.workers.dev" })).written.length === 1,
+    "旧ドメインから来た分を落としている");
 }
 { // Origin が付かない経路は「通す」。中継のヘッダ設定で静かにゼロになる方がまずい
   const { written } = await post({ e: "pv" }, { origin: null });
