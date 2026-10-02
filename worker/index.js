@@ -1080,6 +1080,10 @@ async function handleTrackingLink(request, env, slug) {
  * 「旧ドメイン」節と、本番の curl -I で Location が出ないことを確かめること。
  */
 const CANONICAL_HOST = "rakuhan.nocode-sol.co.jp";
+// 301 するのはこの旧ドメインそのものだけ。PR ごとのプレビュー
+// （<ブランチ名>-rakutan-db.wjy20050815.workers.dev）まで本番へ飛ばすと
+// 公開前の確認ができなくなる（2026-10-02）。プレビューは下の markNoindex で検索から外れる。
+const OLD_HOST = "rakutan-db.wjy20050815.workers.dev";
 
 /* ── 実際に使われた回数（POST /api/hit） ──────────────────
  *
@@ -1160,7 +1164,7 @@ export default {
     const url = new URL(request.url);
     const viaCanonical = url.hostname === CANONICAL_HOST
       || request.headers.get("X-Forwarded-Host") === CANONICAL_HOST;
-    if (!viaCanonical && url.hostname.endsWith(".workers.dev")
+    if (!viaCanonical && url.hostname === OLD_HOST
         && (request.method === "GET" || request.method === "HEAD")
         && !url.pathname.startsWith("/line/")) {
       return Response.redirect(`https://${CANONICAL_HOST}${url.pathname}${url.search}`, 301);
