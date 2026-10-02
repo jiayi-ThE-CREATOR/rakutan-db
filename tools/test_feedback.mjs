@@ -48,6 +48,11 @@ for (const page of pages) {
 // app.css / app.js は他の人の担当。意見箱がそこへ漏れていないこと。
 check(!read("web/assets/app.css").includes(LABEL), "意見箱の見た目が app.css に漏れている");
 
+// 科目ごとの「この科目の情報がおかしい？」も同じ意見箱へ流す（2026-10-02）。
+// 入口は detail.js（一覧・マイページ共通の詳細）、受けるのは feedback.js。
+check(read("web/assets/detail.js").includes("data-fb-report="), "detail.js に科目ごとの訂正ボタンが無い");
+check(read("web/assets/feedback.js").includes("[data-fb-report]"), "feedback.js が科目ごとの訂正ボタンを受けていない");
+
 // ── 2. Worker の POST /api/feedback ────────────
 const worker = (await import(pathToFileURL(path.join(ROOT, "worker/index.js")).href)).default;
 

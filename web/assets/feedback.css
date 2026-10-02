@@ -88,3 +88,11 @@
   .fbDlg[open]{align-items:center}
   .fbForm{border-radius:var(--r-lg);max-height:80vh}
 }
+
+/* 科目の詳細の一番下に置く「この科目の情報がおかしい？」（detail.js）。
+   KOAN の2つのボタンより目立たせない ―― 主の操作ではないので、下線の文字だけにする。 */
+.fbReportLine{margin:var(--sp-2) 0 0;text-align:right}
+.fbReport{font:inherit;font-size:var(--fs-xs);line-height:1.4;cursor:pointer;
+  color:var(--muted);background:none;border:none;text-decoration:underline;
+  padding:4px 6px;min-height:28px}
+.fbReport:hover{color:var(--ink)}

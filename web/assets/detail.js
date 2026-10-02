@@ -312,7 +312,9 @@ function detailHtml(c, opts = {}){
         <a class="koanLink koanReg" href="${KOAN_TOP}" target="_blank" rel="noopener noreferrer"
            data-code="${esc(c.id)}">KOANを開いて履修登録する ↗<small>時間割コード ${esc(c.id)} をコピーして開きます</small></a>
         <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
-      </div>`;
+      </div>
+      <p class="fbReportLine"><button type="button" class="fbReport"
+        data-fb-report="${esc(c.title)}（${esc(c.id)}）">⚑ この科目の情報がおかしい？</button></p>`;
 }
 
 /* 呼ぶ側（app.js / mypage.js）に渡すのはこれだけ。

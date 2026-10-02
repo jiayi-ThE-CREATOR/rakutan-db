@@ -138,6 +138,17 @@
      窓口をここに1つだけ出して、向こうから DOM を触らせない。 */
   window.rkFeedback = { open: openBox };
 
+  /* 科目ごとの「この科目の情報がおかしい？」（detail.js の .fbReport）。
+     内容の誤りの指摘も、サイトへの意見と同じ意見箱・同じ Discord チャンネルに集める
+     （2026-10-02 wang 指示）。科目名と時間割コードは button の data 属性に入っているので、
+     一覧のデータには触らずに前置きを組める ―― 一覧・マイページのどちらでも同じく動く。 */
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-fb-report]");
+    if (!b) return;
+    e.preventDefault();
+    openBox(`【内容の訂正】${b.dataset.fbReport}\n\n`);
+  });
+
   $("fbCancel").addEventListener("click", () => dlg.close());
   text.addEventListener("input", sync);
 
