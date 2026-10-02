@@ -89,9 +89,9 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         # 「補足情報を参照」だけ・合計が100%に届かない 137件では、
         # これが無いと画面に出せる配点が1つも無い。表が足りている科目では出さない。
         "eval_note",
-        # シラバスの「教科書・指定教材」。本が名指しされている科目だけ（2026-10-02・
-        # 判定は scrape/parse.py の textbook_of）。
-        "textbook",
+        # シラバスの「教科書・指定教材」を本ごとに分けたもの（2026-10-02）。
+        # 作るのは tools/merge_textbook.py（原文は載せない）。
+        "textbooks",
         "exam_type", "report_count", "report_words",
         "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years",
         "reviews", "shozoku_cd"]

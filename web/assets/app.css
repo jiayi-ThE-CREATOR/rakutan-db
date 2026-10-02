@@ -571,6 +571,9 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
    axMiss と同じ考え方 ―― 「情報が無い」は重さではないので警告色を敷かない。 */
 .compNote{font-size:var(--fs-xs);color:var(--soft);background:var(--dim);
   border-radius:var(--r-sm);padding:5px 8px;margin-top:8px}
+/* 教科書（2026-10-02）。1冊1行。2冊以上なら行が分かれる。 */
+.bookList{margin:0;padding:0;list-style:none;font-size:var(--fs-sm);line-height:1.6}
+.bookList li+li{margin-top:4px}
 
 /* ── 詳細の見出し（2026-09-01・案A）─────────────
    作り直し前は点線1本しか無く、担当教員・4軸・信頼度・口コミ・操作が

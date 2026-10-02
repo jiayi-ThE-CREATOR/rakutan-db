@@ -279,13 +279,22 @@ function detailHtml(c, opts = {}){
           data-subject-report="${esc(c.id)}">タグが違う？</button></div>
       </div>`
     : "";
-  /* 教科書（2026-10-02）。シラバスの「教科書・指定教材」で本が名指しされている
-     科目だけ、文言のまま出す。「特になし」「プリント配布」等の科目は節ごと出さない
-     （判定は scrape/parse.py の textbook_of）。 */
-  const book = c.textbook
+  /* 教科書（2026-10-02）。シラバスの「教科書・指定教材」を本ごとに
+     著者／書名／出版社／出版年 の1行で出す（本人指定の形）。分けるのは
+     tools/extract_textbooks.py で、どの欄もシラバスに書かれた文字列のまま。
+     無い欄は「—」。出版年に（参考）が付くのは、シラバスに年が無く ISBN から
+     openBD で引いた値（指定の版と違う版の年のことがある）。
+     本が名指しされていない科目（「特になし」「プリント配布」等）は節ごと出さない。 */
+  const books = c.textbooks || [];
+  const bookLine = b => [b.author, b.title && `『${b.title}』`, b.publisher,
+    b.year && (b.year_ref ? `${b.year}（参考）` : b.year)]
+    .map(v => esc(v || "—")).join("／");
+  const book = books.length
     ? `<div class="dSec">
         <div class="secH">教科書</div>
-        <p class="compNote">${esc(c.textbook)}</p>
+        <ul class="bookList">${books.map(b => `<li>${bookLine(b)}</li>`).join("")}</ul>
+        ${books.some(b => b.year_ref)
+          ? `<div class="compNote">（参考）の出版年はシラバスに無く、ISBN から調べた値です。指定の版と違うことがあります</div>` : ""}
       </div>`
     : "";
   return `${subj}<div class="dSec">

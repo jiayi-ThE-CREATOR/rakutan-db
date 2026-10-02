@@ -19,32 +19,41 @@
 
 ## 2026-10-02 ｜ 科目の詳細に「教科書」の節を足した ｜ Claude（wang） → 次の人
 
-シラバスの「教科書・指定教材」で**本が名指しされている科目だけ**、詳細（一覧カード・PC の右パネル・マイページ）の
-「成績評価の内訳」の下に **教科書** として文言のまま出す。全7,906件中 **2,714件**。
+シラバスの「教科書・指定教材」で本が名指しされている科目だけ、詳細（一覧カード・PC の右パネル・マイページ）の
+「成績評価の内訳」の下に **教科書** を出す。**1冊1行、`著者／『書名』／出版社／出版年`**、無い欄は「—」（wang 指定）。
+出版年がシラバスに無く ISBN がある本は openBD で引き、「2021（参考）」と注記付きで出す。
 
 ### 1. 何が動く状態か
 
-    python3 tools/merge_textbook.py --raw data/raw --dry-run   # HTML 7909 件 → 教科書の名指しあり 2714 件
+    python3 tools/extract_textbooks.py --raw data/raw --openbd   # 未処理の文章だけ claude -p で分ける → data/textbooks.json
+    python3 tools/merge_textbook.py --raw data/raw               # built に textbooks を焼く
 
-- 判定は `scrape/parse.py` の `textbook_of`（正本）。ISBN／『』／出版社名／KOAN の「著者／書名／出版社」書式などがあれば名指し。
-  「教科書は用いない（が参考書は…）」と書いてあれば落とす。300字で切る
-- `build.py` の `KEEP` に `textbook`。`courses.built.json` は `tools/merge_textbook.py` で足した（他のフィールドは1バイトも変わっていないことを確認ずみ）
+- 本が名指しされているかの判定は `scrape/parse.py` の `textbook_of`（正規表現）。全7,909件中 2,714件、文章は1,513種類
+- 本ごとに分けるのは `claude -p`（サブスク枠）。**どの欄も原文に（空白・記号を除いて）そのまま出てくる文字列でなければ捨てる**（`verify`）。
+  AI が書名や出版社を補っても画面には出ない
+- `data/textbooks.json`（文章の sha1 → 本のリスト）は commit する。サイトは AI を呼ばない
+- built には `textbooks`（著者・書名・出版社・出版年・year_ref）だけ載せ、原文は載せない
 
 ### 2. 何をしていないか
 
-- **判定は正規表現で粗い。** 出版社名の無い書名だけの記載（例「カンデル神経科学 MEDSi」、ロシア語の書名）は漏れる。
-  「春夏は使わない／秋冬は『…』」のような学期で分かれる書き方も落としている
-- 科目ごとの静的ページ（`pages.py` → `/c/<id>`）には出していない
-- 口コミの設問8（教科書を買う必要があったか・金額）とはまだつないでいない
+- **名指しの判定は正規表現で粗い。** 出版社名の無い書名だけの記載（例「カンデル神経科学 MEDSi」）は拾えていない。
+  「春夏は使わない／秋冬は『…』」のような書き方も落としている
+- AI は「どれを使ってもよい」と例示された六法なども本として出すことがある
+- openBD の年は**その ISBN の版の年**。シラバスが「第3版」を指定していても、ISBN が別の版なら年はずれる（だから（参考））
+- 科目ごとの静的ページ（`pages.py` → `/c/<id>`）には出していない。口コミの設問8（教科書の要否・金額）ともまだつないでいない
+- KOAN を取り直したら、`extract_textbooks.py` → `merge_textbook.py` の順に流す（新しい文章だけ AI に回る）
 
 ### 3. 次の人が最初に打つコマンド
 
-    python3 -c "import json;b=json.load(open('web/data/courses.built.json'));print(sum(1 for c in b['courses'] if c.get('textbook')))"
+    python3 -c "import json;b=json.load(open('web/data/courses.built.json'));print(sum(1 for c in b['courses'] if c.get('textbooks')))"
 
 ### 4. 踏んだ罠
 
-- `python3 server.py` は `data/courses.json`（gitignore）を読むので、worktree ではサンプル30件になって `textbook` が出ない。
+- 詳細を `?c=<id>` で開くと、未登録の人には LINE の案内（#gateDlg）が出る。`?c=` は**口コミのパネル**を開く共有リンクなので。
+  教科書の確認は一覧で検索 → カードを開く
+- `python3 server.py` は `data/courses.json`（gitignore）を読むので、worktree ではサンプル30件になって教科書が出ない。
   画面の確認は `cd web && python3 -m http.server` で静的に配る（本番と同じ `courses.built.json` を読む）
+- `extract_textbooks.py` の標準出力はファイルへ流すとバッファされて進捗が見えない。進み具合は `data/textbooks.json` の件数で見る
 
 ---
 
