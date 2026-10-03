@@ -121,6 +121,32 @@ def labeled(soup: BeautifulSoup) -> dict[str, str]:
     return out
 
 
+# 「教科書・指定教材」欄（2026-10-02 追加）。**本が名指しされているときだけ**拾う。
+#
+# 欄は自由記述で、実測（全7,909件）では空・「特になし」・「プリントを配布」・
+# 「授業中に指示する」が大半。これらは画面に出しても「教科書」の答えにならないので
+# None にする。名指しの目印は ISBN／『』／出版社名／「著者／書名／出版社」の
+# KOAN の書式など（BOOK）。目印があっても「教科書は用いない（が参考書は…）」と
+# 書いてあれば、挙がっているのは参考書なので落とす（NO_BOOK）。
+# 判定は粗いので、本文は**文字列のまま**出し、こちらで書名を切り出したりしない。
+TEXTBOOK_BOOK = re.compile(
+    r"ISBN|97[89][-‐－ ]?\d|『|』|出版|書店|書房|書院|有斐閣|岩波|"
+    r"[^\s／/]{1,10}社(?![会員長])|Press|Publish|[Ee]dition|Verlag|Hachette|Cengage|"
+    r"Pearson|Oxford|Cambridge|Wiley|Springer|Routledge|McGraw|Elsevier|"
+    r"第\d+版|改訂|新版|\S{1,20}／\S{1,40}／")
+TEXTBOOK_NO_BOOK = re.compile(
+    r"(教科書|テキスト|textbook)[^。．.]{0,10}(使用|用い|指定|使わ)し?(ない|ません)|"
+    r"^(なし|特になし|無し)|no (specific )?textbook|there is no textbook", re.I)
+TEXTBOOK_MAX = 300
+
+
+def textbook_of(L: dict[str, str]) -> str | None:
+    t = (L.get("教科書・指定教材") or "").strip()
+    if not TEXTBOOK_BOOK.search(t) or TEXTBOOK_NO_BOOK.search(t):
+        return None
+    return t if len(t) <= TEXTBOOK_MAX else t[:TEXTBOOK_MAX] + "…"
+
+
 def grading(soup: BeautifulSoup) -> dict[str, float]:
     """成績評価テーブル → {評価方法名: 割合%}。
 
@@ -249,6 +275,7 @@ def one(path: Path, idx: dict) -> tuple[dict, list[str]]:
         # 「各20点×3回」のような書き方が混ざっていて、拾い方を決めた時点で
         # シラバスに無い解釈を足すことになる。画面はこの文章をそのまま出す。
         "eval_note": (L.get("成績評価に関する補足情報") or "").strip()[:400] or None,
+        "textbook": textbook_of(L),
         "tags": [],
         "source": "koan",
     }, unknown

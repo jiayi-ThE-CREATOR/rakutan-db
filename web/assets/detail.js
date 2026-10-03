@@ -279,10 +279,31 @@ function detailHtml(c, opts = {}){
           data-subject-report="${esc(c.id)}">タグが違う？</button></div>
       </div>`
     : "";
+  /* 教科書（2026-10-02）。シラバスの「教科書・指定教材」を本ごとに
+     著者 書名 出版社 出版年 の順に1行で出す（本人指定の形）。分けるのは
+     tools/extract_textbooks.py で、どの欄もシラバスに書かれた文字列のまま。
+     無い欄は「—」。出版年に（参考）が付くのは、シラバスに年が無く ISBN から
+     openBD で引いた値（指定の版と違う版の年のことがある）。
+     本が名指しされていない科目（「特になし」「プリント配布」等）は節ごと出さない。 */
+  const books = c.textbooks || [];
+  /* 欄の間は記号で区切らず、余白で分ける（本人指定・2026-10-02）。
+     著者名や書名の中に「／」「・」が入っていることがあり、区切りと見分けが付かないため。 */
+  const bookLine = b => [b.author, b.title && `『${b.title}』`, b.publisher,
+    b.year && (b.year_ref ? `${b.year}（参考）` : b.year)]
+    .map(v => `<span>${esc(v || "—")}</span>`).join("");
+  const book = books.length
+    ? `<div class="dSec">
+        <div class="secH">教科書</div>
+        <ul class="bookList">${books.map(b => `<li>${bookLine(b)}</li>`).join("")}</ul>
+        ${books.some(b => b.year_ref)
+          ? `<div class="compNote">（参考）の出版年はシラバスに無く、ISBN から調べた値です。指定の版と違うことがあります</div>` : ""}
+      </div>`
+    : "";
   return `${subj}<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
       </div>
+      ${book}
       ${rn ? `<div class="dSec">
         <div class="secH">口コミ <b>${rn}件</b></div>
         ${gateLocked()
