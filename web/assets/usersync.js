@@ -10,6 +10,10 @@
  * LINE から来た ?faculty=&year= を書き込むのはその前なので、待たないと
  * LINE 経由の1回目が「未回答」として数えられる。
  *
+ * 開いたときの1回は、何も入っていない端末（学年・学部・時間割がすべて空）なら送らない。
+ * 別の端末（PC）で作った時間割を、ログインしただけのスマホが空で上書きしないため。
+ * 本人が変えたとき（rk:store-changed）は空でも送る ―― 全部外した人の行を消すため。
+ *
  * どれが失敗しても画面は止めない（送れなかった分は数えないだけ）。
  */
 (() => {
@@ -25,8 +29,13 @@
     try { if (window.rkSnap) window.rkSnap(store.snapshot()); } catch (e) {}
   }
 
-  function push() {
+  function isEmpty(s) {
+    return !s.grade && !s.faculty && !s.tt.haru.length && !s.tt.aki.length;
+  }
+
+  function push(onLoad) {
     if (!loggedIn) return;
+    if (onLoad === true && isEmpty(store.snapshot())) return;
     try {
       fetch("/api/profile", {
         method: "PUT",
@@ -42,14 +51,14 @@
 
   window.addEventListener("rk:store-changed", () => {
     clearTimeout(timer);
-    timer = setTimeout(push, DEBOUNCE_MS);
+    timer = setTimeout(() => push(false), DEBOUNCE_MS);
   });
 
   const gate = window.rkGate;
   if (gate && gate.ready) {
     gate.ready.then(() => {
       loggedIn = !!(gate.state && gate.state().loggedIn);
-      push();
+      push(true);
     });
   }
 })();

@@ -11,6 +11,9 @@
  *
  * ■ --public（外部に出すとき）
  *   5未満のセルを「5未満」にし、そのセルの比率も出さない（分母から逆算できるため）。
+ *   伏せ方の細部は users_report_lib.mjs の先頭。加えて:
+ *   ・A は合計だけ出す。端末・日の数は1人が20日来れば20になり、5未満の門が効かない
+ *   ・学年別・学部別のタグの表は、そのグループが5人未満なら出さない
  *
  * ■ --csv <dir>
  *   表ごとに CSV を書く。**リポジトリの外を指定すること**（公開リポジトリ）。
@@ -23,7 +26,7 @@
 import { readFileSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { aggregate, table, toCsv, rowsFromAE, rowsFromD1 } from "./users_report_lib.mjs";
+import { aggregate, table, toCsv, rowsFromAE, rowsFromD1, showGroup } from "./users_report_lib.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ACCOUNT = process.env.CF_ACCOUNT_ID;
@@ -103,6 +106,10 @@ function section(prefix, unit, rows) {
   const a = aggregate(rows, courseTags);
   console.log(`\n■ ${prefix === "a" ? `A 全訪問者（直近 ${days} 日・単位：端末・日）` : "B LINE ログイン者（いまの状態・単位：人）"}`);
   console.log(`  合計 ${Math.round(a.total)} ${unit}・時間割の科目（のべ）${Math.round(a.entries)}`);
+  if (isPublic && prefix === "a") {
+    console.log("  （外部向けでは A の内訳は出さない。1人が何日も来ると5未満の門が効かないため）");
+    return;
+  }
   const show = (name, title, header, rowsT) => {
     console.log(`\n  ${title}`);
     for (const r of rowsT) console.log(`    ${r.join("\t")}`);
@@ -113,16 +120,18 @@ function section(prefix, unit, rows) {
   show("grade_faculty", "学年 × 学部", ["学年×学部", unit, "比率"],
     table(a.gradeFaculty, a.total, isPublic, (k) => { const [g, f] = k.split("|"); return `${gradeLabel(g)}・${facLabel(f)}`; }));
   show("courses_top20", "時間割に入っている科目 TOP 20", ["科目", `${unit}（のべ）`, "比率"],
-    table(a.courses, a.entries, isPublic, (id) => `${courseTitle.get(id) || "（不明な科目）"}（${id}）`).slice(0, 20));
+    table(a.courses, a.entries, isPublic, (id) => `${courseTitle.get(id) || "（不明な科目）"}（${id}）`, a.coursePeople).slice(0, 20));
   show("tags", "授業内容タグ（1科目に複数タグ。合計は100%を超える）", ["タグ", `${unit}（のべ）`, "比率"],
-    table(a.tags, a.entries, isPublic, tagLabel));
+    table(a.tags, a.entries, isPublic, tagLabel, a.tagPeople));
   for (const g of [...a.grade.keys()].filter((k) => k !== "未回答").sort()) {
     const sub = aggregate(rows.filter((r) => r.grade === g), courseTags);
-    show(`tags_grade${g}`, `授業内容タグ（${g}年）`, ["タグ", `${unit}（のべ）`, "比率"], table(sub.tags, sub.entries, isPublic, tagLabel));
+    if (!showGroup(sub.total, isPublic)) continue;
+    show(`tags_grade${g}`, `授業内容タグ（${g}年）`, ["タグ", `${unit}（のべ）`, "比率"], table(sub.tags, sub.entries, isPublic, tagLabel, sub.tagPeople));
   }
   for (const f of [...a.faculty.keys()].filter((k) => k !== "未回答").sort()) {
     const sub = aggregate(rows.filter((r) => r.faculty === f), courseTags);
-    show(`tags_${f}`, `授業内容タグ（${facLabel(f)}）`, ["タグ", `${unit}（のべ）`, "比率"], table(sub.tags, sub.entries, isPublic, tagLabel));
+    if (!showGroup(sub.total, isPublic)) continue;
+    show(`tags_${f}`, `授業内容タグ（${facLabel(f)}）`, ["タグ", `${unit}（のべ）`, "比率"], table(sub.tags, sub.entries, isPublic, tagLabel, sub.tagPeople));
   }
 }
 

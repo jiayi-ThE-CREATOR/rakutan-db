@@ -3,26 +3,38 @@
  *
  * A（Analytics Engine の snap）と B（D1）を同じ形の rows に直してから、
  * 同じ aggregate() に通す。ただし**結果を足し合わせない**（単位が端末・日と人で違う）。
+ *
+ * ■ 外部向け（isPublic）の伏せ方
+ *   ・5未満のセルは「5未満」。比率も出さない
+ *   ・伏せたセルが表に1つだけなら、次に小さいセルも「伏せ」にする（合計から引き算で戻せないように）
+ *   ・科目・タグの表は「のべ数」を出すが、伏せるかどうかは**人数**で決める
+ *     （1人が同じタグの科目を6つ入れても、その1人の時間割が見えないように）
  */
 const MIN_PUBLIC = 5;
 
 export function aggregate(rows, courseTags) {
   const add = (m, k, w) => m.set(k, (m.get(k) || 0) + w);
   const out = { total: 0, grade: new Map(), faculty: new Map(), gradeFaculty: new Map(),
-                courses: new Map(), tags: new Map(), entries: 0 };
+                courses: new Map(), tags: new Map(), entries: 0,
+                coursePeople: new Map(), tagPeople: new Map() };
   for (const r of rows) {
     const w = r.w;
     out.total += w;
     add(out.grade, r.grade || "未回答", w);
     add(out.faculty, r.faculty || "未回答", w);
     add(out.gradeFaculty, `${r.grade || "未回答"}|${r.faculty || "未回答"}`, w);
-    for (const id of r.ids) {
+    const seenTags = new Set();
+    for (const id of new Set(r.ids)) {
       add(out.courses, id, w);
+      add(out.coursePeople, id, w);
       out.entries += w;
       const tags = courseTags.get(id) || [];
-      if (!tags.length) add(out.tags, "タグなし", w);
-      for (const t of tags) add(out.tags, t, w);
+      for (const t of (tags.length ? tags : ["タグなし"])) {
+        add(out.tags, t, w);
+        seenTags.add(t);
+      }
     }
+    for (const t of seenTags) add(out.tagPeople, t, w);
   }
   return out;
 }
@@ -38,10 +50,26 @@ export function pct(n, d, isPublic) {
   return `${((100 * n) / d).toFixed(1)}%`;
 }
 
-export function table(map, denom, isPublic, label = (k) => k) {
-  return [...map.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([k, n]) => [label(k), cell(n, isPublic), pct(n, denom, isPublic)]);
+/* guard … 伏せるかどうかを決める数（既定は表の数そのもの。科目・タグの表では人数を渡す）。 */
+export function table(map, denom, isPublic, label = (k) => k, guard = map) {
+  const rows = [...map.entries()].sort((a, b) => b[1] - a[1]);
+  const g = (k) => guard.get(k) ?? 0;
+  const hidden = new Set(isPublic ? rows.filter(([k]) => g(k) < MIN_PUBLIC).map(([k]) => k) : []);
+  const second = new Set();
+  if (hidden.size === 1 && rows.length > 1) {
+    const next = rows.filter(([k]) => !hidden.has(k)).sort((a, b) => g(a[0]) - g(b[0]))[0];
+    if (next) second.add(next[0]);
+  }
+  return rows.map(([k, n]) => {
+    if (hidden.has(k)) return [label(k), `${MIN_PUBLIC}未満`, "—"];
+    if (second.has(k)) return [label(k), "伏せ", "—"];
+    return [label(k), cell(n, false), pct(n, denom, false)];
+  });
+}
+
+/* 学年別・学部別の内訳表を出すか。外部向けでは5未満のグループは表ごと出さない。 */
+export function showGroup(total, isPublic) {
+  return !isPublic || total >= MIN_PUBLIC;
 }
 
 export function toCsv(header, rows) {

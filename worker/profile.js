@@ -59,6 +59,9 @@ const TERMS = ["haru", "aki"];
  * 追加・削除の差分を送る形にしないのは、取りこぼした1回で D1 とブラウザが
  * 永久にずれるから（丸ごとなら次の1回で必ず揃う）。
  *
+ * 時間割は学期ごとに1文（json_each で ID の配列を展開）。科目ごとに1文にすると
+ * 160コマで162文になり、D1 の「1呼び出しあたりの問い合わせ数」（無料プランは50）を超えうる。
+ *
  * 学年・学部は line_profiles（LINE の問診と同じ表）に書く。空の項目は
  * COALESCE で既存の値を残す ―― サイトで未回答の人が、LINE で答えた値を
  * 空で消さないため。両方空なら line_profiles は触らない。 */
@@ -79,11 +82,12 @@ export async function handleProfile(request, env) {
 
   const stmts = [env.DB.prepare("DELETE FROM timetables WHERE line_user_id = ?").bind(userId)];
   for (const term of TERMS) {
-    for (const id of cleanIds(body?.tt?.[term])) {
-      stmts.push(env.DB.prepare(
-        "INSERT INTO timetables (line_user_id, term_group, course_id, updated_at) VALUES (?, ?, ?, ?)"
-      ).bind(userId, term, id, now));
-    }
+    const ids = cleanIds(body?.tt?.[term]);
+    if (!ids.length) continue;
+    stmts.push(env.DB.prepare(
+      "INSERT INTO timetables (line_user_id, term_group, course_id, updated_at) " +
+        "SELECT ?, ?, value, ? FROM json_each(?)"
+    ).bind(userId, term, now, JSON.stringify(ids)));
   }
   if (grade || faculty) {
     stmts.push(env.DB.prepare(

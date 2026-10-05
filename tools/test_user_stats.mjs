@@ -138,13 +138,20 @@ const sessCookie = async (sub = USER, exp = Math.floor(Date.now() / 1000) + 600)
   check(res.status === 200, `正しい1件で ${res.status}`);
   check(/^DELETE FROM timetables WHERE line_user_id = \?$/.test(log[0]?.[0] ?? "") && log[0]?.[1][0] === USER,
     "最初に本人の時間割を消していない（丸ごと置き換えになっていない）");
-  const ins = log.filter(([sql]) => sql.startsWith("INSERT INTO timetables"));
+  /* 時間割は学期ごとに1文（json_each で ID の配列を展開）。args = [userId, term, now, JSON] */
+  const ins = log.filter(([sql]) => sql.startsWith("INSERT INTO timetables"))
+    .flatMap(([sql, a]) => (/json_each\(\?\)/.test(sql) ? JSON.parse(a[3]) : []).map((id) => [a[0], a[1], id]));
   check(ins.length === 3, `時間割の INSERT が ${ins.length} 件（3件のはず）`);
-  check(ins.every(([, a]) => a[0] === USER), "他人の userId で書いている");
-  check(ins.some(([, a]) => a[1] === "haru" && a[2] === "00Z008"), "英字入りの ID を落としている");
-  check(ins.some(([, a]) => a[1] === "aki" && a[2] === "200001"), "秋の時間割を書いていない");
+  check(ins.every(([u]) => u === USER), "他人の userId で書いている");
+  check(ins.some(([, t, id]) => t === "haru" && id === "00Z008"), "英字入りの ID を落としている");
+  check(ins.some(([, t, id]) => t === "aki" && id === "200001"), "秋の時間割を書いていない");
   const prof = log.find(([sql]) => sql.startsWith("INSERT INTO line_profiles"));
   check(prof?.[1][0] === USER && prof?.[1][1] === "2" && prof?.[1][2] === "engineering", "学年・学部を書いていない");
+}
+{ // 1回の書き込みの文の数が、時間割の大きさで増えない（D1 は1呼び出しあたりの問い合わせ数に上限がある）
+  const many = (k) => Array.from({ length: 80 }, (_, i) => String(k + i));
+  const { res, log } = await putProfile({ grade: "1", faculty: "law", tt: { haru: many(100000), aki: many(200000) } }, { cookie: await sessCookie() });
+  check(res.status === 200 && log.length <= 4, `160コマで ${log.length} 文を流している（4文以下のはず）`);
 }
 { // 時間割を全部外した人 → 行が消えるだけ
   const { log } = await putProfile({ grade: "1", faculty: "law", tt: { haru: [], aki: [] } }, { cookie: await sessCookie() });
@@ -173,12 +180,12 @@ check(/CREATE TABLE IF NOT EXISTS timetables/.test(read("db/schema.sql")), "db/s
 const SYNC_SRC = read("web/assets/usersync.js");
 
 /* 偽ブラウザ。イベントは自前で配る。setTimeout は手で進める。 */
-function runSync({ wait = "", loggedIn = true, gate = true } = {}) {
+function runSync({ wait = "", loggedIn = true, gate = true, snap = null } = {}) {
   const listeners = {};
   const timers = [];
   const puts = [];
   const snaps = [];
-  const SNAP = { grade: "1", faculty: "law", tt: { haru: ["138531"], aki: [] } };
+  const SNAP = snap || { grade: "1", faculty: "law", tt: { haru: ["138531"], aki: [] } };
   const window = {
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
     rkStore: { snapshot: () => SNAP },
@@ -236,6 +243,13 @@ function runSync({ wait = "", loggedIn = true, gate = true } = {}) {
   s.fire("rk:store-changed"); s.flushTimers();
   check(s.puts.length === 0, "未ログインで PUT /api/profile を送っている");
   check(s.snaps.length === 1, "未ログインでも匿名のスナップショットは送るはず");
+}
+{ // 新しい端末（何も入っていない）で開いただけでは、D1 の時間割を空で上書きしない
+  const s = runSync({ snap: { grade: "", faculty: "", tt: { haru: [], aki: [] } } });
+  await s.openGate();
+  check(s.puts.length === 0, "空の端末を開いただけで PUT している（別の端末で作った時間割が消える）");
+  s.fire("rk:store-changed"); s.flushTimers();
+  check(s.puts.length === 1, "空の端末でも、本人が変えたときは送るはず（全部外した人の行を消すため）");
 }
 { // gate.js が無いページでも落ちない（送らないだけ）
   const s = runSync({ gate: false });
@@ -307,7 +321,31 @@ const R = await import(path.join(ROOT, "tools/users_report_lib.mjs"));
   check(R.pct(4, 100, true) === "—", "伏せたセルの比率を出している（分母から逆算できる）");
   check(R.pct(25, 100, true) === "25.0%" && R.pct(1, 0, false) === "—", "比率の計算が違う");
   const t = R.table(new Map([["1", 10], ["2", 3]]), 13, true, (k) => `${k}年`);
-  check(t[0][0] === "1年" && t[0][1] === "10" && t[1][1] === "5未満" && t[1][2] === "—", "表の並び・伏せ字が違う");
+  check(t[0][0] === "1年" && t[0][1] === "伏せ" && t[1][1] === "5未満" && t[1][2] === "—",
+    "表の並び・伏せ字が違う（2行の表で1つ伏せたら、もう1つも伏せないと 13−10 で戻せる）");
+}
+{ // 伏せたセルを合計から逆算させない（伏せたのが1つだけなら、次に小さいセルも伏せる）
+  const t = R.table(new Map([["a", 10], ["b", 3], ["c", 7], ["d", 20]]), 40, true);
+  const hidden = t.filter((r) => r[1] === "5未満" || r[1] === "伏せ").map((r) => r[0]);
+  check(hidden.includes("b") && hidden.includes("c") && hidden.length === 2, `伏せたセルが ${hidden}（b と c のはず）`);
+  const none = R.table(new Map([["a", 10], ["d", 20]]), 30, true);
+  check(none.every((r) => /^\d+$/.test(r[1])), "伏せる必要の無い表まで伏せている");
+  const internal = R.table(new Map([["a", 10], ["b", 3]]), 13, false);
+  check(internal[1][1] === "3", "内部向けで伏せている");
+}
+{ // のべ数ではなく人数で伏せる（1人が6科目入れても「6」で出さない）
+  const tags = new Map([["A", ["hogaku"]], ["B", ["hogaku"]], ["C", ["hogaku"]], ["D", ["hogaku"]], ["E", ["hogaku"]], ["F", ["hogaku"]]]);
+  const a = R.aggregate([{ grade: "4", faculty: "dentistry", ids: ["A", "B", "C", "D", "E", "F"], w: 1 }], tags);
+  check(a.tags.get("hogaku") === 6 && a.tagPeople?.get("hogaku") === 1, "タグの人数（tagPeople）を数えていない");
+  check(a.coursePeople?.get("A") === 1, "科目の人数（coursePeople）を数えていない");
+  const t = R.table(a.tags, a.entries, true, (k) => k, a.tagPeople);
+  check(t[0][1] === "5未満", "1人のタグを、のべ数6で外に出している");
+  check(R.showGroup?.(4, true) === false && R.showGroup?.(5, true) === true && R.showGroup?.(1, false) === true,
+    "外部向けで5未満のグループの内訳表を出している");
+}
+{ // 外部向けでは A（端末・日）の内訳を出さない（1人が20日来れば20になり、伏せ字の門が効かない）
+  const src = read("tools/users_report.mjs");
+  check(/isPublic\s*&&\s*prefix\s*===\s*"a"/.test(src), "--public で A の内訳表を出している");
 }
 { // CSV（カンマ・引用符を含むラベル）
   const csv = R.toCsv(["名前", "数"], [['芸術, "音楽"', "5"]]);
@@ -330,6 +368,7 @@ const R = await import(path.join(ROOT, "tools/users_report_lib.mjs"));
 {
   const about = read("web/about.html");
   check(about.includes('id="userdata"'), "about に「利用データの扱い」の節が無い");
+  check(!about.includes("Cookie は送りません"), "about に「Cookie は送りません」がある（同じドメインへの送信には Cookie が乗るので事実と違う）");
   check(/学年.*学部.*時間割/s.test(about.slice(Math.max(0, about.indexOf('id="userdata"')))) && about.includes('id="userdata"'),
     "about の告知に集める項目（学年・学部・時間割）が無い");
 }
