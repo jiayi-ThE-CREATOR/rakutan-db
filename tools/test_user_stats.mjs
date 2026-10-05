@@ -169,6 +169,117 @@ const sessCookie = async (sub = USER, exp = Math.floor(Date.now() / 1000) + 600)
 // スキーマに表がある
 check(/CREATE TABLE IF NOT EXISTS timetables/.test(read("db/schema.sql")), "db/schema.sql に timetables が無い");
 
+// ── 4. usersync.js（送る時機） ─────────────────
+const SYNC_SRC = read("web/assets/usersync.js");
+
+/* 偽ブラウザ。イベントは自前で配る。setTimeout は手で進める。 */
+function runSync({ wait = "", loggedIn = true, gate = true } = {}) {
+  const listeners = {};
+  const timers = [];
+  const puts = [];
+  const snaps = [];
+  const SNAP = { grade: "1", faculty: "law", tt: { haru: ["138531"], aki: [] } };
+  const window = {
+    addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
+    rkStore: { snapshot: () => SNAP },
+    rkSnap: (s) => snaps.push(s),
+  };
+  let resolveGate;
+  if (gate) {
+    window.rkGate = {
+      ready: new Promise((r) => { resolveGate = r; }),
+      state: () => ({ loggedIn, linked: true, configured: true }),
+    };
+  }
+  const ctx = {
+    window,
+    document: { currentScript: { dataset: wait ? { wait } : {} } },
+    fetch: (url, opts) => { puts.push({ url, opts }); return Promise.resolve({ ok: true }); },
+    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].fn = null; },
+    JSON, Promise, console,
+  };
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(SYNC_SRC, ctx);
+  const fire = (type) => (listeners[type] || []).forEach((fn) => fn({}));
+  const flushTimers = () => { for (const t of timers) if (t.fn) { const f = t.fn; t.fn = null; f(); } };
+  return { puts, snaps, timers, fire, flushTimers, openGate: async () => { resolveGate?.(); await new Promise((r) => setImmediate(r)); } };
+}
+
+{ // マイページ（待たない）: 読み込んだ時点でスナップショット
+  const s = runSync();
+  check(s.snaps.length === 1, "マイページで読み込み時に rkSnap を呼んでいない");
+}
+{ // トップ（data-wait="app"）: rk:app-ready まで待つ
+  const s = runSync({ wait: "app" });
+  check(s.snaps.length === 0, "トップで app.js の準備より先に rkSnap を呼んでいる（URL の学年が反映されない）");
+  s.fire("rk:app-ready");
+  check(s.snaps.length === 1, "rk:app-ready のあとに rkSnap を呼んでいない");
+}
+{ // ログイン者: ゲートの判定のあとに1回 PUT、変更は2秒まとめて1回
+  const s = runSync();
+  check(s.puts.length === 0, "/api/me の判定より先に PUT している");
+  await s.openGate();
+  check(s.puts.length === 1 && s.puts[0].url === "/api/profile" && s.puts[0].opts.method === "PUT",
+    "ログイン者に最初の PUT /api/profile を送っていない");
+  check(JSON.parse(s.puts[0]?.opts.body ?? "{}").tt?.haru?.[0] === "138531", "PUT の本文が rkStore.snapshot() になっていない");
+  s.fire("rk:store-changed"); s.fire("rk:store-changed"); s.fire("rk:store-changed");
+  check(s.puts.length === 1, "変更のたびにその場で送っている（debounce が無い）");
+  check(s.timers.some((t) => t.fn && t.ms === 2000), "debounce が2秒になっていない");
+  s.flushTimers();
+  check(s.puts.length === 2, "続けて3回変えたのに1回にまとまっていない");
+}
+{ // 未ログインは PUT しない（変更があっても）
+  const s = runSync({ loggedIn: false });
+  await s.openGate();
+  s.fire("rk:store-changed"); s.flushTimers();
+  check(s.puts.length === 0, "未ログインで PUT /api/profile を送っている");
+  check(s.snaps.length === 1, "未ログインでも匿名のスナップショットは送るはず");
+}
+{ // gate.js が無いページでも落ちない（送らないだけ）
+  const s = runSync({ gate: false });
+  await new Promise((r) => setImmediate(r));
+  check(s.puts.length === 0, "gate.js が無いページで PUT している");
+}
+// 読み込み順（rkStore・rkGate・rkSnap が先にあること）
+for (const page of ["web/index.html", "web/mypage.html"]) {
+  const html = read(page);
+  const at = (src) => html.indexOf(`src="/assets/${src}"`);
+  check(at("usersync.js") > 0, `${page} が usersync.js を読み込んでいない`);
+  check(at("usersync.js") > at("store.js") && at("usersync.js") > at("gate.js") && at("usersync.js") > at("analytics.js"),
+    `${page} で usersync.js が store.js / gate.js / analytics.js より前にある`);
+}
+check(/src="\/assets\/usersync\.js" data-wait="app"/.test(read("web/index.html")), "トップの usersync.js に data-wait=\"app\" が無い");
+check(/state:\s*\(\)\s*=>\s*state/.test(read("web/assets/gate.js")), "gate.js が rkGate.state を出していない");
+
+// store.js: snapshot と変更の合図
+{
+  const STORE_SRC = read("web/assets/store.js");
+  const m = new Map(Object.entries({
+    osaka_u_settings: JSON.stringify({ faculty: "law", grade: "2", semester: "x" }),
+    rk_timetable: JSON.stringify({ v: 1, haru: { slots: { "月1": "138531", "月2": "138531" }, extra: ["00Z008"] }, aki: { slots: {}, extra: [] } }),
+  }));
+  const events = [];
+  const win = { dispatchEvent: (e) => events.push(e.type) };
+  const ctx = {
+    window: win,
+    localStorage: { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) },
+    sessionStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    CustomEvent: class { constructor(type) { this.type = type; } },
+    JSON, console,
+  };
+  ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  vm.runInContext(STORE_SRC, ctx);
+  const snap = win.rkStore.snapshot?.();
+  check(snap?.grade === "2" && snap?.faculty === "law", "snapshot に学年・学部が無い");
+  check(JSON.stringify(snap?.tt?.haru) === '["138531","00Z008"]', "snapshot の時間割が2コマの科目を重ねているか extra を落としている");
+  win.rkStore.addExtra("aki", "200001");
+  win.rkStore.setProfile({ grade: "3" });
+  check(events.filter((t) => t === "rk:store-changed").length === 2, "時間割・学年を書いても rk:store-changed が出ていない");
+}
+
 // ── 結果 ─────────────────────────────────
 if (fails.length) {
   console.error(`NG ${fails.length}/${n}`);

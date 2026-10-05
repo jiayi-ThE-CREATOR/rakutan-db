@@ -159,6 +159,7 @@
     setTimeout(boot, 0);
   }
 
-  /* 描き直しの後にも掛け直せるよう、外から呼べる口を残す。 */
-  window.rkGate = { apply, linked: () => linked, prompt, ready };
+  /* 描き直しの後にも掛け直せるよう、外から呼べる口を残す。
+     state は usersync.js がログイン済みかを読む口（/api/me を二重に聞かない）。 */
+  window.rkGate = { apply, linked: () => linked, prompt, ready, state: () => state };
 })();
