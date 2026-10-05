@@ -17,6 +17,35 @@
 
 ---
 
+## 2026-10-05 ｜ Cloudflare Web Analytics が 9/3 から1件も記録していなかったのを直した ｜ Claude（wang） → 全員
+
+ダッシュボードの rakuhan.nocode-sol.co.jp が過去30日 ページ表示・読み込み時間とも **0**。
+原因は `web/assets/analytics.js` の beacon の入れ方（#95・9/3 から `type="module"` ＋ `?token=`）。
+beacon.min.js は読み込まれるのに `cloudflareinsights.com/cdn-cgi/rum` へ1件も送っていなかった。
+管理画面の貼り付け用タグと同じ形（`data-cf-beacon='{"token":…}'`・module なし）に戻した。
+
+### 1. 何が動く状態か
+
+    node tools/test_analytics.mjs   # 形を固定するチェック入り（旧い形だと NG 2 件）
+
+- ヘッドレス Chrome で本番ページに新しい analytics.js を差し込み、rum が 204 を返すのを確認ずみ
+
+### 2. 何をしていないか
+
+- **9/3〜10/5 の Cloudflare 側の数字は戻らない。** その間の PV は自前の `/api/hit`（`node tools/stats.mjs`）にだけ残っている
+- module だと読めない理由は beacon の中を読んで確かめたわけではない（推定：currentScript が null になる）
+
+### 3. 次の人が最初に打つコマンド
+
+    curl -s https://rakuhan.nocode-sol.co.jp/assets/analytics.js | grep data-cf-beacon   # マージ後に本番へ出たか
+
+### 4. 踏んだ罠
+
+- **エラーは何も出ない。** beacon の GET は 200 で、送らないだけ。「タグが載っているか」ではなく「rum への POST が出ているか」で確かめる
+- 旧コメントは「?token= が公式の書き方」と書いていたが、type="module" と組むと効かない
+
+---
+
 ## 2026-10-02 ｜ 科目の詳細に「教科書」の節を足した ｜ Claude（wang） → 次の人
 
 シラバスの「教科書・指定教材」で本が名指しされている科目だけ、詳細（一覧カード・PC の右パネル・マイページ）の
