@@ -40,7 +40,8 @@ const sql = `
 SELECT formatDateTime(timestamp, '%Y-%m-%d', 'Asia/Tokyo') AS day,
        blob1 AS event,
        SUM(_sample_interval * double1) AS n,
-       SUM(_sample_interval * double2) AS visits
+       SUM(_sample_interval * double2) AS visits,
+       SUM(_sample_interval * double3) AS uu
 FROM ${DATASET}
 WHERE timestamp >= NOW() - INTERVAL '${days}' DAY
 GROUP BY day, event
@@ -77,20 +78,47 @@ const byDay = new Map();
 for (const r of rows) {
   const d = byDay.get(r.day) ?? { visits: 0 };
   d[r.event] = Number(r.n) || 0;
-  if (r.event === "pv") d.visits = Number(r.visits) || 0;
+  if (r.event === "pv") { d.visits = Number(r.visits) || 0; d.uu = Number(r.uu) || 0; }
   byDay.set(r.day, d);
 }
 
 const pad = (s, w) => String(s).padStart(w);
 console.log(`ラクハン 実測（直近 ${days} 日・JST・自分たちを除いた数）\n`);
-console.log(`${"日付".padEnd(12)}${pad("訪問", 7)}${pad("ページ表示", 12)}${pad("検索", 7)}${pad("詳細", 7)}`);
+console.log(`${"日付".padEnd(12)}${pad("UU", 6)}${pad("訪問", 7)}${pad("ページ表示", 12)}${pad("検索", 7)}${pad("詳細", 7)}`);
 const total = { visits: 0, pv: 0, search: 0, detail: 0 };
 for (const [day, d] of byDay) {
-  console.log(`${day.padEnd(12)}${pad(d.visits, 7)}${pad(d.pv ?? 0, 12)}${pad(d.search ?? 0, 7)}${pad(d.detail ?? 0, 7)}`);
+  console.log(`${day.padEnd(12)}${pad(d.uu ?? 0, 6)}${pad(d.visits, 7)}${pad(d.pv ?? 0, 12)}${pad(d.search ?? 0, 7)}${pad(d.detail ?? 0, 7)}`);
   total.visits += d.visits;
   for (const e of EVENTS) total[e] += d[e] ?? 0;
 }
-console.log(`${"─".repeat(33)}`);
-console.log(`${"合計".padEnd(12)}${pad(total.visits, 7)}${pad(total.pv, 12)}${pad(total.search, 7)}${pad(total.detail, 7)}`);
-console.log(`\n訪問＝タブを開いてからの1回目のページ表示。同じ人が翌日また来れば2回数える。`);
+console.log(`${"─".repeat(39)}`);
+// UU は日をまたいで足せない（同じ人が2日来れば2）ので、合計の行には出さない。
+console.log(`${"合計".padEnd(12)}${pad("—", 6)}${pad(total.visits, 7)}${pad(total.pv, 12)}${pad(total.search, 7)}${pad(total.detail, 7)}`);
+
+/* 月の UU。日の UU は足せないので、端末ごとの「その月の1回目」（double4）を
+   月で足す。先月の1日は最長でも62日前なので、保存期間90日の内側に必ず収まる。
+   それより前の月は1日が窓から欠けうるので出さない。 */
+const monthSql = `
+SELECT formatDateTime(timestamp, '%Y-%m', 'Asia/Tokyo') AS month,
+       SUM(_sample_interval * double4) AS mu
+FROM ${DATASET}
+WHERE timestamp >= NOW() - INTERVAL '90' DAY AND blob1 = 'pv'
+GROUP BY month
+ORDER BY month DESC
+FORMAT JSON`;
+const mres = await fetch(
+  `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/analytics_engine/sql`,
+  { method: "POST", headers: { Authorization: `Bearer ${TOKEN}` }, body: monthSql }
+);
+const mtext = await mres.text();
+if (!mres.ok) {
+  console.error(`\n月の UU の問い合わせで API が ${mres.status} を返しました:\n${mtext}`);
+} else {
+  const months = (JSON.parse(mtext).data ?? []).slice(0, 2);
+  console.log(`\n月の UU`);
+  for (const r of months) console.log(`  ${r.month}  ${Math.round(Number(r.mu) || 0)}`);
+}
+console.log(`\nUU＝その日（月）にそのブラウザが初めて開いたページ表示。人ではなくブラウザの数なので、`);
+console.log(`スマホと PC で来た人・閲覧データを消した人は重ねて数える（多めに出る）。2026-10 は計測を始めた日からの数。`);
+console.log(`訪問＝タブを開いてからの1回目のページ表示。同じ人が翌日また来れば2回数える。`);
 console.log(`検索・詳細＝実際の操作。クローラは JS を動かさないのでここには出ない。`);

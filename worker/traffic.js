@@ -65,6 +65,21 @@ GROUP BY day, event, path
 ORDER BY day ASC
 FORMAT JSON`;
 
+/* UU（日・月）は path ごとに割らない別の問い合わせにする。月の累計には
+   最大31日ぶん要るが、上の SQL を40日に広げると path（/c/<id> が数千本）×日数で
+   行が膨らむ。こちらは pv だけを日で畳むので、40日でも40行にしかならない。
+   uu ＝ その端末のその日の1回目、mu ＝ その月の1回目（analytics.js の d / m）。
+   日ごとの mu を月の中で足せば、その月の UU になる。 */
+export const STATS_UU_SQL = `
+SELECT formatDateTime(timestamp, '%Y-%m-%d', 'Asia/Tokyo') AS day,
+       SUM(_sample_interval * double3) AS uu,
+       SUM(_sample_interval * double4) AS mu
+FROM ${STATS_DATASET}
+WHERE timestamp >= NOW() - INTERVAL '40' DAY AND blob1 = 'pv'
+GROUP BY day
+ORDER BY day ASC
+FORMAT JSON`;
+
 const STATS_SLUG_INDEX = new Map(
   STATS_CHANNELS.flatMap(([name, slugs]) => slugs.map(([slug, label]) => [slug, [name, label]]))
 );
@@ -83,7 +98,7 @@ const statsRound = (v) => Math.round(Number(v) || 0);
 
 /* SQL の行 → Discord の本文。ここは外に触らない純関数
    （tools/test_traffic_report.mjs が数え方だけを見張れるように）。 */
-export function buildTrafficReport(rows, now) {
+export function buildTrafficReport(rows, now, uuRows = []) {
   const DAY = 86400000;
   const nowMs = now instanceof Date ? now.getTime() : Number(now);
   const yesterday = statsJstDay(nowMs - DAY);
@@ -131,6 +146,21 @@ export function buildTrafficReport(rows, now) {
   const diff = statsRound(y.visits) - prev;
   lines.push(`**訪問 ${statsRound(y.visits)}**（前日 ${prev} / ${diff >= 0 ? "+" : ""}${diff}）`);
   lines.push(`ページ表示 ${statsRound(y.pv)} ・ 検索 ${statsRound(y.search)} ・ 詳細 ${statsRound(y.detail)}`);
+
+  /* UU。月はきのうが属する月の1日〜きのう（cron は JST 08:00 なので、
+     きょうの 0〜8時ぶんは混ぜない）。 */
+  const uu = new Map(), mu = new Map();
+  for (const r of uuRows ?? []) {
+    uu.set(String(r.day), Number(r.uu) || 0);
+    mu.set(String(r.day), Number(r.mu) || 0);
+  }
+  const month = yesterday.slice(0, 7);
+  let monthUu = 0;
+  for (const [d, v] of mu) if (d.startsWith(month) && d <= yesterday) monthUu += v;
+  const uuY = statsRound(uu.get(yesterday)), uuP = statsRound(uu.get(dayBefore));
+  const uuDiff = uuY - uuP;
+  lines.push(`UU ${uuY}（前日 ${uuP} / ${uuDiff >= 0 ? "+" : ""}${uuDiff}） ・ ` +
+    `今月の UU ${statsRound(monthUu)}（${month.slice(5)}/01〜${yesterday.slice(5).replace("-", "/")}）`);
   lines.push("");
 
   /* 0 の欄も消さない。消えると「きのうは Instagram が 0 だった」が読めず、
@@ -180,13 +210,13 @@ export function buildTrafficReport(rows, now) {
   return out.length > 1900 ? out.slice(0, 1900) + "\n…（長いので省略）" : out;
 }
 
-async function statsQuery(env) {
+async function statsQuery(env, sql) {
   const account = env.CF_ACCOUNT_ID;
   const token = env.CF_API_TOKEN;
   if (!account || !token) throw new Error("CF_ACCOUNT_ID / CF_API_TOKEN が未設定");
   const res = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${account}/analytics_engine/sql`,
-    { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: STATS_SQL }
+    { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: sql }
   );
   const text = await res.text();
   if (!res.ok) throw new Error(`SQL API が ${res.status}（${text.slice(0, 200)}）`);
@@ -204,7 +234,8 @@ export async function runDailyTraffic(env, now) {
 
   let content;
   try {
-    content = buildTrafficReport(await statsQuery(env), now);
+    const [rows, uuRows] = await Promise.all([statsQuery(env, STATS_SQL), statsQuery(env, STATS_UU_SQL)]);
+    content = buildTrafficReport(rows, now, uuRows);
   } catch (e) {
     content =
       "⚠️ **ラクハン アクセス速報**：きのうの数字を取れませんでした。\n" +

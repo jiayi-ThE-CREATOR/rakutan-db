@@ -31,6 +31,17 @@
  *   検索語そのもの・科目ID・Cookie・端末IDは送らない。送るのはパスだけで、
  *   クエリ（?c=<科目id> など）は Worker 側で落としている。
  *
+ * ■ UU（日・月）の数え方（2026-10-05 追加）
+ *
+ *   端末IDを発行して送る形にはしない。代わりに「この端末はきょう（今月）もう
+ *   数えた」という日付だけを localStorage に置き、その日（月）の最初の pv に
+ *   d=1（m=1）を付ける。サーバーに届くのは 0/1 だけで、誰の1なのかは分からない。
+ *   日付は JST で切る（速報・tools/stats.mjs の日付と揃える）。
+ *   数えているのは「ブラウザの数」で、人の数ではない ―― スマホと PC で来た人は2、
+ *   シークレットウィンドウや閲覧データを消した人は同じ日でも2回数える。
+ *   つまり UU は**上に振れる**。サーバー側で IP から判定する案は、独自ドメインが
+ *   nginx（VPS）経由で Worker から見える IP が全部同じなので使えない。
+ *
  * ■ チームに配る URL（1人1回・ブラウザごと）
  *
  *    https://rakuhan.nocode-sol.co.jp/?nostats=1   … 以後この端末を数えない
@@ -45,11 +56,13 @@
  * ■ store.js を通していない理由
  *   store.js は index.html と mypage.html にしか載っていない。計測は6ページ
  *   全部に載る。読み込み順の前後で計測が消える方が事故なので、ここだけは
- *   localStorage を直に触る。鍵は rk_nostats ひとつだけに留めること。
+ *   localStorage を直に触る。鍵は rk_nostats と UU の日付印 rk_d・rk_m の3つだけに留めること。
  */
 (() => {
   const KEY = "rk_nostats";
   const SKEY = "rk_s";            // 「この訪問はもう数えた」の印（タブを閉じると消える）
+  const DKEY = "rk_d";            // 「きょう（JST）はもう数えた」日付 YYYY-MM-DD
+  const MKEY = "rk_m";            // 「今月（JST）はもう数えた」月 YYYY-MM
   // Cloudflare Web Analytics のサイトトークン。公開されている値（HTML に出る）。
   const TOKEN = "b0324782e4e44ca58b45e4dd0c270112";
   const HIT_URL = "/api/hit";
@@ -93,6 +106,19 @@
     } catch (e) { return 0; }
   }
 
+  /* UU の印。その日（月）初めてなら 1 を返して印を更新する。
+     localStorage が使えない端末は 0 ―― 数え直しを繰り返して上に膨らむより、
+     数え損ねる方を選ぶ（訪問の n と同じ考え方）。 */
+  function firstIn(key, value) {
+    try {
+      if (localStorage.getItem(key) === value) return 0;
+      localStorage.setItem(key, value);
+      return 1;
+    } catch (e) { return 0; }
+  }
+  // JST の日付。JST は夏時間が無いので +9 固定でよい。
+  const jstDay = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+
   let sent = 0;
   const lastKey = Object.create(null);
 
@@ -106,10 +132,14 @@
       lastKey[event] = dedupe;
     }
     sent++;
+    const isPv = event === "pv";
+    const day = isPv ? jstDay() : "";
     const body = JSON.stringify({
       e: event,
       p: location.pathname,
-      n: event === "pv" ? newSession() : 0,
+      n: isPv ? newSession() : 0,
+      d: isPv ? firstIn(DKEY, day) : 0,
+      m: isPv ? firstIn(MKEY, day.slice(0, 7)) : 0,
     });
     /* sendBeacon はページを離れる途中でも届く。ここで待たない
        ―― 計測のために操作を1msでも遅らせない。 */
