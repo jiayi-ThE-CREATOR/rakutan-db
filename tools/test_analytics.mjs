@@ -64,7 +64,7 @@ function run(href, initial = {}, throws = false, session = {}) {
   const loaded = [];   // head に足されたタグ＝beacon
   const shown = [];    // body に足された帯＝本人へのお知らせ
   const hits = [];     // POST /api/hit の中身
-  const el = () => ({ style: {}, dataset: {}, setAttribute() {}, remove() {} });
+  const el = () => ({ style: {}, dataset: {}, attrs: {}, setAttribute(k, v) { this.attrs[k] = String(v); }, remove() {} });
   const document = {
     body: { appendChild: (e) => shown.push(e) },
     head: { appendChild: (e) => loaded.push(e) },
@@ -101,9 +101,12 @@ function run(href, initial = {}, throws = false, session = {}) {
   check(hits[0]?.body.n === 1, "その訪問の1回目なのに n=1 になっていない");
   check(ss._dump().rk_s === "1", "訪問の印が sessionStorage に残っていない");
   check(loaded.length === 1, "普通の訪問で beacon が読み込まれていない");
-  check(String(loaded[0]?.src).includes(`?token=${TOKEN}`),
-    "トークンがクエリで渡されていない（動的に足したタグでは data-cf-beacon が読まれない形になる）");
-  check(loaded[0]?.type === "module", "type=module が付いていない（古いブラウザで構文エラーになる）");
+  /* 2026-09-03〜10-05、type=module ＋ ?token= の形で beacon が1件も送っていなかった
+     （ダッシュボードが 0 のまま）。管理画面の貼り付け用タグと同じ形に固定する。 */
+  check(JSON.parse(loaded[0]?.attrs?.["data-cf-beacon"] ?? "{}").token === TOKEN,
+    "トークンが data-cf-beacon 属性で渡されていない（Cloudflare 公式のタグと違う形になっている）");
+  check(loaded[0]?.type !== "module",
+    "type=module が付いている（この形だと beacon がトークンを読めず、1件も送らない）");
 }
 { // ?nostats=1 を踏んだその場から数えない
   const { loaded, shown, ls, hits, track } = run("https://rakuhan.nocode-sol.co.jp/?nostats=1");

@@ -130,13 +130,17 @@
   if (excluded) return;
 
   const s = document.createElement("script");
-  /* type="module" は Cloudflare の指定。IE など古いブラウザが
-     beacon の構文で落ちるのを防ぐためで、機能上の意味は無い。
-     トークンは data-cf-beacon 属性ではなくクエリで渡す
-     ―― 動的に足したタグでも確実に読まれる、公式の書き方（タグマネージャ向け）。 */
-  s.type = "module";
+  /* 🚨 Cloudflare の管理画面にある貼り付け用タグと同じ形にする
+     （data-cf-beacon 属性でトークンを渡す・type="module" は付けない）。
+     2026-09-03〜10-05 は type="module" ＋ ?token= の形で、beacon は読み込まれるのに
+     cloudflareinsights.com/cdn-cgi/rum へ1件も送っておらず、ダッシュボードは
+     ページ表示も読み込み時間も 0 のままだった（エラーは出ない）。
+     module のスクリプトでは beacon が自分のタグ（currentScript）を見つけられず、
+     src のトークンを読めないのが原因とみている。ヘッドレス Chrome で実測して、
+     下の形で rum が 204 を返すことを確かめた。 */
   s.defer = true;
-  s.src = "https://static.cloudflareinsights.com/beacon.min.js?token=" + TOKEN;
+  s.src = "https://static.cloudflareinsights.com/beacon.min.js";
+  s.setAttribute("data-cf-beacon", JSON.stringify({ token: TOKEN }));
   document.head.appendChild(s);
 
   hit("pv");
