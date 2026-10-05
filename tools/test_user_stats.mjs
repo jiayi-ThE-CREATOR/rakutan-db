@@ -326,6 +326,14 @@ const R = await import(path.join(ROOT, "tools/users_report_lib.mjs"));
   check(d1.every((r) => r.w === 1), "B の重みが1でない");
 }
 
+// ── 6. 告知 ───────────────────────────────────
+{
+  const about = read("web/about.html");
+  check(about.includes('id="userdata"'), "about に「利用データの扱い」の節が無い");
+  check(/学年.*学部.*時間割/s.test(about.slice(Math.max(0, about.indexOf('id="userdata"')))) && about.includes('id="userdata"'),
+    "about の告知に集める項目（学年・学部・時間割）が無い");
+}
+
 // ── 結果 ─────────────────────────────────
 if (fails.length) {
   console.error(`NG ${fails.length}/${n}`);

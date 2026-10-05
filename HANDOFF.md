@@ -17,6 +17,39 @@
 
 ---
 
+## 2026-10-05 ｜ 利用者の属性（学年・学部・時間割・授業内容タグ）を数え始めた ｜ Claude（wang） → 全員
+
+spec: `docs/superpowers/specs/2026-10-05-user-stats-design.md`。2系統あり、**数字は足さない**。
+A＝全訪問者の1日1回のスナップショット（`/api/hit` の `snap`・Analytics Engine・単位は端末・日）。
+B＝LINE ログイン者（`PUT /api/profile`・D1 の `line_profiles`＋`timetables`・単位は人）。
+
+### 1. 何が動く状態か
+
+    CF_ACCOUNT_ID=… CF_API_TOKEN=… node tools/users_report.mjs --days 30            # 内部向け
+    CF_ACCOUNT_ID=… CF_API_TOKEN=… node tools/users_report.mjs --public --csv ~/rakuhan-stats/2026-10   # 外部向け
+
+- `node tools/test_user_stats.mjs` / `node tools/test_analytics.mjs`
+
+### 2. 何をしていないか
+
+- **A は人数ではない。** よく来る人ほど日数ぶん重い。その日の最初の表示より後の変更は翌日まで出ない
+- **Analytics Engine は90日で消える。** 外部に出す月の数字は、月が明けたら `--csv` でリポジトリの外に保管する
+- **B を読むには CF_API_TOKEN に「D1 / 読み取り」が要る。** 今のトークンでは 403（code 7403）
+- B の送信はテスト版（LINE ログイン不可）では確かめられない。本番で `npx wrangler d1 execute rakutan-favorites --remote --command "SELECT COUNT(*) FROM timetables"` で見る
+- 消してほしいという連絡への手順（D1 から1人分を消す）は手作業: `DELETE FROM timetables WHERE line_user_id = ?` と `DELETE FROM line_profiles WHERE line_user_id = ?`
+
+### 3. 次の人が最初に打つコマンド
+
+    npx wrangler d1 execute rakutan-favorites --remote --command "SELECT COUNT(*) FROM timetables"
+
+### 4. 踏んだ罠
+
+- 科目IDは数字だけではない（`00Z008` など324件）。検証は `/^[0-9A-Z]{1,12}$/`
+- `line_profiles` は LINE bot も読む。サイトで空のまま送られた項目は COALESCE で上書きしない（LINE で答えた値を消さない）
+- 既存の集計（毎朝の速報・stats.mjs）は event で絞っていない SQL があったので `blob1 != 'snap'` を足した
+
+---
+
 ## 2026-10-05 ｜ UU（日・月）を数え始めた ｜ Claude（wang） → 全員
 
 自前の計測（`POST /api/hit`）に UU を足した。端末IDは発行しない。`analytics.js` が localStorage に
