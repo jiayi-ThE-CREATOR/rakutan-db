@@ -12,6 +12,7 @@
  *  4. 自前の計測（POST /api/hit）が、検索語や科目IDを送っていないこと
  *  5. 同じ検索語を打ち直しただけで数が増えないこと
  *  6. Worker 側がクライアントを信じないこと（種類・UA・Origin を自分で判定）
+ *  7. UU（日・月）の印がその日（月）の最初の pv にだけ立つこと
  */
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -170,6 +171,35 @@ function run(href, initial = {}, throws = false, session = {}) {
   check(hits[0]?.body.n === 0, "読めなかったのに新しい訪問として数えている");
 }
 
+// ── 3b. UU（日・月）の印 ──────────────────────
+const TODAY = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);   // JST
+const MONTH = TODAY.slice(0, 7);
+{ // その日・その月の初めての端末
+  const { hits, ls, track } = run("https://rakuhan.nocode-sol.co.jp/");
+  check(hits[0]?.body.d === 1 && hits[0]?.body.m === 1, "初めての端末の pv に d=1・m=1 が付いていない");
+  check(ls._dump().rk_d === TODAY && ls._dump().rk_m === MONTH, "UU の印（JST の日付・月）が残っていない");
+  track("detail");
+  check(hits[1]?.body.d === 0 && hits[1]?.body.m === 0, "pv 以外で UU の印が立っている");
+}
+{ // 同じ日の2回目（タブを開き直した＝訪問は新しいが UU は増えない）
+  const { hits } = run("https://rakuhan.nocode-sol.co.jp/", { rk_d: TODAY, rk_m: MONTH });
+  check(hits[0]?.body.n === 1, "タブを開き直したのに新しい訪問になっていない");
+  check(hits[0]?.body.d === 0 && hits[0]?.body.m === 0, "同じ日の2回目を UU として数えている");
+}
+{ // 同じ月の別の日
+  const { hits, ls } = run("https://rakuhan.nocode-sol.co.jp/", { rk_d: "2000-01-01", rk_m: MONTH });
+  check(hits[0]?.body.d === 1 && hits[0]?.body.m === 0, "同じ月の別の日で、日UU だけが立っていない");
+  check(ls._dump().rk_d === TODAY, "日付の印が新しい日に更新されていない");
+}
+{ // 除外された端末は印も立てない（数えていないのに印だけ進むのを防ぐ）
+  const { ls } = run("https://rakuhan.nocode-sol.co.jp/", { rk_nostats: "1" });
+  check(ls._dump().rk_d === undefined, "除外ずみの端末で UU の印が立っている");
+}
+{ // localStorage が全滅していたら数えない（上に膨らませない）
+  const { hits } = run("https://rakuhan.nocode-sol.co.jp/", {}, true);
+  check(hits[0]?.body.d === 0 && hits[0]?.body.m === 0, "印を残せない端末を毎回 UU として数えている");
+}
+
 // ── 4. Worker の POST /api/hit ────────────────
 const worker = (await import(path.join(ROOT, "worker/index.js"))).default;
 const ASSETS = { fetch: async () => new Response("asset", { status: 200 }) };
@@ -193,8 +223,9 @@ async function post(body, { ua = UA, origin = ORIGIN, method = "POST", referer }
 }
 
 {
-  const { res, written } = await post({ e: "pv", p: "/", n: 1 });
+  const { res, written } = await post({ e: "pv", p: "/", n: 1, d: 1, m: 1 });
   check(res.status === 204, `正しい1件で ${res.status} を返した（204 のはず）`);
+  check(written[0]?.doubles[2] === 1 && written[0]?.doubles[3] === 1, "日UU・月UU が double3・double4 に入っていない");
   check(written.length === 1, "正しい1件が記録されていない");
   check(written[0]?.blobs[0] === "pv", "種類が blob1 に入っていない");
   check(written[0]?.blobs[1] === "/", "パスが blob2 に入っていない");
@@ -203,6 +234,10 @@ async function post(body, { ua = UA, origin = ORIGIN, method = "POST", referer }
 }
 { // クライアントを信じない
   check((await post({ e: "pv" }, { method: "GET" })).written.length === 0, "GET を数えている");
+  const fake = (await post({ e: "search", d: 1, m: 1 })).written[0];
+  check(fake?.doubles[2] === 0 && fake?.doubles[3] === 0, "pv 以外に付いてきた UU の印を信じている");
+  const odd = (await post({ e: "pv", d: 5, m: "1" })).written[0];
+  check(odd?.doubles[2] === 0 && odd?.doubles[3] === 0, "1 以外の値を UU として数えている");
   check((await post({ e: "こんにちは" })).written.length === 0, "知らない種類を数えている");
   check((await post({})).written.length === 0, "種類の無い本文を数えている");
   check((await post("これはJSONではない")).written.length === 0, "壊れた本文で落ちるか数えている");

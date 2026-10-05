@@ -1139,6 +1139,10 @@ async function handleHit(request, env) {
   try { path = new URL(String(body?.p ?? "/"), "https://x").pathname.slice(0, 64); } catch (e) {}
 
   const fresh = body?.n === 1 ? 1 : 0;   // その訪問の1回目（クライアントの sessionStorage 判定）
+  /* UU の印（その端末のその日・その月の1回目。判定は analytics.js の localStorage）。
+     pv 以外に付いてきたら捨てる ―― 検索や詳細で UU が増える経路を作らない。 */
+  const daily = event === "pv" && body?.d === 1 ? 1 : 0;
+  const monthly = event === "pv" && body?.m === 1 ? 1 : 0;
 
   /* 束ねていないので1リクエスト1件。writeDataPoint は投げっぱなしで
      例外も返り値も無いが、束縛が無い env（ローカル・テスト）では
@@ -1146,7 +1150,7 @@ async function handleHit(request, env) {
   try {
     env.STATS?.writeDataPoint({
       blobs: [event, path],
-      doubles: [1, fresh],
+      doubles: [1, fresh, daily, monthly],   // double1 件数 / 2 訪問 / 3 日UU / 4 月UU
       indexes: [event],
     });
   } catch (e) {}

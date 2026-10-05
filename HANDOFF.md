@@ -17,6 +17,36 @@
 
 ---
 
+## 2026-10-05 ｜ UU（日・月）を数え始めた ｜ Claude（wang） → 全員
+
+自前の計測（`POST /api/hit`）に UU を足した。端末IDは発行しない。`analytics.js` が localStorage に
+「きょう（JST）数えた日付」`rk_d` と「今月数えた月」`rk_m` を置き、その日（月）の最初の pv にだけ `d=1`／`m=1` を付ける。
+Analytics Engine では double3＝日UU、double4＝月UU。
+
+### 1. 何が動く状態か
+
+    CF_ACCOUNT_ID=… CF_API_TOKEN=… node tools/stats.mjs   # 日ごとの UU 列＋月の UU（今月・先月）
+
+- 毎朝の Discord 速報に「UU（前日比）・今月の UU（1日〜きのう）」の1行が増える（`STATS_UU_SQL`）
+- `node tools/test_analytics.mjs` / `node tools/test_traffic_report.mjs`
+
+### 2. 何をしていないか
+
+- **数えているのはブラウザの数で、人の数ではない。** スマホと PC・シークレット・閲覧データ削除は重ねて数える（多めに出る）
+- 2026-10 の月 UU はデプロイした日からの数。前日比もデプロイ翌日までは意味が無い
+- サーバー側の IP 判定は不可（nginx 中継で全員同じ IP に見える）
+
+### 3. 次の人が最初に打つコマンド
+
+    CF_ACCOUNT_ID=… CF_API_TOKEN=… node tools/traffic_preview.mjs   # けさの速報の本文を手元で見る
+
+### 4. 踏んだ罠
+
+- UU は日をまたいで足せない。stats.mjs の合計行は「—」にしてある。月の UU は日の UU の和ではなく double4 の和
+- 月の累計は最大31日ぶん要る。流入元の SQL（path ごと）を広げると行が膨らむので、UU は pv だけを日で畳む別の SQL にした
+
+---
+
 ## 2026-10-05 ｜ Cloudflare Web Analytics が 9/3 から1件も記録していなかったのを直した ｜ Claude（wang） → 全員
 
 ダッシュボードの rakuhan.nocode-sol.co.jp が過去30日 ページ表示・読み込み時間とも **0**。

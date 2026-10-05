@@ -18,7 +18,7 @@ import path from "node:path";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const mod = await import(path.join(ROOT, "worker/traffic.js"));
-const { STATS_CHANNELS, TRACKING_SLUGS, STATS_SQL, buildTrafficReport } = mod;
+const { STATS_CHANNELS, TRACKING_SLUGS, STATS_SQL, STATS_UU_SQL, buildTrafficReport } = mod;
 const worker = (await import(path.join(ROOT, "worker/index.js"))).default;
 
 const fails = [];
@@ -65,6 +65,11 @@ check(/_sample_interval\s*\*\s*double1/.test(STATS_SQL), "SQL が double1 に _s
 check(/_sample_interval\s*\*\s*double2/.test(STATS_SQL), "SQL が double2 に _sample_interval を掛けていない");
 check(STATS_SQL.includes("Asia/Tokyo"), "SQL が JST で日付を切っていない");
 check(STATS_SQL.includes("blob2"), "SQL が path（blob2）を取っていない ―― 流入元を分けられない");
+check(/_sample_interval\s*\*\s*double3/.test(STATS_UU_SQL), "UU の SQL が double3 に _sample_interval を掛けていない");
+check(/_sample_interval\s*\*\s*double4/.test(STATS_UU_SQL), "UU の SQL が double4 に _sample_interval を掛けていない");
+check(STATS_UU_SQL.includes("Asia/Tokyo"), "UU の SQL が JST で日付を切っていない");
+check(/blob1\s*=\s*'pv'/.test(STATS_UU_SQL), "UU の SQL が pv に絞っていない");
+check(/INTERVAL '(3[1-9]|[4-9]\d)' DAY/.test(STATS_UU_SQL), "UU の SQL の窓が31日に満たない（月の累計が欠ける）");
 
 /* ── 3. 集計そのもの ──────────────────────────
    cron は 23:00 UTC ＝ JST 08:00 に走る。だから「きのう」は
@@ -120,6 +125,19 @@ check(!rep.includes("777"), "7日の窓の外（8日前）を数えている");
 check(rep.includes("08-28"), "7日の走査に窓の端（08-28）が無い");
 check(rep.length < 2000, `Discord の上限 2000 字を超えている: ${rep.length} 字`);
 
+// UU。日は前日比つき、月は「きのうの月の1日〜きのう」の d=mu の和。
+const uuRows = [
+  { day: "2026-08-31", uu: "9", mu: "9" },     // 先月 → 混ぜない
+  { day: "2026-09-01", uu: "20", mu: "20" },
+  { day: "2026-09-02", uu: "30", mu: "12" },
+  { day: "2026-09-03", uu: "40", mu: "8" },
+  { day: "2026-09-04", uu: "5", mu: "3" },     // きょうの 0〜8時 → 混ぜない
+];
+const repUu = buildTrafficReport(rows, NOW, uuRows);
+check(/UU 40（前日 30 \/ \+10）/.test(repUu), `日UU 40（前日 30 / +10）が出ていない:\n${repUu}`);
+check(/今月の UU 40（09\/01〜09\/03）/.test(repUu), `今月の UU 40（20+12+8）が出ていない:\n${repUu}`);
+check(/UU 0/.test(rep), "UU の行が無いとき 0 として出ていない");
+
 // ── 4. 0件でも黙らない ────────────────────────
 const empty = buildTrafficReport([], NOW);
 check(empty.length > 0, "0件のときに何も返していない");
@@ -147,6 +165,8 @@ const runScheduled = async (env, sqlStatus = 200, sqlBody = SQL_OK, hookStatus =
 const ENV = { CF_ACCOUNT_ID: "acct123", CF_API_TOKEN: "tok456", STATS_DISCORD_WEBHOOK: WEBHOOK };
 await runScheduled(ENV);
 const sql = calls.find((c) => c.url.includes("analytics_engine"));
+check(calls.filter((c) => c.url.includes("analytics_engine")).some((c) => c.init?.body === STATS_UU_SQL),
+  "cron が UU の SQL を投げていない");
 const post = calls.find((c) => c.url === WEBHOOK);
 check(!!sql, "Analytics Engine に問い合わせていない");
 check(sql?.url.includes("/accounts/acct123/"), "アカウントIDが URL に入っていない");
