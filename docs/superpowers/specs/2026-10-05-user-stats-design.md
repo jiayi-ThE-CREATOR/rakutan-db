@@ -62,14 +62,15 @@ A1 の代償: よく来る人ほど日数ぶん重く数える。その日の最
 - analytics.js に `window.rkSnap({ grade, faculty, ids })` を足す。localStorage の新しい印 `rk_sd`（JST の日付）で
   **その日1回だけ**送る。`rk_nostats` の端末は送らない（`rkTrack` と同じ）
 - analytics.js が触る localStorage の鍵は4つになる（`rk_nostats`・`rk_d`・`rk_m`・`rk_sd`）。冒頭の注記を直す
-- 学年・学部・時間割を読むのは app.js（`rkStore` 経由）。`rk:app-ready` のあとに `rkSnap` を呼ぶ。
+- 学年・学部・時間割を読むのは新しい `web/assets/usersync.js`（`rkStore.snapshot()` 経由）。トップでは
+  `rk:app-ready` のあと（app.js が URL の `?faculty=&year=` を書き込んだあと）、マイページでは読み込んだときに `rkSnap` を呼ぶ。
   analytics.js は `osaka_u_settings`・`rk_timetable` を直に読まない（store.js が唯一の窓口、の決まりを守る）
 - `ids` は春・秋両方の時間割の科目IDを重複なしで並べたもの。空でも送る（「未回答」「時間割なし」も数の一部）
 
 ### 受ける側（`worker/index.js` の `handleHit`）
 
 - `HIT_EVENTS` に `snap` を足す
-- 送られた値は検証する: 学年は "1"〜"6"、学部は FACULTIES のキー、ID は数字だけ・最大80件。外れたら空に落とす
+- 送られた値は検証する: 学年は "1"〜"6"、学部は FACULTIES のキー、ID は英大文字と数字だけ（`00Z008` のような ID が324件ある）・最大80件。外れたら空に落とす
 - Analytics Engine への書き込み: `blobs: ["snap", "", grade, faculty, ids.join(",")]`・`doubles: [1, 0, 0, 0]`
 - 既存の集計を汚さない: `worker/traffic.js` の `STATS_SQL` と `tools/stats.mjs` は event を絞らずに束ねている箇所がある。
   `snap` が速報や stats.mjs に行として出ないよう `blob1 != 'snap'` を足す
@@ -83,7 +84,9 @@ A1 の代償: よく来る人ほど日数ぶん重く数える。その日の最
 
 ### データ（`db/schema.sql`）
 
-- 学年・学部 → 既存の `line_profiles` に書く。LINE とサイトで両方答えた人は、`updated_at` が新しい方を残す
+- 学年・学部 → 既存の `line_profiles` に書く。LINE とサイトで両方答えた人は、後から書いた方が残る。
+  ただしサイト側が空（未回答）の項目は上書きしない（LINE で答えた値を空で消さない）。
+  この表は LINE bot も読むので、サイトで学年を変えると bot の覚えている学年も変わる（意図どおり）
 - 時間割 → 新しい表:
 
       CREATE TABLE IF NOT EXISTS timetables (
@@ -101,9 +104,9 @@ A1 の代償: よく来る人ほど日数ぶん重く数える。その日の最
 - 時間割は**丸ごと置き換え**（その人の行を消して入れ直す。D1 の batch で1回に）。追加・削除の差分は送らない（A3 と同じ理由）
 - 検証は A と同じ（学年・学部・ID・件数）
 
-### 送る時機（`web/assets/app.js`・`mypage.js`）
+### 送る時機（`web/assets/usersync.js`）
 
-- `/api/me` が `loggedIn: true` を返したとき、1回送る
+- `/api/me` が `loggedIn: true` を返したとき、1回送る（gate.js が聞いた結果を `rkGate.state()` で読む。二重に聞かない）
 - その後、問診の回答・時間割が変わったら送る（2秒の debounce）
 - 未ログインなら送らない。失敗しても画面は止めない
 
@@ -127,7 +130,9 @@ A1 の代償: よく来る人ほど日数ぶん重く数える。その日の最
 - 授業内容タグは集計するときに `web/data/courses.built.json` で引く。タグを集めて送ることはしない
   （タグを付け直しても、過去の時間割をそのまま新しいタグで数え直せる）
 - **A と B は別の節に出し、足し合わせない。** 見出しに単位（端末・日／人）を書く
-- タグの節には「1科目に複数タグ。合計は100%を超える」と書く
+- タグの分布＝「時間割に入っている科目（のべ）のうち、そのタグを持つものの割合」。
+  タグの節には「1科目に複数タグ。合計は100%を超える」と書く
+- B の範囲は「いまの状態」（期間で絞らない）。`--days` は A にだけ効く
 - A は `_sample_interval` を掛けて数える（掛け忘れると間引かれた日だけ少なく出る。traffic.js の注記と同じ）
 - `--public`: 5未満のセルを「5未満」にする。比率の分母は伏せる前の数で計算する
 - `--csv <dir>`: 上の5つを1表1ファイルで書く。`<dir>` はリポジトリの外を指定する
