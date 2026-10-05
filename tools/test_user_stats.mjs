@@ -85,6 +85,90 @@ const { STATS_SQL } = await import(path.join(ROOT, "worker/traffic.js"));
 check(/blob1\s*!=\s*'snap'/.test(STATS_SQL), "毎朝の速報の SQL が snap を外していない");
 check(/blob1\s*!=\s*'snap'/.test(read("tools/stats.mjs")), "stats.mjs の SQL が snap を外していない");
 
+// ── 3. PUT /api/profile ───────────────────────
+const { __test: login } = await import(path.join(ROOT, "worker/linelogin.js"));
+const SECRET = "test-secret-key";
+const USER = "U" + "a".repeat(32);
+
+/* D1 の偽物。batch で流れた SQL と引数を順に残す。 */
+function fakeDB({ fail = false } = {}) {
+  const log = [];
+  return {
+    log,
+    prepare(sql) { return { sql, args: [], bind(...a) { this.args = a; return this; } }; },
+    async batch(stmts) {
+      if (fail) throw new Error("D1 down");
+      for (const s of stmts) log.push([s.sql, s.args]);
+      return [];
+    },
+  };
+}
+
+async function putProfile(body, { cookie, db = fakeDB(), method = "PUT" } = {}) {
+  const env = {
+    ASSETS, DB: db,
+    LINE_LOGIN_CHANNEL_ID: "x", LINE_LOGIN_CHANNEL_SECRET: "y", SESSION_SECRET: SECRET,
+  };
+  const headers = { "Content-Type": "application/json" };
+  if (cookie) headers.Cookie = cookie;
+  const req = new Request(ORIGIN + "/api/profile", {
+    method, headers, body: method === "GET" ? undefined : (typeof body === "string" ? body : JSON.stringify(body)),
+  });
+  const res = await worker.fetch(req, env, CTX);
+  return { res, log: db.log };
+}
+const sessCookie = async (sub = USER, exp = Math.floor(Date.now() / 1000) + 600) =>
+  `rk_sess=${await login.sign(SECRET, { sub, friend: true, exp })}`;
+
+{ // 未ログインは書かない
+  const { res, log } = await putProfile({ grade: "1", faculty: "law", tt: { haru: ["138531"], aki: [] } });
+  check(res.status === 401, `Cookie 無しで ${res.status}（401 のはず）`);
+  check(log.length === 0, "Cookie 無しで D1 に書いている");
+}
+{ // 期限切れ・別の鍵の Cookie も書かない
+  const old = await sessCookie(USER, Math.floor(Date.now() / 1000) - 1);
+  check((await putProfile({ grade: "1" }, { cookie: old })).res.status === 401, "期限切れの Cookie で書いている");
+  const forged = `rk_sess=${await login.sign("other-key", { sub: USER, friend: true, exp: Math.floor(Date.now() / 1000) + 600 })}`;
+  check((await putProfile({ grade: "1" }, { cookie: forged })).res.status === 401, "別の鍵で作った Cookie で書いている");
+}
+{ // 正しい1件: 時間割を丸ごと置き換え、学年・学部を書く
+  const { res, log } = await putProfile(
+    { grade: "2", faculty: "engineering", tt: { haru: ["138531", "00Z008"], aki: ["200001"] } },
+    { cookie: await sessCookie() });
+  check(res.status === 200, `正しい1件で ${res.status}`);
+  check(/^DELETE FROM timetables WHERE line_user_id = \?$/.test(log[0]?.[0] ?? "") && log[0]?.[1][0] === USER,
+    "最初に本人の時間割を消していない（丸ごと置き換えになっていない）");
+  const ins = log.filter(([sql]) => sql.startsWith("INSERT INTO timetables"));
+  check(ins.length === 3, `時間割の INSERT が ${ins.length} 件（3件のはず）`);
+  check(ins.every(([, a]) => a[0] === USER), "他人の userId で書いている");
+  check(ins.some(([, a]) => a[1] === "haru" && a[2] === "00Z008"), "英字入りの ID を落としている");
+  check(ins.some(([, a]) => a[1] === "aki" && a[2] === "200001"), "秋の時間割を書いていない");
+  const prof = log.find(([sql]) => sql.startsWith("INSERT INTO line_profiles"));
+  check(prof?.[1][0] === USER && prof?.[1][1] === "2" && prof?.[1][2] === "engineering", "学年・学部を書いていない");
+}
+{ // 時間割を全部外した人 → 行が消えるだけ
+  const { log } = await putProfile({ grade: "1", faculty: "law", tt: { haru: [], aki: [] } }, { cookie: await sessCookie() });
+  check(log.filter(([sql]) => sql.startsWith("INSERT INTO timetables")).length === 0 &&
+        (log[0]?.[0] ?? "").startsWith("DELETE FROM timetables"), "空の時間割で古い行が残る");
+}
+{ // サイトで未回答（空）の項目は、LINE で答えた値を消さない
+  const { log } = await putProfile({ grade: "", faculty: "", tt: { haru: ["138531"], aki: [] } }, { cookie: await sessCookie() });
+  check(!log.some(([sql]) => sql.startsWith("INSERT INTO line_profiles")), "学年・学部が両方空なのに line_profiles を書いている");
+  const half = await putProfile({ grade: "3", faculty: "", tt: {} }, { cookie: await sessCookie() });
+  const p = half.log.find(([sql]) => sql.startsWith("INSERT INTO line_profiles"));
+  check(p && /COALESCE\(excluded\.faculty, line_profiles\.faculty\)/.test(p[0]) && p[1][2] === null,
+    "空の学部で LINE の回答を上書きしうる（COALESCE で守っていない）");
+}
+{ // 壊れた本文・違うメソッド・D1 障害
+  check((await putProfile("JSON ではない", { cookie: await sessCookie() })).res.status === 400, "壊れた本文で 400 を返していない");
+  check((await putProfile({}, { cookie: await sessCookie(), method: "POST" })).res.status === 405, "PUT 以外で 405 を返していない");
+  const down = await putProfile({ grade: "1" }, { cookie: await sessCookie(), db: fakeDB({ fail: true }) });
+  check(down.res.status === 500, "D1 が落ちたときに 500 を返していない");
+}
+
+// スキーマに表がある
+check(/CREATE TABLE IF NOT EXISTS timetables/.test(read("db/schema.sql")), "db/schema.sql に timetables が無い");
+
 // ── 結果 ─────────────────────────────────
 if (fails.length) {
   console.error(`NG ${fails.length}/${n}`);

@@ -1,7 +1,9 @@
 -- rakutan-favorites D1 データベースのスキーマ
 --
 -- お気に入り → 検索履歴の順で足す方針（2026-08-25 wangさん決定）。
--- line_user_id はLINEのuserId。学部・学年などの個人情報はここに持たない。
+-- line_user_id はLINEのuserId。名前・メール等は持たない。
+-- 学年・学部・時間割は 2026-10-05 から持つ（wang 判断。利用者の属性を数えるため。
+-- docs/superpowers/specs/2026-10-05-user-stats-design.md）。about の「利用データの扱い」に告知あり。
 --
 -- 適用:
 --   npx wrangler d1 execute rakutan-favorites --remote --file=db/schema.sql
@@ -29,4 +31,15 @@ CREATE TABLE IF NOT EXISTS line_profiles (
   grade TEXT,
   faculty TEXT,
   updated_at INTEGER NOT NULL
+);
+
+-- ログインした人の時間割（2026-10-05・利用者の属性を数えるため）。
+-- PUT /api/profile が本人の行を消して入れ直す（丸ごと置き換え）。
+-- term_group は 'haru' / 'aki'。通年の科目は両方に入る（store.js の termsFor と同じ）。
+CREATE TABLE IF NOT EXISTS timetables (
+  line_user_id TEXT NOT NULL,
+  term_group TEXT NOT NULL,
+  course_id TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (line_user_id, term_group, course_id)
 );

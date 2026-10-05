@@ -312,4 +312,14 @@ export async function handleLogout(request, env) {
   return json(200, { ok: true }, { "set-cookie": clearCookie(SESSION_COOKIE) });
 }
 
+/* ── PUT /api/profile が「誰の」データかを決める ─────────────
+   署名・期限が通った Cookie のときだけ userId を返す。/api/me と違い、
+   友だちかどうか（friend）は問わない ―― 書くのは本人の時間割なので、
+   ログインしていれば十分。未設定（configured でない）なら誰でもない。 */
+export async function sessionUser(request, env) {
+  if (!configured(env)) return null;
+  const sess = await verify(env.SESSION_SECRET, cookies(request)[SESSION_COOKIE] || "");
+  return sess && typeof sess.sub === "string" && sess.sub ? sess.sub : null;
+}
+
 export const __test = { sign, verify, safeNext, b64urlEncode, b64urlDecode };

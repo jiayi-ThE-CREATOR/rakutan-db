@@ -40,7 +40,7 @@ import { TRACKING_SLUGS, runDailyTraffic } from "./traffic.js";
 import {
   handleLineLogin, handleLineCallback, handleMe, handleLogout,
 } from "./linelogin.js";
-import { cleanGrade, cleanFaculty, cleanIds } from "./profile.js";
+import { cleanGrade, cleanFaculty, cleanIds, handleProfile } from "./profile.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -1244,6 +1244,9 @@ async function route(request, env, ctx) {
       return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
     }
     return handleKuchikomi(request, env, ctx);
+  }
+  if (url.pathname === "/api/profile") {
+    return handleProfile(request, env);
   }
   if (url.pathname === "/api/favorites") {
     return handleFavorites(request, env);
