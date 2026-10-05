@@ -280,6 +280,52 @@ check(/state:\s*\(\)\s*=>\s*state/.test(read("web/assets/gate.js")), "gate.js �
   check(events.filter((t) => t === "rk:store-changed").length === 2, "時間割・学年を書いても rk:store-changed が出ていない");
 }
 
+// ── 5. 集計 ───────────────────────────────────
+const R = await import(path.join(ROOT, "tools/users_report_lib.mjs"));
+{
+  const tags = new Map([["A", ["joho", "ai"]], ["B", ["kotoba"]], ["C", []]]);
+  const rows = [
+    { grade: "1", faculty: "engineering", ids: ["A", "B"], w: 2 },
+    { grade: "1", faculty: "law", ids: ["A"], w: 1 },
+    { grade: "", faculty: "", ids: [], w: 3 },
+    { grade: "2", faculty: "law", ids: ["C", "ZZZ"], w: 1 },
+  ];
+  const a = R.aggregate(rows, tags);
+  check(a.total === 7, `総数が ${a.total}（重みの和 7 のはず）`);
+  check(a.grade.get("1") === 3 && a.grade.get("未回答") === 3, "学年の分布（未回答を含む）が違う");
+  check(a.gradeFaculty.get("1|engineering") === 2, "学年×学部が違う");
+  check(a.courses.get("A") === 3, "科目の登録数（重み付き）が違う");
+  check(a.entries === 7, `時間割の科目（のべ）が ${a.entries}（2×2+1+2=7 のはず）`);
+  check(a.tags.get("joho") === 3 && a.tags.get("ai") === 3, "1科目に複数タグを、それぞれに数えていない");
+  check(a.tags.get("タグなし") === 2, "タグの無い科目・知らない科目を「タグなし」にしていない");
+  const sum = [...a.tags.values()].reduce((x, y) => x + y, 0);
+  check(sum > a.entries, "タグの合計がのべ数を超えていない（多重計上していない）");
+}
+{ // 伏せ字
+  check(R.cell(4, true) === "5未満" && R.cell(5, true) === "5", "外部向けで5未満を伏せていない／5を伏せている");
+  check(R.cell(2, false) === "2", "内部向けで伏せている");
+  check(R.pct(4, 100, true) === "—", "伏せたセルの比率を出している（分母から逆算できる）");
+  check(R.pct(25, 100, true) === "25.0%" && R.pct(1, 0, false) === "—", "比率の計算が違う");
+  const t = R.table(new Map([["1", 10], ["2", 3]]), 13, true, (k) => `${k}年`);
+  check(t[0][0] === "1年" && t[0][1] === "10" && t[1][1] === "5未満" && t[1][2] === "—", "表の並び・伏せ字が違う");
+}
+{ // CSV（カンマ・引用符を含むラベル）
+  const csv = R.toCsv(["名前", "数"], [['芸術, "音楽"', "5"]]);
+  check(csv === '名前,数\n"芸術, ""音楽""",5\n', `CSV の引用が違う: ${JSON.stringify(csv)}`);
+}
+{ // API の行を rows に直す
+  const ae = R.rowsFromAE([{ grade: "1", faculty: "law", ids: "138531,00Z008", w: "2" }, { grade: "", faculty: "", ids: "", w: 1 }]);
+  check(ae[0].w === 2 && ae[0].ids.length === 2 && ae[1].ids.length === 0, "AE の行の読み替えが違う（空の ids を [\"\"] にしていないか）");
+  const d1 = R.rowsFromD1(
+    [{ line_user_id: "U1", grade: "1", faculty: "law" }, { line_user_id: "U2", grade: null, faculty: "science" }],
+    [{ line_user_id: "U1", course_id: "A" }, { line_user_id: "U1", course_id: "A" }, { line_user_id: "U3", course_id: "B" }]);
+  const byIds = Object.fromEntries(d1.map((r) => [r.ids.join(",") || "-", r]));
+  check(d1.length === 3, `D1 の人数が ${d1.length}（U1・U2・U3 の3人のはず）`);
+  check(byIds["A"]?.grade === "1" && byIds["A"]?.ids.length === 1, "春秋に同じ科目がある人を2つに数えている");
+  check(byIds["B"]?.grade === "" && byIds["-"]?.grade === "", "問診の無い人・null の学年を空にしていない");
+  check(d1.every((r) => r.w === 1), "B の重みが1でない");
+}
+
 // ── 結果 ─────────────────────────────────
 if (fails.length) {
   console.error(`NG ${fails.length}/${n}`);
