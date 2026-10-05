@@ -40,6 +40,7 @@ import { TRACKING_SLUGS, runDailyTraffic } from "./traffic.js";
 import {
   handleLineLogin, handleLineCallback, handleMe, handleLogout,
 } from "./linelogin.js";
+import { cleanGrade, cleanFaculty, cleanIds } from "./profile.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -1097,7 +1098,7 @@ const OLD_HOST = "rakutan-db.wjy20050815.workers.dev";
  * 置かないもの: Cookie・端末ID・IP・検索語・科目ID。
  * 残すのは「いつ・どの種類の操作が・どのパスで」の3つだけ。
  */
-const HIT_EVENTS = new Set(["pv", "search", "detail"]);
+const HIT_EVENTS = new Set(["pv", "search", "detail", "snap"]);
 
 // JS を動かすクローラ（Googlebot のレンダリング・監視サービス・Lighthouse）を落とす。
 const HIT_BOT_UA = /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|monitor|uptime|preview/i;
@@ -1137,6 +1138,20 @@ async function handleHit(request, env) {
      効き目は自前の数字でも比較できる。 */
   let path = "/";
   try { path = new URL(String(body?.p ?? "/"), "https://x").pathname.slice(0, 64); } catch (e) {}
+
+  /* 1日1回のスナップショット（利用者の属性。spec 2026-10-05-user-stats）。
+     送るかどうか（その日の1回目か）は analytics.js が決める。ここは中身を検証して書くだけ。
+     パスは要らないので空。訪問・UU には数えない（doubles は件数の1だけ）。 */
+  if (event === "snap") {
+    try {
+      env.STATS?.writeDataPoint({
+        blobs: ["snap", "", cleanGrade(body?.g), cleanFaculty(body?.f), cleanIds(body?.ids).join(",")],
+        doubles: [1, 0, 0, 0],
+        indexes: ["snap"],
+      });
+    } catch (e) {}
+    return done();
+  }
 
   const fresh = body?.n === 1 ? 1 : 0;   // その訪問の1回目（クライアントの sessionStorage 判定）
   /* UU の印（その端末のその日・その月の1回目。判定は analytics.js の localStorage）。
