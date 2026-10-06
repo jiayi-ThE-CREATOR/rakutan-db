@@ -24,6 +24,8 @@
  *                      ②は押した先で本人がやめても分からないので、
  *                      画面側の取り消し導線を消さないこと
  *                      （2026-09-02 マイページの LINE 連携で追加）
+ *
+ * 学年・学部・時間割を書いたら rk:store-changed を出す（usersync.js が聞いている）。
  */
 (() => {
   const K_SET = "osaka_u_settings";
@@ -89,7 +91,12 @@
     }
     return out;
   }
-  const writeTT = (tt) => write(K_TT, JSON.stringify(tt));
+  /* 学年・学部・時間割が書かれたら知らせる。usersync.js がログイン者の分を
+     サーバーへ送り直す合図（spec 2026-10-05-user-stats）。 */
+  const changed = () => {
+    try { window.dispatchEvent(new CustomEvent("rk:store-changed")); } catch (e) {}
+  };
+  const writeTT = (tt) => { write(K_TT, JSON.stringify(tt)); changed(); };
   const term = (t) => (TERMS.includes(t) ? t : "aki");
 
   window.rkStore = {
@@ -104,6 +111,7 @@
       if (faculty !== undefined) o.faculty = faculty;
       if (grade !== undefined) o.grade = grade;
       write(K_SET, JSON.stringify(o));
+      changed();
     },
 
     isOnboarded()  { return read(K_ON) === "1"; },
@@ -135,6 +143,16 @@
       if (now) ids[id] = Date.now(); else delete ids[id];
       write(K_FAV, JSON.stringify({ v: 1, ids }));
       return now;
+    },
+
+    /* 学年・学部・時間割の写し。usersync.js が匿名の計測（rkSnap）と
+       ログイン者の保存（PUT /api/profile）の両方にこれを渡す。
+       2コマ以上の科目は slots に同じ ID が並ぶので、重複を消す。 */
+    snapshot() {
+      const p = this.getProfile();
+      const tt = readTT();
+      const ids = (t) => [...new Set([...Object.values(tt[t].slots), ...tt[t].extra].map(String))];
+      return { grade: p.grade, faculty: p.faculty, tt: { haru: ids("haru"), aki: ids("aki") } };
     },
 
     getTimetable(t) { return readTT()[term(t)]; },

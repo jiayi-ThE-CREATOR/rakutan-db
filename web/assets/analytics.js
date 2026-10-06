@@ -42,6 +42,13 @@
  *   つまり UU は**上に振れる**。サーバー側で IP から判定する案は、独自ドメインが
  *   nginx（VPS）経由で Worker から見える IP が全部同じなので使えない。
  *
+ * ■ 属性のスナップショット（2026-10-05 追加・spec 2026-10-05-user-stats）
+ *
+ *   window.rkSnap({ grade, faculty, tt }) を usersync.js が呼ぶ。その日（JST）の
+ *   1回目だけ、学年・学部・時間割の科目IDを e:"snap" で送る。日付印は rk_sd。
+ *   ここでも端末IDは送らない。学年・学部・時間割を読むのは store.js で、
+ *   このファイルは渡された値を送るだけ。
+ *
  * ■ チームに配る URL（1人1回・ブラウザごと）
  *
  *    https://rakuhan.nocode-sol.co.jp/?nostats=1   … 以後この端末を数えない
@@ -56,13 +63,15 @@
  * ■ store.js を通していない理由
  *   store.js は index.html と mypage.html にしか載っていない。計測は6ページ
  *   全部に載る。読み込み順の前後で計測が消える方が事故なので、ここだけは
- *   localStorage を直に触る。鍵は rk_nostats と UU の日付印 rk_d・rk_m の3つだけに留めること。
+ *   localStorage を直に触る。鍵は rk_nostats と UU の日付印 rk_d・rk_m、
+ *   スナップショットの日付印 rk_sd の4つだけに留めること。
  */
 (() => {
   const KEY = "rk_nostats";
   const SKEY = "rk_s";            // 「この訪問はもう数えた」の印（タブを閉じると消える）
   const DKEY = "rk_d";            // 「きょう（JST）はもう数えた」日付 YYYY-MM-DD
   const MKEY = "rk_m";            // 「今月（JST）はもう数えた」月 YYYY-MM
+  const SDKEY = "rk_sd";          // 「きょう（JST）は属性をもう送った」日付 YYYY-MM-DD
   // Cloudflare Web Analytics のサイトトークン。公開されている値（HTML に出る）。
   const TOKEN = "b0324782e4e44ca58b45e4dd0c270112";
   const HIT_URL = "/api/hit";
@@ -119,6 +128,19 @@
   // JST の日付。JST は夏時間が無いので +9 固定でよい。
   const jstDay = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
 
+  /* sendBeacon はページを離れる途中でも届く。ここで待たない
+     ―― 計測のために操作を1msでも遅らせない。 */
+  function send(body) {
+    try {
+      if (navigator.sendBeacon &&
+          navigator.sendBeacon(HIT_URL, new Blob([body], { type: "application/json" }))) return;
+      fetch(HIT_URL, {
+        method: "POST", body, keepalive: true,
+        headers: { "Content-Type": "application/json" },
+      }).catch(() => {});
+    } catch (e) {}
+  }
+
   let sent = 0;
   const lastKey = Object.create(null);
 
@@ -141,21 +163,22 @@
       d: isPv ? firstIn(DKEY, day) : 0,
       m: isPv ? firstIn(MKEY, day.slice(0, 7)) : 0,
     });
-    /* sendBeacon はページを離れる途中でも届く。ここで待たない
-       ―― 計測のために操作を1msでも遅らせない。 */
-    try {
-      if (navigator.sendBeacon &&
-          navigator.sendBeacon(HIT_URL, new Blob([body], { type: "application/json" }))) return;
-      fetch(HIT_URL, {
-        method: "POST", body, keepalive: true,
-        headers: { "Content-Type": "application/json" },
-      }).catch(() => {});
-    } catch (e) {}
+    send(body);
+  }
+
+  /* 1日1回の属性スナップショット。印（rk_sd）を残せない端末は送らない
+     ―― 毎回「その日の1回目」に見えて上に膨らむより、数え損ねる方を選ぶ（UU と同じ）。 */
+  function snap(s) {
+    if (excluded) return;
+    if (!firstIn(SDKEY, jstDay())) return;
+    const ids = [...new Set([...(s?.tt?.haru || []), ...(s?.tt?.aki || [])].map(String))];
+    send(JSON.stringify({ e: "snap", g: String(s?.grade || ""), f: String(s?.faculty || ""), ids }));
   }
 
   /* 除外された端末でも生やす。app.js 側に「計測が有効なら」という
      条件分岐を持ち込まないため（分岐が増えると必ず片方が腐る）。 */
   window.rkTrack = hit;
+  window.rkSnap = snap;
 
   if (excluded) return;
 

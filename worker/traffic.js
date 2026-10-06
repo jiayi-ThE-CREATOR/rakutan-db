@@ -60,7 +60,7 @@ SELECT formatDateTime(timestamp, '%Y-%m-%d', 'Asia/Tokyo') AS day,
        SUM(_sample_interval * double1) AS n,
        SUM(_sample_interval * double2) AS visits
 FROM ${STATS_DATASET}
-WHERE timestamp >= NOW() - INTERVAL '9' DAY
+WHERE timestamp >= NOW() - INTERVAL '9' DAY AND blob1 != 'snap'
 GROUP BY day, event, path
 ORDER BY day ASC
 FORMAT JSON`;

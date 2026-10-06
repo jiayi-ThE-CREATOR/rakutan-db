@@ -91,7 +91,7 @@ function run(href, initial = {}, throws = false, session = {}) {
   ctx.globalThis = ctx;
   vm.createContext(ctx);
   vm.runInContext(SRC, ctx);
-  return { loaded, shown, hits, ls: ctx.localStorage, ss: ctx.sessionStorage, track: ctx.window.rkTrack };
+  return { loaded, shown, hits, ls: ctx.localStorage, ss: ctx.sessionStorage, track: ctx.window.rkTrack, snap: ctx.window.rkSnap };
 }
 
 { // 普通の訪問者
@@ -198,6 +198,39 @@ const MONTH = TODAY.slice(0, 7);
 { // localStorage が全滅していたら数えない（上に膨らませない）
   const { hits } = run("https://rakuhan.nocode-sol.co.jp/", {}, true);
   check(hits[0]?.body.d === 0 && hits[0]?.body.m === 0, "印を残せない端末を毎回 UU として数えている");
+}
+
+// ── 3c. 属性のスナップショット（rkSnap・1日1回） ──
+const SNAP = { grade: "1", faculty: "law", tt: { haru: ["138531", "00Z008"], aki: ["138531"] } };
+{ // その日の1回目だけ送る
+  const { hits, ls, snap } = run("https://rakuhan.nocode-sol.co.jp/");
+  check(typeof snap === "function", "window.rkSnap が無い");
+  snap?.(SNAP);
+  const s = hits.find((h) => h.body.e === "snap");
+  check(s?.body.g === "1" && s?.body.f === "law", "snap に学年・学部が載っていない");
+  check(JSON.stringify(s?.body.ids) === '["138531","00Z008"]', "春秋の時間割を重複なしで1本にしていない");
+  check(ls._dump().rk_sd === TODAY, "snap の日付印 rk_sd が残っていない");
+  snap?.(SNAP);
+  check(hits.filter((h) => h.body.e === "snap").length === 1, "同じ日に snap を2回送っている");
+}
+{ // 前の日に送った端末は今日また送る
+  const { hits, snap } = run("https://rakuhan.nocode-sol.co.jp/", { rk_sd: "2000-01-01" });
+  snap?.(SNAP);
+  check(hits.some((h) => h.body.e === "snap"), "日が変わったのに snap を送っていない");
+}
+{ // 除外された端末・localStorage が全滅の端末は送らない
+  const ex = run("https://rakuhan.nocode-sol.co.jp/", { rk_nostats: "1" });
+  ex.snap?.(SNAP);
+  check(typeof ex.snap === "function" && !ex.hits.some((h) => h.body.e === "snap"), "除外された端末で snap を送っているか、rkSnap が無い");
+  const priv = run("https://rakuhan.nocode-sol.co.jp/", {}, true);
+  priv.snap?.(SNAP);
+  check(typeof priv.snap === "function" && !priv.hits.some((h) => h.body.e === "snap"), "印を残せない端末で snap を送っている（毎回数えてしまう）");
+}
+{ // 中身が空・壊れていても落ちずに送る（未回答も数の一部）
+  const { hits, snap } = run("https://rakuhan.nocode-sol.co.jp/");
+  snap?.(undefined);
+  const s = hits.find((h) => h.body.e === "snap");
+  check(s && s.body.g === "" && s.body.ids.length === 0, "空のスナップショットを送っていない");
 }
 
 // ── 4. Worker の POST /api/hit ────────────────

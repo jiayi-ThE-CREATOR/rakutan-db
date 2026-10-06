@@ -43,7 +43,7 @@ SELECT formatDateTime(timestamp, '%Y-%m-%d', 'Asia/Tokyo') AS day,
        SUM(_sample_interval * double2) AS visits,
        SUM(_sample_interval * double3) AS uu
 FROM ${DATASET}
-WHERE timestamp >= NOW() - INTERVAL '${days}' DAY
+WHERE timestamp >= NOW() - INTERVAL '${days}' DAY AND blob1 != 'snap'
 GROUP BY day, event
 ORDER BY day DESC, event ASC
 FORMAT JSON`;
