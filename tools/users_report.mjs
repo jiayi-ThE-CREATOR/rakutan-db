@@ -140,7 +140,11 @@ console.log("A と B は単位が違うので足さないこと。");
 try { section("a", "端末・日", await fetchA()); }
 catch (e) { console.error(`\nA を取れませんでした: ${e.message}`); }
 try { section("b", "人", await fetchB()); }
-catch (e) { console.error(`\nB を取れませんでした: ${e.message}\n（403 ならトークンに D1 の読み取り権限が無い）`); }
+catch (e) {
+  const hint = / 403 /.test(e.message) ? "\n（トークンに D1 の読み取り権限が無い。作り方はこのファイルの先頭）"
+    : /no such table: timetables/.test(e.message) ? "\n（D1 に timetables がまだ無い。db/schema.sql を --remote で当てる）" : "";
+  console.error(`\nB を取れませんでした: ${e.message}${hint}`);
+}
 
 if (csvDir) {
   for (const [file, header, rowsT] of out) writeFileSync(path.join(csvDir, file), toCsv(header, rowsT));
