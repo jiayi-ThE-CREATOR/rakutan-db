@@ -23,10 +23,10 @@
  *   tools/stats.mjs と同じトークンに **アカウント / D1 / 読み取り** を足す
  *   （Account Analytics / 読み取り だけでは B が 403 になる）。
  */
-import { readFileSync, writeFileSync, mkdirSync, realpathSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { aggregate, table, toCsv, rowsFromAE, rowsFromD1, showGroup } from "./users_report_lib.mjs";
+import { aggregate, table, toCsv, rowsFromAE, rowsFromD1, showGroup, insideDir } from "./users_report_lib.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ACCOUNT = process.env.CF_ACCOUNT_ID;
@@ -48,7 +48,7 @@ if (!Number.isInteger(days) || days < 1 || days > 90) {
   process.exit(1);
 }
 /* 作る前に判定する（作ってから弾くと、リポジトリの中に空のフォルダが残る）。 */
-if (csvDir && (path.resolve(csvDir) + path.sep).startsWith(realpathSync(ROOT) + path.sep)) {
+if (csvDir && insideDir(csvDir, ROOT)) {
   console.error("--csv にリポジトリの中は指定できません（公開リポジトリ。内部の数字が出てしまう）。");
   process.exit(1);
 }

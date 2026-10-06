@@ -47,6 +47,7 @@ B＝LINE ログイン者（`PUT /api/profile`・D1 の `line_profiles`＋`timeta
 - 科目IDは数字だけではない（`00Z008` など324件）。検証は `/^[0-9A-Z]{1,12}$/`
 - `line_profiles` は LINE bot も読む。サイトで空のまま送られた項目は COALESCE で上書きしない（LINE で答えた値を消さない）
 - 既存の集計（毎朝の速報・stats.mjs）は event で絞っていない SQL があったので `blob1 != 'snap'` を足した
+- LINE の「学年・学部を変える」（`action=reset_profile` → `clearProfile`）は `timetables` を消さない。あれは聞き直すための操作で「忘れて」ではない。消してほしい連絡は上の手作業の DELETE で対応する
 
 ---
 
