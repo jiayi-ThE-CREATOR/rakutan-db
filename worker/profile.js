@@ -23,6 +23,9 @@ const FACULTY_KEYS = new Set([
 const GRADES = new Set(["1", "2", "3", "4", "5", "6"]);
 const COURSE_ID_RE = /^[0-9A-Z]{1,12}$/;
 const MAX_IDS = 80;
+/* 見る要素の上限。/api/hit は誰でも叩けるので、不正な要素だらけの巨大配列を
+   全部なめさせない（有効な ID が80件たまるまで回る、だけでは止まらない）。 */
+const MAX_SCAN = 200;
 
 export function cleanGrade(v) {
   const s = String(v ?? "");
@@ -37,7 +40,7 @@ export function cleanFaculty(v) {
 export function cleanIds(v) {
   if (!Array.isArray(v)) return [];
   const out = [];
-  for (const x of v) {
+  for (const x of v.slice(0, MAX_SCAN)) {
     const s = String(x);
     if (COURSE_ID_RE.test(s) && !out.includes(s)) out.push(s);
     if (out.length >= MAX_IDS) break;

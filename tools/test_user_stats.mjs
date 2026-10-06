@@ -33,6 +33,13 @@ check(JSON.stringify(cleanIds(["138531", "00Z008", "138531"])) === '["138531","0
 check(cleanIds(["<script>", "a1", "", 12345]).join(",") === "12345", "形の違う ID を通している");
 check(cleanIds("138531").length === 0 && cleanIds(undefined).length === 0, "配列でないものを受けている");
 check(cleanIds(Array.from({ length: 200 }, (_, i) => String(100000 + i))).length === 80, "81件目以降を捨てていない");
+{ // 不正な要素だらけの巨大な配列でも、全部は見ない（/api/hit は誰でも叩ける）
+  const huge = [...Array(1_000_000).fill("<bad>"), "138531"];
+  const t0 = Date.now();
+  const r = cleanIds(huge);
+  check(r.length === 0, "見る件数に上限が無い（巨大配列の最後の ID まで拾っている）");
+  check(Date.now() - t0 < 50, `巨大配列の検証に ${Date.now() - t0}ms かかっている`);
+}
 
 // 学部キーの写しが正本（requirements.json）とずれていないこと
 const REQ = JSON.parse(read("web/data/requirements.json"));
@@ -346,6 +353,18 @@ const R = await import(path.join(ROOT, "tools/users_report_lib.mjs"));
 { // 外部向けでは A（端末・日）の内訳を出さない（1人が20日来れば20になり、伏せ字の門が効かない）
   const src = read("tools/users_report.mjs");
   check(/isPublic\s*&&\s*prefix\s*===\s*"a"/.test(src), "--public で A の内訳表を出している");
+}
+{ // --csv の「リポジトリの中か」判定は symlink 経由でも効く
+  const { mkdtempSync, symlinkSync, rmSync } = await import("node:fs");
+  const os = await import("node:os");
+  const tmp = mkdtempSync(path.join(os.tmpdir(), "rk-"));
+  const link = path.join(tmp, "repo-link");
+  symlinkSync(ROOT, link);
+  check(R.insideDir?.(path.join(link, "out", "2026-10"), ROOT) === true, "symlink 経由のリポジトリ内パスを外と判定している");
+  check(R.insideDir?.(path.join(ROOT, "out"), ROOT) === true, "リポジトリ直下のパスを外と判定している");
+  check(R.insideDir?.(path.join(tmp, "stats"), ROOT) === false, "リポジトリ外のパスを中と判定している");
+  check(R.insideDir?.(ROOT + "-other/out", ROOT) === false, "名前が前方一致するだけの別フォルダを中と判定している");
+  rmSync(tmp, { recursive: true, force: true });
 }
 { // CSV（カンマ・引用符を含むラベル）
   const csv = R.toCsv(["名前", "数"], [['芸術, "音楽"', "5"]]);

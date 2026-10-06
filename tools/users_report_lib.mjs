@@ -10,7 +10,24 @@
  *   ・科目・タグの表は「のべ数」を出すが、伏せるかどうかは**人数**で決める
  *     （1人が同じタグの科目を6つ入れても、その1人の時間割が見えないように）
  */
+import { existsSync, realpathSync } from "node:fs";
+import path from "node:path";
+
 const MIN_PUBLIC = 5;
+
+/* target が root の中か。どちらも symlink を解いてから比べる。target はまだ無い
+   フォルダでもよいので、存在する一番近い親まで遡って realpath を取り、残りを継ぎ足す。 */
+export function insideDir(target, root) {
+  let base = path.resolve(target);
+  const rest = [];
+  while (!existsSync(base) && path.dirname(base) !== base) {
+    rest.unshift(path.basename(base));
+    base = path.dirname(base);
+  }
+  const real = path.join(realpathSync(base), ...rest);
+  const realRoot = realpathSync(root);
+  return real === realRoot || real.startsWith(realRoot + path.sep);
+}
 
 export function aggregate(rows, courseTags) {
   const add = (m, k, w) => m.set(k, (m.get(k) || 0) + w);
