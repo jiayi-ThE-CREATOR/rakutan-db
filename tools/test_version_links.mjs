@@ -96,11 +96,14 @@ for (const width of [1280, 390]) {   // PC と スマホ。幅で出方が変わ
         push(null, "リンクを隠している（飛び先がこの画面に無い）"); await page.close(); continue;
       }
 
-      const wantPath = href.split("#")[0] || "/";
+      // ?open= のようなクエリは path から外して別に見る（location.pathname には入らない）
+      const beforeHash = href.split("#")[0];
+      const wantPath = beforeHash.split("?")[0] || "/";
+      const query = beforeHash.includes("?") ? "?" + beforeHash.split("?")[1] : "";
       const hash = href.includes("#") ? "#" + href.split("#")[1] : null;
       const cross = wantPath !== "/";
       if (cross) {
-        await page.goto(base + wantPath + pageSuffix + (hash || ""), { waitUntil: "domcontentloaded" });
+        await page.goto(base + wantPath + pageSuffix + query + (hash || ""), { waitUntil: "domcontentloaded" });
         await page.waitForTimeout(800);
       } else {
         await a.scrollIntoViewIfNeeded();
@@ -112,17 +115,21 @@ for (const width of [1280, 390]) {   // PC と スマホ。幅で出方が変わ
 
       const res = await page.evaluate((h) => {
         const dlgOpen = document.getElementById("verDlg")?.open === true;
-        if (!h) return { path: location.pathname, dlgOpen, found: true, visible: true };
+        const path = location.pathname, search = location.search;
+        if (!h) return { path, search, dlgOpen, found: true, visible: true };
         const t = document.querySelector(h);
-        if (!t) return { path: location.pathname, dlgOpen, found: false, visible: false };
+        if (!t) return { path, search, dlgOpen, found: false, visible: false };
         const r = t.getBoundingClientRect();
-        return { path: location.pathname, dlgOpen, found: true, top: Math.round(r.top),
+        return { path, search, dlgOpen, found: true, top: Math.round(r.top),
           visible: r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight };
       }, hash);
 
       const pathOk = cross ? res.path === wantPath + pageSuffix
                            : (res.path === wantPath || res.path === wantPath + "/");
+      // クエリ付きは、押したあとの URL にそのクエリが残っているか（?nostats 等の付け足しは許す）
+      const queryOk = !query || query.slice(1).split("&").every((kv) => res.search.includes(kv));
       if (!pathOk) push(false, `遷移先が ${res.path}`);
+      else if (!queryOk) push(false, `クエリが ${res.search || "(無し)"}（期待 ${query}）`);
       else if (!res.found) push(false, `飛び先の id ${hash} が無い`);
       else if (!res.visible) push(false, `飛び先が画面外（top=${res.top}）`);
       else if (!cross && res.dlgOpen) push(false, "ダイアログが閉じていない");
