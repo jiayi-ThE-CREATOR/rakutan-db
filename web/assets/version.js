@@ -8,12 +8,14 @@
  *   version "1.2" / "1.2.1"（画面には v1.2。右下のバッジにも出る）
  *           MAJOR.MINOR.PATCH の三段。付け方は下の「版番号の付け方」
  *   title   その版を一言で（過去の版は、畳んだ1行にこれだけが出る）
- *   items   [{ tag, lead|head, text?, icon?, href? }]
+ *   items   [{ tag, lead|head, text?, icon?, href?, img? }]
  *           tag  "new" | "improve" | "fix"（この3つ以外は書けない）
  *           lead 太字の見出し（20文字まで）。畳みの中の項目はこれが要る
  *           head 主打にするときの見出し（lead の代わりに書く。下の「主打」）
  *           text 見出しの下に続く説明。lead なら省いてよい
  *           href その機能が実際にある場所（下の「リンク」）
+ *           img  主打カードの説明の下に出す画面写真（"/assets/version/…"）。
+ *                リンクで飛んでも見えない機能（科目を選んで答え進めないと出る設問など）に使う
  *
  * ── 見出し（lead）―― 畳みの中も箇条書きにしない ───
  *   畳みを開いた人が最初にするのは「自分に関係あるか」の判定で、
@@ -87,6 +89,22 @@
  */
 (() => {
   const RELEASES = [
+    {
+      date: "2026-10-07",
+      version: "1.4",
+      title: "教科書がわかる・先生の名前でさがせる",
+      items: [
+        { tag: "new", icon: "data", href: "/?open=135129",
+          head: "科目の詳細に教科書が出ます",
+          text: "シラバスで指定された本を、著者・書名・出版社・出版年で1冊ずつ出します" },
+        { tag: "new", icon: "search", href: "/#q",
+          head: "先生の名前でもさがせます",
+          text: "検索窓に担当教員の名前を入れても、科目をしぼりこめます" },
+        { tag: "new", icon: "chat", img: "/assets/version/kuchikomi-textbook.png",
+          head: "口コミで教科書のことも聞きます",
+          text: "必要だったか・いくらか・どこで買ったかを答えられます" },
+      ],
+    },
     {
       date: "2026-09-23",
       version: "1.3",
@@ -392,7 +410,8 @@
     a.append(el("span", "verJumpArrow", "→"));
     a.addEventListener("click", (e) => {
       const url = new URL(href, location.href);
-      if (url.pathname !== location.pathname) return;   // 別ページ：ブラウザに任せる
+      /* 別ページ、または ?open= などで同じページを開き直すとき：ブラウザに任せる */
+      if (url.pathname !== location.pathname || url.search !== location.search) return;
       e.preventDefault();
       dlg.close();
       const target = url.hash && document.querySelector(url.hash);
@@ -472,6 +491,13 @@
         txt.append(el("b", "verHeadTitle", it.head));
         if (it.text) txt.append(el("span", "verHeadText", it.text));
         if (it.href) txt.append(jump(it.href));
+        if (it.img) {
+          const im = el("img", "verHeadImg");
+          im.src = it.img;
+          im.alt = it.head;
+          im.loading = "lazy";
+          txt.append(im);
+        }
         li.append(icon(it.icon), txt);
         ul.append(li);
       });

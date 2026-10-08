@@ -145,6 +145,13 @@ for (const rel of releases) {
         `${where}: href はサイトの中（"/" で始まる）だけ「${it.href}」`);
       check(!/^\/\//.test(it.href), `${where}: href が "//" で始まっている（外部扱いになる）「${it.href}」`);
     }
+    // 画面写真もサイトの中の画像だけ。ファイルが無いと壊れた画像が出るので、実在も見る。
+    if (it.img !== undefined) {
+      check(typeof it.img === "string" && it.img.startsWith("/assets/version/"),
+        `${where}: img は "/assets/version/" の中だけ「${it.img}」`);
+      check(existsSync(new URL("../web" + it.img, import.meta.url)),
+        `${where}: img のファイルが無い「${it.img}」`);
+    }
   }
   // ── 主打（head 付きの項目）────────────────
   // 流し書きに戻らないための門。版ごとに「今回いちばん変わったこと」を

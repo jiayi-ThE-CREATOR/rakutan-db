@@ -93,6 +93,9 @@
   line-height:1.45;color:var(--ink)}
 .verHeadText{display:block;margin-top:2px;font-size:var(--fs-sm);
   line-height:1.6;color:var(--soft)}
+/* 画面写真（img）。リンクで飛んでも見えない機能を、その場で見せる */
+.verHeadImg{display:block;width:100%;height:auto;margin-top:var(--sp-2);
+  border:1px solid var(--rule);border-radius:var(--r-md)}
 
 /* ── 畳んだ一覧（新しい機能 / 改善 / 直した不具合）───
    既定は閉じたまま。<details> なので開閉の JS は要らず、
