@@ -160,6 +160,28 @@ if real:
     eq(missing, [], "実データの受講年が全件埋まっている")
 
 
+# ── share（同じ授業の別クラスで口コミを共有） ──────────────
+def course(cid, title="数理科学 I", ins="髙野　渉,梅垣　俊仁", raw=None):
+    return {"id": cid, "title": title, "instructor": ins,
+            "eval_raw": raw if raw is not None else {"期末試験": 70.0, "小テスト": 30.0}}
+
+cs = [course("A"), course("B", title="数理科学　I"),          # 空白の差は無視
+      course("C", ins="梅垣　俊仁,髙野　渉"),                  # 教員の順は無視
+      course("D", ins="朝倉　暢彦"),                           # 先生が違う
+      course("E", raw={"レポート": 100.0}),                    # 内訳が違う
+      course("F", ins=None)]                                   # 教員不明は共有しない
+agg = reviews.aggregate(reviews.share(
+    [rv("A", attendance=0, note="簡単"), rv("C", attendance=2), rv("D"), rv("F")], cs))
+eq(sorted(agg), ["A", "B", "C", "D", "F"], "共有は A・B・C だけ、D・E・F は自分の分だけ")
+eq([agg[k]["n"] for k in "ABC"], [2, 2, 2], "兄弟クラスはどれも2件")
+eq([agg[k].get("shared_classes") for k in "ABCDF"], [3, 3, 3, None, None],
+   "shared_classes は共有しているときだけ")
+eq(agg["B"]["notes"], ["簡単"], "書かれていないクラスにも一言が載る")
+# 同じ人が2クラスに同じ回答を送った → n は2、n_distinct は1
+agg = reviews.aggregate(reviews.share([rv("A", attendance=1), rv("B", attendance=1)], cs))
+eq((agg["A"]["n"], agg["A"]["n_distinct"]), (2, 1), "同じ回答は1人に数える")
+
+
 print(f"  通過 {ok} 件")
 for f in fail:
     print(f"  ✗ {f}")

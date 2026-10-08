@@ -1498,9 +1498,12 @@ async function openPanel(id, push = true){
   /* readable===0 のとき「口コミ」を名乗らない ―― 一言を書いた人が
      1人もいないので、「実際に取った人が書いたもの」は嘘になる。
      選択式の回答はあるので、その集計であることだけを伝える。 */
-  $("#panelSub").textContent = readable
+  /* 同じ授業の別クラス（同じ先生・同じ成績の内訳）と口コミを共有している科目。
+     月1のクラスに金5で書かれた口コミが並ぶので、断っておく（reviews.share）。 */
+  const shared = c.reviews?.shared_classes ? `（同じ先生の全${c.reviews.shared_classes}クラス共通）` : "";
+  $("#panelSub").textContent = (readable
     ? `口コミ ${readable}件 ― 実際に取った人が書いたもの`
-    : `回答 ${n}件の集計 ― 書かれた口コミはまだありません`;
+    : `回答 ${n}件の集計 ― 書かれた口コミはまだありません`) + shared;
   $("#panelWrite").href = `/kuchikomi?c=${encodeURIComponent(id)}`;
   /* readable===0 のときは panelListHtml を呼ばない。呼ぶと
      「1件ずつ」の区切りの下に「まだ誰も書いていない」が出るが、
