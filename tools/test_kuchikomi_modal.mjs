@@ -172,9 +172,15 @@ for (const [label, w, h] of [["スマホ", 390, 844], ["PC", 1280, 900]]){
        2行に折り返る壊れ方だと、幅には収まって scrollWidth ≈ clientWidth
        になる代わりに縦に伸びる ―― そちらは高さで見る。
        このアサーションには十分な長さの一言が要るので、先頭カードに頼らず
-       口コミ 135312（実測49文字、390px 幅で scrollWidth 561px /
-       clientWidth 142〜168px と、確実に切れる長さ）を id 名指しで使う。 */
-    const LONG_NOTE_ID = "135312";
+       一覧で一番長いプレビューを使う。 */
+    /* 2026-10-08：口コミを別クラスと共有（reviews.share）したら 135312 が既定の一覧から
+       押し出され、一言の先頭も短いものに変わった。id の名指しはやめ、一覧に出ている
+       プレビューのうち一番長いものを使う（長さは下の scrollWidth で確かめる）。 */
+    const LONG_NOTE_ID = await p.evaluate(() => {
+      const xs = [...document.querySelectorAll(".card .cardActs .rvBtn small")];
+      xs.sort((a, b) => b.textContent.length - a.textContent.length);
+      return xs[0]?.closest(".card")?.dataset.id || "";
+    });
     const trunc = await p.evaluate(id => {
       const s = document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn small`);
       if (!s) return { none: true };
