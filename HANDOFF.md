@@ -17,6 +17,44 @@
 
 ---
 
+## 2026-10-12 ｜ 全科目に「教室」を載せた（ログイン後の KOAN から） ｜ Claude（wang） → 全員
+
+公開シラバスは教室を伏せている（「外部公開用に、教室等の一部項目が非表示」）。ログイン後のシラバス参照
+（`SYW0001000-flow`）の詳細にだけ「教室／Room」が出るので、wang の cookie で全件を取った。
+**公開するかは wang が判断した（2026-10-12、全員に見せる）。**
+
+### 1. 何が動く状態か
+
+    python3 scrape/rooms.py --limit 5      # cookie は ~/.rakuhan_koan_list.curl（下の罠を参照）
+    python3 scrape/rooms.py                # 全件・2秒間隔で約4時間半。中断しても続きから
+    python3 tools/merge_rooms.py           # data/rooms.json → courses.built.json の room
+    python3 pages.py                       # 静的ページに「教室（KOAN 日付 時点）」の行
+
+- 画面はカードと右の詳細の meta 行。ずっと「—」だったキャンパスの欄（campus は全件 None）を `c.room||c.campus||"—"` にした
+- `data/rooms.json`（科目ID → 教室の文字列）は commit する。cookie と HTML は残さない
+
+### 2. 何をしていないか
+
+- **教室は曜限ごとに分けていない。** KOAN の欄が分かれていない（例: 082329 は 木1,金1 に「U3-211(ネク),GSE情A,GSE情B」）。文字列をそのまま出す
+- 半角カナ（`SCｾﾐﾅｰA`）も原文のまま。建物名への言い換えもしない
+- 学期の途中で教室が変わっても追わない。静的ページに取得日を出している
+- `build.py` を全件で流し直すと room が消える（textbooks と同じ）。流したら `merge_rooms.py` → `pages.py`
+
+### 3. 次の人が最初に打つコマンド
+
+    python3 -c "import json;r=json.load(open('data/rooms.json'));print(r['_meta'],sum(1 for v in r['rooms'].values() if v))"
+
+### 4. 踏んだ罠
+
+- **ログインした cookie でも、公開側のフロー（`SYW4201600-flow`）を開くと教室は伏せられたまま。** ログイン側の `SYW0001000-flow` を開く。入口は `campusportal.do?page=main&tabId=sy` に書いてある
+- ログイン側でも検索（`koan.search`）を1回通してからでないと詳細が「エラーが発生しました」になる。詳細は所属を問わず ID で開ける（学部の科目も 0:13 の検索のあとで取れた）
+- KOAN は Chrome で開けない人がいる。cookie は Safari の Web インスペクタ →「ネットワーク」→ `campussquare.do` を右クリック →「cURL としてコピー」。**対話から `pbpaste > file` をコピーすると、クリップボードがそのコマンドで上書きされて cookie が取れない**。先に「クリップボードが curl で始まるまで待って保存する」ループを流してから Safari でコピーする
+- ログイン後のページには本人の名前などが載る。HTML はリポジトリにも data/raw/ にも置かない
+- ログインが切れると `rooms.py` は取得済みを保存して止まる（公開側のページを「教室なし」と記録しない）
+- **ログイン後でも「教室」の欄そのものが無い科目がある**（曜限「他」の 05A011 など）。最初は「欄が無い＝ログイン切れ」で止めていて、4,334件目で誤って止まった。見分けは公開側の注記「外部公開用に」の有無で行う
+
+---
+
 ## 2026-10-08 ｜ 口コミを同じ授業の別クラスと共有する ｜ Claude（wang） → 全員
 
 きっかけは しゅんや の指摘④（#ラクハンーui＆design 10/6）：「文理融合」が楽単なのに低く出る。

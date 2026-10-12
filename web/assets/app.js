@@ -841,7 +841,7 @@ function card(c){
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.room||c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
       </div>
       <div class="fit"><b>${m.fit ?? r.overall ?? "—"}</b><small>相性度</small></div>
       <div class="reason"><span class="band b${BAND_CLS[m.band ?? r.band] ?? 0}">${esc(m.band ?? r.band)}</span>${esc(m.reason)}</div>
@@ -1339,7 +1339,7 @@ function showDetail(c, article){
     ins.innerHTML = `<div class="inspectorHead">
         <button type="button" class="insClose" aria-label="この科目を閉じる">✕</button>
         <h3>${esc(c.title)}</h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c, true)}</div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.room||c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c, true)}</div>
       </div><div class="detail">${detailHtml(c, { subjectLabels: META.subject_labels,
         subjectSelected: state.subject, subjectInteractive: true })}</div>`;
     ins.querySelector(".insClose").onclick = closeDetail;

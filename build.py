@@ -92,6 +92,9 @@ KEEP = ["id", "title", "title_en", "category", "term", "day_period", "campus",
         # シラバスの「教科書・指定教材」を本ごとに分けたもの（2026-10-02）。
         # 作るのは tools/merge_textbook.py（原文は載せない）。
         "textbooks",
+        # 教室（2026-10-12）。公開シラバスには無く、ログイン後の KOAN から
+        # scrape/rooms.py が取り、tools/merge_rooms.py が焼く。
+        "room",
         "exam_type", "report_count", "report_words",
         "out_of_class_hours", "weekly_quiz", "tags", "source", "eligible_years",
         "reviews", "shozoku_cd"]
