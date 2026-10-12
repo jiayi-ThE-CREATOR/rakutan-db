@@ -131,6 +131,49 @@ def load(path: Path | None = None) -> list[dict]:
     return _drop_exact_dups(rows)
 
 
+# 同じ授業の別クラスで口コミを共有する（2026-10-08 wang 決定）。
+#
+# KOAN は曜限ごとに別の科目IDを振るので、「【総合】文理融合に向けた数理科学 I」は
+# 12 クラス＝12 ID になる。口コミは書いた人が選んだ1つの ID にしか付かないため、
+# 7件が5クラスに散って1クラス1〜3人、残り7クラスは0件だった。
+#
+# 共有するのは「科目名（空白の差は無視）・担当教員の組（順不同）・成績の内訳」が
+# すべて同じクラスどうしだけ。先生が違えば別の授業、内訳が違えば同名でも中身が違う。
+# 共有するのは口コミ（表示と、採点が読む人数）だけで、シラバスの事実・曜限・ID は
+# 各クラスのまま。同じ人が2クラスに同じ回答を送った場合は、_IDENTITY が今までどおり
+# 1人に数える（回答が違えば別人と区別できないので、別々に数える）。
+def _share_key(c: dict):
+    title = "".join((c.get("title") or "").split())
+    names = sorted("".join(x.split()) for x in (c.get("instructor") or "").split(","))
+    names = [x for x in names if x]
+    raw = c.get("eval_raw")
+    if not title or not names or not raw:
+        return None   # どれかが無いと「同じ授業」と言い切れない
+    return (title, tuple(names), json.dumps(raw, sort_keys=True, ensure_ascii=False))
+
+
+def share(rows: list[dict], courses: list[dict]) -> list[dict]:
+    """口コミを同じ授業の全クラスに配る。aggregate() と public_rows() の前に通す。
+
+    1件を兄弟クラスの数だけ複製して course_id を差し替える。`_classes`（何クラスで
+    共有しているか）は aggregate() が shared_classes として表に出す。
+    """
+    groups: dict[tuple, list[str]] = {}
+    for c in courses:
+        k = _share_key(c)
+        if k is not None:
+            groups.setdefault(k, []).append(c["id"])
+    sibs = {cid: ids for ids in groups.values() if len(ids) > 1 for cid in ids}
+    out = []
+    for r in rows:
+        ids = sibs.get(r["course_id"])
+        if not ids:
+            out.append(r)
+            continue
+        out.extend({**r, "course_id": cid, "_classes": len(ids)} for cid in ids)
+    return out
+
+
 def aggregate(rows: list[dict]) -> dict[str, dict]:
     """科目ID → 畳んだ口コミ。"""
     by: dict[str, list[dict]] = {}
@@ -175,6 +218,10 @@ def aggregate(rows: list[dict]) -> dict[str, dict]:
             # apply() の事実の穴埋めと、画面の「あなたに合う」枠（確かめられた科目だけ出す）。
             "scored": _distinct(rs) >= MIN_FOR_BACKFILL,
         }
+        # share() を通って兄弟クラスと共有しているときだけ付ける（画面の注記用）
+        classes = max(r.get("_classes", 1) for r in rs)
+        if classes > 1:
+            out[cid]["shared_classes"] = classes
     return out
 
 
@@ -264,14 +311,16 @@ def load_agg(path: Path | None = None) -> dict[str, dict]:
         return {}
 
 
-def resolve() -> tuple[dict[str, dict], str]:
+def resolve(courses: list[dict] | None = None) -> tuple[dict[str, dict], str]:
     """採点に使う口コミを決める。生データがあればそちら、無ければ集約ずみ。
 
     生データを持っている人（取り込みをした人）と、持っていない人とで
     同じ数字が出ることを保証する。戻り値の2つ目は出どころ。
+    courses を渡すと、生データは share() で兄弟クラスに配ってから畳む
+    （集約ずみは書いた時点で配ってある ―― tools/ingest_reviews.py）。
     """
     rows = load()
     if rows:
-        return aggregate(rows), "raw"
+        return aggregate(share(rows, courses or [])), "raw"
     agg = load_agg()
     return agg, ("agg" if agg else "none")

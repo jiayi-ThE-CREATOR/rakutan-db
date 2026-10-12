@@ -379,6 +379,15 @@ def rescore(out: Path) -> None:
 
     payload = json.loads(out.read_text(encoding="utf-8"))
     courses = payload["courses"]
+    # 口コミも付け直す。別クラスとの共有（reviews.share）は科目の並びから決まるので、
+    # 採点ロジックと同じく「焼き済みに後から効かせたい」変更になる。
+    agg, _ = reviews.resolve(courses)
+    reviews.apply(courses, agg)
+    rv_rows = reviews.load()
+    if rv_rows:   # 1件ずつは生データからしか作れない（main() と同じ）
+        OUT_REVIEWS.write_text(json.dumps(reviews.public_rows(reviews.share(rv_rows, courses)),
+                                          ensure_ascii=False, separators=(",", ":")),
+                               encoding="utf-8")
     changed_ratio = 0
     before_band = {}
     after_band = {}
@@ -465,13 +474,14 @@ def main() -> None:
 
     # 口コミを載せてから採点する。順番が逆だと反映されない。
     # 生データが無い人は集約ずみ（data/reviews.agg.json）で同じ数字になる。
-    agg, rv_src = reviews.resolve()
+    agg, rv_src = reviews.resolve(courses)
     n_rv = reviews.apply(courses, agg)
 
     # 詳細パネル用の「1件ずつ」は生データからしか作れない（集約ずみは
     # 畳んだ後の姿しか持っていない）。持っていない人は焼き直さず、
     # リポジトリに入っている reviews.built.json をそのまま使う。
-    rv_rows = reviews.load()
+    rv_raw = reviews.load()
+    rv_rows = reviews.share(rv_raw, courses)
 
     # 口コミを持っていない人が流すと、口コミ入りの built.json を
     # 口コミ抜きで上書きしてしまう。黙って起きると気づけないので止める。
@@ -602,16 +612,19 @@ def main() -> None:
 
     kb = dest.stat().st_size / 1024
     src_label = {"raw": "生データ", "agg": "集約ずみ", "none": "なし"}[rv_src]
-    print(f"  口コミ {sum(a['n'] for a in agg.values())} 件 → {n_rv} 科目に反映"
+    shared = sum(1 for a in agg.values() if a.get("shared_classes"))
+    # 件数は共有で複製する前の数（集約ずみしか無い人は数えようがないので出さない）
+    n_label = f"{len(rv_raw)} 件" if rv_raw else "（件数は生データが要る）"
+    print(f"  口コミ {n_label} → {n_rv} 科目に反映（うち別クラスと共有 {shared}）"
           f"（{src_label}）")
     # data/reviews.json は .gitignore 対象で、git では運ばれない。
     # 2026-08-21 に既存36件へ taken_year を入れたが、それは各自の手元の
     # ファイルにしか無い ―― 古いコピーで焼き直すと受講年が黙って消える。
     # 消えたことに気付けるよう、ここで必ず声を出す。
-    no_year = sum(1 for r in rv_rows if r.get("taken_year") is None)
+    no_year = sum(1 for r in rv_raw if r.get("taken_year") is None)
     if no_year:
         print(f"  ⚠ 受講年が入っていない口コミ {no_year} 件 "
-              f"／ 全 {len(rv_rows)} 件")
+              f"／ 全 {len(rv_raw)} 件")
         print("     data/reviews.json が古い可能性があります。"
               "2026-08-21 時点の36件は全て 2026 で埋まっているはずです。")
 

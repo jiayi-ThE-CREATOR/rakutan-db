@@ -365,7 +365,11 @@ def _write_agg() -> None:
     """
     sys.path.insert(0, str(ROOT))
     import reviews as reviews_mod
-    agg = reviews_mod.aggregate(reviews_mod.load())
+    # 別クラスとの共有（reviews.share）を済ませた形で書く。生データを持っていない人の
+    # build.py はこれをそのまま使うので、ここで配っておかないと数字が食い違う。
+    built = ROOT / "web" / "data" / "courses.built.json"
+    courses = json.loads(built.read_text(encoding="utf-8"))["courses"]
+    agg = reviews_mod.aggregate(reviews_mod.share(reviews_mod.load(), courses))
     print(f"  → {reviews_mod.dump_agg(agg)}  {len(agg)} 科目（これはコミットする）")
 
 

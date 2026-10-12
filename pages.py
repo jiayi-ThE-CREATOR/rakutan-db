@@ -157,7 +157,9 @@ def render(c: dict, label: str, tpl: str) -> str:
         ev = "<p>成績評価の内訳はKOANから取得できていません。KOAN公式シラバスで確認してください。</p>"
 
     n = ((c.get("reviews") or {}).get("n")) or 0
-    rv = (f"この科目の口コミは {n} 件あります。内容は「ラクハンで重さを見る」から読めます。"
+    k = (c.get("reviews") or {}).get("shared_classes")
+    shared = f"（同じ先生の全{k}クラス共通）" if k else ""
+    rv = (f"この科目の口コミは {n} 件あります{shared}。内容は「ラクハンで重さを見る」から読めます。"
           if n else "この科目の口コミはまだありません。")
 
     sub = " ／ ".join(p for p in (slot_label(c), ins_label(c), c.get("term")) if p)
