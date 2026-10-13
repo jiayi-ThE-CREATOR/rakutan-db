@@ -126,7 +126,7 @@ def years_label(c: dict) -> str:
     return "・".join(f"{y}年" for y in ys)
 
 
-def render(c: dict, label: str, tpl: str) -> str:
+def render(c: dict, label: str, tpl: str, rooms_asof: str | None = None) -> str:
     cid = c["id"]
     title = f"{c['title']}（{label}）｜テストの有無・成績評価｜ラクハン"
     credits = c.get("credits")
@@ -143,6 +143,7 @@ def render(c: dict, label: str, tpl: str) -> str:
         ("履修できる学年", years_label(c)),
         ("授業形態", c.get("class_format")),
         ("担当教員", "、".join(instructors(c))),
+        ("教室", c.get("room") and f"{c['room']}（KOAN {rooms_asof} 時点）"),
         ("テスト", exam_fact(c)),
         ("時間割コード", cid),
     ]
@@ -185,7 +186,8 @@ def shell_parts() -> dict[str, str]:
 
 
 def build_pages(built: Path = BUILT) -> int:
-    courses = json.loads(built.read_text(encoding="utf-8"))["courses"]
+    doc = json.loads(built.read_text(encoding="utf-8"))
+    courses, rooms_asof = doc["courses"], doc["_meta"].get("rooms_fetched")
     tpl = TEMPLATE.read_text(encoding="utf-8")
     for name, body in shell_parts().items():
         tpl = tpl.replace(f"<!--SHELL:{name}--><!--/SHELL:{name}-->", body)
@@ -196,7 +198,7 @@ def build_pages(built: Path = BUILT) -> int:
     for c in courses:
         p = OUT_DIR / f"{c['id']}.html"
         keep.add(p.name)
-        out = render(c, labels[c["id"]], tpl)
+        out = render(c, labels[c["id"]], tpl, rooms_asof)
         if not p.exists() or p.read_text(encoding="utf-8") != out:
             p.write_text(out, encoding="utf-8")
     # データから消えた科目のページは残さない（404 にする）。
