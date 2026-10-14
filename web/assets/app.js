@@ -9,8 +9,8 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
                    "軽め":1, "拘束は軽い":2, "標準":2, "やや重め":3, "重め":3 };
 
 /* 負担ランク（2026-10-14・設計 docs/superpowers/specs/2026-10-13-futan-rank-design.md §6）。
-   SS がいちばん楽。色は band と同じ箱（.band.b1〜b3）を使う。 */
-const RANK_CLS = { SS:1, S:1, A:2, B:3, C:3 };
+   SS がいちばん楽。色は1段ずつ別（SS 金／S 青／A 緑／B 橙／C 赤・app.css の .rkSS〜.rkC）。 */
+const RANKS = ["SS", "S", "A", "B", "C"];
 const ITEM_LABEL = { exam:"テスト", report:"レポート・課題", attendance:"出席",
                      quiz:"小テスト", presentation:"発表" };
 
@@ -837,7 +837,7 @@ function rankBlockHtml(c){
   const r = c.rakutan, m = c.match, f = r.futan;
   const rank = f && f.rank;
   const big = rank
-    ? `<div class="fit rank"><b class="rk${RANK_CLS[rank] ?? 0}">${esc(rank)}</b><small>負担</small></div>`
+    ? `<div class="fit rank"><b class="rk${RANKS.includes(rank) ? rank : ""}">${esc(rank)}</b><small>負担</small></div>`
     : `<div class="fit"><b>—</b><small>負担</small></div>`;
   const src = futanSrc(c);
   const low = r.band === "参考値" ? "（参考値）" : "";
@@ -850,7 +850,7 @@ function rankBlockHtml(c){
     ? `<span class="mismatch">シラバスと実際が違うようです（${f.mismatch.map(k => ITEM_LABEL[k] || k).join("・")}がなかった）</span>`
     : "";
   const head = rank
-    ? `<span class="band b${RANK_CLS[rank] ?? 0}">${esc(src)}${low}</span>`
+    ? `<span class="band rk${RANKS.includes(rank) ? rank : ""}">${esc(src)}${low}</span>`
     : `<span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>`;
   return `${big}
       <div class="reason">${head}${pct}${mis}${esc(m.reason)}</div>`;

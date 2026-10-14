@@ -118,6 +118,12 @@
   --band-light-bg:#dcf3e3;  --band-light-ink:#1c7a41;
   --band-mid-bg:#fdf0d5;    --band-mid-ink:#8a6008;
   --band-heavy-bg:#fce4e4;  --band-heavy-ink:#a32b2b;
+  /* 負担ランク（2026-10-14 wang 指定）：SS 金／S 青／A 緑／B 橙／C 赤。1段ずつ別の色 */
+  --rank-ss-bg:#fff3c4;     --rank-ss-ink:#9a6f00;
+  --rank-s-bg:#e1ecfa;      --rank-s-ink:#1f5fa8;
+  --rank-a-bg:#dcf3e3;      --rank-a-ink:#1c7a41;
+  --rank-b-bg:#fdead6;      --rank-b-ink:#b05400;
+  --rank-c-bg:#fce4e4;      --rank-c-ink:#a32b2b;
 
   /* 「まだ数字に入っていない」の帯。色相を増やさず、地の反転で強さを出す。
      --brand 系（押せるもの）でも --scale-* 系（データ目盛り）でもない第3の役割。
@@ -184,6 +190,11 @@
     --band-light-bg:#15302b;  --band-light-ink:#5fd3b4;
     --band-mid-bg:#33290f;    --band-mid-ink:#dcb45f;
     --band-heavy-bg:#38201c;  --band-heavy-ink:#ef8f7a;
+    --rank-ss-bg:#332a0c;     --rank-ss-ink:#f2c94c;
+    --rank-s-bg:#16263a;      --rank-s-ink:#86b6f0;
+    --rank-a-bg:#15302b;      --rank-a-ink:#5fd3b4;
+    --rank-b-bg:#3a2614;      --rank-b-ink:#f0a35e;
+    --rank-c-bg:#38201c;      --rank-c-ink:#ef8f7a;
     /* 注意帯は暗地では反転する（明るい面に暗い文字）。理由は明地側のコメント。 */
     --alert-face:#eef1ec;
     --alert-ink:#16181d;

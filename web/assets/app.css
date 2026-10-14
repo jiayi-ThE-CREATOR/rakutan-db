@@ -549,12 +549,19 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 .band.b1{background:var(--band-light-bg);color:var(--band-light-ink)}
 .band.b2{background:var(--band-mid-bg);color:var(--band-mid-ink)}
 .band.b3{background:var(--band-heavy-bg);color:var(--band-heavy-ink)}
-/* 負担ランク（2026-10-14）。文字の色は band と同じ3段（SS・S 緑／A 黄／B・C 赤）。
-   ブランド色の単色を崩さないよう、背景は付けず文字色だけ変える。 */
+/* 負担ランク（2026-10-14）。SS 金／S 青／A 緑／B 橙／C 赤（wang 指定）。
+   大きな文字は文字色だけ、出どころの札（.band）は同じ色の背景にする。 */
 .fit.rank b{font-size:28px;font-weight:700;letter-spacing:.02em}
-.fit.rank b.rk1{color:var(--band-light-ink)}
-.fit.rank b.rk2{color:var(--band-mid-ink)}
-.fit.rank b.rk3{color:var(--band-heavy-ink)}
+.fit.rank b.rkSS{color:var(--rank-ss-ink)}
+.fit.rank b.rkS{color:var(--rank-s-ink)}
+.fit.rank b.rkA{color:var(--rank-a-ink)}
+.fit.rank b.rkB{color:var(--rank-b-ink)}
+.fit.rank b.rkC{color:var(--rank-c-ink)}
+.band.rkSS{background:var(--rank-ss-bg);color:var(--rank-ss-ink)}
+.band.rkS{background:var(--rank-s-bg);color:var(--rank-s-ink)}
+.band.rkA{background:var(--rank-a-bg);color:var(--rank-a-ink)}
+.band.rkB{background:var(--rank-b-bg);color:var(--rank-b-ink)}
+.band.rkC{background:var(--rank-c-bg);color:var(--rank-c-ink)}
 .reason .pct{margin-right:7px;white-space:nowrap}
 .reason .pct b{color:var(--brand);font-family:var(--data)}
 .reason .pctHint{display:block;font-size:var(--fs-xs);color:var(--muted)}
