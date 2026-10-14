@@ -126,6 +126,10 @@ def load(path: Path | None = None) -> list[dict]:
     # ダミー行（サンプルデータの S001）は採点に混ぜない
     rows = [r for r in rows if isinstance(r, dict) and r.get("course_id")
             and r["course_id"] != "S001"]
+    # 新しい質問（form v5）の行は、計算の段（設計 §4・PR ②）ができるまで集計に入れない。
+    # 古い集計は attendance / in_class などを読むので、v5 の行を混ぜると件数（n）だけ
+    # 増えて中身の無い口コミになる。取り込みと保存は先に始めておく（PR ①）。
+    rows = [r for r in rows if r.get("v") != 5]
     # aggregate() も public_rows() も resolve() も、生データは必ずここを
     # 通る。畳むならこの1箇所でよい。
     return _drop_exact_dups(rows)
@@ -197,8 +201,10 @@ def aggregate(rows: list[dict]) -> dict[str, dict]:
             "exam_hard": None if h10 is None else round((h10 - 1) / 9 * 2, 3),
             "exam_hard10": None if h10 is None else round(h10, 1),
             "report_words": None if words is None else int(round(words)),
-            "exam_bring": max(set(bring), key=bring.count) if bring else None,
-            "exam_bring_raw": max(set(raw), key=raw.count) if raw else None,
+            # 同数のときに set の並び（実行ごとに変わる）で選ばれないよう、sorted で固定する
+            # （2026-10-14：共有で同数が増え、焼くたびに文理融合の原文が入れ替わっていた）
+            "exam_bring": max(sorted(set(bring)), key=bring.count) if bring else None,
+            "exam_bring_raw": max(sorted(set(raw)), key=raw.count) if raw else None,
             "attendance": _mean([r.get("attendance") for r in rs]),
             "in_class": _mean([r.get("in_class") for r in rs]),
             "out_class": _mean([r.get("out_class") for r in rs]),

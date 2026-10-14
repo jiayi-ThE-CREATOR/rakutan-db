@@ -299,47 +299,20 @@
           </select>
         </div>
 
-        <div class="form-section">
-          <label>3 出席は取られた？ <span class="required">*</span></label>
-          <div class="button-group" id="group-attendance">
-            <button type="button" class="form-btn" data-value="毎回">毎回</button>
-            <button type="button" class="form-btn" data-value="たまに">たまに</button>
-            <button type="button" class="form-btn" data-value="なし">なし</button>
-            <button type="button" class="form-btn" data-value="その他">その他</button>
-          </div>
-          <input type="text" id="attendance-other-text" class="hidden other-input" placeholder="例：毎回の小テストを通じて。">
-        </div>
-
-        <div class="form-section">
-          <label>4 授業中の課題はあった？ <span class="required">*</span></label>
-          <div class="button-group" id="group-assignment-inclass">
-            <button type="button" class="form-btn" data-value="重い">重い</button>
-            <button type="button" class="form-btn" data-value="ふつう">ふつう</button>
-            <button type="button" class="form-btn" data-value="軽い">軽い</button>
-            <button type="button" class="form-btn" data-value="なかった">なかった</button>
+        <!-- 3 項目ごとの重さ（form v5・2026-10-14）。行は kuchikomi.js が科目の
+             成績の内訳（timetable.json の items）から作る ―― シラバスにある項目だけを出し、
+             無い項目は下の折りたたみから足す。設計: docs/superpowers/specs/2026-10-13-futan-rank-design.md -->
+        <div class="form-section" id="v5-section">
+          <label>3 それぞれ、どれくらい大変だった？ <span class="required">*</span></label>
+          <p class="kkHint">1 ほぼ負担なし／2 軽い／3 ふつう／4 重め／5 かなり大変</p>
+          <div id="v5-rows"></div>
+          <div id="v5-more" class="kkFollow hidden">
+            <p class="kkHint"><b>シラバスに無いけど、実際にはあったもの</b>（押すと行が増えます）</p>
+            <div class="button-group kkChips" id="v5-more-btns"></div>
           </div>
         </div>
 
-        <div class="form-section">
-          <label>5 授業外の課題はあった？ <span class="required">*</span></label>
-          <div class="button-group" id="group-assignment-outclass">
-            <button type="button" class="form-btn" data-value="重い">重い</button>
-            <button type="button" class="form-btn" data-value="ふつう">ふつう</button>
-            <button type="button" class="form-btn" data-value="軽い">軽い</button>
-            <button type="button" class="form-btn" data-value="なかった">なかった</button>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <label>6 テストはあった？ <span class="required">*</span></label>
-          <div class="button-group" id="group-exam-presence">
-            <button type="button" class="form-btn" data-value="あり">あり</button>
-            <button type="button" class="form-btn" data-value="なし">なし</button>
-          </div>
-        </div>
-
-        <!-- kkFollow ＝「あり」を押したときだけ出る追加の質問をまとめる灰色の枠。
-             どの答えに付いてくる質問なのかを、↳ の記号ではなく枠で見せる（6・7・8 共通）。 -->
+        <!-- テストの行に 1〜5 を付けたときだけ出す（「実際はなかった」なら聞かない）。 -->
         <div id="exam-details-section" class="kkFollow hidden">
           <div class="form-section">
             <label>テストの持ち込みは？ <span class="required">*</span></label>
@@ -350,45 +323,13 @@
             </div>
             <input type="text" id="exam-other-text" class="hidden other-input" placeholder="例：教科書と授業スライドのみ可。">
           </div>
-
-          <div class="form-section">
-            <label>テストの難易度は？ (1:簡単 〜 10:難しい) <span class="required">*</span></label>
-            <div class="slider-container">
-              <input type="range" id="exam-difficulty" min="1" max="10" step="1" value="5" class="styled-slider">
-              <div class="slider-value-display">
-                レベル <span id="exam-difficulty-display" class="highlight-text">5</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="form-section">
-          <label>7 レポートはあった？ <span class="required">*</span></label>
-          <div class="button-group" id="group-report">
-            <button type="button" class="form-btn" data-value="あり">あり</button>
-            <button type="button" class="form-btn" data-value="なし">なし</button>
-          </div>
-        </div>
-
-        <div id="report-details-section" class="kkFollow hidden">
-          <div class="form-section">
-            <!-- 任意（2026-09-29）。動かすまでは「未選択」で送らない ――
-                 最初の位置（2000）を、答えなかった人の分まで答えとして数えないため。 -->
-            <label for="report-word-count">レポートの語数は？ <span class="kkSub">任意</span></label>
-            <div class="slider-container">
-              <input type="range" id="report-word-count" min="500" max="30000" step="500" value="2000" class="styled-slider kkUnset">
-              <div class="slider-value-display">
-                <span id="report-word-display" class="highlight-text">未選択</span>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- 教科書（2026-09-28 追加）。シラバスの「教科書」欄は書名までで、
              本当に買わないと困るのか・いくらかかるのかは載っていない。
              data-value はシートに入る文字列そのもの。変えると過去の行と混ざる。 -->
         <div class="form-section">
-          <label>8 教科書は買う必要があった？ <span class="required">*</span></label>
+          <label>4 教科書は買う必要があった？ <span class="required">*</span></label>
           <div class="button-group" id="group-textbook">
             <button type="button" class="form-btn" data-value="必要">必要</button>
             <button type="button" class="form-btn" data-value="指定あり・不要">不要</button>
@@ -399,7 +340,7 @@
 
         <div id="textbook-details-section" class="kkFollow hidden">
           <div class="form-section">
-            <!-- 7 の語数と同じスライダー。目盛りは kuchikomi.js の PRICE_BUCKETS（11段階）。
+            <!-- 目盛りは kuchikomi.js の PRICE_BUCKETS（11段階）。
                  動かすまでは「未選択」で、つまみも灰色（最初の位置を答えと見せないため）。 -->
             <label for="textbook-price">いくらだった？（何冊かあれば合計） <span class="kkSub">任意</span></label>
             <div class="slider-container">

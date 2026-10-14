@@ -17,6 +17,41 @@
 
 ---
 
+## 2026-10-14 ｜ 口コミの質問を新しくした（form v5・負担ランクの段①） ｜ Claude（wang） → 全員
+
+設計: `docs/superpowers/specs/2026-10-13-futan-rank-design.md`（§3）。負担ランク（SS〜C）の3段のうち①。
+口コミの設問3を「項目ごとに 0〜5」に置き換えた。行はシラバスの成績の内訳にある項目だけ
+（`timetable.json` の `items` / `ratio`）。無い項目は折りたたみから足せる。0＝「実際はなかった」。
+
+### 1. 何が動く状態か
+
+    python3 tools/test_ingest_reviews.py && python3 tools/test_reviews.py && python3 tools/test_timetable.py
+    python3 tools/serve.py 8150 & node tools/test_kuchikomi_v5.mjs http://localhost:8150
+
+- 送る形：`review.form_v = 5`、`review.items = {exam, report, attendance, quiz, presentation}`（5つとも 0〜5）。
+  古い設問（出席3択・授業中／外の課題・テストの有無と難易度・レポートの有無と字数）は消した
+- GAS とシートは wang が先に直してある（W〜AB 列）。取り込みは「フォーム版」列が 5 の行を `{"v": 5, "items": ...}` で保存
+- `build.py --rescore` が `timetable.json` の `items` / `ratio` も付け直す（`retimetable`）
+
+### 2. 何をしていないか
+
+- **v5 の口コミはまだ点数にも画面にも出ない。** `reviews.load()` が v5 の行を外している（計算は段②）。
+  取り込み・保存だけ先に始める
+- `server.py` の `/api/reviews`（ローカル専用・古い形）は触っていない
+
+### 3. 次の人が最初に打つコマンド
+
+    python3 tools/ingest_reviews.py <シートのCSV> --dry-run
+
+### 4. 踏んだ罠
+
+- **worktree には `data/reviews.json`（生データ・gitignore）が無い。** その状態で `_write_agg()` を流すと
+  `reviews.agg.json` が 0 科目で上書きされ、続く `--rescore` で口コミが全部消える。worktree では先に本体から `data/reviews.json` をコピーする
+- `reviews.aggregate` の持ち込み原文は同数のとき set の順で選ばれ、焼くたびに変わっていた。`sorted` で固定した（文理融合12クラスの原文が動くのはこのため）
+- 設問3の行は科目ごとに作り直すので、ボタンへの登録ではなく `#v5-rows` で受ける。`?c=` で開いたときは `openCourseFromParam` で科目が決まった後に行を作る
+
+---
+
 ## 2026-10-12 ｜ 全科目に「教室」を載せた（ログイン後の KOAN から） ｜ Claude（wang） → 全員
 
 公開シラバスは教室を伏せている（「外部公開用に、教室等の一部項目が非表示」）。ログイン後のシラバス参照

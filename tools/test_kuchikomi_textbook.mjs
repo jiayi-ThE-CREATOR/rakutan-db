@@ -50,13 +50,12 @@ const click = (group, value) => p.click(`#${group} .form-btn[data-value="${value
 const selectedIn = (group) => p.evaluate((g) =>
   [...document.querySelectorAll(`#${g} .form-btn.selected`)].map(b => b.dataset.value), group);
 
-// 設問8以外を埋める
+// 設問4（教科書）以外を埋める
 await p.selectOption("#modal-year-select", { index: 1 });
-await click("group-attendance", "毎回");
-await click("group-assignment-inclass", "ふつう");
-await click("group-assignment-outclass", "軽い");
-await click("group-exam-presence", "なし");
-await click("group-report", "なし");
+/* 設問3（form v5）：出ている行すべてに「実際はなかった」（0）を付ける ――
+   テストの行に 1〜5 を付けると持ち込みの質問が増えるので、それを避けている。 */
+await p.evaluate(() => document.querySelectorAll('.v5Row .form-btn[data-value="0"]')
+  .forEach(b => b.click()));
 
 // ── 1. 設問8がある・未回答では保存できない ──
 check(await visible("#group-textbook"), "[1] 設問8（#group-textbook）が見えない");

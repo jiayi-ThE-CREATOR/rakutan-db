@@ -73,9 +73,11 @@ if TT.is_file() and BUILT.is_file():
           "term_group に知らない値がある")
 
     # ⑦ 投影に点数・口コミを混ぜない（混ぜた瞬間に正本が2つになる）
+    #    items / ratio はシラバスの成績の内訳（事実）で、口コミの質問の行を決めるのに使う
+    #    （form v5・2026-10-14）。点数ではない。
     extra = {k for r in rows[:200] for k in r} - {
         "id", "title", "instructor", "slots", "day_period",
-        "term_group", "faculty", "eligible_years", "track"}
+        "term_group", "faculty", "eligible_years", "track", "items", "ratio"}
     check(not extra, f"投影に余計なフィールドがある: {sorted(extra)}")
 
 print(f"  通過 {n - len(fails)} 件 / {n} 件")
