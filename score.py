@@ -79,19 +79,73 @@ PRESENTATION_RATIO_COEF = 0.25
 EXAM_SHARE = 0.50
 OTHER_WEIGHTS = {"presentation": 0.20, "report": 0.15, "attendance": 0.15, "quiz": 0.10}
 
-# 体感層（口コミ）の取り分。中身の違う回答の人数で増やし、FEEL_FULL_AT 人で上限。
-# 1人 6.7% ／ 2人 13.3% ／ 3人以上 20%。上限が 20% なので、1人の回答で
-# band を何段も跨ぐ事故（2026-08-21 の 78.0 → 41.6）は起きない。
-FEEL_MAX_SHARE = 0.20
-FEEL_FULL_AT = 3
+# 体感層（古い質問の口コミ）の取り分。2026-10-13 wang 決定で **人数によらず 0.40**
+# （シラバス60%＋古い口コミ40%）。それまでは人数で増やして上限 20%（1人 6.7%〜3人以上 20%）。
+# 新しい質問（form v5）の口コミがある科目は、体感層ではなく口コミだけで負担を出す（下の FUTAN）。
+# 設計: docs/superpowers/specs/2026-10-13-futan-rank-design.md §1・§4
+FEEL_SHARE_OLD = 0.40
+
+# 古い口コミの体感層は、シラバスの点と**物差しが違う**（2026-10-14 実測：体感層の中央値 42、
+# シラバス側の中央値 64。古い質問は出席「毎回」を 0点＝最も重いとして数え、多くの科目が
+# 毎回出席を取るため）。そのまま 40% 混ぜると、口コミがある科目ほど重く出る
+# （口コミのある252科目のうち172科目が C になった）。
+# だから混ぜる前に、体感層の点を「口コミのある科目の中での順位」に直し、同じ科目たちの
+# シラバス側の点の分布で、同じ順位の値に置き換える（wang 決定・選択肢2）。取り分 0.40 は変えない。
+# calibrate_feel() が全科目を見て対応表を作る。作っていないとき（単体の検査など）は素の値のまま。
+_FEEL_MAP: tuple[list[float], list[float]] | None = None
+
+
+def calibrate_feel(courses: list[dict]) -> dict:
+    """体感層の点 → シラバス側の分布へ写す対応表を作る。build.py・server.py が採点の前に呼ぶ。
+
+    courses は口コミを載せたあとの元データ。返り値は要約（_meta に残す）。
+    """
+    global _FEEL_MAP
+    _FEEL_MAP = None
+    facts, feels = [], []
+    for c in courses:
+        r = score(c)
+        # 写す先は「口コミのある科目」自身のシラバス側の分布。全科目の分布に写すと、
+        # 重めの科目に口コミが集まっているぶん、全体の真ん中へ引き上げてしまう
+        # （2026-10-14 実測：全科目に写すと口コミのある科目の196/251が上がった）。
+        if r["feel"].get("raw") is not None and r.get("fact") is not None:
+            facts.append(r["fact"])
+            feels.append(r["feel"]["raw"])
+    if not facts or not feels:
+        return {"feels": 0}
+    _FEEL_MAP = (sorted(feels), sorted(facts))
+    return {"feels": len(feels), "facts": len(facts),
+            "feel_median": round(sorted(feels)[len(feels) // 2], 1),
+            "fact_median": round(sorted(facts)[len(facts) // 2], 1)}
+
+
+def _map_feel(v: float) -> float:
+    """体感層の点を、口コミのある科目の中での順位（同点は真ん中）→ シラバス側の同じ順位の値に。"""
+    if _FEEL_MAP is None:
+        return v
+    feels, facts = _FEEL_MAP
+    lo = sum(1 for x in feels if x < v)
+    eq = sum(1 for x in feels if x == v)
+    q = (lo + eq / 2) / len(feels)                     # 0〜1
+    pos = q * (len(facts) - 1)
+    i = int(pos)
+    j = min(i + 1, len(facts) - 1)
+    return facts[i] + (facts[j] - facts[i]) * (pos - i)
+
+
+# 負担ランク（SS がいちばん楽）。設計 §4。
+RANKS = ("SS", "S", "A", "B", "C")
+# 新しい口コミの負担（0〜5、大きいほど重い）の区切り。固定 ―― 各段に意味がある
+# （平均で「ほぼ負担なし」未満が SS…）。<1 SS／<2 S／<3 A／<4 B／それ以外 C。
+RANK_CUT_V5 = (1.0, 2.0, 3.0, 4.0)
 
 # /api/meta 用の説明
 WEIGHTS = {
     "model": "aishoudo",
     "exam_share": EXAM_SHARE,
     "other_weights": OTHER_WEIGHTS,
-    "feel_max_share": FEEL_MAX_SHARE,
-    "feel_full_at": FEEL_FULL_AT,
+    "feel_share_old": FEEL_SHARE_OLD,
+    "rank_cut_v5": RANK_CUT_V5,
     "note": "相性度 ＝ (1−体感の取り分)×事実層 ＋ 体感の取り分×体感層。事実層は試験と、その科目にある試験以外の項目で決まる",
 }
 
@@ -317,9 +371,7 @@ def _feel(c: dict) -> tuple[float | None, float]:
             signals.append(100.0 - 50.0 * rv[k])
     if not signals:
         return None, 0.0
-    people = rv.get("n_distinct") or rv["n"]
-    share = FEEL_MAX_SHARE * min(people, FEEL_FULL_AT) / FEEL_FULL_AT
-    return sum(signals) / len(signals), share
+    return sum(signals) / len(signals), FEEL_SHARE_OLD
 
 
 def aishoudo(values: dict, present: list[str], feel: tuple[float | None, float],
@@ -374,24 +426,54 @@ def score(course: dict) -> dict:
     readable = (course.get("eval_ratio") is not None
                 and eval_captured is not None and eval_captured >= EVAL_TOTAL_MIN)
     present = _present_others(course)
-    feel = _feel(course)
-    overall = (aishoudo({k: a["value"] for k, a in axes.items()}, present, feel)
-               if readable else None)
+    feel_raw = _feel(course)
+    feel = (feel_raw if feel_raw[0] is None
+            else (_map_feel(feel_raw[0]), feel_raw[1]))
+    values = {k: a["value"] for k, a in axes.items()}
+    fact = aishoudo(values, present, (None, 0.0)) if readable else None
+    overall = aishoudo(values, present, feel) if readable else None
     conf = confidence(course)
 
     # 試験があるのに、口コミでテストの難しさを確かめた人がまだいない。
     # おすすめ順の第1キー（build.py の preset_key）と band の「拘束は軽い」が読む。
     rv = course.get("reviews") or {}
-    pending = float(er.get("exam") or 0.0) > 0 and rv.get("exam_hard") is None
+    v5 = rv.get("v5")
+    # 試験の難しさは、新しい口コミ（テストを 0〜5 で答える）があれば確かめられている
+    pending = (float(er.get("exam") or 0.0) > 0 and rv.get("exam_hard") is None
+               and not v5)
+
+    # 負担。新しい口コミがあれば口コミだけで出す（内訳が読めない科目でも出せる）。
+    # overall はこれまで通り「0〜100・高いほど楽」で持つ（並び順・絞り込み・LINE が読む）。
+    if v5:
+        overall = round(100.0 - v5["burden"] * 20.0, 1)
+        futan = {
+            "source": "kuchikomi",
+            "value": v5["burden"],
+            "people": v5["n_distinct"],
+            "items": v5["items"],
+            "mismatch": _mismatch(course, v5),
+            "rank": rank_v5(v5["burden"]),
+        }
+    elif overall is not None:
+        # シラバス式（古い口コミがあれば 40% 混ざっている）。ランクは全科目の分布で
+        # 決まるので、ここでは出さない ―― build.py の assign_ranks が埋める。
+        futan = {"source": "syllabus_kuchikomi" if feel[0] is not None else "syllabus",
+                 "value": overall, "rank": None}
+    else:
+        futan = None
 
     return {
         "overall": overall,
         "band": band_of(overall, conf["level"], 1.0 if er else 0.0, pending),
         "needs_review": pending,
+        "futan": futan,
         # LINE のプリセットで並べ直すとき（match）に、科目の中身を読まずに済むように持つ。
         "present": present,
+        # value は物差しをそろえた後（ブラウザの相性度もこれを使う）、raw は口コミの素の点
         "feel": {"value": None if feel[0] is None else round(feel[0], 3),
+                 "raw": None if feel_raw[0] is None else round(feel_raw[0], 3),
                  "share": round(feel[1], 3)},
+        "fact": fact,
         "eval_captured": eval_captured,
         "eval_unclassified": course.get("eval_unclassified"),
         "missing_axes": [a["label"] for a in axes.values() if a["value"] is None],
@@ -460,6 +542,42 @@ def score(course: dict) -> dict:
 LIGHT_MIN = 84
 NORMAL_MIN = 71
 HEAVYISH_MIN = 65
+
+
+def rank_v5(burden: float) -> str:
+    """新しい口コミの負担（0〜5）→ ランク。区切りは RANK_CUT_V5（固定）。"""
+    for cut, r in zip(RANK_CUT_V5, RANKS):
+        if burden < cut:
+            return r
+    return RANKS[-1]
+
+
+def rank_cuts(values: list[float]) -> list[float]:
+    """シラバス式の科目のランクの区切り（overall、高いほど楽）。分布を5等分する境目。
+
+    返すのは4つ：上位20%・40%・60%・80% の位置の値。同じ値の塊（53.1 や 78.2 に
+    数百件）があると、塊ごと上の段に入るので、5段はぴったり同数にはならない。
+    """
+    v = sorted(values, reverse=True)
+    if not v:
+        return []
+    return [v[min(len(v) - 1, int(len(v) * q / 5))] for q in (1, 2, 3, 4)]
+
+
+def rank_of_overall(overall: float, cuts: list[float]) -> str:
+    """overall（高いほど楽）→ ランク。cuts は rank_cuts の返り値。"""
+    for cut, r in zip(cuts, RANKS):
+        if overall > cut:
+            return r
+    return RANKS[len(cuts)] if len(cuts) < len(RANKS) else RANKS[-1]
+
+
+def _mismatch(course: dict, v5: dict) -> list[str]:
+    """シラバスにある項目なのに、口コミの過半数が「なかった（0）」と答えたもの。"""
+    er = course.get("eval_ratio") or {}
+    listed = [k for k in ("exam", "report", "attendance", "quiz", "presentation")
+              if float(er.get(k) or 0.0) > 0 or (k == "quiz" and course.get("weekly_quiz"))]
+    return [k for k in listed if v5["zero"].get(k, 0) * 2 > v5["n"]]
 
 
 def band_of(overall: float | None, conf_level: str,

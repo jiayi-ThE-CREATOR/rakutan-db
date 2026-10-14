@@ -182,6 +182,22 @@ def eval_items(c: dict) -> list[str] | None:
             if float(er.get(k) or 0.0) > 0 or (k == "quiz" and c.get("weekly_quiz"))]
 
 
+def assign_ranks(courses: list[dict]) -> list[float]:
+    """シラバス式で負担を出した科目に、全体の分布を5等分したランクを付ける。
+
+    新しい口コミの科目は score.py が固定の区切りで付け済み。分布はシラバス式の
+    科目だけで取る（口コミの科目を混ぜると、口コミが増えるたびに区切りが動く）。
+    「参考値」（信頼度が低い）の科目もランクは付ける ―― 出し方は画面が決める。
+    戻り値は区切り（_meta.rank_cut に入れる）。設計 §4。
+    """
+    syl = [c["rakutan"]["futan"] for c in courses
+           if (c["rakutan"].get("futan") or {}).get("source", "").startswith("syllabus")]
+    cuts = scoring.rank_cuts([f["value"] for f in syl])
+    for f in syl:
+        f["rank"] = scoring.rank_of_overall(f["value"], cuts)
+    return cuts
+
+
 def timetable_rows(courses: list[dict]) -> list[dict]:
     """口コミ投稿の画面が読む投影。
 
@@ -446,9 +462,15 @@ def rescore(out: Path) -> None:
                 changed_ratio += 1
             c["eval_ratio"] = ratio
             c["eval_unclassified"] = unclassified
+    # 古い口コミの物差しをシラバス側にそろえる対応表（score.calibrate_feel）。
+    # 内訳の振り直し（上）が済んでから全科目で作り、それから採点する。
+    feel_cal = scoring.calibrate_feel(courses)
+    for c in courses:
         c["rakutan"] = scoring.score(c)
         after_band[c["rakutan"]["band"]] = after_band.get(c["rakutan"]["band"], 0) + 1
+    payload["_meta"]["feel_calibration"] = feel_cal
 
+    payload["_meta"]["rank_cut"] = assign_ranks(courses)
     payload["preset_top"] = rank_presets(courses)
     payload["cond_top"] = rank_conditions(courses)
     judged = sum(1 for c in courses if c["rakutan"]["overall"] is not None)
@@ -554,6 +576,8 @@ def main() -> None:
     guard_not_fewer([dest_now, Path(args.out_timetable)], len(courses),
                     args.allow_fewer_courses)
 
+    # 古い口コミの物差しをシラバス側にそろえる対応表（score.calibrate_feel）。採点の前に作る。
+    feel_cal = scoring.calibrate_feel(courses)
     subj_ai, subj_manual = load_subjects()
     built = []
     for c in courses:
@@ -584,6 +608,7 @@ def main() -> None:
     # プリセット4つ分の順位を焼いておくと、LINE側は採点ロジックを持たずに済む。
     # 学年ごとに焼く。サイトの既定が1年なので、LINE も既定は "1" を読めばよい。
     # 1年生が履修できない科目を上位に出すと、選べない科目を薦めることになる。
+    rank_cut = assign_ranks(built)
     presets = rank_presets(built)
     conds = rank_conditions(built)
 
@@ -606,6 +631,9 @@ def main() -> None:
             # 2026-08-24：門を3件にしたのに「1件入ると出ます」と
             # 表示し続けていたので、数字を持たせて食い違いを止める。
             "min_for_backfill": reviews.MIN_FOR_BACKFILL,
+            # 負担ランクの区切り（シラバス式の科目・overall）。新しい口コミの科目は weights.rank_cut_v5
+            "rank_cut": rank_cut,
+            "feel_calibration": feel_cal,
             # 授業内容タグのキー → 画面の表示名。語彙の正本は tools/subjects.py の VOCAB。
             # 画面側に表示名を書き写さない（axis_label と同じ置き方）。
             "subject_labels": subj.VOCAB,

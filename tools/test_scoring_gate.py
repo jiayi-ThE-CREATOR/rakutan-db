@@ -61,9 +61,10 @@ for k in (1, 2, 3):
     c = course()
     reviews.apply([c], reviews.aggregate(rows))
     got = score.score(c)["overall"]
-    eq(got < prev, True, f"{k}人目の「難しい」で総合値が下がる")
-    eq(base - got <= 100 * score.FEEL_MAX_SHARE * min(k, 3) / 3 + 1e-9, True,
-       f"{k}人では取り分 {min(k, 3)}/3×20% ぶんまでしか動かない（{base} → {got}）")
+    # 取り分が人数によらず一定なので、同じ答えの人が増えても総合値は下がり続けない
+    eq(got <= prev, True, f"{k}人目の「難しい」で総合値が上がらない")
+    eq(base - got <= 100 * score.FEEL_SHARE_OLD + 1e-9, True,
+       f"{k}人でも取り分 40% ぶんまでしか動かない（{base} → {got}）")
     eq(score.score(c)["needs_review"], False, f"{k}人がテストの難しさを書けば needs_review は下りる")
     prev = got
 
@@ -75,7 +76,7 @@ eq(agg["n"], MIN + 2, "表示する件数は生の件数のまま")
 eq(agg["n_distinct"], 1, "中身が同じものは1人として数える")
 c = course()
 reviews.apply([c], {"X": agg})
-eq(score._feel(c)[1], score.FEEL_MAX_SHARE / 3, "重複を積んでも取り分は1人ぶん")
+eq(score._feel(c)[1], score.FEEL_SHARE_OLD, "取り分は人数によらず 0.40（重複を積んでも同じ）")
 
 
 # ── シラバスに無い事実の穴埋めは、3人そろうまで行わない ───────────
