@@ -35,7 +35,18 @@ const POST_URL = '/api/kuchikomi';
    full（通年）はどちらでも履修できるので必ず通す（app.js と同じ扱い）。 */
 const TERM_GROUPS = { spring: ['haru', 'full'], autumn: ['aki', 'full'] };
 
-/* 教科書の金額（設問8）のスライダーの目盛り。値 0〜10 がこの順に対応する。
+/* 設問3（form v5・2026-10-14）の5項目。キーは score.py の軸・好みの目盛りと同じ。
+   行の順はこの並び。見出しはスプレッドシートの列名に合わせてある。
+   設計: docs/superpowers/specs/2026-10-13-futan-rank-design.md */
+const V5_ITEMS = [
+  { key: 'exam',         label: 'テスト',               lo: '対策なしで取れる',   hi: 'しっかり勉強しないと単位を落とす' },
+  { key: 'report',       label: 'レポート・課題／宿題', lo: 'すぐ書ける',         hi: '毎回何時間もかかる' },
+  { key: 'attendance',   label: '出席',                 lo: 'ほぼ取られない',     hi: '毎回必須で休めない' },
+  { key: 'quiz',         label: '小テスト',             lo: 'その場で解ける',     hi: '毎回準備が要る' },
+  { key: 'presentation', label: '発表',                 lo: '一言話すだけ',       hi: '準備に何日もかかる' },
+];
+
+/* 教科書の金額（設問4）のスライダーの目盛り。値 0〜10 がこの順に対応する。
    文字列はシートに入るものそのもの ―― 変えると過去の行と混ざる。 */
 const PRICE_BUCKETS = [
   '500円未満', '500〜999円', '1,000〜1,499円', '1,500〜1,999円',
@@ -104,16 +115,13 @@ const els = {
   saveReviewBtn: document.getElementById('save-review-btn'),
 
   formButtons: document.querySelectorAll('.form-btn'),
-  reportDetailsSection: document.getElementById('report-details-section'),
-  reportWordCount: document.getElementById('report-word-count'),
-  reportWordDisplay: document.getElementById('report-word-display'),
   commentInput: document.getElementById('comment'),
 
-  attendanceOtherText: document.getElementById('attendance-other-text'),
+  v5Rows: document.getElementById('v5-rows'),
+  v5More: document.getElementById('v5-more'),
+  v5MoreBtns: document.getElementById('v5-more-btns'),
   examOtherText: document.getElementById('exam-other-text'),
   examDetailsSection: document.getElementById('exam-details-section'),
-  examDifficulty: document.getElementById('exam-difficulty'),
-  examDifficultyDisplay: document.getElementById('exam-difficulty-display'),
 
   textbookDetailsSection: document.getElementById('textbook-details-section'),
   textbookPrice: document.getElementById('textbook-price'),
@@ -253,17 +261,6 @@ function init() {
         e.target.classList.add('selected');
       }
 
-      if (group.id === 'group-report') {
-        els.reportDetailsSection.classList.toggle('hidden', e.target.dataset.value !== 'あり');
-      }
-      if (group.id === 'group-exam-presence') {
-        els.examDetailsSection.classList.toggle('hidden', e.target.dataset.value !== 'あり');
-      }
-      if (group.id === 'group-attendance') {
-        const other = e.target.dataset.value === 'その他';
-        els.attendanceOtherText.classList.toggle('hidden', !other);
-        if (!other) els.attendanceOtherText.value = '';
-      }
       if (group.id === 'group-exam') {
         const other = e.target.dataset.value === 'その他';
         els.examOtherText.classList.toggle('hidden', !other);
@@ -285,8 +282,30 @@ function init() {
     });
   });
 
+  /* 設問3の行は科目ごとに作り直すので、ボタンへの登録ではなく枠で受ける。 */
+  els.v5Rows.addEventListener('click', (e) => {
+    const btn = e.target.closest('.form-btn');
+    if (!btn) return;
+    btn.closest('.button-group').querySelectorAll('.form-btn')
+      .forEach(b => b.classList.toggle('selected', b === btn));
+    syncExamDetails();
+    checkModalFormReady();
+  });
+  els.v5MoreBtns.addEventListener('click', (e) => {
+    const btn = e.target.closest('.form-btn');
+    if (!btn) return;
+    addV5Row(btn.dataset.value, false);
+    btn.remove();
+    els.v5More.classList.toggle('hidden', !els.v5MoreBtns.children.length);
+    checkModalFormReady();
+  });
+
   els.modalSubjectSearch.addEventListener('input', renderModalSubjectOptions);
-  els.modalSubjectSelect.addEventListener('change', checkModalFormReady);
+  /* 科目が変わると、シラバスにある項目（＝出す行）も変わる。答えは捨てて作り直す。 */
+  els.modalSubjectSelect.addEventListener('change', () => {
+    renderV5(selectedSubjectRow(), null);
+    checkModalFormReady();
+  });
   els.modalYearSelect.addEventListener('change', checkModalFormReady);
   /* スライダーは最初から何かの値を持っているので、「一度でも動かしたか」で
      答えたかどうかを見る（setTextbookPrice が dataset.set を立てる）。 */
@@ -303,14 +322,6 @@ function init() {
   });
   els.extraOpen.addEventListener('click', () => {
     if (els.extraSelect.value) openEditor({ kind: 'extra', id: els.extraSelect.value });
-  });
-
-  /* 語数も金額と同じく「一度でも動かしたか」で答えたかどうかを見る。 */
-  els.reportWordCount.addEventListener('input', (e) => {
-    setReportWordCount(e.target.value);
-  });
-  els.examDifficulty.addEventListener('input', (e) => {
-    els.examDifficultyDisplay.textContent = e.target.value;
   });
 
   /* 一覧・詳細の「✎ この科目の口コミを書く」（/kuchikomi?c=<id>）を受ける。
@@ -675,10 +686,11 @@ function openEditor(target) {
     if (selectedData) {
       els.modalSubjectSelect.value = selectedData.id;
       els.clearCellBtn.classList.remove('hidden');
-      if (selectedData.review) restoreReview(selectedData.review);
     } else {
       els.clearCellBtn.classList.add('hidden');
     }
+    renderV5(selectedSubjectRow(), selectedData && selectedData.review);
+    if (selectedData && selectedData.review) restoreReview(selectedData.review);
   }
 
   checkModalFormReady();
@@ -717,24 +729,10 @@ function renderModalSubjectOptions() {
 function restoreReview(review) {
   els.modalYearSelect.value = review.yearTaken || '';
 
-  const att = review.attendance;
-  if (att && att.startsWith('その他')) {
-    restoreButtonGroup('group-attendance', 'その他');
-    els.attendanceOtherText.classList.remove('hidden');
-    const m = att.match(/その他（(.*)）/);
-    if (m) els.attendanceOtherText.value = m[1];
-  } else {
-    restoreButtonGroup('group-attendance', att);
-  }
-
-  restoreButtonGroup('group-assignment-inclass', review.assignmentInClass);
-  restoreButtonGroup('group-assignment-outclass', review.assignmentOutClass);
-  restoreButtonGroup('group-exam-presence', review.examPresence);
-
-  if (review.examPresence === 'あり') {
-    els.examDetailsSection.classList.remove('hidden');
+  /* 設問3の答えは renderV5 が行を作るときに戻している。ここは持ち込みだけ。 */
+  if (review.exam) {
     const ex = review.exam;
-    if (ex && ex.startsWith('その他')) {
+    if (ex.startsWith('その他')) {
       restoreButtonGroup('group-exam', 'その他');
       els.examOtherText.classList.remove('hidden');
       const m = ex.match(/その他（(.*)）/);
@@ -742,17 +740,8 @@ function restoreReview(review) {
     } else {
       restoreButtonGroup('group-exam', ex);
     }
-    if (review.examDifficulty) {
-      els.examDifficulty.value = review.examDifficulty;
-      els.examDifficultyDisplay.textContent = review.examDifficulty;
-    }
   }
-
-  restoreButtonGroup('group-report', review.reportPresence);
-  if (review.reportPresence === 'あり') {
-    els.reportDetailsSection.classList.remove('hidden');
-    if (review.reportWordCount) setReportWordCount(review.reportWordCount);
-  }
+  syncExamDetails();
 
   restoreButtonGroup('group-textbook', review.textbook);
   if (review.textbook === '必要') {
@@ -778,6 +767,92 @@ function restoreReview(review) {
   els.commentInput.value = review.comment || '';
 }
 
+/* ══ 設問3（form v5） ════════════════════════════════ */
+
+/* いまモーダルで選ばれている科目の行（timetable.json の1行）。 */
+function selectedSubjectRow() {
+  const id = els.modalSubjectSelect.value;
+  return id ? modalSubjects.find(s => s.id === id) || null : null;
+}
+
+/* 設問3の行を科目に合わせて作り直す。
+   items が null（内訳が読めない科目）なら5項目すべて。saved は前に保存した review。 */
+function renderV5(subject, saved) {
+  els.v5Rows.innerHTML = '';
+  els.v5MoreBtns.innerHTML = '';
+  if (!subject) {
+    els.v5More.classList.add('hidden');
+    syncExamDetails();
+    return;
+  }
+  const listed = (subject.items && subject.items.length) ? V5_ITEMS.filter(it => subject.items.includes(it.key))
+                               : V5_ITEMS;
+  listed.forEach(it => addV5Row(it.key, true));
+  const answers = (saved && saved.form_v === 5 && saved.items) || {};
+  V5_ITEMS.forEach(it => {
+    if (listed.includes(it)) return;
+    /* 前にシラバス外の行を足して 1〜5 を付けていたら、その行も戻す。 */
+    if (answers[it.key] > 0) {
+      addV5Row(it.key, false);
+      return;
+    }
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'form-btn';
+    b.dataset.value = it.key;
+    b.textContent = `＋ ${it.label}`;
+    els.v5MoreBtns.appendChild(b);
+  });
+  els.v5More.classList.toggle('hidden', !els.v5MoreBtns.children.length);
+  Object.entries(answers).forEach(([k, v]) => {
+    const btn = els.v5Rows.querySelector(
+      `.v5Row[data-item="${k}"] .form-btn[data-value="${Number(v)}"]`);
+    if (btn) btn.classList.add('selected');
+  });
+  syncExamDetails();
+}
+
+/* 1項目の行。fromSyllabus＝シラバスの内訳にある項目（割合を添え、0 は「実際はなかった」）。
+   折りたたみから足した行は、0 を「やっぱりなかった」にする。 */
+function addV5Row(key, fromSyllabus) {
+  const it = V5_ITEMS.find(x => x.key === key);
+  const subject = selectedSubjectRow();
+  const pct = fromSyllabus && subject && subject.ratio && subject.ratio[key];
+  const row = document.createElement('div');
+  row.className = 'form-section v5Row';
+  row.dataset.item = key;
+  row.innerHTML = `
+    <label>${it.label}${pct ? ` <span class="kkSub">（シラバス：成績の${Math.round(pct)}%）</span>` : ''}</label>
+    <div class="button-group">
+      <button type="button" class="form-btn" data-value="0">${fromSyllabus ? '実際はなかった' : 'やっぱりなかった'}</button>
+      ${[1, 2, 3, 4, 5].map(n => `<button type="button" class="form-btn" data-value="${n}">${n}</button>`).join('')}
+    </div>
+    <p class="kkHint">1＝${it.lo} ／ 5＝${it.hi}</p>`;
+  els.v5Rows.appendChild(row);
+}
+
+/* 行ごとの答え。{ exam: 2, quiz: 1, ... }（答えていない行は入らない）。 */
+function v5Answers() {
+  const out = {};
+  els.v5Rows.querySelectorAll('.v5Row').forEach(row => {
+    const sel = row.querySelector('.form-btn.selected');
+    if (sel) out[row.dataset.item] = Number(sel.dataset.value);
+  });
+  return out;
+}
+
+/* テストの行に 1〜5 が付いているときだけ、持ち込みを聞く。
+   「実際はなかった」に切り替えたら、持ち込みの答えは捨てる（見えない答えを送らない）。 */
+function syncExamDetails() {
+  const show = (v5Answers().exam || 0) > 0;
+  els.examDetailsSection.classList.toggle('hidden', !show);
+  if (!show) {
+    document.querySelectorAll('#group-exam .form-btn').forEach(b => b.classList.remove('selected'));
+    els.examOtherText.value = '';
+    els.examOtherText.classList.add('hidden');
+  }
+}
+
 /* 「必要」以外に切り替えたとき・フォームを開き直したときに、
    教科書の金額と場所を空に戻す。 */
 function clearTextbookDetails() {
@@ -799,31 +874,16 @@ function setTextbookPrice(i) {
   els.textbookPriceDisplay.textContent = PRICE_BUCKETS[i];
 }
 
-/* 語数のスライダーを v 字で「答えた」状態にする。 */
-function setReportWordCount(v) {
-  els.reportWordCount.value = v;
-  els.reportWordCount.dataset.set = '1';
-  els.reportWordCount.classList.remove('kkUnset');
-  els.reportWordDisplay.textContent = `${v} 字 くらい`;
-}
-
 function resetModalForm() {
   els.formButtons.forEach(btn => btn.classList.remove('selected'));
   els.modalYearSelect.value = '';
 
-  els.reportDetailsSection.classList.add('hidden');
-  els.reportWordCount.value = 2000;
-  delete els.reportWordCount.dataset.set;
-  els.reportWordCount.classList.add('kkUnset');
-  els.reportWordDisplay.textContent = '未選択';
-
+  els.v5Rows.innerHTML = '';
+  els.v5MoreBtns.innerHTML = '';
+  els.v5More.classList.add('hidden');
   els.examDetailsSection.classList.add('hidden');
-  els.examDifficulty.value = 5;
-  els.examDifficultyDisplay.textContent = 5;
 
   els.commentInput.value = '';
-  els.attendanceOtherText.value = '';
-  els.attendanceOtherText.classList.add('hidden');
   els.examOtherText.value = '';
   els.examOtherText.classList.add('hidden');
 
@@ -840,20 +900,16 @@ function restoreButtonGroup(groupId, value) {
 function checkModalFormReady() {
   const sel = id => document.querySelector(`#${id} .selected`);
 
-  const examBtn = sel('group-exam-presence');
-  let hasExam = false;
-  if (examBtn) hasExam = examBtn.dataset.value === 'あり' ? sel('group-exam') !== null : true;
-
-  /* 7 の語数と、8「必要」のときの金額・場所・（その他の）記入は任意（2026-09-29）。
-     ここでは見ない ―― 7 と 8 は「あり／なし」「必要／…」を選んでいれば足りる。 */
+  /* 設問3は出ている行すべてに答えが要る（足した行も含む）。テストに 1〜5 を
+     付けたら持ち込みも要る。4「必要」のときの金額・場所は任意（2026-09-29）。 */
+  const rows = els.v5Rows.querySelectorAll('.v5Row');
+  const answered = Object.keys(v5Answers()).length;
+  const examOk = (v5Answers().exam || 0) > 0 ? sel('group-exam') !== null : true;
   els.saveReviewBtn.disabled = !(
     els.modalSubjectSelect.value !== ''
     && els.modalYearSelect.value !== ''
-    && sel('group-attendance')
-    && sel('group-assignment-inclass')
-    && sel('group-assignment-outclass')
-    && hasExam
-    && sel('group-report')
+    && rows.length > 0 && answered === rows.length
+    && examOk
     && sel('group-textbook')
   );
 }
@@ -904,6 +960,7 @@ function openCourseFromParam(row) {
     closeModal();
     return false;
   }
+  renderV5(selectedSubjectRow(), null);   // 科目が決まったので設問3の行を作る
   checkModalFormReady();   // openEditor 内の呼び出しは value を上書きする前のもの
   return true;
 }
@@ -973,19 +1030,18 @@ function handleSaveReview() {
     : EXTRA.find(r => r.id === subjectId);
   if (!subject) return;
 
-  const attendanceBtnVal = document.querySelector('#group-attendance .selected').dataset.value;
-  const attendanceValue = attendanceBtnVal === 'その他'
-    ? `その他（${els.attendanceOtherText.value.trim()}）` : attendanceBtnVal;
+  /* 設問3。5項目すべてに 0〜5 を入れて送る ―― 出さなかった行（シラバスに無く、
+     足しもしなかった項目）は 0。GAS は 0 をそのまま書く（空欄にしない）。 */
+  const answers = v5Answers();
+  const items = {};
+  V5_ITEMS.forEach(it => { items[it.key] = answers[it.key] || 0; });
 
-  const examPresenceBtnVal = document.querySelector('#group-exam-presence .selected').dataset.value;
   let examValue = null;
-  if (examPresenceBtnVal === 'あり') {
+  if (items.exam > 0) {
     const examBtnVal = document.querySelector('#group-exam .selected').dataset.value;
     examValue = examBtnVal === 'その他'
       ? `その他（${els.examOtherText.value.trim()}）` : examBtnVal;
   }
-
-  const reportPresence = document.querySelector('#group-report .selected').dataset.value;
 
   /* 教科書。場所は複数選べるが、シートの1マスに入れるため
      「生協、メルカリ、その他（…）」の1本の文字列にする。並びは画面の順
@@ -1008,15 +1064,9 @@ function handleSaveReview() {
 
   const review = {
     yearTaken: els.modalYearSelect.value,
-    attendance: attendanceValue,
-    assignmentInClass: document.querySelector('#group-assignment-inclass .selected').dataset.value,
-    assignmentOutClass: document.querySelector('#group-assignment-outclass .selected').dataset.value,
-    examPresence: examPresenceBtnVal,
+    form_v: 5,
+    items: items,
     exam: examValue,
-    examDifficulty: examPresenceBtnVal === 'あり' ? els.examDifficulty.value : null,
-    reportPresence: reportPresence,
-    reportWordCount: reportPresence === 'あり' && els.reportWordCount.dataset.set === '1'
-      ? els.reportWordCount.value : null,
     textbook: textbook,
     textbookPrice: textbookPrice,
     textbookPlaces: textbookPlaces,

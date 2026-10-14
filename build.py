@@ -165,6 +165,23 @@ def guard_not_fewer(dests: list[Path], n_new: int, allow: bool) -> None:
                 f"      本当に減らすなら --allow-fewer-courses を付けてください。")
 
 
+# 口コミの質問（form v5）で聞く項目。キーは score.py の軸・好みの目盛りと同じ。
+REVIEW_ITEMS = ("exam", "report", "attendance", "quiz", "presentation")
+
+
+def eval_items(c: dict) -> list[str] | None:
+    """シラバスの成績の内訳に出てくる項目。口コミの画面は、この項目の行だけを出す。
+
+    内訳が読めない科目は None（画面は5項目すべて出す）。小テストは割合が 0 でも、
+    本文に「毎回小テスト」とあれば出す（score._present_others と同じ見方）。
+    """
+    er = c.get("eval_ratio")
+    if er is None:
+        return None
+    return [k for k in REVIEW_ITEMS
+            if float(er.get(k) or 0.0) > 0 or (k == "quiz" and c.get("weekly_quiz"))]
+
+
 def timetable_rows(courses: list[dict]) -> list[dict]:
     """口コミ投稿の画面が読む投影。
 
@@ -185,8 +202,34 @@ def timetable_rows(courses: list[dict]) -> list[dict]:
             "faculty": faculty_mod.faculty_of(c),
             "eligible_years": c.get("eligible_years"),
             "track": c.get("track"),
+            # 口コミの質問で出す項目と、そのシラバス上の割合（「成績の70%」と添える）
+            "items": eval_items(c),
+            "ratio": {k: v for k, v in (c.get("eval_ratio") or {}).items()
+                      if k in REVIEW_ITEMS and v},
         })
     return rows
+
+
+def retimetable(out: Path, tt_path: Path) -> None:
+    """焼き済みの timetable.json に items / ratio だけを付け直す（rescore 用）。
+
+    timetable.json は元データ（data/courses.json）から焼くが、全所属ぶんを
+    持っているのは取得した人だけ。built に eval_ratio は入っているので、
+    項目だけならそこから作れる。行の増減や並びは変えない。
+    """
+    if not tt_path.exists():
+        return
+    built = {c["id"]: c for c in json.loads(out.read_text(encoding="utf-8"))["courses"]}
+    rows = json.loads(tt_path.read_text(encoding="utf-8"))
+    for r in rows:
+        c = built.get(r["id"])
+        if c is None:
+            continue
+        r["items"] = eval_items(c)
+        r["ratio"] = {k: v for k, v in (c.get("eval_ratio") or {}).items()
+                      if k in REVIEW_ITEMS and v}
+    tt_path.write_text(json.dumps(rows, ensure_ascii=False, separators=(",", ":")),
+                       encoding="utf-8")
 
 
 def slim(course: dict) -> dict:
@@ -466,6 +509,7 @@ def main() -> None:
     if args.rescore:
         rescore(Path(args.out))
         rebuild_pages(Path(args.out))   # テストの有無は eval_ratio から出すので焼き直す
+        retimetable(Path(args.out), Path(args.out_timetable))   # 口コミの質問の項目も
         return
 
     if args.subjects:

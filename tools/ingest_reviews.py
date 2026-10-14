@@ -8,8 +8,10 @@
         ・「テスト」1列に **持ち込み可否** が入る（旧は 有無 と 持ち込みの2列）。
           空欄は「テストなし」として読む ―― フォームは「なし」を選ぶと
           持ち込みを聞かないため。原文は exam_bring_raw に残るのでやり直せる
-        ・**テスト難易度（1〜10）の列が無い** → exam_hard10 は埋まらない。
-          サイトのフォームは聞いているので、シート側に列が増えたらここも直す
+        ・テスト難易度（1〜10）は「テストの難易度」列（2026-09-03 に GAS が書くようになった）
+      v4 の中に **form v5**（2026-10-14〜）の行が混ざる。「フォーム版」列が 5 の行で、
+      5項目（テスト／レポート・課題／宿題／出席／小テスト／発表）を 0〜5 で持つ。
+      古い設問の列は空。保存の形は {"v": 5, "items": {...}}（_normalize_v5）
 
   旧  Netlify のフォーム（TSV・英語ヘッダ）。2026-08 より前の144件がこの形。
 
@@ -137,8 +139,36 @@ def _v4_find(r: dict, *needles: str) -> str | None:
     return None
 
 
+# 新しい質問（form v5・2026-10-14）の列。「フォーム版」が 5 の行だけが持つ。
+# 列名はスプレッドシートの見出しそのもの（GAS が W〜AB 列に書く）。
+# _v4_find の部分一致は使わない ――「テスト」が「テスト(0-5)」にも当たるため。
+V5_COLS = {
+    "exam": "テスト(0-5)",
+    "report": "レポート・課題／宿題(0-5)",
+    "attendance": "出席(0-5)",
+    "quiz": "小テスト(0-5)",
+    "presentation": "発表(0-5)",
+}
+
+
+def _v5_items(r: dict) -> dict | None:
+    """v5 の5項目（0〜5）。どれか1つでも読めなければ None ―― 欠けた答えを 0 で埋めると
+    「なかった」と答えたことになってしまう。"""
+    clean = {(k or "").strip(): v for k, v in r.items()}
+    out = {}
+    for key, col in V5_COLS.items():
+        v = _int(clean.get(col))
+        if v is None or not 0 <= v <= 5:
+            return None
+        out[key] = v
+    return out
+
+
 def _v4_row(r: dict) -> dict:
     row = {k: r.get(v) for k, v in V4_COLS.items()}
+    if (_v4_find(r, "フォーム版") or "") == "5":
+        row["v"] = 5
+        row["items"] = _v5_items(r)
     bring = (r.get("テスト") or "").strip()
     # 「テスト」1列に持ち込み可否が入る。空欄＝テストなし（フォームは「なし」を
     # 選ぶと持ち込みを聞かない）。ただし「テスト有無」列がシートに増えたら、
@@ -173,7 +203,8 @@ def read_rows(path: str) -> list[dict]:
             # 列を足しただけでは埋まらない ―― GAS が書かなければ空のまま。
             # 「列があるから安心」で警告が消えるのが一番たちが悪いので、
             # 中身が1件も入っていないときも同じ強さで知らせる。
-            withexam = [r for r in rows if (r.get("exam") or "") != "なし"]
+            # v5 の行は難易度を 1〜5 の「テスト」で聞くので、この列を持たない
+            withexam = [r for r in rows if (r.get("exam") or "") != "なし" and r.get("v") != 5]
             if withexam and not any(r.get("exam_hard10") for r in withexam):
                 print(f"  ⚠ 「難易度」の列はありますが、テストありの {len(withexam)} 件に"
                       "1つも値が入っていません。")
@@ -196,6 +227,8 @@ def _course_id(raw: str | None) -> str:
 
 def normalize(row: dict) -> dict:
     """1行 → 保存する形。判断はここに寄せ、集計側では素直に平均するだけにする。"""
+    if row.get("v") == 5:
+        return _normalize_v5(row)
     att = (row.get("attendance") or "").strip()
     bring = (row.get("exam_bring") or "").strip() or None
     return {
@@ -220,6 +253,24 @@ def normalize(row: dict) -> dict:
         # 受講年。フォームに「いつ受けた？」の列が出来たらここに入る。
         # 無ければ None のまま ―― 埋めない。詳細パネルは None を
         # 「受講年 未回答」として末尾に置く（推測で年を書かない）。
+        "taken_year": _int(row.get("taken_year")),
+        "at": (row.get("date") or "").strip() or None,
+    }
+
+
+def _normalize_v5(row: dict) -> dict:
+    """form v5 の1行。古い設問（出席3択・課題の重さ・難易度・レポート）の鍵は持たない
+    ―― 集計（reviews.py）は "v" で古い行と分けて扱う。"""
+    bring = (row.get("exam_bring") or "").strip() or None
+    return {
+        "v": 5,
+        "course_id": _course_id(row.get("code")),
+        # 5項目すべてに 0〜5。0＝なかった。読めない行は None（集計で数えない）。
+        "items": row.get("items"),
+        "exam_bring": bring if bring in ("可", "不可")
+                      else _lookup("exam_bring", bring) if bring else None,
+        "exam_bring_raw": bring,
+        "note": (row.get("note") or "").strip() or None,
         "taken_year": _int(row.get("taken_year")),
         "at": (row.get("date") or "").strip() or None,
     }
@@ -253,6 +304,13 @@ def renorm() -> None:
     rows = json.loads(OUT.read_text(encoding="utf-8"))
     changed = 0
     for r in rows:
+        if r.get("v") == 5:
+            # v5 の行に出席・持ち込みの台帳を当てると、古い設問の鍵が生えてしまう。
+            # 持ち込みだけ当て直す。
+            bring = r.get("exam_bring_raw")
+            r["exam_bring"] = (bring if bring in ("可", "不可")
+                               else _lookup("exam_bring", bring) if bring else None)
+            continue
         # 取り込みずみの古い行には exam_bring_raw が無い（原文が exam_bring に
         # 入っていた頃のもの）。初回だけここで移し替える。
         if "exam_bring_raw" not in r:
