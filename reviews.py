@@ -51,7 +51,7 @@ MIN_FOR_BACKFILL = 3
 # ―― 実際 135851 は3件、135581 は2件が1バイト違わず同一だった。
 _IDENTITY = ("attendance", "in_class", "out_class",
              "exam", "exam_bring", "exam_hard10",
-             "report", "report_words", "note")
+             "report", "report_words", "note", "items")
 
 
 def _mean(xs):
@@ -61,7 +61,9 @@ def _mean(xs):
 
 def _distinct(rs: list[dict]) -> int:
     """中身の違う回答が何件あるか。門はこちらの数で判定する。"""
-    return len({tuple(r.get(k) for k in _IDENTITY) for r in rs})
+    # items（form v5）は dict なので、そのままでは set に入らない。並びを固定した文字列にする。
+    return len({tuple(json.dumps(r.get(k), sort_keys=True) if isinstance(r.get(k), dict)
+                      else r.get(k) for k in _IDENTITY) for r in rs})
 
 
 # 平均を取ると「意見が割れていた」ことが消える。
@@ -126,10 +128,6 @@ def load(path: Path | None = None) -> list[dict]:
     # ダミー行（サンプルデータの S001）は採点に混ぜない
     rows = [r for r in rows if isinstance(r, dict) and r.get("course_id")
             and r["course_id"] != "S001"]
-    # 新しい質問（form v5）の行は、計算の段（設計 §4・PR ②）ができるまで集計に入れない。
-    # 古い集計は attendance / in_class などを読むので、v5 の行を混ぜると件数（n）だけ
-    # 増えて中身の無い口コミになる。取り込みと保存は先に始めておく（PR ①）。
-    rows = [r for r in rows if r.get("v") != 5]
     # aggregate() も public_rows() も resolve() も、生データは必ずここを
     # 通る。畳むならこの1箇所でよい。
     return _drop_exact_dups(rows)
@@ -178,26 +176,64 @@ def share(rows: list[dict], courses: list[dict]) -> list[dict]:
     return out
 
 
+# 新しい質問（form v5・2026-10-14〜）の集計。設計 §4。
+# 5項目と既定の配分。キーと重みは score.py の好み（目盛り）の既定と同じ
+# ―― テスト50・発表20・レポート15・出席15・小テスト10。
+V5_WEIGHTS = {"exam": 50, "presentation": 20, "report": 15, "attendance": 15, "quiz": 10}
+
+
+def burden_v5(items: dict, weights: dict | None = None) -> float:
+    """1人の負担（0〜5、大きいほど重い）＝ 5項目の加重平均。無い項目は 0 として入る。"""
+    w = weights or V5_WEIGHTS
+    return sum(w[k] * (items.get(k) or 0) for k in w) / sum(w.values())
+
+
+def _aggregate_v5(rs: list[dict]) -> dict | None:
+    """v5 の行だけを畳む。items が読めない行（取り込みで None）は数えない。"""
+    good = [r for r in rs if isinstance(r.get("items"), dict)]
+    if not good:
+        return None
+    return {
+        "n": len(good),
+        "n_distinct": _distinct(good),
+        # 科目の負担 ＝ 1人の負担の平均（既定の配分）
+        "burden": round(sum(burden_v5(r["items"]) for r in good) / len(good), 3),
+        # 項目ごとの平均（0〜5）。ブラウザが自分の配分で相性度を出すのに使う
+        "items": {k: round(sum(r["items"].get(k) or 0 for r in good) / len(good), 3)
+                  for k in V5_WEIGHTS},
+        # 項目ごとに「0（なかった）」と答えた人数。シラバスと実際の食い違いを見る（score.py）
+        "zero": {k: sum(1 for r in good if (r["items"].get(k) or 0) == 0) for k in V5_WEIGHTS},
+    }
+
+
 def aggregate(rows: list[dict]) -> dict[str, dict]:
-    """科目ID → 畳んだ口コミ。"""
+    """科目ID → 畳んだ口コミ。
+
+    古い質問の行と新しい質問（form v5）の行は分けて畳む（設計 §1：新しい口コミが
+    あれば負担は新だけで出す）。n・n_distinct・notes は表示用で、両方の行を数える。
+    古い質問の項目（exam_hard10 など）は古い行だけから出す（v5 の行はその鍵を持たない）。
+    v5 の行は "v5" にまとめる。
+    """
     by: dict[str, list[dict]] = {}
     for r in rows:
         by.setdefault(r["course_id"], []).append(r)
 
     out = {}
-    for cid, rs in by.items():
+    for cid, rs_all in by.items():
+        rs = [r for r in rs_all if r.get("v") != 5]        # 古い質問の行
+        v5 = _aggregate_v5([r for r in rs_all if r.get("v") == 5])
         # フォームは 1（簡単）〜10（難しい）。score.py の exam_hard は 0〜2。
         h10 = _mean([r.get("exam_hard10") for r in rs])
         words = _mean([r.get("report_words") for r in rs if r.get("report")])
-        bring = [r.get("exam_bring") for r in rs if r.get("exam_bring")]
+        bring = [r.get("exam_bring") for r in rs_all if r.get("exam_bring")]
         # 「その他（持ち帰り形式）」のような書かれ方は、可／不可 に畳むと
         # 情報が落ちる ―― 持ち帰りかオンラインかは学生の判断材料になる。
         # 畳んだ値の横に添えるための原文。可／不可 と答えた行は対象外
         # （添えるものが無い）。台帳の判断は exam_bring 側が持っている。
-        raw = [r.get("exam_bring_raw") for r in rs
+        raw = [r.get("exam_bring_raw") for r in rs_all
                if r.get("exam_bring_raw") not in (None, "可", "不可")]
         out[cid] = {
-            "n": len(rs),
+            "n": len(rs_all),
             "exam_hard": None if h10 is None else round((h10 - 1) / 9 * 2, 3),
             "exam_hard10": None if h10 is None else round(h10, 1),
             "report_words": None if words is None else int(round(words)),
@@ -212,20 +248,24 @@ def aggregate(rows: list[dict]) -> dict[str, dict]:
             # 公開サイトに出せない内容（学則に触れる指南など）を人の判断で
             # 止めるための唯一の入口。**行ごと捨てないこと** ―― 出席や
             # テスト難易度といった数値は正しい情報で、採点には効かせ続ける。
-            "notes": [r["note"] for r in rs
+            "notes": [r["note"] for r in rs_all
                       if r.get("note") and r.get("publish", True)],
             # 平均が消した「食い違い」の在りか。画面はここに⚠を出し、
             # 詳細は1件ずつ（public_rows）を読ませる。採点には使わない。
             "conflicts": _conflicts(rs),
             # 中身の違う回答の数。表示は n（生の件数）、門はこちらで判定する。
-            "n_distinct": _distinct(rs),
+            "n_distinct": _distinct(rs_all),
             # 中身の違う回答が MIN_FOR_BACKFILL 人以上そろったか。
             # 2026-09-17 から採点（score.py）はこれを読まない。読むのは
             # apply() の事実の穴埋めと、画面の「あなたに合う」枠（確かめられた科目だけ出す）。
-            "scored": _distinct(rs) >= MIN_FOR_BACKFILL,
+            "scored": _distinct(rs_all) >= MIN_FOR_BACKFILL,
+            # 古い質問で答えた人数（体感層が「古い口コミがあるか」を見るのに使う）
+            "n_old": len(rs),
         }
+        if v5:
+            out[cid]["v5"] = v5
         # share() を通って兄弟クラスと共有しているときだけ付ける（画面の注記用）
-        classes = max(r.get("_classes", 1) for r in rs)
+        classes = max(r.get("_classes", 1) for r in rs_all)
         if classes > 1:
             out[cid]["shared_classes"] = classes
     return out
@@ -263,6 +303,8 @@ def public_rows(rows: list[dict]) -> dict[str, list[dict]]:
     for cid, rs in by.items():
         out[cid] = [
             {**{k: r.get(k) for k in _PUBLIC},
+             # form v5 の行だけ持つ（5項目の 0〜5）。古い行は None
+             "items": r.get("items") if r.get("v") == 5 else None,
              "taken_year": r.get("taken_year"),
              "taken_year_before": bool(r.get("taken_year_before")),
              "note": r["note"] if (r.get("note") and r.get("publish", True))

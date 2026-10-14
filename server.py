@@ -83,6 +83,8 @@ DATA_META.setdefault(
 # APIモードと静的モードで数字がズレる。
 _RV, _RV_SRC = reviews_mod.resolve(COURSES)
 _N_RV = reviews_mod.apply(COURSES, _RV)
+# 古い口コミの物差しをそろえる対応表。build.py と同じく採点の前に作る。
+scoring.calibrate_feel(COURSES)
 BY_ID = {c["id"]: c for c in COURSES}
 
 DAYS = ["月", "火", "水", "木", "金"]

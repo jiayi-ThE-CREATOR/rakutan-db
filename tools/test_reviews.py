@@ -100,7 +100,7 @@ eq([r["note"] for r in p], ["2024", "不明"], "受講年なしは末尾")
 # at は投稿日であって受講時期ではない。混同されるので公開形には出さない。
 p = reviews.public_rows([rv(taken_year=2026)])["X"]
 eq("at" in p[0], False, "at は公開形に含めない")
-eq(sorted(p[0]), sorted(["taken_year", "taken_year_before", "attendance",
+eq(sorted(p[0]), sorted(["taken_year", "taken_year_before", "attendance", "items",
                          "in_class", "out_class", "exam_hard10", "exam_bring",
                          "report_words", "note"]), "公開形のキーは固定")
 
@@ -180,6 +180,28 @@ eq(agg["B"]["notes"], ["簡単"], "書かれていないクラスにも一言が
 # 同じ人が2クラスに同じ回答を送った → n は2、n_distinct は1
 agg = reviews.aggregate(reviews.share([rv("A", attendance=1), rv("B", attendance=1)], cs))
 eq((agg["A"]["n"], agg["A"]["n_distinct"]), (2, 1), "同じ回答は1人に数える")
+
+
+# ── form v5（新しい質問）の集計 ───────────────────────────
+def v5(cid="X", **items):
+    base = {"exam": 0, "report": 0, "attendance": 0, "quiz": 0, "presentation": 0}
+    return {"v": 5, "course_id": cid, "items": {**base, **items}, "note": None, "at": "10-14"}
+
+agg = reviews.aggregate([v5(exam=2, quiz=1), v5(exam=5, quiz=3), rv(attendance=2)])["X"]
+eq(agg["n"], 3, "v5: 件数は新旧あわせて数える（表示用）")
+eq(agg["n_old"], 1, "v5: 古い質問の人数")
+eq(agg["attendance"], 2, "v5: 古い質問の項目は古い行だけから出す")
+eq(agg["v5"]["n"], 2, "v5: 新しい質問の人数")
+eq(agg["v5"]["burden"], round((110 / 110 + 280 / 110) / 2, 3), "v5: 科目の負担＝1人の負担（加重平均）の平均")
+eq(agg["v5"]["items"]["exam"], 3.5, "v5: 項目ごとの平均")
+eq(agg["v5"]["zero"]["quiz"], 0, "v5: 0 と答えた人数")
+eq(reviews.burden_v5({"exam": 5}), 250 / 110, "v5: テストだけ5でも、無い項目は0なので 2.27")
+agg = reviews.aggregate([v5(exam=2), v5(exam=2)])["X"]
+eq(agg["v5"]["n_distinct"], 1, "v5: 同じ答えは1人に数える（items も見る）")
+agg = reviews.aggregate([{"v": 5, "course_id": "X", "items": None}])["X"]
+eq("v5" in agg, False, "v5: items が読めない行は数えない")
+pub = reviews.public_rows([v5(exam=2), rv()])["X"]
+eq(sorted(r["items"] is None for r in pub), [False, True], "v5: 公開形の items は v5 の行だけ")
 
 
 print(f"  通過 {ok} 件")

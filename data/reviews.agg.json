@@ -12,7 +12,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131323": {
   "n": 1,
@@ -27,7 +28,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131345": {
   "n": 1,
@@ -42,7 +44,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131371": {
   "n": 1,
@@ -59,7 +62,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131423": {
   "n": 1,
@@ -74,7 +78,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131453": {
   "n": 1,
@@ -91,7 +96,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131463": {
   "n": 1,
@@ -108,7 +114,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131469": {
   "n": 1,
@@ -125,7 +132,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131511": {
   "n": 1,
@@ -140,7 +148,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131667": {
   "n": 1,
@@ -155,7 +164,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "131713": {
   "n": 1,
@@ -172,7 +182,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134101": {
   "n": 1,
@@ -189,7 +200,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134131": {
   "n": 1,
@@ -204,7 +216,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134139": {
   "n": 1,
@@ -221,7 +234,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134147": {
   "n": 1,
@@ -236,7 +250,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134153": {
   "n": 1,
@@ -251,7 +266,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134157": {
   "n": 1,
@@ -268,7 +284,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134163": {
   "n": 1,
@@ -285,7 +302,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "134179": {
   "n": 1,
@@ -300,7 +318,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135059": {
   "n": 1,
@@ -315,7 +334,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135093": {
   "n": 2,
@@ -332,7 +352,8 @@
    "attendance"
   ],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135107": {
   "n": 1,
@@ -349,7 +370,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135115": {
   "n": 1,
@@ -364,7 +386,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135139": {
   "n": 1,
@@ -382,6 +405,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135145": {
@@ -398,6 +422,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135147": {
@@ -414,6 +439,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135151": {
@@ -432,6 +458,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135159": {
@@ -447,7 +474,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135163": {
   "n": 2,
@@ -464,7 +492,8 @@
   ],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135185": {
   "n": 1,
@@ -481,7 +510,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135193": {
   "n": 1,
@@ -498,7 +528,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135203": {
   "n": 1,
@@ -513,7 +544,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135225": {
   "n": 2,
@@ -530,7 +562,8 @@
   ],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135233": {
   "n": 1,
@@ -547,7 +580,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135237": {
   "n": 1,
@@ -565,6 +599,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135241": {
@@ -580,7 +615,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135249": {
   "n": 1,
@@ -597,7 +633,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135251": {
   "n": 1,
@@ -614,7 +651,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135256": {
   "n": 2,
@@ -629,7 +667,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135257": {
   "n": 1,
@@ -644,7 +683,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135267": {
   "n": 1,
@@ -662,6 +702,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135268": {
@@ -680,6 +721,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135297": {
@@ -697,7 +739,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135302": {
   "n": 7,
@@ -721,6 +764,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135304": {
@@ -745,6 +789,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135305": {
@@ -769,6 +814,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135306": {
@@ -793,6 +839,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135309": {
@@ -817,6 +864,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135312": {
@@ -841,6 +889,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135316": {
@@ -865,6 +914,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135318": {
@@ -889,6 +939,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135327": {
@@ -909,7 +960,8 @@
   ],
   "conflicts": [],
   "n_distinct": 4,
-  "scored": true
+  "scored": true,
+  "n_old": 4
  },
  "135335": {
   "n": 7,
@@ -933,6 +985,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135337": {
@@ -957,6 +1010,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135339": {
@@ -981,6 +1035,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135341": {
@@ -1005,6 +1060,7 @@
   ],
   "n_distinct": 7,
   "scored": true,
+  "n_old": 7,
   "shared_classes": 12
  },
  "135343": {
@@ -1021,6 +1077,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 3,
   "shared_classes": 2
  },
  "135349": {
@@ -1040,7 +1097,8 @@
    "out_class"
   ],
   "n_distinct": 3,
-  "scored": true
+  "scored": true,
+  "n_old": 3
  },
  "135357": {
   "n": 2,
@@ -1060,7 +1118,8 @@
    "in_class"
   ],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135425": {
   "n": 1,
@@ -1076,6 +1135,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135442": {
@@ -1094,6 +1154,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "135444": {
@@ -1110,6 +1171,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "135452": {
@@ -1128,6 +1190,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 2
  },
  "135453": {
@@ -1146,6 +1209,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "135455": {
@@ -1162,6 +1226,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "135462": {
@@ -1180,6 +1245,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 2
  },
  "135464": {
@@ -1196,6 +1262,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "135473": {
@@ -1214,6 +1281,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "135477": {
@@ -1232,6 +1300,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135483": {
@@ -1250,6 +1319,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "135487": {
@@ -1268,6 +1338,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135503": {
@@ -1286,6 +1357,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 2
  },
  "135505": {
@@ -1302,6 +1374,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135509": {
@@ -1318,6 +1391,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135513": {
@@ -1336,6 +1410,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 2
  },
  "135515": {
@@ -1352,6 +1427,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135518": {
@@ -1368,6 +1444,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "135531": {
@@ -1385,7 +1462,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135541": {
   "n": 1,
@@ -1400,7 +1478,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135543": {
   "n": 1,
@@ -1417,7 +1496,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135545": {
   "n": 1,
@@ -1434,7 +1514,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135555": {
   "n": 1,
@@ -1449,7 +1530,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135557": {
   "n": 1,
@@ -1466,7 +1548,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135571": {
   "n": 1,
@@ -1483,7 +1566,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135581": {
   "n": 1,
@@ -1500,7 +1584,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135587": {
   "n": 1,
@@ -1517,7 +1602,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135595": {
   "n": 2,
@@ -1534,7 +1620,8 @@
   ],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135619": {
   "n": 1,
@@ -1549,7 +1636,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135625": {
   "n": 1,
@@ -1566,7 +1654,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135643": {
   "n": 1,
@@ -1583,7 +1672,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135653": {
   "n": 2,
@@ -1598,7 +1688,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135669": {
   "n": 1,
@@ -1615,7 +1706,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135679": {
   "n": 2,
@@ -1632,7 +1724,8 @@
   ],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135685": {
   "n": 1,
@@ -1649,7 +1742,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135701": {
   "n": 1,
@@ -1666,7 +1760,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135717": {
   "n": 1,
@@ -1681,7 +1776,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135719": {
   "n": 1,
@@ -1696,7 +1792,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135723": {
   "n": 1,
@@ -1711,7 +1808,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135733": {
   "n": 1,
@@ -1728,7 +1826,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135739": {
   "n": 1,
@@ -1743,7 +1842,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135743": {
   "n": 1,
@@ -1760,7 +1860,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135761": {
   "n": 1,
@@ -1777,7 +1878,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135787": {
   "n": 2,
@@ -1794,7 +1896,8 @@
   ],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135799": {
   "n": 1,
@@ -1811,7 +1914,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135825": {
   "n": 1,
@@ -1826,7 +1930,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135847": {
   "n": 1,
@@ -1841,7 +1946,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135851": {
   "n": 1,
@@ -1856,7 +1962,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135871": {
   "n": 2,
@@ -1873,7 +1980,8 @@
   ],
   "conflicts": [],
   "n_distinct": 2,
-  "scored": false
+  "scored": false,
+  "n_old": 2
  },
  "135881": {
   "n": 1,
@@ -1888,7 +1996,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135887": {
   "n": 1,
@@ -1905,7 +2014,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "135889": {
   "n": 2,
@@ -1926,6 +2036,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "135891": {
@@ -1947,6 +2058,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "135893": {
@@ -1968,6 +2080,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "135901": {
@@ -1984,6 +2097,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 2
  },
  "135903": {
@@ -2000,6 +2114,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 2
  },
  "135933": {
@@ -2015,7 +2130,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137039": {
   "n": 1,
@@ -2032,7 +2148,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137094": {
   "n": 1,
@@ -2049,7 +2166,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137109": {
   "n": 1,
@@ -2066,7 +2184,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137137": {
   "n": 1,
@@ -2081,7 +2200,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137157": {
   "n": 1,
@@ -2096,7 +2216,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137201": {
   "n": 1,
@@ -2114,6 +2235,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "137237": {
@@ -2130,6 +2252,7 @@
   "conflicts": [],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 3,
   "shared_classes": 2
  },
  "137342": {
@@ -2146,6 +2269,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "137553": {
@@ -2163,7 +2287,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137643": {
   "n": 1,
@@ -2180,7 +2305,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137661": {
   "n": 1,
@@ -2197,7 +2323,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "137713": {
   "n": 2,
@@ -2218,6 +2345,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "137715": {
@@ -2239,6 +2367,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "137717": {
@@ -2260,6 +2389,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "137719": {
@@ -2281,6 +2411,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "138191": {
@@ -2302,6 +2433,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 8
  },
  "191001": {
@@ -2320,6 +2452,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191005": {
@@ -2338,6 +2471,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191025": {
@@ -2359,6 +2493,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 3
  },
  "191031": {
@@ -2377,6 +2512,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "191033": {
@@ -2393,6 +2529,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "191039": {
@@ -2414,6 +2551,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "191057": {
@@ -2432,6 +2570,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191061": {
@@ -2450,6 +2589,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "191077": {
@@ -2466,6 +2606,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "191091": {
@@ -2482,6 +2623,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "191095": {
@@ -2503,6 +2645,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "191101": {
@@ -2519,6 +2662,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "191103": {
@@ -2537,6 +2681,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "191111": {
@@ -2558,6 +2703,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "191127": {
@@ -2574,6 +2720,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "191133": {
@@ -2592,6 +2739,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191143": {
@@ -2610,6 +2758,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191145": {
@@ -2631,6 +2780,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "191153": {
@@ -2647,6 +2797,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "191169": {
@@ -2665,6 +2816,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "191171": {
@@ -2683,6 +2835,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191203": {
@@ -2701,6 +2854,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191209": {
@@ -2719,6 +2873,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "191213": {
@@ -2735,6 +2890,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "191221": {
@@ -2753,6 +2909,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191227": {
@@ -2771,6 +2928,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 7
  },
  "191241": {
@@ -2789,6 +2947,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191249": {
@@ -2807,6 +2966,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191253": {
@@ -2823,6 +2983,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "191265": {
@@ -2841,6 +3002,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "191285": {
@@ -2856,7 +3018,8 @@
   "notes": [],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "191287": {
   "n": 3,
@@ -2877,6 +3040,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "191289": {
@@ -2898,6 +3062,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 3
  },
  "191305": {
@@ -2916,6 +3081,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "191325": {
@@ -2932,6 +3098,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "191330": {
@@ -2950,6 +3117,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191336": {
@@ -2968,6 +3136,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 7
  },
  "191339": {
@@ -2986,6 +3155,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191342": {
@@ -3004,6 +3174,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191348": {
@@ -3022,6 +3193,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191441": {
@@ -3038,6 +3210,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191443": {
@@ -3054,6 +3227,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191445": {
@@ -3070,6 +3244,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191449": {
@@ -3086,6 +3261,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191457": {
@@ -3102,6 +3278,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191465": {
@@ -3118,6 +3295,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191467": {
@@ -3134,6 +3312,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191469": {
@@ -3150,6 +3329,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191475": {
@@ -3166,6 +3346,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191483": {
@@ -3182,6 +3363,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191495": {
@@ -3198,6 +3380,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191497": {
@@ -3214,6 +3397,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191523": {
@@ -3232,6 +3416,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191531": {
@@ -3250,6 +3435,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191545": {
@@ -3268,6 +3454,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 3
  },
  "191597": {
@@ -3285,7 +3472,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "191602": {
   "n": 1,
@@ -3302,7 +3490,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "191610": {
   "n": 1,
@@ -3319,7 +3508,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "191629": {
   "n": 1,
@@ -3336,7 +3526,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "191667": {
   "n": 1,
@@ -3354,6 +3545,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191703": {
@@ -3370,6 +3562,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191705": {
@@ -3386,6 +3579,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191709": {
@@ -3402,6 +3596,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191713": {
@@ -3418,6 +3613,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191721": {
@@ -3434,6 +3630,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191731": {
@@ -3450,6 +3647,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191741": {
@@ -3466,6 +3664,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191743": {
@@ -3482,6 +3681,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191757": {
@@ -3498,6 +3698,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191761": {
@@ -3514,6 +3715,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191763": {
@@ -3530,6 +3732,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "191781": {
@@ -3548,6 +3751,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191787": {
@@ -3566,6 +3770,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191801": {
@@ -3584,6 +3789,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191805": {
@@ -3602,6 +3808,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191811": {
@@ -3620,6 +3827,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191815": {
@@ -3638,6 +3846,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "191855": {
@@ -3656,6 +3865,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191857": {
@@ -3674,6 +3884,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "191861": {
@@ -3692,6 +3903,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191864": {
@@ -3710,6 +3922,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191865": {
@@ -3728,6 +3941,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191872": {
@@ -3746,6 +3960,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191873": {
@@ -3764,6 +3979,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "191889": {
@@ -3781,7 +3997,8 @@
   ],
   "conflicts": [],
   "n_distinct": 1,
-  "scored": false
+  "scored": false,
+  "n_old": 1
  },
  "192011": {
   "n": 1,
@@ -3797,6 +4014,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "192015": {
@@ -3815,6 +4033,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 7
  },
  "192037": {
@@ -3833,6 +4052,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "192041": {
@@ -3854,6 +4074,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "192073": {
@@ -3872,6 +4093,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "192103": {
@@ -3893,6 +4115,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "192113": {
@@ -3911,6 +4134,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 7
  },
  "192119": {
@@ -3929,6 +4153,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "192121": {
@@ -3945,6 +4170,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "192131": {
@@ -3963,6 +4189,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192161": {
@@ -3981,6 +4208,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "192163": {
@@ -3997,6 +4225,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "192185": {
@@ -4015,6 +4244,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "192205": {
@@ -4031,6 +4261,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "192267": {
@@ -4049,6 +4280,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 7
  },
  "192277": {
@@ -4065,6 +4297,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "192279": {
@@ -4083,6 +4316,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "192309": {
@@ -4104,6 +4338,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "192315": {
@@ -4122,6 +4357,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "192319": {
@@ -4140,6 +4376,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 7
  },
  "192332": {
@@ -4156,6 +4393,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 9
  },
  "192340": {
@@ -4174,6 +4412,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 7
  },
  "192346": {
@@ -4192,6 +4431,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192354": {
@@ -4213,6 +4453,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "192358": {
@@ -4229,6 +4470,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "192663": {
@@ -4247,6 +4489,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192703": {
@@ -4263,6 +4506,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192705": {
@@ -4279,6 +4523,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192709": {
@@ -4295,6 +4540,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192713": {
@@ -4311,6 +4557,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192721": {
@@ -4327,6 +4574,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192731": {
@@ -4343,6 +4591,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192743": {
@@ -4359,6 +4608,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192757": {
@@ -4375,6 +4625,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192761": {
@@ -4391,6 +4642,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192763": {
@@ -4407,6 +4659,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "192781": {
@@ -4425,6 +4678,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192787": {
@@ -4443,6 +4697,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192811": {
@@ -4461,6 +4716,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192815": {
@@ -4479,6 +4735,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 10
  },
  "192855": {
@@ -4497,6 +4754,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "192857": {
@@ -4515,6 +4773,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "192861": {
@@ -4533,6 +4792,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "192864": {
@@ -4551,6 +4811,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "192871": {
@@ -4569,6 +4830,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "193003": {
@@ -4585,6 +4847,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "193027": {
@@ -4603,6 +4866,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "193039": {
@@ -4624,6 +4888,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "193126": {
@@ -4640,6 +4905,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 2
  },
  "193161": {
@@ -4661,6 +4927,7 @@
   ],
   "n_distinct": 2,
   "scored": false,
+  "n_old": 2,
   "shared_classes": 3
  },
  "193167": {
@@ -4682,6 +4949,7 @@
   ],
   "n_distinct": 3,
   "scored": true,
+  "n_old": 3,
   "shared_classes": 11
  },
  "193661": {
@@ -4700,6 +4968,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "193717": {
@@ -4716,6 +4985,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  },
  "194007": {
@@ -4734,6 +5004,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 5
  },
  "194049": {
@@ -4750,6 +5021,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 8
  },
  "194095": {
@@ -4768,6 +5040,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 6
  },
  "194670": {
@@ -4786,6 +5059,7 @@
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
+  "n_old": 1,
   "shared_classes": 4
  }
 }

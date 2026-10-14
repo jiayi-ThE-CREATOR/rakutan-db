@@ -63,7 +63,7 @@ check(s["overall"] == 81.5, f"レポート＋毎回小テストは 81.5 のは�
 check(scoring.aishoudo({"exam": 100.0}, [], (None, 0.0)) == 100.0,
       "試験以外の項目が1つも無ければ試験以外の楽さは 100")
 
-# ── ④ 体感層：取り分は人数で増える ─────────────────────
+# ── ④ 体感層：古い口コミの取り分は人数によらず 0.40（2026-10-13 wang 決定） ──
 def with_reviews(people, hard=2.0, att=1.0):
     c = course({"exam": 100.0})
     c["reviews"] = {"n": people, "n_distinct": people, "exam_hard": hard,
@@ -71,16 +71,13 @@ def with_reviews(people, hard=2.0, att=1.0):
     return c
 
 shares = [scoring._feel(with_reviews(k))[1] for k in (1, 2, 3, 4)]
-check(abs(shares[0] - 0.2 / 3) < 1e-9 and abs(shares[1] - 0.4 / 3) < 1e-9,
-      f"1人 6.7%・2人 13.3% になっていない: {shares}")
-check(abs(shares[2] - 0.2) < 1e-9 and shares[3] == shares[2],
-      f"3人以上は 20% で止まる: {shares}")
+check(all(abs(x - 0.40) < 1e-9 for x in shares), f"取り分が人数によらず 0.40 でない: {shares}")
 ease, _ = scoring._feel(with_reviews(1))
 check(ease == 37.5, f"難しさ2→0・出席1→50・授業中1→50・授業外1→50 の平均は 37.5: {ease}")
 no = scoring.score(course({"exam": 100.0}))["overall"]
 one = scoring.score(with_reviews(1))["overall"]
-check(one < no and no - one <= 100 * 0.2 / 3,
-      f"1人の口コミで動くのは取り分 6.7% ぶんまで: {no} → {one}")
+check(one < no and no - one <= 100 * 0.40,
+      f"口コミで動くのは取り分 40% ぶんまで: {no} → {one}")
 c = course({"report": 100.0})
 c["reviews"] = {"n": 1, "n_distinct": 1, "exam_hard": 2.0,
                 "attendance": None, "in_class": None, "out_class": None}
@@ -112,7 +109,7 @@ check(all("scale" not in w for w in scoring.PRESETS.values()), "PRESETS に scal
 s = scoring.score(course({"report": 100.0}))
 check("coverage" not in s and all("weight" not in a for a in s["axes"].values()),
       "coverage や軸ごとの weight がまだ返っている")
-check(s["present"] == ["report"] and s["feel"] == {"value": None, "share": 0.0},
+check(s["present"] == ["report"] and s["feel"] == {"value": None, "raw": None, "share": 0.0},
       f"present / feel が返っていない: {s.get('present')} {s.get('feel')}")
 
 
