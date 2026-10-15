@@ -9,7 +9,7 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
                    "軽め":1, "拘束は軽い":2, "標準":2, "やや重め":3, "重め":3 };
 
 /* 負担ランク（2026-10-14・設計 docs/superpowers/specs/2026-10-13-futan-rank-design.md §6）。
-   SS がいちばん楽。色は1段ずつ別（SS 金／S 青／A 緑／B 橙／C 赤・app.css の .rkSS〜.rkC）。 */
+   SS がいちばん楽。色は1段ずつ別（SS 金／S 紫／A 緑／B 橙／C 赤・app.css の .rkSS〜.rkC）。 */
 const RANKS = ["SS", "S", "A", "B", "C"];
 const ITEM_LABEL = { exam:"テスト", report:"レポート・課題", attendance:"出席",
                      quiz:"小テスト", presentation:"発表" };
