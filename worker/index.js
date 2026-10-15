@@ -124,9 +124,13 @@ function koanUrl(c) {
 // URIアクションのボタンにすると同じ問題は起きない。
 function courseBubble(c) {
   const r = c.rakutan || {};
-  const overall = r.overall;
-  const overallS = typeof overall === "number" ? `${Math.round(overall)}点` : "―";
-  const band = r.band || "―";
+  /* 負担ランク（2026-10-14）。サイトのカードと同じく、点数ではなくランクと出どころを出す。
+     ランクが無い科目（情報不足など）は band の文字のまま。 */
+  const f = r.futan || {};
+  const band = f.rank ? `負担 ${f.rank}` : (r.band || "―");
+  const overallS = !f.rank ? ""
+    : f.source === "kuchikomi" ? `口コミ${f.people}人から`
+    : f.source === "syllabus_kuchikomi" ? "シラバス＋口コミから" : "シラバスから推定";
   const nReviews = c.reviews && typeof c.reviews.n === "number" ? c.reviews.n : 0;
   return {
     type: "bubble",
@@ -150,7 +154,7 @@ function courseBubble(c) {
           margin: "md",
           contents: [
             { type: "text", text: band, size: "sm", color: "#DB6209", flex: 0, weight: "bold" },
-            { type: "text", text: overallS, size: "sm", margin: "sm", color: "#666666" },
+            { type: "text", text: overallS || " ", size: "sm", margin: "sm", color: "#666666" },
           ],
         },
         {

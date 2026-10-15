@@ -8,6 +8,21 @@ const DAYS = ["月","火","水","木","金"], PERIODS = ["1","2","3","4","5","6"
 const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
                    "軽め":1, "拘束は軽い":2, "標準":2, "やや重め":3, "重め":3 };
 
+/* 負担ランク（2026-10-14・設計 docs/superpowers/specs/2026-10-13-futan-rank-design.md §6）。
+   SS がいちばん楽。色は1段ずつ別（SS 金／S 紫／A 緑／B 橙／C 赤・app.css の .rkSS〜.rkC）。 */
+const RANKS = ["SS", "S", "A", "B", "C"];
+const ITEM_LABEL = { exam:"テスト", report:"レポート・課題", attendance:"出席",
+                     quiz:"小テスト", presentation:"発表" };
+
+/* 負担をどこから出したか。ランクには必ず添える（固定の区切りか分布の5等分かで意味が違う）。 */
+function futanSrc(c){
+  const f = c.rakutan.futan;
+  if (!f) return "";
+  if (f.source === "kuchikomi") return `口コミ${f.people}人から`;
+  if (f.source === "syllabus_kuchikomi") return `シラバス＋口コミ${c.reviews?.n_old || c.reviews?.n || 0}人から`;
+  return "シラバスから推定";
+}
+
 /* year の既定を "1" にしてあるのは、1年生が履修できない科目が97件あり、
    しかもそれが上位に食い込むため（統計学B-II、熱学・統計力学要論 など）。
    選べない科目を薦めないことを既定にする。2〜4年生はチップで切り替える。 */
@@ -28,6 +43,9 @@ const BAND_CLS = { "情報不足":0, "判定不可":0, "参考値":0,
 const PREF_DEFAULT = { exam:50, presentation:20, report:15, attendance:15, quiz:10 };
 const PREF_KEY = "rk_konomi";
 const prefMult = k => (state.pref[k] ?? PREF_DEFAULT[k]) / PREF_DEFAULT[k];
+/* 配分（目盛り）を既定から動かしたか。相性度の％は動かした人にだけ出す（設計 §5）。
+   動かしていなければ、相性度は既定の配分で計算した負担そのもので、ランクと同じことを言うため。 */
+const prefChanged = () => Object.keys(PREF_DEFAULT).some(k => state.pref[k] !== PREF_DEFAULT[k]);
 
 const state = { q:"", year:"all", sem:"all", day:"", period:"", cond:new Set(), sort:"fit",
                 /* 配点の上限（%）。100＝制限なし。2026-09-03 に「重み 0〜5」から
@@ -813,6 +831,31 @@ function cardActsHtml(c){
     </div>`;
 }
 
+/* カード右上の負担ランクと、その下の行（出どころ・相性度％・理由）。
+   ランクが無い科目（情報不足・判定不可）は今まで通り band の文字を出す。 */
+function rankBlockHtml(c){
+  const r = c.rakutan, m = c.match, f = r.futan;
+  const rank = f && f.rank;
+  const big = rank
+    ? `<div class="fit rank"><b class="rk${RANKS.includes(rank) ? rank : ""}">${esc(rank)}</b><small>負担</small></div>`
+    : `<div class="fit"><b>—</b><small>負担</small></div>`;
+  const src = futanSrc(c);
+  const low = r.band === "参考値" ? "（参考値）" : "";
+  const pct = (rank && m.fit !== null && m.fit !== undefined)
+    ? (prefChanged()
+        ? `<span class="pct">あなたとの相性度 <b>${Math.round(m.fit)}%</b></span>`
+        : `<span class="pctHint">配分を動かすと、あなたとの相性度が出ます</span>`)
+    : "";
+  const mis = (f && f.mismatch && f.mismatch.length)
+    ? `<span class="mismatch">シラバスと実際が違うようです（${f.mismatch.map(k => ITEM_LABEL[k] || k).join("・")}がなかった）</span>`
+    : "";
+  const head = rank
+    ? `<span class="band rk${RANKS.includes(rank) ? rank : ""}">${esc(src)}${low}</span>`
+    : `<span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>`;
+  return `${big}
+      <div class="reason">${head}${pct}${mis}${esc(m.reason)}</div>`;
+}
+
 function card(c){
   const r = c.rakutan, m = c.match;
   const dp = c.day_period || (c.term === "集中" ? "集中" : "—");
@@ -837,14 +880,15 @@ function card(c){
      （cardActsHtml の注記）。「口コミが多い順」は n で並べる
      （reviewCount 参照）ので、tools/test_sort.mjs はここを読んで並びを
      確かめる ―― 表示文言をテストの都合で歪めない（2026-09-22）。 */
-  return `<article class="card" data-id="${esc(c.id)}" data-reviews="${reviewCount(c)}">
+  /* data-fit は相性度（好みを反映した値）。％は配分を動かした人にしか出さないので、
+     文言とは切り離して機械可読に置く（tools/test_konomi.mjs が読む。data-reviews と同じ考え）。 */
+  return `<article class="card" data-id="${esc(c.id)}" data-reviews="${reviewCount(c)}" data-fit="${m.fit ?? ""}" data-rank="${esc(r.futan?.rank || "")}">
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
         <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.room||c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
       </div>
-      <div class="fit"><b>${m.fit ?? r.overall ?? "—"}</b><small>相性度</small></div>
-      <div class="reason"><span class="band b${BAND_CLS[m.band ?? r.band] ?? 0}">${esc(m.band ?? r.band)}</span>${esc(m.reason)}</div>
+      ${rankBlockHtml(c)}
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
       ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
@@ -1099,6 +1143,19 @@ function matchLocal(r){
     else
       reason = `シラバスの成績評価の内訳が${Math.round(cap)}%分しか読み取れないため、判定を出していません。`;
     return { fit:null, reason, labels:META.axis_labels };
+  }
+  /* 新しい口コミ（form v5）で負担を出した科目は、5項目の平均（0〜5）に自分の配分を
+     重みとして掛ける（設計 §5）。既定の配分なら score.py の overall と一致する。 */
+  const f = r.futan;
+  if (f && f.source === "kuchikomi" && f.items){
+    const w = k => state.pref[k] ?? PREF_DEFAULT[k];
+    const ws = Object.keys(PREF_DEFAULT).reduce((s, k) => s + w(k), 0);
+    const b = ws > 0
+      ? Object.keys(PREF_DEFAULT).reduce((s, k) => s + w(k) * (f.items[k] || 0), 0) / ws : 0;
+    const fit = Math.round((100 - b * 20) * 10) / 10;
+    const heavy = Object.keys(PREF_DEFAULT).filter(k => (f.items[k] || 0) >= 3).map(k => ITEM_LABEL[k]);
+    return { fit, band: r.band, labels: META.axis_labels,
+             reason: heavy.length ? `${heavy.slice(0,2).join("・")}が重めです。` : "口コミでは、重い項目はありません。" };
   }
   const axes = r.axes;
   /* 好みを反映した相性度。式は score.py の aishoudo と同じで、各軸の「負担」に

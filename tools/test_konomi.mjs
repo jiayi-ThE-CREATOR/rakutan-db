@@ -1,4 +1,6 @@
-/* 好みの目盛り（配点でしぼる）が相性度と band に効くことを実ブラウザで確かめる。
+/* 好みの目盛り（配点でしぼる）が相性度に効き、負担ランクには効かないことを実ブラウザで確かめる。
+ * 2026-10-14（負担ランク・段③）：カードの大きな字は負担ランクになり、相性度は data-fit と
+ * 「配分を動かした人にだけ出る％」に移った。band の代わりにランクを見る。
  *
  *   python3 tools/serve.py 8791 &
  *   node tools/test_konomi.mjs http://localhost:8791
@@ -25,8 +27,8 @@ async function open(url){
 /* 先頭20件の id と、先頭カードの数字・band */
 const snap = p => p.$$eval("#list > .card", cs => ({
   ids: cs.slice(0, 20).map(c => c.dataset.id),
-  fit: cs[0].querySelector(".fit b")?.textContent.trim(),
-  band: cs[0].querySelector(".band")?.textContent.trim(),
+  fit: cs[0].dataset.fit,
+  rank: cs[0].dataset.rank,
 }));
 
 /* ① 既定では今までと同じ並び（好みを入れていない人の画面は変わらない） */
@@ -45,8 +47,9 @@ async function findExam(p){
   await p.fill("#q", EXAM_Q);
   await p.waitForSelector(`.card[data-id="${EXAM_ID}"]`);
   return p.$eval(`.card[data-id="${EXAM_ID}"]`, c => ({
-    fit: c.querySelector(".fit b")?.textContent.trim(),
-    band: c.querySelector(".band")?.textContent.trim(),
+    fit: c.dataset.fit,
+    rank: c.dataset.rank,
+    pct: c.querySelector(".reason .pct b")?.textContent.trim() || null,
   }));
 }
 const examFit = async w => {
@@ -71,9 +74,13 @@ const pRep = await open(`${base}/?w=report:30`);
 const rep = await snap(pRep);
 check(rep.ids.join() !== base0.ids.join(), "レポートを 15→30 にしても並びが変わらない");
 
-/* ④ 数字と band は同じ好みで計算される（数字だけ動いて band が据え置きにならない） */
-check(low.band !== exam0.band,
-      `数字は動いたのに band が据え置き: ${exam0.fit}${exam0.band} → ${low.fit}${low.band}`);
+/* ④ 負担ランクは科目そのものの重さなので、配分を動かしても変わらない。
+   相性度の％は、配分を動かした人にだけ出る（設計 §5） */
+check(low.rank && low.rank === exam0.rank,
+      `配分を動かしたら負担ランクまで変わった: ${exam0.rank} → ${low.rank}`);
+check(exam0.pct === null, `配分を動かしていないのに相性度の％が出ている: ${exam0.pct}`);
+check(low.pct !== null && Number(low.pct.replace("%", "")) === Math.round(Number(low.fit)),
+      `配分を動かしたのに相性度の％が出ない、または data-fit と合わない: ${low.pct} / ${low.fit}`);
 
 /* ⑤ URL の値は目盛りに入っていて、別のページへ移っても残る（localStorage） */
 const val = await pLow.$eval("#s_exam", e => e.value);
