@@ -478,6 +478,14 @@ function getSubjects(dayIndex, periodIndex) {
    時間割のマスと違って、ここで落とすと**その科目は永久に投稿できない**。
    「分からない」を「該当しない」と読み替えないために、どちらの学期でも出し、
    選択肢の側で分けて見せる（欠損を勝手に埋めない、の同じ考え方）。 */
+/* 検索欄は科目名・担当教員・時間割コードのどれでも当てる。
+   教員名は「堀 一成」「中原　理沙」と空白が半角・全角まちまちなので、空白を全部落として比べる。 */
+function matchesQuery(r, q) {
+  const strip = s => (s || '').replace(/\s+/g, '');
+  const k = strip(q);
+  return !k || [r.title, r.instructor, r.id].some(v => strip(v).includes(k));
+}
+
 function extraCandidates() {
   if (!state.faculty || !state.semester) return { same: [], unknown: [] };
   const terms = TERM_GROUPS[state.semester] || [];
@@ -486,7 +494,7 @@ function extraCandidates() {
   const same = [], unknown = [];
   for (const r of EXTRA) {
     if (r.faculty !== 'common' && r.faculty !== state.faculty) continue;
-    if (q && !r.title.includes(q)) continue;
+    if (!matchesQuery(r, q)) continue;
     if (terms.includes(r.term_group)) same.push(r);
     else if (r.term_group === 'unknown') unknown.push(r);
   }
@@ -701,7 +709,7 @@ function openEditor(target) {
    選び直しの途中で描き直しても選択が消えないよう、いま選ばれている値を保つ。 */
 function renderModalSubjectOptions() {
   const q = (els.modalSubjectSearch.value || '').trim();
-  const filtered = q ? modalSubjects.filter(s => s.title.includes(q)) : modalSubjects;
+  const filtered = q ? modalSubjects.filter(s => matchesQuery(s, q)) : modalSubjects;
   const keep = els.modalSubjectSelect.value;
 
   if (!filtered.length) {

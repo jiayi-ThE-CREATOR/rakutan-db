@@ -139,7 +139,7 @@
     <p class="kkLead">集中講義や土曜開講など、時間割のマスに置けない科目です。受けたものがあれば、ここから選んでください。<b>無ければ飛ばして構いません。</b></p>
 
     <div class="kkExtra">
-      <input type="search" id="extra-search" placeholder="科目名でしぼりこむ" autocomplete="off">
+      <input type="search" id="extra-search" placeholder="科目名・教員名・時間割コードでしぼりこむ" autocomplete="off">
       <select id="extra-select">
         <!-- kuchikomi.js が生成 -->
       </select>
@@ -279,7 +279,7 @@
         <label>1 どの科目？ <span class="required">*</span></label>
         <!-- 同じ曜限に科目が何件も出ることがあるため、③の時間割に無い科目
              （extra-search / extra-select）と同じ「検索で絞り込む」仕組みをここにも置く。 -->
-        <input type="search" id="modal-subject-search" class="modal-subject-search hidden" placeholder="科目名でしぼりこむ" autocomplete="off">
+        <input type="search" id="modal-subject-search" class="modal-subject-search hidden" placeholder="科目名・教員名・時間割コードでしぼりこむ" autocomplete="off">
         <select id="modal-subject-select" class="full-width-select" required>
           <!-- kuchikomi.js が生成 -->
         </select>
