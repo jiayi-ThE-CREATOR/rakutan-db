@@ -9,7 +9,9 @@
  *   3. 設問8そのものは必須。「必要」のときに出る金額・場所・（その他の）記入は任意
  *      （2026-09-29 松下と変更。答えなくても保存でき、答えなかった分は null で送る）
  *   4. 保存した科目を開き直すと元に戻る
- *   5. 送信データに textbook / textbookPrice / textbookPlaces が入る
+ *   5. 送信データに textbook / textbookTitle / textbookPrice / textbookPlaces が入る
+ *   6. 書名（任意・2026-10-18 wang 追加）は「必要」「不要」のときに出て、「なし」で消える
+ *      （シラバスに教科書が無くても実際は使う授業があるため）
  *
  * 科目は test_kuchikomi_param.mjs と同じ 138531（水2・common・haru）を使う。
  * 送信は page.route で横取りし、GAS にもシートにも届かせない。
@@ -65,15 +67,18 @@ check(JSON.stringify(choices) === JSON.stringify(["必要", "指定あり・不�
   `[1] 設問8の選択肢が違う: ${choices}`);
 check(!(await saveEnabled()), "[3] 設問8が未回答なのに保存できる");
 check(!(await visible("#textbook-details-section")), "[2] 最初から金額・場所が出ている");
+check(!(await visible("#textbook-title")), "[6] 最初から書名が出ている");
 
 // 「なし」なら追加の設問なしで保存できる
 await click("group-textbook", "なし");
 check(!(await visible("#textbook-details-section")), "[2] 「なし」で金額・場所が出ている");
+check(!(await visible("#textbook-title")), "[6] 「なし」で書名が出ている");
 check(await saveEnabled(), "[3] 「なし」を選んだのに保存できない");
 
 // ── 2. 必要 → 詳細が出る。金額は11択 ──
 await click("group-textbook", "必要");
 check(await visible("#textbook-details-section"), "[2] 「必要」で金額・場所が出ない");
+check(await visible("#textbook-title"), "[6] 「必要」で書名が出ない");
 // 金額はスライダー（2026-09-28 にプルダウンから変更）。0〜10 の11段階。
 const priceText = () => p.textContent("#textbook-price-display");
 check((await priceText()) === "未選択", `[2] 動かす前の金額が「未選択」でない: ${await priceText()}`);
@@ -122,6 +127,13 @@ check(await saveEnabled(), "[3] 「その他」を記入したのに保存でき
 // 切り替えると中身が消える
 await click("group-textbook", "指定あり・不要");
 check(!(await visible("#textbook-details-section")), "[2] 切り替えても金額・場所が引っ込まない");
+check(await visible("#textbook-title"), "[6] 「不要」で書名が出ない");
+// 書名は「不要」でも残り、「なし」で消える
+await p.fill("#textbook-title", "消える本");
+await click("group-textbook", "なし");
+check(!(await visible("#textbook-title")), "[6] 「なし」に切り替えても書名が引っ込まない");
+await click("group-textbook", "指定あり・不要");
+check((await p.inputValue("#textbook-title")) === "", "[6] 「なし」を経ても書名が残っている");
 await click("group-textbook", "必要");
 const cleared = await p.evaluate(() => ({
   price: document.getElementById("textbook-price").dataset.set || "",
@@ -131,7 +143,8 @@ const cleared = await p.evaluate(() => ({
 check(!cleared.price && cleared.places === 0 && !cleared.other,
   `[2] 切り替えたのに中身が残っている: ${JSON.stringify(cleared)}`);
 
-// 入れ直して保存
+// 入れ直して保存（書名は任意。空でも保存できることは上で確かめた）
+await p.fill("#textbook-title", "  線形代数入門  ");
 await p.fill("#textbook-price", "3");
 await click("group-textbook-place", "生協");
 await click("group-textbook-place", "メルカリ");
@@ -147,10 +160,11 @@ const back = await p.evaluate(() => ({
   price: document.getElementById("textbook-price-display").textContent,
   places: [...document.querySelectorAll("#group-textbook-place .form-btn.selected")].map(b => b.dataset.value),
   other: document.getElementById("textbook-place-other-text").value,
+  title: document.getElementById("textbook-title").value,
 }));
 check(JSON.stringify(back) === JSON.stringify({
   tb: ["必要"], shown: true, price: "1,500〜1,999円",
-  places: ["生協", "メルカリ", "その他"], other: "先輩から" }),
+  places: ["生協", "メルカリ", "その他"], other: "先輩から", title: "線形代数入門" }),
   `[4] 開き直すと元に戻らない: ${JSON.stringify(back)}`);
 await p.click("#close-modal");
 
@@ -161,6 +175,7 @@ const review = posted && posted.selections && posted.selections[0] && posted.sel
 check(review, "[5] 送信データが取れない");
 if (review) {
   check(review.textbook === "必要", `[5] textbook: ${review.textbook}`);
+  check(review.textbookTitle === "線形代数入門", `[5] textbookTitle: ${review.textbookTitle}`);
   check(review.textbookPrice === "1,500〜1,999円", `[5] textbookPrice: ${review.textbookPrice}`);
   check(review.textbookPlaces === "生協、メルカリ、その他（先輩から）",
     `[5] textbookPlaces: ${review.textbookPlaces}`);

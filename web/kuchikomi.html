@@ -338,34 +338,44 @@
           <p class="kkHint">「不要」＝指定はあったが、なくても困らなかった</p>
         </div>
 
-        <div id="textbook-details-section" class="kkFollow hidden">
+        <!-- 「必要」「不要」で出る枠。書名は両方で聞き、金額・場所は「必要」だけ
+             （#textbook-details-section）。書名は 2026-10-18 追加 ―― シラバスに
+             教科書が書かれていないのに、実際は使う授業があるため。 -->
+        <div id="textbook-follow" class="kkFollow hidden">
           <div class="form-section">
-            <!-- 目盛りは kuchikomi.js の PRICE_BUCKETS（11段階）。
-                 動かすまでは「未選択」で、つまみも灰色（最初の位置を答えと見せないため）。 -->
-            <label for="textbook-price">いくらだった？（何冊かあれば合計） <span class="kkSub">任意</span></label>
-            <div class="slider-container">
-              <input type="range" id="textbook-price" min="0" max="10" step="1" value="0" class="styled-slider kkUnset">
-              <div class="slider-value-display">
-                <span id="textbook-price-display" class="highlight-text">未選択</span>
-              </div>
-            </div>
+            <label for="textbook-title">使った教科書の書名 <span class="kkSub">任意</span></label>
+            <input type="text" id="textbook-title" maxlength="100" placeholder="例：線形代数入門（齋藤正彦）">
           </div>
 
-          <div class="form-section">
-            <!-- ここだけ複数選択（data-multi）。生協で1冊・Amazon で1冊、がありうる。
-                 1つだけ選ぶボタンと見分けがつくよう、丸いタグ＋✓にしている（kkChips）。
-                 「他の書店」は画面の言葉だけ短くした。シートに入る値は data-value のまま。 -->
-            <label>どこで買った？ <span class="kkSub">任意・いくつでも選べます</span></label>
-            <div class="button-group kkChips" id="group-textbook-place" data-multi>
-              <button type="button" class="form-btn" data-value="生協">生協</button>
-              <button type="button" class="form-btn" data-value="書店（生協以外）">他の書店</button>
-              <button type="button" class="form-btn" data-value="Amazon">Amazon</button>
-              <button type="button" class="form-btn" data-value="メルカリ">メルカリ</button>
-              <button type="button" class="form-btn" data-value="古本屋">古本屋</button>
-              <button type="button" class="form-btn" data-value="電子書籍">電子書籍</button>
-              <button type="button" class="form-btn" data-value="その他">その他</button>
+          <div id="textbook-details-section" class="hidden">
+            <div class="form-section">
+              <!-- 目盛りは kuchikomi.js の PRICE_BUCKETS（11段階）。
+                   動かすまでは「未選択」で、つまみも灰色（最初の位置を答えと見せないため）。 -->
+              <label for="textbook-price">いくらだった？（何冊かあれば合計） <span class="kkSub">任意</span></label>
+              <div class="slider-container">
+                <input type="range" id="textbook-price" min="0" max="10" step="1" value="0" class="styled-slider kkUnset">
+                <div class="slider-value-display">
+                  <span id="textbook-price-display" class="highlight-text">未選択</span>
+                </div>
+              </div>
             </div>
-            <input type="text" id="textbook-place-other-text" class="hidden other-input" placeholder="例：先輩から買った">
+
+            <div class="form-section">
+              <!-- ここだけ複数選択（data-multi）。生協で1冊・Amazon で1冊、がありうる。
+                   1つだけ選ぶボタンと見分けがつくよう、丸いタグ＋✓にしている（kkChips）。
+                   「他の書店」は画面の言葉だけ短くした。シートに入る値は data-value のまま。 -->
+              <label>どこで買った？ <span class="kkSub">任意・いくつでも選べます</span></label>
+              <div class="button-group kkChips" id="group-textbook-place" data-multi>
+                <button type="button" class="form-btn" data-value="生協">生協</button>
+                <button type="button" class="form-btn" data-value="書店（生協以外）">他の書店</button>
+                <button type="button" class="form-btn" data-value="Amazon">Amazon</button>
+                <button type="button" class="form-btn" data-value="メルカリ">メルカリ</button>
+                <button type="button" class="form-btn" data-value="古本屋">古本屋</button>
+                <button type="button" class="form-btn" data-value="電子書籍">電子書籍</button>
+                <button type="button" class="form-btn" data-value="その他">その他</button>
+              </div>
+              <input type="text" id="textbook-place-other-text" class="hidden other-input" placeholder="例：先輩から買った">
+            </div>
           </div>
         </div>
 

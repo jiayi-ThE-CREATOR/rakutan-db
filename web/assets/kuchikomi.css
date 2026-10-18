@@ -197,6 +197,8 @@ select:focus-visible,input:focus-visible,button:focus-visible{
 .kkFollow{margin-top:var(--sp-2);padding:var(--sp-3);background:var(--paper);
   border-radius:var(--r-md)}
 .kkSub{font-size:var(--fs-xs);color:var(--muted)}
+/* 8 の枠は 書名 → 金額・場所（入れ子）。入れ子の先頭は :first-child で余白0になるので足す。 */
+#textbook-details-section{margin-top:var(--sp-4)}
 
 /* 複数選択（8 の購入場所）。1つだけ選ぶ .form-btn と見分けがつくよう、
    丸いタグにして、選ぶと淡い地＋✓になる。塗りつぶしは「1つだけ」側に残す。 */
