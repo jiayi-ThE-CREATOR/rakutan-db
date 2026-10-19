@@ -199,7 +199,8 @@ function renderLine(){
     </ul>
     ${gated
       ? `<button type="button" class="mpLineBtn" id="mpLineLogin">${LINE_MARK}<span>LINE で続ける</span></button>
-         <p class="mpLineNote">LINE の画面が開きます。友だち追加まで済むと、この下の機能が使えます。</p>`
+         <p class="mpLineNote">LINE の画面が開きます。友だち追加まで済むと、この下の機能が使えます。</p>
+         <p class="mpLineNote gatePcHint">パソコンで開いている人は、次の画面に出る QR コードをスマホの LINE で読み取るとログインできます。</p>`
       : `<a class="mpLineBtn" id="mpLineAdd" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>`}`;
 
   if (gated){

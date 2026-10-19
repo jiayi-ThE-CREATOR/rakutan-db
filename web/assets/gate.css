@@ -91,3 +91,7 @@
   background:var(--brand-soft);color:var(--brand-text);
   font-size:var(--fs-sm);font-weight:700;line-height:1.6;
 }
+
+/* パソコンだけに出す「QR コードをスマホの LINE で読む」の一言（2026-10-19）。
+   スマホ（指で触る端末）では LINE アプリに直接飛ぶので出さない。 */
+@media (pointer: coarse){ .gatePcHint{ display:none } }
