@@ -99,7 +99,9 @@
            使うには、LINE 登録が要ります。</p>
          <p class="gateDlgSub">ラクハン【公式】と繋ぐだけです。<b>登録は無料</b>で、
            授業の情報はそのまま見られます。</p>
-         <a class="gateBtn" href="${loginHref()}">LINE で続ける</a>`;
+         <a class="gateBtn" href="${loginHref()}">LINE で続ける</a>
+         <p class="gateDlgSub gatePcHint">パソコンで開いている人は、次の画面に出る QR コードを
+           スマホの LINE で読み取るとログインできます。</p>`;
     dlg.showModal();
   }
 
