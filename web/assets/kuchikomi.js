@@ -123,6 +123,8 @@ const els = {
   examOtherText: document.getElementById('exam-other-text'),
   examDetailsSection: document.getElementById('exam-details-section'),
 
+  textbookFollow: document.getElementById('textbook-follow'),
+  textbookTitle: document.getElementById('textbook-title'),
   textbookDetailsSection: document.getElementById('textbook-details-section'),
   textbookPrice: document.getElementById('textbook-price'),
   textbookPriceDisplay: document.getElementById('textbook-price-display'),
@@ -268,8 +270,11 @@ function init() {
       }
       if (group.id === 'group-textbook') {
         /* 「必要」以外へ切り替えたら、金額と場所は中身ごと捨てる。
-           見えない所に答えが残ったまま送られるのを防ぐため。 */
+           「なし」なら書名も捨てる。見えない所に答えが残ったまま送られるのを防ぐため。 */
+        const has = e.target.dataset.value !== 'なし';
         const need = e.target.dataset.value === '必要';
+        els.textbookFollow.classList.toggle('hidden', !has);
+        if (!has) els.textbookTitle.value = '';
         els.textbookDetailsSection.classList.toggle('hidden', !need);
         if (!need) clearTextbookDetails();
       }
@@ -752,6 +757,10 @@ function restoreReview(review) {
   syncExamDetails();
 
   restoreButtonGroup('group-textbook', review.textbook);
+  if (review.textbook && review.textbook !== 'なし') {
+    els.textbookFollow.classList.remove('hidden');
+    els.textbookTitle.value = review.textbookTitle || '';
+  }
   if (review.textbook === '必要') {
     els.textbookDetailsSection.classList.remove('hidden');
     const i = PRICE_BUCKETS.indexOf(review.textbookPrice);
@@ -895,6 +904,8 @@ function resetModalForm() {
   els.examOtherText.value = '';
   els.examOtherText.classList.add('hidden');
 
+  els.textbookFollow.classList.add('hidden');
+  els.textbookTitle.value = '';
   els.textbookDetailsSection.classList.add('hidden');
   clearTextbookDetails();
 }
@@ -1055,6 +1066,8 @@ function handleSaveReview() {
      「生協、メルカリ、その他（…）」の1本の文字列にする。並びは画面の順
      （「その他」が必ず最後 ―― restoreReview がそれを前提に戻している）。 */
   const textbook = document.querySelector('#group-textbook .selected').dataset.value;
+  /* 書名は「必要」「不要」のとき（「なし」では枠ごと隠れて空）。空なら null。 */
+  const textbookTitle = els.textbookTitle.value.trim() || null;
   let textbookPrice = null;
   let textbookPlaces = null;
   /* 答えなかった金額・場所は null（任意なので空のまま保存できる）。
@@ -1076,6 +1089,7 @@ function handleSaveReview() {
     items: items,
     exam: examValue,
     textbook: textbook,
+    textbookTitle: textbookTitle,
     textbookPrice: textbookPrice,
     textbookPlaces: textbookPlaces,
     comment: els.commentInput.value.trim(),
