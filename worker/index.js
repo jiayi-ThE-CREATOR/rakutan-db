@@ -122,12 +122,17 @@ function koanUrl(c) {
 // LINEアプリ側でリンクプレビューが失敗し「認証エラー／リンクを開くには
 // こちらをタップ」という壊れた表示になった（2026-08-26 しゅんやさん報告）。
 // URIアクションのボタンにすると同じ問題は起きない。
+const RANK_COLOR = { SS:"#6e4d00", S:"#7a22d6", A:"#05652a", B:"#8f3a00", C:"#a31414" };
+
 function courseBubble(c) {
   const r = c.rakutan || {};
   /* 負担ランク（2026-10-14）。サイトのカードと同じく、点数ではなくランクと出どころを出す。
      ランクが無い科目（情報不足など）は band の文字のまま。 */
   const f = r.futan || {};
   const band = f.rank ? `負担 ${f.rank}` : (r.band || "―");
+  /* ランクの色はサイトと同じ（web/assets/tokens.css の --rank-*-tag。白地の小さい字で 4.5:1）。
+     ランクが無い科目はブランド色のまま。 */
+  const bandColor = RANK_COLOR[f.rank] || "#DB6209";
   const overallS = !f.rank ? ""
     : f.source === "kuchikomi" ? `口コミ${f.people}人から`
     : f.source === "syllabus_kuchikomi" ? "シラバス＋口コミから" : "シラバスから推定";
@@ -153,7 +158,7 @@ function courseBubble(c) {
           layout: "baseline",
           margin: "md",
           contents: [
-            { type: "text", text: band, size: "sm", color: "#DB6209", flex: 0, weight: "bold" },
+            { type: "text", text: band, size: "sm", color: bandColor, flex: 0, weight: "bold" },
             { type: "text", text: overallS || " ", size: "sm", margin: "sm", color: "#666666" },
           ],
         },
