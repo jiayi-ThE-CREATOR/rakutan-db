@@ -29,6 +29,8 @@ await p.addInitScript(() => {
 
 await p.goto(url, { waitUntil: "networkidle" });
 await p.waitForSelector(".card", { timeout: 15000 });
+/* 768px 未満では絞り込みは下からのシートにしまってある（2026-10-19）。開いてから触る。 */
+if (await p.isVisible("#fsOpen")) { await p.click("#fsOpen"); await p.waitForTimeout(350); }
 
 /* 上段の区分は畳んで出る（「全学部共通の区分を選ぶ ▼」）。開かないとチップを押せない。
    ここが抜けていて、この確認は 2026-09-21 まで 98 行目のクリックで止まっていた

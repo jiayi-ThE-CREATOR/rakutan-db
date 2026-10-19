@@ -1410,3 +1410,69 @@ html{scroll-behavior:smooth}
 .cpFacts th{width:9em;color:var(--muted);font-weight:400}
 .cpFacts td{overflow-wrap:anywhere}
 .cp .cpNote{color:var(--soft);font-size:var(--fs-sm)}
+
+/* ── スマホの絞り込みシート（2026-10-19） ─────────────
+ * 768px 未満では .rail を「下から出るシート」にする。縦に積んでいた頃は
+ * 一覧の1枚目が 2,400px 下（390px 実測）にあり、ほとんどの人が絞り込みの
+ * 途中で離れていた。DOM は PC と同じ .rail をそのまま使う ―― 絞り込みの
+ * 処理（app.js）も覆い（gate.js）も1つのまま。開閉は app.js の setSheet()。
+ * 名前の fs は filter sheet。口コミ投稿の .sheet（下の方）とは別物。
+ * 押すと即座に一覧へ効くのは PC と同じ。下のボタンは「閉じて結果を見る」だけ。 */
+.fsHead,.fsFoot,.fsOpen,.fsScrim{display:none}
+@media (max-width:767px){
+  /* 一覧の上の道具（件数・検索・絞り込み・並び順）は画面の天井に残す。
+     下へスクロールしても、絞り込みをいつでも開き直せる。 */
+  .bar{position:sticky;top:0;z-index:12;background:var(--paper);
+    margin-top:0;padding-top:var(--sp-2);grid-template-columns:auto 1fr auto auto}
+  .fsOpen{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;
+    border:1.5px solid var(--ink);border-radius:var(--r-pill);background:var(--card);color:var(--ink);
+    font:inherit;font-size:var(--fs-sm);font-weight:700;cursor:pointer;white-space:nowrap}
+  .fsOpenIcon{width:14px;height:10px;border-top:2px solid currentColor;border-bottom:2px solid currentColor;
+    position:relative}
+  .fsOpenIcon::after{content:"";position:absolute;left:3px;right:3px;top:2px;border-top:2px solid currentColor}
+  .fsBadge{min-width:20px;height:20px;padding:0 5px;border-radius:var(--r-pill);
+    background:var(--brand);color:var(--brand-ink);font-family:var(--data);font-size:var(--fs-xs);
+    display:inline-grid;place-items:center}
+  .fsBadge[hidden]{display:none}
+
+  .rail{position:fixed;left:0;right:0;bottom:0;z-index:41;
+    max-height:86vh;max-height:86dvh;overflow-y:auto;overscroll-behavior:contain;
+    background:var(--card);border-radius:20px 20px 0 0;box-shadow:0 -8px 30px var(--shadow-modal);
+    padding:0 var(--pad);
+    transform:translateY(100%);visibility:hidden;
+    transition:transform .3s cubic-bezier(.2,.8,.2,1),visibility 0s linear .3s}
+  html.fsOn .rail{transform:none;visibility:visible;transition:transform .3s cubic-bezier(.2,.8,.2,1)}
+  .rail.fsDrag{transition:none}
+  .rail > section:first-of-type{margin-top:var(--sp-3)}
+  /* シートの見出し。中を下へスクロールしても天井に残る。.slotBar（◯曜◯限で
+     絞り込み中）も天井に貼り付く作りなので、その下に来るよう top をずらす。 */
+  .fsHead{display:flex;align-items:center;position:sticky;top:0;z-index:16;
+    margin:0 calc(-1 * var(--pad));padding:18px var(--pad) 10px;background:var(--card);
+    border-bottom:1px solid var(--rule);touch-action:none;cursor:grab}
+  .fsGrab{position:absolute;left:50%;top:7px;width:40px;height:5px;margin-left:-20px;
+    border-radius:3px;background:var(--rule)}
+  .fsTitle{flex:1;font-size:var(--fs-lg);font-weight:700}
+  .fsClose{width:44px;height:44px;margin:-10px -10px -10px 0;border:0;background:none;
+    color:var(--soft);font-size:18px;cursor:pointer}
+  .slotBar{top:63px}
+  .fsFoot{display:block;position:sticky;bottom:0;z-index:16;
+    margin:var(--sp-4) calc(-1 * var(--pad)) 0;
+    padding:var(--sp-3) var(--pad) calc(var(--sp-3) + env(safe-area-inset-bottom,0px));
+    background:var(--card);border-top:1px solid var(--rule)}
+  .fsApply{width:100%;height:48px;border:0;border-radius:var(--r-md);
+    background:var(--brand);color:var(--brand-ink);font:inherit;font-size:var(--fs-lg);font-weight:800;cursor:pointer}
+
+  .fsScrim{display:block;position:fixed;inset:0;z-index:40;background:var(--scrim);
+    opacity:0;pointer-events:none;transition:opacity .25s}
+  html.fsOn .fsScrim{opacity:1;pointer-events:auto}
+  /* 開いているあいだは裏のページを動かさない。右下の版の入口と口コミの
+     ボタンはシートの「結果を見る」と重なるので隠す。 */
+  html.fsOn{overflow:hidden}
+  html.fsOn .verFab,html.fsOn .fab{visibility:hidden}
+}
+@media (max-width:479px){
+  .bar{grid-template-columns:1fr auto auto}
+}
+@media (prefers-reduced-motion:reduce){
+  .rail,html.fsOn .rail,.fsScrim{transition:none}
+}

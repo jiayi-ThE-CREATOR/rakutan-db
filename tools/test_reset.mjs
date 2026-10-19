@@ -40,6 +40,8 @@ const open = async (width, saved = SAVED) => {
   }, saved);
   await p.goto(base, { waitUntil: "networkidle" });
   await p.waitForSelector("#list .card");
+  /* 768px 未満では絞り込みは下からのシートにしまってある（2026-10-19）。開いてから触る。 */
+  if (await p.isVisible("#fsOpen")) { await p.click("#fsOpen"); await p.waitForTimeout(350); }
   return p;
 };
 

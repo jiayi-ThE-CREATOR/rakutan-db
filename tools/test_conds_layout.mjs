@@ -43,7 +43,9 @@ for (const [label, width] of [["スマホ(最小)", 340], ["スマホ", 390], ["
     try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
   });
   await p.goto(base, { waitUntil: "networkidle" });
-  await p.waitForSelector("#conds .chip");
+  await p.waitForSelector("#conds .chip", { state: "attached" });
+  /* 768px 未満では絞り込みは下からのシートにしまってある（2026-10-19）。開いてから触る。 */
+  if (await p.isVisible("#fsOpen")) { await p.click("#fsOpen"); await p.waitForTimeout(350); }
 
   console.log(`\n=== ${label}（幅${width}px） ===`);
   const a = await snap(p);

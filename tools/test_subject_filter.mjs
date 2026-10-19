@@ -52,6 +52,8 @@ const waitCount = async (p, n) => { try { await p.waitForFunction(n => +document
 for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
   const p = await newPage(w, h);
   await gotoRetry(p, base + "/");
+  /* 768px 未満では絞り込みは下からのシートにしまってある（2026-10-19）。開いてから触る。 */
+  if (await p.isVisible("#fsOpen")) { await p.click("#fsOpen"); await p.waitForTimeout(350); }
   await p.waitForSelector("#subjSec #subjOpen", { timeout: 15000 });
   const total = await count(p);
   console.log(`[${label}] 初期件数 ${total}`);
@@ -85,7 +87,7 @@ for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
   const n2 = await count(p);
   const p2 = await newPage(w, h);
   await gotoRetry(p2, p.url());
-  await p2.waitForSelector("#subjPicked .chip");
+  await p2.waitForSelector("#subjPicked .chip", { state: "attached" });   // スマホではシートの中（閉じている）
   check(await waitCount(p2, n2), `${label}: URL から開き直した件数が違う`);
   // カードのタグで絞り込み（選んでいないタグを押す）
   const cardTag = await p2.$('#list .card .subjRow .subjTag:not(.on)');
@@ -171,40 +173,44 @@ for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
   await p.close();
 }
 
-/* ── スマホで決定したら一覧まで送る（2026-09-18）──────────────
-   390px では絞り込みが縦に積まれていて、一覧は授業内容の節の 1,300px ほど下にある。
-   閉じただけでは目の前が絞り込みの続きのままで、何も起きなかったように見えた。 */
+/* ── スマホで決定したら一覧まで送る（2026-09-18 → 2026-10-19 書き換え）──────
+   2026-09-18：390px では絞り込みが縦に積まれていて、一覧は授業内容の節の 1,300px
+   ほど下にあった。決定しても目の前が絞り込みの続きのままで、何も起きなかったように見えた。
+   2026-10-19：絞り込みは下からのシート（.rail）にしまった。授業内容のダイアログを
+   閉じてもシートは開いたまま（続けて他の条件も選べる）で、裏のページは動かさない。
+   シート下の「N件を表示」で閉じたときに一覧の頭が見えること、を見る。 */
 {
   const p = await newPage(390, 844);
   await gotoRetry(p, base + "/");
+  await p.click("#fsOpen");
+  await p.waitForTimeout(350);
   await p.waitForSelector("#subjSec #subjOpen", { timeout: 15000 });
-  const barSeen = () => p.evaluate(() => {
-    const r = document.querySelector(".bar").getBoundingClientRect();
-    return r.top >= 0 && r.bottom <= innerHeight;
-  });
-  check(!(await barSeen()), "sp送り: 最初から一覧の帯が見えている（前提が崩れている）");
+  const y0 = await settle(p);
   await p.click("#subjOpen");
   await p.waitForSelector("#subjDlg[open] #subjOpts .chip");
   await p.click('#subjOpts .chip[data-subject="rekishi"]');
   await p.waitForTimeout(300);
   await p.click("#subjDone");
   await p.waitForFunction(() => !document.querySelector("#subjDlg").open);
-  const moved = await p.waitForFunction(() => {
-    const r = document.querySelector(".bar").getBoundingClientRect();
-    return r.top >= 0 && r.bottom <= innerHeight;
-  }, null, { timeout: 5000 }).then(() => true).catch(() => false);
-  check(moved, "sp送り: 決定しても一覧の帯まで動かない");
-  /* 何も変えずに閉じた人は動かさない（勝手に画面が飛ばないこと）。
-     位置を控えるのは「開いたあと」―― click() が #subjOpen を画面に入れるために
-     自分でスクロールするので、その前に控えると開く動作のぶんまで数えてしまう。 */
-  await p.click("#subjOpen");
-  await p.waitForSelector("#subjDlg[open]");
-  const y0 = await settle(p);
-  await p.keyboard.press("Escape");
-  await p.waitForFunction(() => !document.querySelector("#subjDlg").open);
   await p.waitForTimeout(600);
-  const y1 = await settle(p);
-  check(Math.abs(y1 - y0) < 8, `sp送り: 何も変えずに閉じたのに画面が動いた (${y0}→${y1})`);
+  check(await p.evaluate(() => document.documentElement.classList.contains("fsOn")),
+    "sp送り: 授業内容を決定したらシートまで閉じた");
+  check(Math.abs((await settle(p)) - y0) < 8, "sp送り: シートを開いたまま裏のページが動いた");
+  const n = await count(p);
+  check((await p.textContent("#fsApply")).trim() === `${n}件を表示`, "sp送り: シート下のボタンの件数が一覧と違う");
+  /* 一覧の途中まで下ろしてから開き直し、閉じたら頭に戻ること。 */
+  await p.click("#fsApply");
+  await p.waitForTimeout(500);
+  await p.evaluate(() => scrollTo(0, document.querySelector("#results").getBoundingClientRect().top + scrollY + 2000));
+  await settle(p);
+  await p.click("#fsOpen");
+  await p.waitForTimeout(350);
+  await p.click("#fsApply");
+  const moved = await p.waitForFunction(() => {
+    const r = document.querySelector("#results").getBoundingClientRect();
+    return Math.abs(r.top) < 4;
+  }, null, { timeout: 5000 }).then(() => true).catch(() => false);
+  check(moved, "sp送り: 「N件を表示」で閉じても一覧の頭が見えない");
   if (p.errors.length) fails.push(`sp送り: console/page error: ${p.errors.slice(0,3).join(" | ")}`);
   await p.close();
 }
@@ -263,6 +269,8 @@ for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
 for (const [label, w, h] of [["sp", 390, 844], ["pc", 1280, 900]]){
   const p = await newPage(w, h);
   await gotoRetry(p, base + "/");
+  /* 768px 未満では絞り込みは下からのシートにしまってある（2026-10-19）。開いてから触る。 */
+  if (await p.isVisible("#fsOpen")) { await p.click("#fsOpen"); await p.waitForTimeout(350); }
   await p.waitForSelector("#subjSec #subjOpen", { timeout: 15000 });
   await p.click("#subjOpen");
   await p.waitForSelector("#subjDlg[open] #subjOpts .chip");
