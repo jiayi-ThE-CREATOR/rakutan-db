@@ -853,7 +853,7 @@ function rankBlockHtml(c){
     ? `<span class="band rk${RANKS.includes(rank) ? rank : ""}">${esc(src)}${low}</span>`
     : `<span class="band b${BAND_CLS[r.band] ?? 0}">${esc(r.band)}</span>`;
   return `${big}
-      <div class="reason">${head}${pct}${mis}${esc(m.reason)}</div>`;
+      <div class="reason">${head}${pct}${mis}</div>`;
 }
 
 function card(c){
