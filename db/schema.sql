@@ -58,3 +58,12 @@ CREATE TABLE IF NOT EXISTS mail_nonce (
   n TEXT PRIMARY KEY,
   exp INTEGER NOT NULL
 );
+
+-- メールでログイン：送った端末が、別の端末でリンクが押されたことを知るための待ち（2026-10-20）。
+-- rid は送った端末の Cookie にだけある。sub はリンクが押されたら書く。taken は受け取ったら 1。
+CREATE TABLE IF NOT EXISTS mail_wait (
+  rid TEXT PRIMARY KEY,
+  exp INTEGER NOT NULL,
+  sub TEXT,
+  taken INTEGER NOT NULL DEFAULT 0
+);

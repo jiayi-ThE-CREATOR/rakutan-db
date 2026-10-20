@@ -4,6 +4,15 @@
  *   POST /mail/start  {email, next}  … ログイン用のリンクをメールで送る
  *   GET  /mail/login?t=…             … 「ログインする」ボタンだけのページを返す
  *   POST /mail/login  t=…            … 使い捨ての文字列を確かめ、セッション Cookie を置く
+ *   GET  /mail/poll                  … 送った側の端末が「押されたか」を聞く（別の端末で押しても入れる）
+ *
+ * ■ 別の端末で押しても、送った端末がログインする（2026-10-20 wang 依頼）
+ * パソコンで送ってスマホのメールで押す、がいちばん多い。送るときに「待ち番号」（rid）を作り、
+ * 送った端末の Cookie（HttpOnly）とリンクの中に入れる。リンクが押されたら rid に「誰か」を書き、
+ * 送った端末は /mail/poll で3秒ごとに聞いて、書かれていたらセッションを受け取る（1回だけ）。
+ * 確認の番号（パソコンとスマホで同じ数字を見比べる）は付けない（wang 判断）。そのため、他人が
+ * 自分のパソコンからあなたのアドレスで送り、あなたがそのリンクを押すと、他人のパソコンが
+ * あなたとして入れる。守る中身が時間割・お気に入りだけなので受け入れている。
  *
  * ■ アドレスは保存しない
  * 識別子は HMAC-SHA256(MAIL_ID_SECRET, 小文字にしたアドレス)。secret が無いと戻せない。
@@ -21,9 +30,11 @@
  * Resend の無料枠（1日100通）に当たったら、LINE で入ってもらう。
  */
 import {
-  sign, verify, safeNext, setCookie, json, redirect, hmac, b64urlEncode,
+  sign, verify, safeNext, setCookie, clearCookie, cookies, json, redirect, hmac, b64urlEncode,
   SESSION_COOKIE, SESSION_TTL_SEC,
 } from "./linelogin.js";
+
+const WAIT_COOKIE = "rk_mailwait";
 
 export const SITE_URL = "https://rakuhan.nocode-sol.co.jp";
 const FROM = "ラクハン <login@rakuhan-mail.nocode-sol.co.jp>";
@@ -64,7 +75,7 @@ export function mailText(link) {
     link,
     "",
     "このリンクは 15 分間だけ、1 回だけ使えます。",
-    "ラクハンを開いているのと同じブラウザで押してください。",
+    "スマホで押しても大丈夫です。メールを送ったパソコンも、自動でログインします。",
     "",
     "このメールに心当たりがない場合は、何もしなくて大丈夫です（誰かがアドレスを打ち間違えた可能性があります）。リンクを押さなければ、何も起きません。",
     "",
@@ -80,7 +91,7 @@ function mailHtml(link) {
 <p>ラクハンにログインするためのリンクです。下のボタンを押すと、ログインが完了します。</p>
 <p><a href="${esc(link)}" style="display:inline-block;background:#DB6209;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">ラクハンにログインする</a></p>
 <p style="font-size:13px;color:#555">ボタンが押せないときは、このリンクを開いてください：<br>${esc(link)}</p>
-<p>このリンクは 15 分間だけ、1 回だけ使えます。<br>ラクハンを開いているのと同じブラウザで押してください。</p>
+<p>このリンクは 15 分間だけ、1 回だけ使えます。<br>スマホで押しても大丈夫です。メールを送ったパソコンも、自動でログインします。</p>
 <p>このメールに心当たりがない場合は、何もしなくて大丈夫です（誰かがアドレスを打ち間違えた可能性があります）。リンクを押さなければ、何も起きません。</p>
 <p style="font-size:13px;color:#777">――<br>ラクハン（学生団体 GUILD・非公式）<br>このメールは送信専用です。返信はできません。</p>
 </div>`;
@@ -107,10 +118,10 @@ export async function handleMailStart(request, env, fetchImpl = fetch) {
   }
 
   const nonce = b64urlEncode(crypto.getRandomValues(new Uint8Array(12)));
-  const token = await sign(env.SESSION_SECRET, {
-    typ: "mail", h: id, n: nonce, next,
-    exp: Math.floor(Date.now() / 1000) + LINK_TTL_SEC,
-  });
+  /* 待ち番号。送った端末だけが Cookie で持つ（推測できない長さ）。 */
+  const rid = b64urlEncode(crypto.getRandomValues(new Uint8Array(18)));
+  const exp = Math.floor(Date.now() / 1000) + LINK_TTL_SEC;
+  const token = await sign(env.SESSION_SECRET, { typ: "mail", h: id, n: nonce, w: rid, next, exp });
   const link = `${SITE_URL}/mail/login?t=${encodeURIComponent(token)}`;
 
   let res;
@@ -133,7 +144,10 @@ export async function handleMailStart(request, env, fetchImpl = fetch) {
     console.error("resend failed", res.status);
     return json(502, { ok: false, error: "send_failed" });
   }
-  return json(200, { ok: true });
+  const now = Math.floor(Date.now() / 1000);
+  await env.DB.prepare("DELETE FROM mail_wait WHERE exp < ?").bind(now - 3600).run();
+  await env.DB.prepare("INSERT INTO mail_wait (rid, exp) VALUES (?, ?)").bind(rid, exp).run();
+  return json(200, { ok: true }, { "set-cookie": setCookie(WAIT_COOKIE, rid, LINK_TTL_SEC) });
 }
 
 function page(title, bodyHtml) {
@@ -180,11 +194,39 @@ export async function handleMailLogin(request, env) {
     "INSERT INTO mail_nonce (n, exp) VALUES (?, ?) ON CONFLICT(n) DO NOTHING").bind(obj.n, obj.exp).run();
   if (!ins.meta || ins.meta.changes !== 1) return EXPIRED();
 
-  const session = await sign(env.SESSION_SECRET, {
-    sub: `m:${obj.h}`, friend: true, via: "mail",
-    exp: now + SESSION_TTL_SEC,
-  });
+  /* 送った端末へ知らせる（その端末は /mail/poll で受け取る）。押した端末にもこのままセッションを出す。 */
+  if (typeof obj.w === "string" && obj.w) {
+    await env.DB.prepare("UPDATE mail_wait SET sub = ? WHERE rid = ? AND sub IS NULL AND exp >= ?")
+      .bind(`m:${obj.h}`, obj.w, now).run();
+  }
+  const session = await mailSession(env, `m:${obj.h}`, now);
   /* 303：POST の後は GET で戻り先へ。 */
   const res = redirect(`${SITE_URL}${safeNext(obj.next)}`, [setCookie(SESSION_COOKIE, session, SESSION_TTL_SEC)]);
   return new Response(null, { status: 303, headers: res.headers });
+}
+
+async function mailSession(env, sub, now) {
+  return sign(env.SESSION_SECRET, { sub, friend: true, via: "mail", exp: now + SESSION_TTL_SEC });
+}
+
+/* ── GET /mail/poll ─────────────────────────────────── */
+/* 返すのは state だけ：none（待っていない）／waiting／expired／ok（この返事でセッションを置いた）。 */
+export async function handleMailPoll(request, env) {
+  if (!configured(env)) return json(503, { ok: false, error: "not_configured" });
+  const rid = cookies(request)[WAIT_COOKIE];
+  if (!rid) return json(200, { ok: true, state: "none" });
+  const now = Math.floor(Date.now() / 1000);
+  const row = await env.DB.prepare("SELECT sub, exp, taken FROM mail_wait WHERE rid = ?").bind(rid).first();
+  if (!row || row.exp < now || row.taken) {
+    return json(200, { ok: true, state: row && row.taken ? "none" : "expired" },
+                { "set-cookie": clearCookie(WAIT_COOKIE) });
+  }
+  if (!row.sub) return json(200, { ok: true, state: "waiting" });
+  /* 受け取りは1回だけ（同時に2回聞かれても、片方だけが taken を 0→1 にできる）。 */
+  const up = await env.DB.prepare("UPDATE mail_wait SET taken = 1 WHERE rid = ? AND taken = 0").bind(rid).run();
+  if (!up.meta || up.meta.changes !== 1) return json(200, { ok: true, state: "none" }, { "set-cookie": clearCookie(WAIT_COOKIE) });
+  const headers = new Headers({ "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+  headers.append("set-cookie", setCookie(SESSION_COOKIE, await mailSession(env, row.sub, now), SESSION_TTL_SEC));
+  headers.append("set-cookie", clearCookie(WAIT_COOKIE));
+  return new Response(JSON.stringify({ ok: true, state: "ok" }), { status: 200, headers });
 }

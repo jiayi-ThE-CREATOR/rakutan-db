@@ -17,6 +17,34 @@
 
 ---
 
+## 2026-10-20 ｜ メールのリンクを別の端末で押しても、送った端末がログインする ｜ Claude（wang） → 全員
+
+設計の追記: `docs/superpowers/specs/2026-10-19-mail-login-design.md`「別の端末で押しても…」。
+パソコンで送ってスマホのメールで押す、がいちばん多いので（wang 依頼）。
+
+### 1. 何が動く状態か
+
+    node tools/test_maillogin.mjs
+
+- `POST /mail/start` が待ち番号を作り、HttpOnly Cookie `rk_mailwait` と D1 `mail_wait` に置く
+- リンクが押されると `mail_wait.sub` が埋まる。送った端末は `GET /mail/poll`（3秒ごと・gate.js）で受け取り、再読み込み
+- 待ちの期限は localStorage `rk_mailwait_until`。開き直しても待ちを続け、期限は延ばさない
+
+### 2. 何をしていないか
+
+- **確認の番号（両方の画面で同じ数字を見比べる）は付けていない**（wang 判断）。他人が自分の端末からあなたのアドレスで送り、あなたが押すと、他人の端末が入れる
+- **本番の D1 に `mail_wait` の表が要る**（下の3）。無いと `/mail/start` がメールを送ったあとで失敗する
+
+### 3. 次の人が最初に打つコマンド
+
+    npx wrangler d1 execute rakutan-favorites --remote --file=db/schema.sql
+
+### 4. 踏んだ罠
+
+- 開き直したときに待ちを再開する処理で、期限まで書き直すと15分を過ぎても聞き続ける。再開のときは期限に触らない（`startMailPoll(true)`）
+
+---
+
 ## 2026-10-20 ｜ メールでログインできるようにした ｜ Claude（wang） → 全員
 
 設計: `docs/superpowers/specs/2026-10-19-mail-login-design.md`。しゅんや の指摘①（PC だと LINE ログインが面倒）への答え。

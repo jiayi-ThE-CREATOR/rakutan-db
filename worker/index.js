@@ -43,7 +43,7 @@ import {
   handleLineLogin, handleLineCallback, handleMe, handleLogout,
 } from "./linelogin.js";
 import { cleanGrade, cleanFaculty, cleanIds, handleProfile } from "./profile.js";
-import { handleMailStart, handleMailLoginPage, handleMailLogin } from "./maillogin.js";
+import { handleMailStart, handleMailLoginPage, handleMailLogin, handleMailPoll } from "./maillogin.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -1244,6 +1244,9 @@ async function route(request, env, ctx) {
       return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
     }
     return handleMailStart(request, env);
+  }
+  if (url.pathname === "/mail/poll") {
+    return handleMailPoll(request, env);
   }
   if (url.pathname === "/mail/login") {
     return request.method === "POST" ? handleMailLogin(request, env) : handleMailLoginPage(request, env);
