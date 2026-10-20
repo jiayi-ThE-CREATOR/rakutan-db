@@ -49,6 +49,9 @@
 - 口コミ投稿の下からのシートが既に `.sheet` という名前を使っている。こちらは `fs`（filter sheet）で始まる名前にした
 - スマホ幅で絞り込みを触るテスト（`test_conds_layout` `test_reset` `test_subject_filter` `check_division_ui`）は、先に `#fsOpen` を押すようにした。`test_subject_filter` の「sp送り」は、前提（絞り込みが縦に積まれて一覧が下にある）が消えたので、シートの動きを見る形に書き換えた
 - `tools/test_subject_filter.mjs` は静的配信だと cloudflareinsights の CORS エラーで落ちる。main でも同じで、今回とは無関係
+
+---
+
 ## 2026-10-19 ｜ 科目カードの字を大きく・理由の一文を外す・hero を「登録したら無料」に（PR #214） ｜ Claude（wang） → 全員
 
 ### 1. 何が動く状態か
