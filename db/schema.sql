@@ -43,3 +43,18 @@ CREATE TABLE IF NOT EXISTS timetables (
   updated_at INTEGER NOT NULL,
   PRIMARY KEY (line_user_id, term_group, course_id)
 );
+
+-- メールでログイン（2026-10-19・docs/superpowers/specs/2026-10-19-mail-login-design.md）。
+-- アドレスそのものは持たない。数えるのは識別子（HMAC）と時間帯だけで、24時間より古い行は消す。
+CREATE TABLE IF NOT EXISTS mail_rate (
+  key TEXT NOT NULL,          -- 'site' か 'id:<識別子>'
+  hour INTEGER NOT NULL,      -- UNIX 時間 ÷ 3600
+  n INTEGER NOT NULL,
+  PRIMARY KEY (key, hour)
+);
+
+-- 使ったログイン用リンクの記録（1回だけ使えるようにする）。期限を過ぎた行は消す。
+CREATE TABLE IF NOT EXISTS mail_nonce (
+  n TEXT PRIMARY KEY,
+  exp INTEGER NOT NULL
+);

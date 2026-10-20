@@ -304,7 +304,10 @@ export async function handleMe(request, env) {
   }
   const sess = await verify(env.SESSION_SECRET, cookies(request)[SESSION_COOKIE] || "");
   if (!sess) return json(200, { ok: true, configured: true, linked: false, loggedIn: false });
-  return json(200, { ok: true, configured: true, linked: !!sess.friend, loggedIn: true });
+  /* via：メールでログインした人（"mail"）には、画面が「LINE で友だち追加」を勧めないように。
+     メールの人は友だちの確認が無いが、門は開く（maillogin.js が friend:true で発行する）。 */
+  return json(200, { ok: true, configured: true, linked: !!sess.friend, loggedIn: true,
+                     via: sess.via === "mail" ? "mail" : "line" });
 }
 
 /* ── POST /api/logout ─────────────────────────────────────── */
@@ -323,3 +326,8 @@ export async function sessionUser(request, env) {
 }
 
 export const __test = { sign, verify, safeNext, b64urlEncode, b64urlDecode };
+
+/* メールログイン（maillogin.js）が同じセッションを発行するために使う。
+   署名・Cookie・戻り先の扱いを2か所に書かない（正本はここ1つ）。 */
+export { sign, verify, safeNext, setCookie, cookies, json, redirect, hmac, b64urlEncode,
+         SESSION_COOKIE, SESSION_TTL_SEC };

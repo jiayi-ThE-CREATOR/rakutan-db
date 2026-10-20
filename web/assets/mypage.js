@@ -149,6 +149,15 @@ function renderLine(){
   /* 未設定のとき（configured:false）は、サーバーが linked:true を返す。
      その場合ここは「連携済み」ではなく、これまでどおりの案内を出す
      ―― 設定前に「連携済み」と言うのは嘘になる。 */
+  /* メールでログインした人（2026-10-19）。LINE の連携とは別のアカウントなので、
+     「LINE 連携済み」とは言わない。 */
+  if (lineState && lineState.configured && lineState.loggedIn && lineState.via === "mail"){
+    body.innerHTML = `
+      <p class="mpLineOk"><span>✉️ メールでログイン中</span></p>
+      <p class="mpLineNote">LINE でもログインすると、LINE から科目の検索とおすすめが届きます（メールとは別のアカウントになります）。</p>`;
+    return;
+  }
+
   if (lineState && lineState.configured && lineState.linked){
     body.innerHTML = `
       <p class="mpLineOk">${LINE_MARK}<span>LINE 連携済み</span></p>
@@ -198,9 +207,10 @@ function renderLine(){
       ${gated ? "<li>お気に入り・時間割・絞り込みが使えるようになります</li>" : ""}
     </ul>
     ${gated
-      ? `<button type="button" class="mpLineBtn" id="mpLineLogin">${LINE_MARK}<span>LINE で続ける</span></button>
+      ? `<button type="button" class="mpLineBtn" id="mpLineLogin">${LINE_MARK}<span>LINE でログイン（おすすめ）</span></button>
          <p class="mpLineNote">LINE の画面が開きます。友だち追加まで済むと、この下の機能が使えます。</p>
-         <p class="mpLineNote gatePcHint">パソコンで開いている人は、次の画面に出る QR コードをスマホの LINE で読み取るとログインできます。</p>`
+         <p class="mpLineNote gatePcHint">パソコンで開いている人は、次の画面に出る QR コードをスマホの LINE で読み取るとログインできます。</p>
+         ${window.rkGate?.mailBlockHTML ? window.rkGate.mailBlockHTML() : ""}`
       : `<a class="mpLineBtn" id="mpLineAdd" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">${LINE_MARK}<span>LINE で友だち追加</span></a>`}`;
 
   if (gated){
