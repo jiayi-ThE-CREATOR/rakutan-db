@@ -95,3 +95,14 @@
 /* パソコンだけに出す「QR コードをスマホの LINE で読む」の一言（2026-10-19）。
    スマホ（指で触る端末）では LINE アプリに直接飛ぶので出さない。 */
 @media (pointer: coarse){ .gatePcHint{ display:none } }
+
+/* LINE をすすめる理由（2つだけ）とメールでログイン（2026-10-19） */
+.gateWhy{margin:var(--sp-2) 0 0;padding-left:1.2em;font-size:var(--fs-sm);color:var(--soft);line-height:1.7}
+.mailBox{margin-top:var(--sp-4);padding-top:var(--sp-3);border-top:1px solid var(--rule)}
+.gateBtn.gateBtnSub{background:transparent;color:var(--brand-text);border:1px solid var(--brand-text)}
+.gateDlgCard .mailBox .gateBtn{margin-top:var(--sp-2)}
+.mailForm input{display:block;width:100%;box-sizing:border-box;margin-top:var(--sp-2);padding:10px 12px;
+  font-size:16px;border:1px solid var(--rule);border-radius:var(--r-sm);background:var(--paper);color:var(--ink)}
+.mailMsg{margin:var(--sp-2) 0 0;font-size:var(--fs-sm);color:var(--soft);line-height:1.7}
+.mailMsg:empty{display:none}
+.mailBox [hidden]{display:none !important}   /* .gateDlgCard .gateBtn{display:block} に勝たせる */

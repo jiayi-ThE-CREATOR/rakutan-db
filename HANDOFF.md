@@ -17,6 +17,44 @@
 
 ---
 
+## 2026-10-20 ｜ メールでログインできるようにした ｜ Claude（wang） → 全員
+
+設計: `docs/superpowers/specs/2026-10-19-mail-login-design.md`。しゅんや の指摘①（PC だと LINE ログインが面倒）への答え。
+ログインの説明（`#gateDlg`・マイページ）を「LINE でログイン（おすすめ）＋理由2つ」と「メールでログイン」の二択にした。
+
+### 1. 何が動く状態か
+
+    node tools/test_maillogin.mjs && node tools/test_linelogin.mjs
+    python3 tools/serve.py 8157 & node tools/test_gate.mjs http://localhost:8157
+
+- `POST /mail/start`：Resend で `login@rakuhan-mail.nocode-sol.co.jp` からリンクを送る（`worker/maillogin.js`）
+- `GET /mail/login`：「ログインする」ボタンだけのページ。`POST /mail/login` で初めてリンクを使う
+- セッションは LINE と同じ `rk_sess`。中身は `sub: "m:<識別子>"`・`friend: true`・`via: "mail"`。`/api/me` が `via` を返す
+- アドレスは保存しない。識別子は HMAC（`MAIL_ID_SECRET`）。D1 に書くのは回数（`mail_rate`）と使ったリンク（`mail_nonce`）だけ
+- 回数：同じアドレス 1時間3通（超えても返事は同じ）、サイト全体 1時間40通（超えたら「混み合っています」）
+
+### 2. 何をしていないか
+
+- **本番で動かすには secret 2つと D1 の表が要る**（下の3）。入るまで `/mail/start` は 503（not_configured）
+- LINE とメールのアカウントは合わせない（wang 決定）。同じ人が両方で入ると別アカウント・別の時間割
+- メールの人は LINE の bot（トークで科目を探す）を使えない
+
+### 3. 次の人が最初に打つコマンド
+
+    npx wrangler d1 execute rakutan-favorites --remote --file=db/schema.sql
+    npx wrangler secret put RESEND_API_KEY
+    npx wrangler secret put MAIL_ID_SECRET
+
+### 4. 踏んだ罠
+
+- **Cloudflare の Email Service は、送るドメインの DNS が Cloudflare に無いと使えない。** `nocode-sol.co.jp` は Xserver なので Resend にした
+- **`mail.nocode-sol.co.jp` は会社の Gmail の入口（ghs.google.com への CNAME）。** 送信元に使わず `rakuhan-mail.` を新しく作った。`*.nocode-sol.co.jp` のワイルドカード A がある
+- **GET でログインまで済ませると、メールの安全確認（リンクの事前取得）で使い捨ての文字列が消費される。** だから GET はボタンだけ
+- 独自ドメインは吉村さんのサーバー経由なので、Worker から見た IP は全員同じになりうる。回数は IP で数えない
+- `.gateDlgCard .gateBtn{display:block}` が `hidden` 属性に勝つ。`.mailBox [hidden]` で押さえた
+
+---
+
 ## 2026-10-19 ｜ スマホの絞り込みを下からのシートにした（PR #215） ｜ Claude（wang） → 全員
 
 ### 1. 何が動く状態か

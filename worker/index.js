@@ -11,6 +11,8 @@
  *   - GET  /line/login    … LINE ログイン（友だち確認つき）の入口
  *   - GET  /line/callback … その戻り。セッション Cookie を発行する
  *   - GET  /api/me        … 友だちかどうかを画面へ返す（ゲートの開閉）
+ *   - POST /mail/start    … メールでログイン：リンクを送る（maillogin.js）
+ *   - GET/POST /mail/login … その戻り。GET はボタンだけ、POST でセッション Cookie を発行する
  *   - POST /api/logout    … セッションを捨てる
  *   - それ以外            … env.ASSETS.fetch() でこれまで通り静的配信
  *
@@ -41,6 +43,7 @@ import {
   handleLineLogin, handleLineCallback, handleMe, handleLogout,
 } from "./linelogin.js";
 import { cleanGrade, cleanFaculty, cleanIds, handleProfile } from "./profile.js";
+import { handleMailStart, handleMailLoginPage, handleMailLogin } from "./maillogin.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -1235,6 +1238,15 @@ async function route(request, env, ctx) {
   }
   if (url.pathname === "/api/me") {
     return handleMe(request, env);
+  }
+  if (url.pathname === "/mail/start") {
+    if (request.method !== "POST") {
+      return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+    }
+    return handleMailStart(request, env);
+  }
+  if (url.pathname === "/mail/login") {
+    return request.method === "POST" ? handleMailLogin(request, env) : handleMailLoginPage(request, env);
   }
   if (url.pathname === "/api/logout") {
     if (request.method !== "POST") {

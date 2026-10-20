@@ -247,8 +247,18 @@ async function open(path, { me, storage } = {}){
   check(!(await page.$("#mpLine .gateVeil")),
         "LINE 連携の節を覆っている（入口を塞ぐと登録できなくなる）");
   const body = await page.textContent("#mpLineBody");
-  check(body.includes("LINE で続ける"), "未連携で「LINE で続ける」が出ていない");
+  /* 2026-10-19：LINE（おすすめ）かメールの二択に（docs/superpowers/specs/2026-10-19-mail-login-design.md） */
+  check(body.includes("LINE でログイン（おすすめ）"), "未連携で「LINE でログイン（おすすめ）」が出ていない");
+  check(body.includes("メールでログイン"), "未連携で「メールでログイン」が出ていない");
   check(!body.includes("連携済み"), "押す前から「連携済み」と出ている");
+  await page.close();
+}
+{
+  /* メールでログインした人には「LINE 連携済み」と言わない（別のアカウント） */
+  const page = await open("/mypage.html", { me: { ...ME.friend, via: "mail" } });
+  const body = await page.textContent("#mpLineBody");
+  check(body.includes("メールでログイン中") && !body.includes("LINE 連携済み"),
+        `メールの人に「LINE 連携済み」と出ている: ${body.trim().slice(0, 60)}`);
   await page.close();
 }
 {

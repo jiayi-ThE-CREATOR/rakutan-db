@@ -35,7 +35,7 @@
     /* ログイン済みだが友だちでない人には、ログインではなく友だち追加を促す。
        ここを一緒にすると「ログインしたのに開かない」で行き止まりになる。 */
     const needFriend = state.loggedIn && !state.linked;
-    const lead = needFriend ? "LINE で友だち追加すると使えます" : "LINE 登録で使えます";
+    const lead = needFriend ? "LINE で友だち追加すると使えます" : "ログインで使えます";
     return `<span class="gateBadge">🔒 ${lead}</span>`;
   };
 
@@ -79,6 +79,61 @@
   const loginHref = () =>
     "/line/login?next=" + encodeURIComponent(location.pathname + location.search + location.hash);
 
+  /* メールでログイン（2026-10-19・docs/superpowers/specs/2026-10-19-mail-login-design.md）。
+     ボタンを押すと入力欄が開き、送ると POST /mail/start。返事の文言は「送りました」に揃える
+     ―― 回数制限に当たったときもサーバーは同じ返事をする（何通送ったかを外から測らせない）。
+     マイページ（mypage.js）も同じ部品を使う。 */
+  const mailBlockHTML = () => `
+    <div class="mailBox">
+      <button type="button" class="gateBtn gateBtnSub" data-mail-open>メールでログイン</button>
+      <p class="gateDlgSub">メールに届くリンクを押すだけ。パソコンから使う人に</p>
+      <form class="mailForm" data-mail-form hidden>
+        <input type="email" name="email" required autocomplete="email" inputmode="email"
+               placeholder="メールアドレス" aria-label="メールアドレス">
+        <button type="submit" class="gateBtn">リンクを送る</button>
+        <p class="mailMsg" role="status"></p>
+      </form>
+    </div>`;
+
+  const MAIL_MSG = {
+    ok: "メールを送りました。届いたリンクを、<b>このブラウザで</b>開いてください（15分以内）。迷惑メールに入っていることもあります。",
+    busy: "今はメールログインが混み合っています。LINE でログインしてください。",
+    bad_email: "メールアドレスの形を確かめてください。",
+    other: "送れませんでした。時間をおいてもう一度試すか、LINE でログインしてください。",
+  };
+
+  document.addEventListener("click", (e) => {
+    const open = e.target.closest?.("[data-mail-open]");
+    if (!open) return;
+    const form = open.closest(".mailBox")?.querySelector("[data-mail-form]");
+    if (!form) return;
+    form.hidden = false;
+    open.hidden = true;
+    form.querySelector("input")?.focus();
+  });
+
+  document.addEventListener("submit", async (e) => {
+    const form = e.target.closest?.("[data-mail-form]");
+    if (!form) return;
+    e.preventDefault();
+    const msg = form.querySelector(".mailMsg");
+    const btn = form.querySelector("button[type=submit]");
+    btn.disabled = true;
+    let key = "other";
+    try {
+      const res = await fetch("/mail/start", {
+        method: "POST", credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: form.email.value,
+                               next: location.pathname + location.search + location.hash }),
+      });
+      const body = await res.json().catch(() => ({}));
+      key = res.ok && body.ok ? "ok" : (MAIL_MSG[body.error] ? body.error : "other");
+    } catch (err) { key = "other"; }
+    msg.innerHTML = MAIL_MSG[key];
+    btn.disabled = key === "ok";
+  });
+
   /* 覆われた機能を押したときの説明。**入口へ直行しない。**
      直行すると、押した人の画面がいきなり LINE になり「何のために飛ばされたのか」
      が分からない（2026-09-22 wang 指摘）。先に「何ができるようになるのか」と
@@ -90,18 +145,19 @@
     if (!dlg || typeof dlg.showModal !== "function"){ location.href = loginHref(); return; }
     const needFriend = state.loggedIn && !state.linked;
     dlg.querySelector("#gateDlgTitle").textContent =
-      needFriend ? "LINE で友だち追加すると使えます" : "LINE 登録すると使えます";
+      needFriend ? "LINE で友だち追加すると使えます" : "ログインすると使えます";
     dlg.querySelector("#gateDlgBody").innerHTML = needFriend
       ? `<p class="gateDlgLead">ラクハン【公式】を友だち追加してから、もう一度お試しください。</p>
          <a class="gateBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE で友だち追加</a>`
-      : `<p class="gateDlgLead">重さのつまみを自分に合わせて動かしたり、条件や授業内容で
-           しぼったり、<b>口コミを読んだり</b>、マイページ（時間割・お気に入り）を
-           使うには、LINE 登録が要ります。</p>
-         <p class="gateDlgSub">ラクハン【公式】と繋ぐだけです。<b>登録は無料</b>で、
-           授業の情報はそのまま見られます。</p>
-         <a class="gateBtn" href="${loginHref()}">LINE で続ける</a>
-         <p class="gateDlgSub gatePcHint">パソコンで開いている人は、次の画面に出る QR コードを
-           スマホの LINE で読み取るとログインできます。</p>`;
+      : `<p class="gateDlgLead">重さのつまみを自分に合わせて動かしたり、条件や授業内容でしぼったり、<b>口コミを読んだり</b>、マイページ（時間割・お気に入り）を使うには、ログインが要ります。</p>
+         <p class="gateDlgSub"><b>登録は無料</b>で、授業の情報はそのまま見られます。</p>
+         <a class="gateBtn" href="${loginHref()}">LINE でログイン（おすすめ）</a>
+         <ul class="gateWhy">
+           <li>新しい機能のお知らせが LINE に届く</li>
+           <li>LINE のトークから科目をすぐ探せる</li>
+         </ul>
+         <p class="gateDlgSub gatePcHint">パソコンで開いている人は、次の画面に出る QR コードをスマホの LINE で読み取るとログインできます。</p>
+         ${mailBlockHTML()}`;
     dlg.showModal();
   }
 
@@ -163,5 +219,5 @@
 
   /* 描き直しの後にも掛け直せるよう、外から呼べる口を残す。
      state は usersync.js がログイン済みかを読む口（/api/me を二重に聞かない）。 */
-  window.rkGate = { apply, linked: () => linked, prompt, ready, state: () => state };
+  window.rkGate = { apply, linked: () => linked, prompt, ready, state: () => state, mailBlockHTML };
 })();
