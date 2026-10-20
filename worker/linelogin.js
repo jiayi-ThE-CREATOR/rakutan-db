@@ -329,5 +329,5 @@ export const __test = { sign, verify, safeNext, b64urlEncode, b64urlDecode };
 
 /* メールログイン（maillogin.js）が同じセッションを発行するために使う。
    署名・Cookie・戻り先の扱いを2か所に書かない（正本はここ1つ）。 */
-export { sign, verify, safeNext, setCookie, cookies, json, redirect, hmac, b64urlEncode,
+export { sign, verify, safeNext, setCookie, clearCookie, cookies, json, redirect, hmac, b64urlEncode,
          SESSION_COOKIE, SESSION_TTL_SEC };

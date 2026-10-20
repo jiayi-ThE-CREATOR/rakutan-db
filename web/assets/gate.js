@@ -96,7 +96,8 @@
     </div>`;
 
   const MAIL_MSG = {
-    ok: "メールを送りました。届いたリンクを、<b>このブラウザで</b>開いてください（15分以内）。迷惑メールに入っていることもあります。",
+    ok: "メールを送りました。届いたリンクを押すと、<b>この画面も自動でログイン</b>します（スマホで押しても大丈夫・15分以内）。迷惑メールに入っていることもあります。",
+    expired: "15分たちました。もう一度送ってください。",
     busy: "今はメールログインが混み合っています。LINE でログインしてください。",
     bad_email: "メールアドレスの形を確かめてください。",
     other: "送れませんでした。時間をおいてもう一度試すか、LINE でログインしてください。",
@@ -132,7 +133,43 @@
     } catch (err) { key = "other"; }
     msg.innerHTML = MAIL_MSG[key];
     btn.disabled = key === "ok";
+    if (key === "ok") startMailPoll();
   });
+
+  /* 送った端末は、リンクが押されるまで3秒ごとに聞く（別の端末で押されても入れる）。
+     ページを開き直しても待ちを続けられるよう、期限だけ localStorage に置く
+     （待ち番号そのものは HttpOnly の Cookie にあり、JS からは見えない）。 */
+  const WAIT_KEY = "rk_mailwait_until";
+  let polling = null;
+  function startMailPoll(resume){
+    /* 開き直したとき（resume）は期限を延ばさない。延ばすと15分を過ぎても聞き続ける。 */
+    if (!resume) try { localStorage.setItem(WAIT_KEY, String(Date.now() + 15 * 60 * 1000)); } catch (e) {}
+    if (polling) return;
+    polling = setInterval(pollOnce, 3000);
+  }
+  function stopMailPoll(){
+    clearInterval(polling); polling = null;
+    try { localStorage.removeItem(WAIT_KEY); } catch (e) {}
+  }
+  async function pollOnce(){
+    let until = 0;
+    try { until = Number(localStorage.getItem(WAIT_KEY) || 0); } catch (e) {}
+    if (until && Date.now() > until + 5000) { stopMailPoll(); showMailMsg("expired"); return; }
+    try {
+      const res = await fetch("/mail/poll", { credentials: "same-origin", cache: "no-store" });
+      const body = await res.json().catch(() => ({}));
+      if (body.state === "ok") { stopMailPoll(); location.reload(); }
+      else if (body.state === "expired") { stopMailPoll(); showMailMsg("expired"); }
+      else if (body.state === "none") { stopMailPoll(); }
+    } catch (e) { /* 一時的な失敗は次の回に任せる */ }
+  }
+  function showMailMsg(key){
+    document.querySelectorAll(".mailMsg").forEach(m => { m.innerHTML = MAIL_MSG[key]; });
+    document.querySelectorAll("[data-mail-form] button[type=submit]").forEach(b => { b.disabled = false; });
+  }
+  try {
+    if (Number(localStorage.getItem(WAIT_KEY) || 0) > Date.now()) startMailPoll(true);
+  } catch (e) {}
 
   /* 覆われた機能を押したときの説明。**入口へ直行しない。**
      直行すると、押した人の画面がいきなり LINE になり「何のために飛ばされたのか」
