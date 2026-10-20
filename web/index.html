@@ -95,6 +95,15 @@
       <!-- リセットは見出しの右。.railHead はもともと space-between で
            右側が空いていた場所で、768px 以上でしか出ない＝PC 専用の置き場。
            スマホぶんはこのレールの末尾（.resetSp）に別に置く。 -->
+      <!-- スマホ（768px 未満）だけ、この列は画面の下から出るシートになる
+           （2026-10-19 wang の依頼）。縦に積むと一覧が 2,400px 下に落ちていた。
+           中身の DOM は PC と同じものを使い、見た目だけ app.css が切り替える
+           ―― 絞り込みの処理を2つ持たないため。開閉は app.js の setSheet()。 -->
+      <div class="fsHead" id="fsHead">
+        <span class="fsGrab" aria-hidden="true"></span>
+        <span class="fsTitle" id="fsTitle">絞り込み</span>
+        <button type="button" class="fsClose" id="fsClose" aria-label="絞り込みを閉じる">✕</button>
+      </div>
       <div class="railHead">
         <span class="railHeadT">絞り込み</span>
         <button class="resetAll" data-reset hidden>リセット</button>
@@ -173,7 +182,11 @@
 
 
       <p class="railNote"><a href="/about#howto">数字の読み方 →</a></p>
+      <div class="fsFoot">
+        <button type="button" class="fsApply" id="fsApply">結果を見る</button>
+      </div>
     </aside>
+    <div class="fsScrim" id="fsScrim" aria-hidden="true"></div>
 
     <main class="results" id="results">
       <!-- 条件欄と一覧の継ぎ目に立てる取っ手。開閉の操作子はこれ1つだけ。
@@ -194,6 +207,10 @@
       <div class="bar">
         <div class="barCount"><b id="count">–</b> <span>件</span></div>
         <input type="search" id="q" placeholder="科目名・教員名・時間割コードで検索" autocomplete="off">
+        <!-- スマホだけ出す。押すと下から絞り込みのシートが出る。数字は効いている条件の数。 -->
+        <button type="button" class="fsOpen" id="fsOpen" aria-controls="rail" aria-expanded="false">
+          <span class="fsOpenIcon" aria-hidden="true"></span>絞り込み<span class="fsBadge" id="fsBadge" hidden></span>
+        </button>
         <select id="sort">
           <!-- 2026-09-03: 「相性」は重みスライダーの内積だった。スライダーが
                上限フィルタに変わって重みが無くなったので、既定の並びは

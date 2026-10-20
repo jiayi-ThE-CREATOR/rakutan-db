@@ -1632,6 +1632,8 @@ $("#panel").onclick = e => { if (e.target === $("#panel")) closePanel(); };
 document.addEventListener("keydown", e => {
   if (e.key !== "Escape") return;
   if ($("#panel").classList.contains("open")){ closePanel(); return; }
+  /* シートの上に <dialog>（登録の説明・授業内容）が開いているときは、その Esc はダイアログのもの。 */
+  if (sheetOpen()){ if (!document.querySelector("dialog[open]")) setSheet(false); return; }
   // パネルが無いときの Esc は、右カラムの詳細を閉じる（✕ と同じ動き）。
   if (isDesktop() && $("#inspector").innerHTML) closeDetail();
 });
@@ -1801,6 +1803,7 @@ async function load(retry){
   window.rkSubjects?.render();
   $("#count").textContent = d.count;
   syncRailTog();   // 条件が変われば畳んでいるときのバッジも変わる
+  syncSheet();     // スマホの「絞り込み」の数字とシート下の件数も
   syncResetBtn();  // 同じ理由。条件が0になったらリセットも引っ込める
   if (d.count){
     renderPage(1);
@@ -1844,6 +1847,8 @@ function syncSubjectsUrl(){
    一覧 2,173px）。そのままだと「決定」を押しても目の前は絞り込みの続きのままで、
    何も起きなかったように見える。PC は一覧が横に並んでいるので、たいてい何もしない。 */
 function focusResults(){
+  /* スマホのシートが開いているなら、一覧はシートの裏。閉じたときに showResultsTop() が動かす。 */
+  if (sheetOpen()) return;
   const bar = document.querySelector(".bar");
   if (!bar) return;
   const r = bar.getBoundingClientRect();
@@ -1962,6 +1967,77 @@ function setRail(open){
   $("#workbench").classList.toggle("railOff", !open);
   rkStore.setRailOpen(open);
   syncRailTog();
+}
+
+/* ── スマホの絞り込みシート（2026-10-19） ─────────
+ * 768px 未満では .rail が画面の下から出るシートになる（見た目は app.css の
+ * .fsHead の節）。中身は PC と同じ .rail なので、押した条件は今まで通り
+ * その場で一覧に効く。ここが持つのは開け閉めと、ボタンの数字だけ。 */
+const sheetMq = matchMedia("(max-width:767px)");
+let sheetBack = null;   // 閉じたらフォーカスを戻す先
+const sheetOpen = () => document.documentElement.classList.contains("fsOn");
+
+function setSheet(open){
+  if (open && !sheetMq.matches) return;
+  if (open === sheetOpen()) return;
+  const rail = $("#rail");
+  document.documentElement.classList.toggle("fsOn", open);
+  $("#fsOpen").setAttribute("aria-expanded", String(open));
+  if (open){
+    rail.setAttribute("role", "dialog");
+    rail.setAttribute("aria-modal", "true");
+    sheetBack = document.activeElement;
+    rail.scrollTop = 0;
+    $("#fsClose").focus({ preventScroll: true });
+  } else {
+    rail.removeAttribute("role");
+    rail.removeAttribute("aria-modal");
+    rail.style.transform = "";
+    sheetBack?.focus?.({ preventScroll: true });
+    sheetBack = null;
+  }
+}
+
+/* 開くボタンの数字（効いている条件の数）と、シート下のボタンの件数。load() のたびに呼ぶ。 */
+function syncSheet(){
+  const n = activeFilterCount();
+  const b = $("#fsBadge");
+  b.textContent = n;
+  b.hidden = !n;
+  $("#fsApply").textContent = `${$("#count").textContent}件を表示`;
+}
+
+/* 閉じたあとは一覧の頭を見せる。一覧の途中から開いた人も、条件を変えれば
+   中身は1ページ目から入れ替わっているので、頭に戻す方が自然。 */
+function showResultsTop(){
+  const r = $("#results").getBoundingClientRect();
+  if (r.top < 0 || r.top > innerHeight / 2) scrollTo({ top: r.top + scrollY, behavior: "smooth" });
+}
+
+/* 見出しをつかんで下へ引くと閉じる。シートの4分の1を超えたら閉じ、届かなければ戻す。 */
+function wireSheetDrag(){
+  const head = $("#fsHead"), rail = $("#rail");
+  let y0 = null, dy = 0;
+  head.addEventListener("pointerdown", e => {
+    if (e.target.closest("button")) return;
+    y0 = e.clientY; dy = 0;
+    rail.classList.add("fsDrag");
+    head.setPointerCapture(e.pointerId);
+  });
+  head.addEventListener("pointermove", e => {
+    if (y0 === null) return;
+    dy = Math.max(0, e.clientY - y0);
+    rail.style.transform = `translateY(${dy}px)`;
+  });
+  const end = () => {
+    if (y0 === null) return;
+    y0 = null;
+    rail.classList.remove("fsDrag");
+    if (dy > rail.offsetHeight / 4) setSheet(false);
+    else rail.style.transform = "";
+  };
+  head.addEventListener("pointerup", end);
+  head.addEventListener("pointercancel", end);
 }
 
 /* ── 長い科目名をホバーで流し読みさせる ─────────
@@ -2267,6 +2343,13 @@ function applyPostMode() {
   /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると
      復元のための classList 操作が「押した」ことになってしまう。 */
   setRail(rkStore.getRailOpen());
+  $("#fsOpen").onclick = () => { setSheet(true); window.rkTrack?.("filter_sheet"); };
+  $("#fsClose").onclick = () => setSheet(false);
+  $("#fsScrim").onclick = () => setSheet(false);
+  $("#fsApply").onclick = () => { setSheet(false); showResultsTop(); };
+  sheetMq.addEventListener("change", e => { if (!e.matches) setSheet(false); });
+  wireSheetDrag();
+
   $("#grip").onclick = () => {
     const open = $("#workbench").classList.contains("railOff");   // 畳んでいた＝これから開く
     setRail(open);

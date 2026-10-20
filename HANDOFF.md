@@ -17,6 +17,41 @@
 
 ---
 
+## 2026-10-19 ｜ スマホの絞り込みを下からのシートにした（PR #215） ｜ Claude（wang） → 全員
+
+### 1. 何が動く状態か
+
+    python3 tools/serve.py 8171 & node tools/test_subject_filter.mjs http://localhost:8171
+
+- 768px 未満：絞り込み（`.rail`）は画面の下から出るシート。一覧の上の帯（件数・検索・「絞り込み」・並び順）は天井に貼り付く
+- 「絞り込み」の数字は効いている条件の数（`activeFilterCount()`）。シート下のボタンは「N件を表示」で、押すと閉じて一覧の頭へ
+- 閉じ方：✕／暗い所をタップ／見出しを下へ引く／Esc
+- 押した条件はその場で一覧に効く（PC と同じ）。DOM も処理も PC と共通で、見た目だけ CSS で切り替えている
+- 1枚目の科目カードの位置：約 2,400px → 595px（390px 実測）
+- 768px 以上は何も変えていない
+- 計測：シートを開くと `filter_sheet` を送る
+
+### 2. 何をしていないか
+
+- v1.6（10/21）に入れた（主打 ★mobile）。最初は v1.7 に回す予定だったが、2026-10-20 に本人判断で繰り上げ
+- 版：主打（★mobile）にする・LINE の月1通知には回さない（2026-10-20 本人判断）
+- 実機（iPhone Safari・Android Chrome）では未確認。Playwright の 390px だけ
+- 選んだ条件をチップで一覧の上に並べる案（デモにはある）は入れていない。数字のバッジだけ
+
+### 3. 次の人が最初に打つコマンド
+
+    open https://feat-wang-filter-sheet-rakutan-db.wjy20050815.workers.dev/
+
+スマホで開いて「絞り込み」→ 空きコマを1つ押す → 「N件を表示」。
+
+### 4. 踏んだ罠
+
+- 口コミ投稿の下からのシートが既に `.sheet` という名前を使っている。こちらは `fs`（filter sheet）で始まる名前にした
+- スマホ幅で絞り込みを触るテスト（`test_conds_layout` `test_reset` `test_subject_filter` `check_division_ui`）は、先に `#fsOpen` を押すようにした。`test_subject_filter` の「sp送り」は、前提（絞り込みが縦に積まれて一覧が下にある）が消えたので、シートの動きを見る形に書き換えた
+- `tools/test_subject_filter.mjs` は静的配信だと cloudflareinsights の CORS エラーで落ちる。main でも同じで、今回とは無関係
+
+---
+
 ## 2026-10-19 ｜ 科目カードの字を大きく・理由の一文を外す・hero を「登録したら無料」に（PR #214） ｜ Claude（wang） → 全員
 
 ### 1. 何が動く状態か

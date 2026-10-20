@@ -30,6 +30,9 @@ const VIEWS = [
   { name: "12-kuchikomi-mobile",  path: "/kuchikomi", w: 390,  h: 2000, kuchikomi: true },
   { name: "13-kuchikomi-desktop", path: "/kuchikomi", w: 1280, h: 1600, kuchikomi: true },
   { name: "14-kuchikomi-dark",    path: "/kuchikomi", w: 390,  h: 2000, kuchikomi: true, dark: true },
+  // スマホの絞り込みは下からのシート（2026-10-19）。開いたまま撮る。fullPage だと
+  // 固定配置のシートが1画面目にしか写らないので、高さは端末の1画面ぶん。
+  { name: "15-filter-sheet-mobile", path: "/",        w: 390,  h: 844,  sheet: true },
 ];
 
 mkdirSync(outDir, { recursive: true });
@@ -75,6 +78,9 @@ for (const v of VIEWS) {
     // server.py は 30 件の data/courses.sample.json に落ちる。そのサンプルは
     // 既定の絞り込み（1年・秋冬）だと1件も残らず、コマが全部 0 になる。
     // 詳細の見た目を撮るのが目的なので、まず学年と学期を「すべて」にする。
+    // 768px 未満では絞り込みは下からのシートの中。開いてから押し、押し終えたら閉じる。
+    const sheet = await page.isVisible("#fsOpen");
+    if (sheet) { await page.click("#fsOpen"); await page.waitForTimeout(350); }
     await page.click('#years button[data-y="all"]');
     await page.click('#sems button[data-s="all"]');
     await page.waitForTimeout(600);
@@ -91,6 +97,11 @@ for (const v of VIEWS) {
     }
     await cells.nth(pick).click();
     await page.waitForTimeout(600);
+    if (sheet) { await page.click("#fsApply"); await page.waitForTimeout(400); }
+  }
+  if (v.sheet) {
+    await page.click("#fsOpen");
+    await page.waitForTimeout(400);
   }
   if (v.open) {
     // PC では詳細が右カラムに出るので、クラスを足すのではなく実際に押す。
@@ -99,7 +110,7 @@ for (const v of VIEWS) {
     await page.waitForTimeout(400);
   }
   await page.waitForTimeout(400);
-  await page.screenshot({ path: `${outDir}/${v.name}.png`, fullPage: true });
+  await page.screenshot({ path: `${outDir}/${v.name}.png`, fullPage: !v.sheet });
   console.log("shot:", v.name);
   await page.close();
 }
