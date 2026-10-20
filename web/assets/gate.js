@@ -83,11 +83,14 @@
      ボタンを押すと入力欄が開き、送ると POST /mail/start。返事の文言は「送りました」に揃える
      ―― 回数制限に当たったときもサーバーは同じ返事をする（何通送ったかを外から測らせない）。
      マイページ（mypage.js）も同じ部品を使う。 */
-  const mailBlockHTML = () => `
+  /* link：ログイン中の人が「メールでもログイン」してアカウントをつなぐ（worker/account.js）。 */
+  const mailBlockHTML = (opts = {}) => `
     <div class="mailBox">
-      <button type="button" class="gateBtn gateBtnSub" data-mail-open>メールでログイン</button>
-      <p class="gateDlgSub">メールに届くリンクを押すだけ。パソコンから使う人に</p>
-      <form class="mailForm" data-mail-form hidden>
+      <button type="button" class="gateBtn gateBtnSub" data-mail-open>${opts.link ? "メールでもログイン（つなぐ）" : "メールでログイン"}</button>
+      <p class="gateDlgSub">${opts.link
+        ? "つなぐと、LINE でもメールでも同じアカウントに入れます。パソコンから使うときに便利です"
+        : "メールに届くリンクを押すだけ。パソコンから使う人に"}</p>
+      <form class="mailForm" data-mail-form${opts.link ? " data-mail-link" : ""} hidden>
         <input type="email" name="email" required autocomplete="email" inputmode="email"
                placeholder="メールアドレス" aria-label="メールアドレス">
         <button type="submit" class="gateBtn">リンクを送る</button>
@@ -126,7 +129,8 @@
         method: "POST", credentials: "same-origin",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ email: form.email.value,
-                               next: location.pathname + location.search + location.hash }),
+                               next: location.pathname + location.search + location.hash,
+                               ...(form.hasAttribute("data-mail-link") ? { link: true } : {}) }),
       });
       const body = await res.json().catch(() => ({}));
       key = res.ok && body.ok ? "ok" : (MAIL_MSG[body.error] ? body.error : "other");

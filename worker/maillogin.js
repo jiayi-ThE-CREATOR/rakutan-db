@@ -33,6 +33,7 @@ import {
   sign, verify, safeNext, setCookie, clearCookie, cookies, json, redirect, hmac, b64urlEncode,
   SESSION_COOKIE, SESSION_TTL_SEC,
 } from "./linelogin.js";
+import { resolveAccount, linkIdentity } from "./account.js";
 
 const WAIT_COOKIE = "rk_mailwait";
 
@@ -121,7 +122,15 @@ export async function handleMailStart(request, env, fetchImpl = fetch) {
   /* 待ち番号。送った端末だけが Cookie で持つ（推測できない長さ）。 */
   const rid = b64urlEncode(crypto.getRandomValues(new Uint8Array(18)));
   const exp = Math.floor(Date.now() / 1000) + LINK_TTL_SEC;
-  const token = await sign(env.SESSION_SECRET, { typ: "mail", h: id, n: nonce, w: rid, next, exp });
+  /* link：ログイン中の人が「メールでもログイン」してつなぐ。つなぐ先（いまのアカウント）を署名して持たせる
+     ―― リンクを押すのは別の端末（セッションが無い）でもよいように。 */
+  let la = null;
+  if (body && body.link === true) {
+    const sess = await verify(env.SESSION_SECRET, cookies(request)[SESSION_COOKIE] || "");
+    if (sess && typeof sess.sub === "string" && sess.sub) la = await resolveAccount(env, sess.sub);
+  }
+  const token = await sign(env.SESSION_SECRET,
+    { typ: "mail", h: id, n: nonce, w: rid, next, exp, ...(la ? { la } : {}) });
   const link = `${SITE_URL}/mail/login?t=${encodeURIComponent(token)}`;
 
   let res;
@@ -194,12 +203,16 @@ export async function handleMailLogin(request, env) {
     "INSERT INTO mail_nonce (n, exp) VALUES (?, ?) ON CONFLICT(n) DO NOTHING").bind(obj.n, obj.exp).run();
   if (!ins.meta || ins.meta.changes !== 1) return EXPIRED();
 
+  const ident = `m:${obj.h}`;
+  const account = typeof obj.la === "string" && obj.la
+    ? await linkIdentity(env, obj.la, ident)
+    : await resolveAccount(env, ident);
   /* 送った端末へ知らせる（その端末は /mail/poll で受け取る）。押した端末にもこのままセッションを出す。 */
   if (typeof obj.w === "string" && obj.w) {
     await env.DB.prepare("UPDATE mail_wait SET sub = ? WHERE rid = ? AND sub IS NULL AND exp >= ?")
-      .bind(`m:${obj.h}`, obj.w, now).run();
+      .bind(account, obj.w, now).run();
   }
-  const session = await mailSession(env, `m:${obj.h}`, now);
+  const session = await mailSession(env, account, now);
   /* 303：POST の後は GET で戻り先へ。 */
   const res = redirect(`${SITE_URL}${safeNext(obj.next)}`, [setCookie(SESSION_COOKIE, session, SESSION_TTL_SEC)]);
   return new Response(null, { status: 303, headers: res.headers });
