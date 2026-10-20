@@ -37,6 +37,8 @@
  * 改ざんは HMAC-SHA256 の署名で弾く。
  */
 
+import { resolveAccount, linkIdentity, methodsOf } from "./account.js";
+
 const AUTH_URL = "https://access.line.me/oauth2/v2.1/authorize";
 const TOKEN_URL = "https://api.line.me/oauth2/v2.1/token";
 const FRIENDSHIP_URL = "https://api.line.me/friendship/v1/status";
@@ -172,14 +174,23 @@ export async function handleLineLogin(request, env) {
   const url = new URL(request.url);
   const next = safeNext(url.searchParams.get("next") || "/");
 
+  /* link=1：ログイン中の人が「LINE でもログイン」してつなぐ（account.js）。 */
+  const link = url.searchParams.get("link") === "1";
   if (url.searchParams.get("go") !== "1") {
-    return redirect(`${SITE_URL}/line/login?go=1&next=${encodeURIComponent(next)}`);
+    return redirect(`${SITE_URL}/line/login?go=1${link ? "&link=1" : ""}&next=${encodeURIComponent(next)}`);
   }
 
+  /* つなぐ先は、いまのセッションのアカウント。state に署名して持たせる（URL で差し替えさせない）。 */
+  let la = null;
+  if (link) {
+    const sess = await verify(env.SESSION_SECRET, cookies(request)[SESSION_COOKIE] || "");
+    if (sess && typeof sess.sub === "string" && sess.sub) la = await resolveAccount(env, sess.sub);
+  }
   const nonce = b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
   const state = await sign(env.SESSION_SECRET, {
     n: nonce,
     next,
+    ...(la ? { la } : {}),
     exp: Math.floor(Date.now() / 1000) + STATE_TTL_SEC,
   });
 
@@ -281,9 +292,14 @@ export async function handleLineCallback(request, env) {
     console.error("friendship fetch failed", e);
   }
 
+  /* アカウントを決める。つなぐ指定（state.la）があればつなぎ、無ければ対応表を引く。 */
+  const account = userId
+    ? (stateObj.la ? await linkIdentity(env, stateObj.la, userId) : await resolveAccount(env, userId))
+    : userId;
   const session = await sign(env.SESSION_SECRET, {
-    sub: userId,
+    sub: account,
     friend,
+    via: "line",
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SEC,
   });
 
@@ -306,8 +322,11 @@ export async function handleMe(request, env) {
   if (!sess) return json(200, { ok: true, configured: true, linked: false, loggedIn: false });
   /* via：メールでログインした人（"mail"）には、画面が「LINE で友だち追加」を勧めないように。
      メールの人は友だちの確認が無いが、門は開く（maillogin.js が friend:true で発行する）。 */
+  /* methods：このアカウントにつながっているログイン方法（マイページが「LINE ✓／メール ✓」を出す）。 */
+  const account = await resolveAccount(env, sess.sub);
   return json(200, { ok: true, configured: true, linked: !!sess.friend, loggedIn: true,
-                     via: sess.via === "mail" ? "mail" : "line" });
+                     via: sess.via === "mail" ? "mail" : "line",
+                     methods: await methodsOf(env, account) });
 }
 
 /* ── POST /api/logout ─────────────────────────────────────── */
@@ -322,7 +341,8 @@ export async function handleLogout(request, env) {
 export async function sessionUser(request, env) {
   if (!configured(env)) return null;
   const sess = await verify(env.SESSION_SECRET, cookies(request)[SESSION_COOKIE] || "");
-  return sess && typeof sess.sub === "string" && sess.sub ? sess.sub : null;
+  /* つないだ後に発行済みのセッション（中身は古い ident）でも、主アカウントへ書くように引き直す。 */
+  return sess && typeof sess.sub === "string" && sess.sub ? await resolveAccount(env, sess.sub) : null;
 }
 
 export const __test = { sign, verify, safeNext, b64urlEncode, b64urlDecode };

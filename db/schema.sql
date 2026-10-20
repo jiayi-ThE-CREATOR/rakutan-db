@@ -67,3 +67,12 @@ CREATE TABLE IF NOT EXISTS mail_wait (
   sub TEXT,
   taken INTEGER NOT NULL DEFAULT 0
 );
+
+-- ログイン方法とアカウントの対応（2026-10-20・LINE とメールを1つのアカウントに）。
+-- 行が無い ident はそれ自体がアカウント（今までの LINE の人は行を持たない）。worker/account.js。
+CREATE TABLE IF NOT EXISTS identities (
+  ident TEXT PRIMARY KEY,      -- LINE の userId か 'm:<識別子>'
+  account TEXT NOT NULL,       -- line_user_id 列に入るアカウントの ID
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_identities_account ON identities (account);

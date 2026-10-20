@@ -149,20 +149,35 @@ function renderLine(){
   /* 未設定のとき（configured:false）は、サーバーが linked:true を返す。
      その場合ここは「連携済み」ではなく、これまでどおりの案内を出す
      ―― 設定前に「連携済み」と言うのは嘘になる。 */
-  /* メールでログインした人（2026-10-19）。LINE の連携とは別のアカウントなので、
-     「LINE 連携済み」とは言わない。 */
+  /* LINE とメールは1つのアカウント（2026-10-20）。つながっている方法に ✓、まだの方にはつなぐ入口を出す。 */
+  const methods = (lineState && lineState.methods) || {};
+  const methodsRow = () => `
+    <p class="mpLineOk"><span>ログイン方法：LINE ${methods.line ? "✓" : "—"} ／ メール ${methods.mail ? "✓" : "—"}</span></p>`;
+  const linkMailHTML = () => (!methods.mail && window.rkGate?.mailBlockHTML)
+    ? window.rkGate.mailBlockHTML({ link: true }) : "";
+
+  /* メールでログインした人。LINE につながっていなければ「LINE でもログイン」を残す（wang 指定）。 */
   if (lineState && lineState.configured && lineState.loggedIn && lineState.via === "mail"){
     body.innerHTML = `
       <p class="mpLineOk"><span>✉️ メールでログイン中</span></p>
-      <p class="mpLineNote">LINE でもログインすると、LINE から科目の検索とおすすめが届きます（メールとは別のアカウントになります）。</p>`;
+      ${methodsRow()}
+      ${methods.line ? "" : `
+        <button type="button" class="mpLineBtn" id="mpLineLink">${LINE_MARK}<span>LINE でもログイン（つなぐ）</span></button>
+        <p class="mpLineNote">つなぐと同じアカウントになり、LINE から科目の検索とおすすめも届きます。</p>
+        <p class="mpLineNote gatePcHint">パソコンで開いている人は、次の画面に出る QR コードをスマホの LINE で読み取ってください。</p>`}`;
+    $("#mpLineLink")?.addEventListener("click", () => {
+      location.href = "/line/login?link=1&next=" + encodeURIComponent(location.pathname);
+    });
     return;
   }
 
   if (lineState && lineState.configured && lineState.linked){
     body.innerHTML = `
       <p class="mpLineOk">${LINE_MARK}<span>LINE 連携済み</span></p>
+      ${lineState.methods ? methodsRow() : ""}
       <p class="mpLineNote">LINE から科目の検索とおすすめ、今後の更新情報が届きます。</p>
-      <a class="mpLineBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE を開く</a>`;
+      <a class="mpLineBtn" href="${LINE_ADD_URL}" target="_blank" rel="noopener noreferrer">LINE を開く</a>
+      ${lineState.methods ? linkMailHTML() : ""}`;
     /* 取り消し導線は置かない。サーバーが LINE に確認した結果なので、
        本人が「まだ追加していない」と申告する余地がない。 */
     return;

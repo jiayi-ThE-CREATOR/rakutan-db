@@ -17,6 +17,38 @@
 
 ---
 
+## 2026-10-20 ｜ LINE とメールを1つのアカウントにした ｜ Claude（wang） → 全員
+
+設計: `docs/superpowers/specs/2026-10-19-mail-login-design.md` §8。wang 決定（同日、「合わせない」を撤回）。
+
+### 1. 何が動く状態か
+
+    node tools/test_account.mjs && node tools/test_maillogin.mjs && node tools/test_linelogin.mjs
+
+- `worker/account.js`：ident（LINE の userId / `m:…`）→ アカウント（`identities`）。`resolveAccount`・`linkIdentity`・`methodsOf`
+- マイページ：「ログイン方法：LINE ✓／メール ✓」。つながっていない方に「LINE でもログイン（つなぐ）」「メールでもログイン（つなぐ）」
+- つなぐときのデータ：お気に入りは和集合、時間割と学年・学部は新しい方、主アカウントは LINE の側
+- 検査の D1 は `tools/d1_sqlite.mjs`（Node の SQLite に `db/schema.sql` を流す）。手書きの偽物より SQL の間違いに気づける
+
+### 2. 何をしていないか
+
+- **時間割・お気に入りを別の端末へ戻す同期は無い**（今もブラウザが正本、`usersync.js` は送るだけ）
+- つないだものを切る操作は無い
+- **本番の D1 に `identities` の表が要る**（下の3）。無いと LINE ログイン・メールログイン・`/api/me` が落ちる
+
+### 3. 次の人が最初に打つコマンド
+
+    npx wrangler d1 execute rakutan-favorites --remote --command "CREATE TABLE IF NOT EXISTS identities (ident TEXT PRIMARY KEY, account TEXT NOT NULL, created_at INTEGER NOT NULL)"
+    npx wrangler d1 execute rakutan-favorites --remote --command "CREATE INDEX IF NOT EXISTS idx_identities_account ON identities (account)"
+
+### 4. 踏んだ罠
+
+- LINE ログインの1段目（`go` 無し → `go=1` へ移る）で `link=1` を落とすと、つなぐ指定が消える。2段目へ引き継ぐ
+- つなぐ先を URL に生で持たせると差し替えられる。state（LINE）とリンクの文字列（メール）に署名して持たせた
+- つないだ後も、ブラウザに残っている古いセッションは中身が ident のまま。`sessionUser` と `/api/me` で毎回引き直す
+
+---
+
 ## 2026-10-20 ｜ メールのリンクを別の端末で押しても、送った端末がログインする ｜ Claude（wang） → 全員
 
 設計の追記: `docs/superpowers/specs/2026-10-19-mail-login-design.md`「別の端末で押しても…」。

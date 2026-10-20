@@ -17,45 +17,9 @@ const fails = [];
 let n = 0;
 const check = (cond, msg) => { n++; if (!cond) fails.push(msg); };
 
-/* D1 の偽物。maillogin.js が打つ4種類の文だけ分かる。書かれた値は全部 written に残す。 */
-function fakeDB() {
-  const rate = new Map(), nonce = new Map(), wait = new Map(), written = [];
-  const stmt = (sql) => ({
-    _args: [],
-    bind(...a) { this._args = a; written.push(...a.map(String)); return this; },
-    async run() {
-      const a = this._args;
-      if (sql.startsWith("DELETE FROM mail_rate")) { for (const k of [...rate.keys()]) if (+k.split("|")[1] < a[0]) rate.delete(k); return { meta: {} }; }
-      if (sql.startsWith("DELETE FROM mail_nonce")) { for (const [k, v] of [...nonce]) if (v < a[0]) nonce.delete(k); return { meta: {} }; }
-      if (sql.startsWith("DELETE FROM mail_wait")) { for (const [k, v] of [...wait]) if (v.exp < a[0]) wait.delete(k); return { meta: {} }; }
-      if (sql.startsWith("INSERT INTO mail_wait")) { wait.set(a[0], { exp: a[1], sub: null, taken: 0 }); return { meta: { changes: 1 } }; }
-      if (sql.startsWith("UPDATE mail_wait SET sub")) {
-        const w = wait.get(a[1]);
-        if (w && w.sub === null && w.exp >= a[2]) { w.sub = a[0]; return { meta: { changes: 1 } }; }
-        return { meta: { changes: 0 } };
-      }
-      if (sql.startsWith("UPDATE mail_wait SET taken")) {
-        const w = wait.get(a[0]);
-        if (w && w.taken === 0) { w.taken = 1; return { meta: { changes: 1 } }; }
-        return { meta: { changes: 0 } };
-      }
-      if (sql.startsWith("INSERT INTO mail_nonce")) {
-        if (nonce.has(a[0])) return { meta: { changes: 0 } };
-        nonce.set(a[0], a[1]); return { meta: { changes: 1 } };
-      }
-      throw new Error("unknown run: " + sql);
-    },
-    async first() {
-      const a = this._args;
-      if (sql.startsWith("SELECT sub, exp, taken FROM mail_wait")) { const w = wait.get(a[0]); return w ? { ...w } : null; }
-      if (sql.includes("INSERT INTO mail_rate")) {
-        const k = `${a[0]}|${a[1]}`; rate.set(k, (rate.get(k) || 0) + 1); return { n: rate.get(k) };
-      }
-      throw new Error("unknown first: " + sql);
-    },
-  });
-  return { prepare: stmt, written, rate, wait };
-}
+/* D1 は SQLite で代わりにする（tools/d1_sqlite.mjs）。bind した値は DB.written に残る。 */
+import { d1 } from "./d1_sqlite.mjs";
+const fakeDB = d1;
 
 const ADDR = "Taro.Handai@Example.com";
 const env = { RESEND_API_KEY: "re_test", MAIL_ID_SECRET: "mail-secret", SESSION_SECRET: "sess-secret", DB: fakeDB() };
@@ -169,7 +133,7 @@ check(mailText("L").includes("心当たりがない場合"), "本文に心当た
   sent.length = 0;
   const pc2 = await handleMailStart(post({ email: "y@example.jp" }), envX, fakeFetch);
   const wc2 = (pc2.headers.get("set-cookie") || "").split(";")[0];
-  for (const w of envX.DB.wait.values()) if (!w.sub) w.exp = 1;
+  envX.DB.raw.exec("UPDATE mail_wait SET exp = 1 WHERE sub IS NULL");
   check((await (await poll(wc2)).json()).state === "expired", "期限切れの待ちが expired にならない");
   check(!envX.DB.written.some(v => v.includes("example.jp") && !v.startsWith("id:")), "待ちの表にアドレスが書かれている");
 }
