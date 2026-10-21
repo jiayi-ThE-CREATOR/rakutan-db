@@ -185,3 +185,6 @@
   .verDlg[open]{align-items:center}
   .verCard{border-radius:var(--r-lg);max-height:80vh}
 }
+
+/* スマホの絞り込みシートを開いているあいだは、シートの「結果を見る」と重なるので隠す */
+html.fsOn .verFab{visibility:hidden}

@@ -1465,10 +1465,10 @@ html{scroll-behavior:smooth}
   .fsScrim{display:block;position:fixed;inset:0;z-index:40;background:var(--scrim);
     opacity:0;pointer-events:none;transition:opacity .25s}
   html.fsOn .fsScrim{opacity:1;pointer-events:auto}
-  /* 開いているあいだは裏のページを動かさない。右下の版の入口と口コミの
-     ボタンはシートの「結果を見る」と重なるので隠す。 */
+  /* 開いているあいだは裏のページを動かさない。口コミのボタンはシートの
+     「結果を見る」と重なるので隠す（右下の版の入口は version.css 側）。 */
   html.fsOn{overflow:hidden}
-  html.fsOn .verFab,html.fsOn .fab{visibility:hidden}
+  html.fsOn .fab{visibility:hidden}
 }
 @media (max-width:479px){
   .bar{grid-template-columns:1fr auto auto}
