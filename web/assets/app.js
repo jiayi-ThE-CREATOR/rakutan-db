@@ -2235,6 +2235,17 @@ function applyPostMode() {
 
 /* ── 起動 ─────────────────────────────── */
 (async () => {
+  /* スマホの絞り込みシートは、科目データを待たずに開けるようにする。
+     中身の .rail は静的な HTML なので、データが届けばその場で埋まる。
+     boot() の後ろに置いていたときは、回線が遅いと「絞り込み」を押しても
+     何も起きず、更新履歴の「見てみる →」もシートを開けなかった。 */
+  $("#fsOpen").onclick = () => { setSheet(true); window.rkTrack?.("filter_sheet"); };
+  $("#fsClose").onclick = () => setSheet(false);
+  $("#fsScrim").onclick = () => setSheet(false);
+  $("#fsApply").onclick = () => { setSheet(false); showResultsTop(); };
+  sheetMq.addEventListener("change", e => { if (!e.matches) setSheet(false); });
+  wireSheetDrag();
+
   await boot();
   window.REQ = REQ;   // onboard.js が学部の一覧を借りる（べた書きを作らないため）
   applyPostMode();
@@ -2343,12 +2354,6 @@ function applyPostMode() {
   /* 左の絞り込みの開閉。前回の選択を復元してから配線する ―― 先に配線すると
      復元のための classList 操作が「押した」ことになってしまう。 */
   setRail(rkStore.getRailOpen());
-  $("#fsOpen").onclick = () => { setSheet(true); window.rkTrack?.("filter_sheet"); };
-  $("#fsClose").onclick = () => setSheet(false);
-  $("#fsScrim").onclick = () => setSheet(false);
-  $("#fsApply").onclick = () => { setSheet(false); showResultsTop(); };
-  sheetMq.addEventListener("change", e => { if (!e.matches) setSheet(false); });
-  wireSheetDrag();
 
   $("#grip").onclick = () => {
     const open = $("#workbench").classList.contains("railOff");   // 畳んでいた＝これから開く
