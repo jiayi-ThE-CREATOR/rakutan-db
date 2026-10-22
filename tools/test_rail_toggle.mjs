@@ -176,9 +176,12 @@ const browser = await chromium.launch();
   await p.waitForTimeout(400);
   await p.waitForSelector("#list .card");
 
-  /* 窓が2行ぶんで固定されていること（16.5px × 1.35 × 2 ≒ 44.5px）。 */
-  const h = await p.locator("#list > .card .title").first().evaluate(el => el.clientHeight);
-  check(Math.abs(h - 44.5) < 2, `科目名の窓が2行ぶんになっていない（${h}px）`);
+  /* 窓が2行ぶんで固定されていること（いまは 18px × 1.35 × 2 ≒ 48.6px）。
+     字の大きさは数字で持たず、その場の行の高さから出す ―― #214 で字を大きくしたとき、
+     ここに 16.5px のぶん（44.5px）を書いていたせいで落ちていた。 */
+  const [h, line] = await p.locator("#list > .card .title").first()
+    .evaluate(el => [el.clientHeight, parseFloat(getComputedStyle(el).lineHeight)]);
+  check(Math.abs(h - line * 2) < 2, `科目名の窓が2行ぶんになっていない（${h}px、1行 ${line}px）`);
 
   /* はみ出している科目名を1つ探して、乗せたときに動くことを見る。 */
   /* クランプが効いているあいだ scrollHeight は「切ったあとの高さ」を返すので、
