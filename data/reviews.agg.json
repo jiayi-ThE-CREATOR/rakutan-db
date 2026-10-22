@@ -1,5 +1,59 @@
 {
+ "00Z021": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": 2000,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 1.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "確認"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "020063": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": 3000,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "試験100%だが、任意レポートと出席点でボーナスあり"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
  "081001": {
+  "n": 2,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 3500,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.5,
+  "notes": [
+   "2回あるプレゼンをちゃんとすれば単位は取れると思う。話はそこそこ面白いものも多い。"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2
+ },
+ "100562": {
   "n": 1,
   "exam_hard": null,
   "exam_hard10": null,
@@ -8,8 +62,28 @@
   "exam_bring_raw": null,
   "attendance": 2.0,
   "in_class": null,
-  "out_class": 0.0,
-  "notes": [],
+  "out_class": null,
+  "notes": [
+   "出席あるが配られる紙に名前と学籍番号書くだけなので代行可。先生めちゃ優しい。大体10分前に終わる"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "131247": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 2.0,
+  "out_class": 2.0,
+  "notes": [
+   "おわり"
+  ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
@@ -135,17 +209,55 @@
   "scored": false,
   "n_old": 1
  },
+ "131505": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 500,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": null,
+  "notes": [
+   "グループワーク中心で楽しい"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
  "131511": {
+  "n": 2,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2000,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "みんなで非常食を食べる会や簡易ベッドを組み立てる会があって面白かった。期末レポートも自分の考えたことをきちんと評価してくれた印象。"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2
+ },
+ "131657": {
   "n": 1,
   "exam_hard": null,
   "exam_hard10": null,
   "report_words": null,
   "exam_bring": null,
   "exam_bring_raw": null,
-  "attendance": 2.0,
+  "attendance": 0.0,
   "in_class": 0.0,
   "out_class": 0.0,
-  "notes": [],
+  "notes": [
+   "なんか受講生が5人しかいなかったので期末プレゼンは1人1個(人数居ればグループでやる予定と言っていた)。期末プレゼンの後みんなでアイス奢られに行った。"
+  ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
@@ -305,6 +417,24 @@
   "scored": false,
   "n_old": 1
  },
+ "134177": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 1.0,
+  "notes": [
+   "まあなんとかなる。高校の情報Ⅰと被ってる内容が多い。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
  "134179": {
   "n": 1,
   "exam_hard": null,
@@ -316,6 +446,78 @@
   "in_class": 0.0,
   "out_class": 1.0,
   "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "135029": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 1.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "授業で言っていることが理解できない。難しい"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "135031": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2000,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "出席するのは大事。あとレポートを出せば楽単はない"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "135037": {
+  "n": 2,
+  "exam_hard": 1.222,
+  "exam_hard10": 6.5,
+  "report_words": 500,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 0.0,
+  "in_class": 0.0,
+  "out_class": 1.0,
+  "notes": [
+   "出席はないけど、出席してないと期末テストと2回ほど出されるレポート課題に苦しむと思う。ただ、授業の内容をきちんと聞いてメモを取ればこなせると思う。レポートもきちんと考えたことを書けば評価してくれた印象。"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2
+ },
+ "135047": {
+  "n": 1,
+  "exam_hard": 1.111,
+  "exam_hard10": 6.0,
+  "report_words": null,
+  "exam_bring": "可",
+  "exam_bring_raw": null,
+  "attendance": 1.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "テストは授業でやったことをこなすだけだから大丈夫"
+  ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
@@ -374,16 +576,36 @@
   "n_old": 1
  },
  "135115": {
-  "n": 1,
-  "exam_hard": null,
-  "exam_hard10": null,
-  "report_words": null,
+  "n": 2,
+  "exam_hard": 0.222,
+  "exam_hard10": 2.0,
+  "report_words": 500,
   "exam_bring": "不可",
   "exam_bring_raw": null,
   "attendance": 0.0,
   "in_class": null,
   "out_class": 0.0,
-  "notes": [],
+  "notes": [
+   "興味があれば余裕で乗り切れる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2
+ },
+ "135121": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 3500,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": null,
+  "notes": [
+   "コツコツ出席できる人に向いているかも。レポートも自分で好きにテーマの設定ができたのでやりやすかった。"
+  ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
@@ -495,23 +717,61 @@
   "scored": false,
   "n_old": 2
  },
- "135185": {
+ "135165": {
   "n": 1,
   "exam_hard": null,
   "exam_hard10": null,
-  "report_words": 1000,
+  "report_words": null,
   "exam_bring": null,
   "exam_bring_raw": null,
-  "attendance": 2.0,
-  "in_class": 1.0,
+  "attendance": 0.0,
+  "in_class": null,
   "out_class": null,
   "notes": [
-   "出席だけすれば大丈夫です"
+   "期末前に練習問題が配られる"
   ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
   "n_old": 1
+ },
+ "135181": {
+  "n": 1,
+  "exam_hard": 0.0,
+  "exam_hard10": 1.0,
+  "report_words": 500,
+  "exam_bring": "可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業関連があってもなくても話が色々あって面白い。岡潔とか稠密性とかの話を非常にわかりやすく楽しく説明してくれる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
+ },
+ "135185": {
+  "n": 2,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2500,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 0.0,
+  "notes": [
+   "出席だけすれば大丈夫です",
+   "先生の話がおもろい(共テ作ってた時の話とか)。毎回の授業ノート(授業終わりに提出)+期末に好きな授業一個の説明レポートを書く。"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2
  },
  "135193": {
   "n": 1,
@@ -687,42 +947,62 @@
   "n_old": 1
  },
  "135267": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
   "report_words": null,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
-  "in_class": 0.0,
+  "in_class": 0.5,
   "out_class": 1.0,
   "notes": [
-   "先生が帽子を被っていた。"
+   "先生が帽子を被っていた。",
+   "無くなった　現代キャリア　デザイン論　悲し悲しと　学生が泣く"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1,
+  "n_old": 2,
   "shared_classes": 2
  },
  "135268": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
   "report_words": null,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
-  "in_class": 0.0,
+  "in_class": 0.5,
   "out_class": 1.0,
   "notes": [
-   "先生が帽子を被っていた。"
+   "先生が帽子を被っていた。",
+   "無くなった　現代キャリア　デザイン論　悲し悲しと　学生が泣く"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2,
+  "shared_classes": 2
+ },
+ "135275": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 2.0,
+  "out_class": null,
+  "notes": [
+   "毎回出席兼ねた小テスト(やや難)が出るが、できてなくても意外と単位はくれる。内容は大学2年生以上の激ムズ数学(予習復習をAIなど駆使しながらやれば割とできる)。"
   ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
-  "n_old": 1,
-  "shared_classes": 2
+  "n_old": 1
  },
  "135297": {
   "n": 1,
@@ -1064,20 +1344,22 @@
   "shared_classes": 12
  },
  "135343": {
-  "n": 3,
+  "n": 4,
   "exam_hard": null,
   "exam_hard10": null,
   "report_words": 2500,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 0.0,
-  "in_class": null,
+  "in_class": 0.0,
   "out_class": 0.3333333333333333,
-  "notes": [],
+  "notes": [
+   "期末レポートはあったけどテーマは割と自由だし、ミニレポートも思ったことや知ったことをそのまま素直に書けば評価をきちんとしてくれた"
+  ],
   "conflicts": [],
-  "n_distinct": 2,
-  "scored": false,
-  "n_old": 3,
+  "n_distinct": 3,
+  "scored": true,
+  "n_old": 4,
   "shared_classes": 2
  },
  "135349": {
@@ -1121,6 +1403,44 @@
   "scored": false,
   "n_old": 2
  },
+ "135414": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "アプローチ(狙ったとこにボールを落とす)などのテストがあり、ちゃんと授業で練習しないとむずい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "135421": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "アプローチ(狙ったとこにボールを落とす)などのテストがあり、ちゃんと授業で練習しないとむずい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
  "135425": {
   "n": 1,
   "exam_hard": null,
@@ -1137,6 +1457,44 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 2
+ },
+ "135432": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "アプローチ(狙ったとこにボールを落とす)などのテストがあり、ちゃんと授業で練習しないとむずい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "135441": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "アプローチ(狙ったとこにボールを落とす)などのテストがあり、ちゃんと授業で練習しないとむずい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
  },
  "135442": {
   "n": 1,
@@ -1265,6 +1623,23 @@
   "n_old": 1,
   "shared_classes": 3
  },
+ "135467": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 500,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
+ },
  "135473": {
   "n": 1,
   "exam_hard": null,
@@ -1283,6 +1658,25 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 4
+ },
+ "135475": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "卓球楽しい"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
  },
  "135477": {
   "n": 1,
@@ -1322,6 +1716,25 @@
   "n_old": 1,
   "shared_classes": 4
  },
+ "135485": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "卓球楽しい"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
  "135487": {
   "n": 1,
   "exam_hard": null,
@@ -1340,6 +1753,59 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 2
+ },
+ "135495": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": 1.0,
+  "notes": [
+   "卓球楽しい"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
+ "135497": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 500,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
+ },
+ "135498": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2000,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
  },
  "135503": {
   "n": 2,
@@ -1447,6 +1913,23 @@
   "n_old": 1,
   "shared_classes": 2
  },
+ "135519": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2000,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
  "135531": {
   "n": 1,
   "exam_hard": 0.889,
@@ -1511,6 +1994,24 @@
   "out_class": 0.0,
   "notes": [
    "まあまあマズイです"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "135553": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "なんか回帰直線の話しなかったのにテストに出た。でも単位は取れた。"
   ],
   "conflicts": [],
   "n_distinct": 1,
@@ -1639,6 +2140,24 @@
   "scored": false,
   "n_old": 1
  },
+ "135621": {
+  "n": 1,
+  "exam_hard": 0.667,
+  "exam_hard10": 4.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "小問の紙の上の方に質問を書く枠(なんでもあり)があって、次の授業始めにいくつか選んで答えていた(ユーモア:◎)。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
  "135625": {
   "n": 1,
   "exam_hard": null,
@@ -1690,6 +2209,24 @@
   "n_distinct": 2,
   "scored": false,
   "n_old": 2
+ },
+ "135665": {
+  "n": 1,
+  "exam_hard": 1.111,
+  "exam_hard10": 6.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": null,
+  "notes": [
+   "ε-δはやらない派の先生。テストは小テスト総復習すればそこそこ点取れる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
  },
  "135669": {
   "n": 1,
@@ -1790,6 +2327,24 @@
   "in_class": 1.0,
   "out_class": 1.0,
   "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "135721": {
+  "n": 1,
+  "exam_hard": 1.111,
+  "exam_hard10": 6.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "まあなんとかなる。中間・期末で、微分方程式を熱・電磁気(やってない)に応用する大問がある。"
+  ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
@@ -1911,6 +2466,24 @@
   "out_class": null,
   "notes": [
    "過去問あれば余裕"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
+ "135823": {
+  "n": 1,
+  "exam_hard": 0.667,
+  "exam_hard10": 4.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": null,
+  "notes": [
+   "割と計算の話はしないので身構えなくてもよい。声が小さいことが多い。"
   ],
   "conflicts": [],
   "n_distinct": 1,
@@ -2117,6 +2690,24 @@
   "n_old": 2,
   "shared_classes": 2
  },
+ "135931": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 1.0,
+  "out_class": null,
+  "notes": [
+   "宿題は一応授業中提出の体をとっているが、別に出せなくても後で豊中に提出できる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
+ },
  "135933": {
   "n": 1,
   "exam_hard": null,
@@ -2134,22 +2725,23 @@
   "n_old": 1
  },
  "137039": {
-  "n": 1,
+  "n": 2,
   "exam_hard": 0.889,
   "exam_hard10": 5.0,
   "report_words": null,
   "exam_bring": "可",
   "exam_bring_raw": null,
-  "attendance": 0.0,
-  "in_class": 0.0,
-  "out_class": 0.0,
+  "attendance": 0.5,
+  "in_class": 0.5,
+  "out_class": 0.5,
   "notes": [
-   "面白い"
+   "面白い",
+   "配布される漢詩のルールさえ押さえて作詩すれば落単はない"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1
+  "n_old": 2
  },
  "137094": {
   "n": 1,
@@ -2219,6 +2811,25 @@
   "scored": false,
   "n_old": 1
  },
+ "137165": {
+  "n": 1,
+  "exam_hard": 0.0,
+  "exam_hard10": 1.0,
+  "report_words": 500,
+  "exam_bring": "可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業関連があってもなくても話が色々あって面白い。岡潔とか稠密性とかの話を非常にわかりやすく楽しく説明してくれる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
+ },
  "137201": {
   "n": 1,
   "exam_hard": null,
@@ -2239,20 +2850,22 @@
   "shared_classes": 2
  },
  "137237": {
-  "n": 3,
+  "n": 4,
   "exam_hard": null,
   "exam_hard10": null,
   "report_words": 2500,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 0.0,
-  "in_class": null,
+  "in_class": 0.0,
   "out_class": 0.3333333333333333,
-  "notes": [],
+  "notes": [
+   "期末レポートはあったけどテーマは割と自由だし、ミニレポートも思ったことや知ったことをそのまま素直に書けば評価をきちんとしてくれた"
+  ],
   "conflicts": [],
-  "n_distinct": 2,
-  "scored": false,
-  "n_old": 3,
+  "n_distinct": 3,
+  "scored": true,
+  "n_old": 4,
   "shared_classes": 2
  },
  "137342": {
@@ -2271,6 +2884,23 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 2
+ },
+ "137357": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": 2000,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
  },
  "137553": {
   "n": 1,
@@ -2497,22 +3127,23 @@
   "shared_classes": 3
  },
  "191031": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
-  "report_words": null,
+  "report_words": 1000,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [
-   "神"
+   "神",
+   "やさしい神。だが評価A+はかなり優秀でないとつかなそう。課題はほぼない(2回だけTED見てミニレポート)。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1,
+  "n_old": 2,
   "shared_classes": 6
  },
  "191033": {
@@ -2553,6 +3184,82 @@
   "scored": true,
   "n_old": 3,
   "shared_classes": 11
+ },
+ "191045": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "中間2回、期末1回あり"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "191047": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業はプレゼンテーションやディスカッションをするだけ。たまにプレゼン用のスライドを作る手間はあるが、ただ授業中に英語で発言するだけで点数をもらえる。現時点での成績はいつでも見ることができるので、積極的に発言していれば最後の方の授業は全て切ることができる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
+ },
+ "191052": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業はプレゼンテーションやディスカッションをするだけ。たまにプレゼン用のスライドを作る手間はあるが、ただ授業中に英語で発言するだけで点数をもらえる。現時点での成績はいつでも見ることができるので、積極的に発言していれば最後の方の授業は全て切ることができる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
+ },
+ "191053": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "かなり楽単"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
  },
  "191057": {
   "n": 1,
@@ -2666,22 +3373,23 @@
   "shared_classes": 8
  },
  "191103": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
-  "report_words": null,
+  "report_words": 1000,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [
-   "神"
+   "神",
+   "やさしい神。だが評価A+はかなり優秀でないとつかなそう。課題はほぼない(2回だけTED見てミニレポート)。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1,
+  "n_old": 2,
   "shared_classes": 6
  },
  "191111": {
@@ -2838,6 +3546,25 @@
   "n_old": 1,
   "shared_classes": 5
  },
+ "191181": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "中間はペーパーテスト、期末はグループプレゼン。先生が気さくでやりやすい。あとなんか英語が聞き取りやすい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
  "191203": {
   "n": 1,
   "exam_hard": null,
@@ -2949,6 +3676,25 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 3
+ },
+ "191243": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業はプレゼンテーションやディスカッションをするだけ。たまにプレゼン用のスライドを作る手間はあるが、ただ授業中に英語で発言するだけで点数をもらえる。現時点での成績はいつでも見ることができるので、積極的に発言していれば最後の方の授業は全て切ることができる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
  },
  "191249": {
   "n": 1,
@@ -3066,22 +3812,23 @@
   "shared_classes": 3
  },
  "191305": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
-  "report_words": null,
+  "report_words": 1000,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [
-   "神"
+   "神",
+   "やさしい神。だが評価A+はかなり優秀でないとつかなそう。課題はほぼない(2回だけTED見てミニレポート)。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1,
+  "n_old": 2,
   "shared_classes": 6
  },
  "191325": {
@@ -3196,6 +3943,198 @@
   "n_old": 1,
   "shared_classes": 5
  },
+ "191349": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "中間はペーパーテスト、期末はグループプレゼン。先生が気さくでやりやすい。あとなんか英語が聞き取りやすい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
+ "191371": {
+  "n": 2,
+  "exam_hard": 0.333,
+  "exam_hard10": 2.5,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 1.5,
+  "in_class": 1.0,
+  "out_class": null,
+  "notes": [
+   "高校のノリでやれば大丈夫",
+   "プリントが終わるごとに小テストがあったけど、きちんと本文をそのまま訳す練習をしておけばある程度点数は取れた。期末テストは小テストの問題がそのまま出る部分がある。"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2,
+  "shared_classes": 2
+ },
+ "191373": {
+  "n": 2,
+  "exam_hard": 0.333,
+  "exam_hard10": 2.5,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 1.5,
+  "in_class": 1.0,
+  "out_class": null,
+  "notes": [
+   "高校のノリでやれば大丈夫",
+   "プリントが終わるごとに小テストがあったけど、きちんと本文をそのまま訳す練習をしておけばある程度点数は取れた。期末テストは小テストの問題がそのまま出る部分がある。"
+  ],
+  "conflicts": [],
+  "n_distinct": 2,
+  "scored": false,
+  "n_old": 2,
+  "shared_classes": 2
+ },
+ "191393": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "課題は重いというより、量が多いかも。30分で200単語ほどの量のエッセイを書かされるテストが2回あって準備は少し大変だったし、20ページの本の要約の課題が5回あった。ただ、コツコツやることができる人には向いてる先生だと思う。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "191395": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "課題は重いというより、量が多いかも。30分で200単語ほどの量のエッセイを書かされるテストが2回あって準備は少し大変だったし、20ページの本の要約の課題が5回あった。ただ、コツコツやることができる人には向いてる先生だと思う。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "191397": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "課題は重いというより、量が多いかも。30分で200単語ほどの量のエッセイを書かされるテストが2回あって準備は少し大変だったし、20ページの本の要約の課題が5回あった。ただ、コツコツやることができる人には向いてる先生だと思う。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "191399": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "課題は重いというより、量が多いかも。30分で200単語ほどの量のエッセイを書かされるテストが2回あって準備は少し大変だったし、20ページの本の要約の課題が5回あった。ただ、コツコツやることができる人には向いてる先生だと思う。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "191405": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "課題は多いが、出来は見定められないと思われるので手抜きでも可。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
+ "191411": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "課題は多いが、出来は見定められないと思われるので手抜きでも可。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
+ "191415": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "課題は多いが、出来は見定められないと思われるので手抜きでも可。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
  "191441": {
   "n": 1,
   "exam_hard": null,
@@ -3258,6 +4197,25 @@
   "in_class": 1.0,
   "out_class": 1.0,
   "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
+ "191455": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "UNOとかあってたのしい。たまにドイツ留学の思い出が挟まる。"
+  ],
   "conflicts": [],
   "n_distinct": 1,
   "scored": false,
@@ -3366,6 +4324,44 @@
   "n_old": 1,
   "shared_classes": 3
  },
+ "191487": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "UNOとかあってたのしい。たまにドイツ留学の思い出が挟まる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
+ "191493": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "UNOとかあってたのしい。たまにドイツ留学の思い出が挟まる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
  "191495": {
   "n": 1,
   "exam_hard": null,
@@ -3457,6 +4453,25 @@
   "n_old": 1,
   "shared_classes": 3
  },
+ "191593": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "小テストが重要"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
  "191597": {
   "n": 1,
   "exam_hard": 0.0,
@@ -3511,6 +4526,44 @@
   "scored": false,
   "n_old": 1
  },
+ "191614": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "小テストが重要"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
+ "191615": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "小テストが重要"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
+ },
  "191629": {
   "n": 1,
   "exam_hard": 0.889,
@@ -3547,6 +4600,24 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 4
+ },
+ "191679": {
+  "n": 1,
+  "exam_hard": 1.778,
+  "exam_hard10": 9.0,
+  "report_words": null,
+  "exam_bring": "可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 2.0,
+  "notes": [
+   "しっかり勉強することが必須"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1
  },
  "191703": {
   "n": 1,
@@ -3616,6 +4687,25 @@
   "n_old": 1,
   "shared_classes": 4
  },
+ "191715": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "教科書ちゃんと読んでれば余裕。たまに音楽の歌詞読んだりする(先生がそういうの好き)。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
+ },
  "191721": {
   "n": 1,
   "exam_hard": 0.667,
@@ -3632,6 +4722,25 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 10
+ },
+ "191729": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "教科書ちゃんと読んでれば余裕。たまに音楽の歌詞読んだりする(先生がそういうの好き)。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
  },
  "191731": {
   "n": 1,
@@ -3683,6 +4792,25 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 10
+ },
+ "191753": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "教科書ちゃんと読んでれば余裕。たまに音楽の歌詞読んだりする(先生がそういうの好き)。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
  },
  "191757": {
   "n": 1,
@@ -3849,6 +4977,25 @@
   "n_old": 1,
   "shared_classes": 10
  },
+ "191853": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "発音に厳しい先生です"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
+ },
  "191855": {
   "n": 1,
   "exam_hard": 1.111,
@@ -3982,6 +5129,25 @@
   "n_old": 1,
   "shared_classes": 5
  },
+ "191874": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "発音に厳しい先生です"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
+ },
  "191889": {
   "n": 1,
   "exam_hard": 0.889,
@@ -3999,6 +5165,25 @@
   "n_distinct": 1,
   "scored": false,
   "n_old": 1
+ },
+ "192007": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "中間2回、期末1回あり"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
  },
  "192011": {
   "n": 1,
@@ -4037,22 +5222,23 @@
   "shared_classes": 7
  },
  "192037": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
-  "report_words": null,
+  "report_words": 1000,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [
-   "神"
+   "神",
+   "やさしい神。だが評価A+はかなり優秀でないとつかなそう。課題はほぼない(2回だけTED見てミニレポート)。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1,
+  "n_old": 2,
   "shared_classes": 6
  },
  "192041": {
@@ -4077,6 +5263,25 @@
   "n_old": 3,
   "shared_classes": 11
  },
+ "192067": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業はプレゼンテーションやディスカッションをするだけ。たまにプレゼン用のスライドを作る手間はあるが、ただ授業中に英語で発言するだけで点数をもらえる。現時点での成績はいつでも見ることができるので、積極的に発言していれば最後の方の授業は全て切ることができる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
+ },
  "192073": {
   "n": 1,
   "exam_hard": null,
@@ -4095,6 +5300,23 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 6
+ },
+ "192085": {
+  "n": 1,
+  "exam_hard": 1.333,
+  "exam_hard10": 7.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 2.0,
+  "out_class": 1.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
  },
  "192103": {
   "n": 3,
@@ -4138,22 +5360,23 @@
   "shared_classes": 7
  },
  "192119": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
-  "report_words": null,
+  "report_words": 1000,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [
-   "神"
+   "神",
+   "やさしい神。だが評価A+はかなり優秀でないとつかなそう。課題はほぼない(2回だけTED見てミニレポート)。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1,
+  "n_old": 2,
   "shared_classes": 6
  },
  "192121": {
@@ -4185,6 +5408,25 @@
   "out_class": 2.0,
   "notes": [
    "先生はとても優しい。当てられるのも席順なので予想しやすい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "192153": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "かなり楽単"
   ],
   "conflicts": [],
   "n_distinct": 1,
@@ -4264,6 +5506,44 @@
   "n_old": 1,
   "shared_classes": 9
  },
+ "192245": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業はプレゼンテーションやディスカッションをするだけ。たまにプレゼン用のスライドを作る手間はあるが、ただ授業中に英語で発言するだけで点数をもらえる。現時点での成績はいつでも見ることができるので、積極的に発言していれば最後の方の授業は全て切ることができる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
+ },
+ "192263": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "中間2回、期末1回あり"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
  "192267": {
   "n": 1,
   "exam_hard": null,
@@ -4342,22 +5622,23 @@
   "shared_classes": 11
  },
  "192315": {
-  "n": 1,
+  "n": 2,
   "exam_hard": null,
   "exam_hard10": null,
-  "report_words": null,
+  "report_words": 1000,
   "exam_bring": null,
   "exam_bring_raw": null,
   "attendance": 2.0,
   "in_class": 0.0,
   "out_class": 0.0,
   "notes": [
-   "神"
+   "神",
+   "やさしい神。だが評価A+はかなり優秀でないとつかなそう。課題はほぼない(2回だけTED見てミニレポート)。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1,
+  "n_old": 2,
   "shared_classes": 6
  },
  "192319": {
@@ -4427,6 +5708,42 @@
   "out_class": 2.0,
   "notes": [
    "先生はとても優しい。当てられるのも席順なので予想しやすい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "192347": {
+  "n": 1,
+  "exam_hard": 1.333,
+  "exam_hard10": 7.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 2.0,
+  "out_class": 1.0,
+  "notes": [],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 2
+ },
+ "192350": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "かなり楽単"
   ],
   "conflicts": [],
   "n_distinct": 1,
@@ -4560,6 +5877,25 @@
   "n_old": 1,
   "shared_classes": 4
  },
+ "192715": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "教科書ちゃんと読んでれば余裕。たまに音楽の歌詞読んだりする(先生がそういうの好き)。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
+ },
  "192721": {
   "n": 1,
   "exam_hard": 0.667,
@@ -4576,6 +5912,25 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 10
+ },
+ "192729": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "教科書ちゃんと読んでれば余裕。たまに音楽の歌詞読んだりする(先生がそういうの好き)。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
  },
  "192731": {
   "n": 1,
@@ -4610,6 +5965,25 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 10
+ },
+ "192753": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "教科書ちゃんと読んでれば余裕。たまに音楽の歌詞読んだりする(先生がそういうの好き)。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
  },
  "192757": {
   "n": 1,
@@ -4891,6 +6265,44 @@
   "n_old": 3,
   "shared_classes": 11
  },
+ "193053": {
+  "n": 1,
+  "exam_hard": 1.556,
+  "exam_hard10": 8.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": null,
+  "out_class": 1.0,
+  "notes": [
+   "中間2回、期末1回あり"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
+ "193123": {
+  "n": 1,
+  "exam_hard": 0.889,
+  "exam_hard10": 5.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 0.0,
+  "in_class": null,
+  "out_class": 0.0,
+  "notes": [
+   "かなり楽単"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 4
+ },
  "193126": {
   "n": 1,
   "exam_hard": null,
@@ -4952,6 +6364,25 @@
   "n_old": 3,
   "shared_classes": 11
  },
+ "193197": {
+  "n": 1,
+  "exam_hard": null,
+  "exam_hard10": null,
+  "report_words": null,
+  "exam_bring": null,
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "授業はプレゼンテーションやディスカッションをするだけ。たまにプレゼン用のスライドを作る手間はあるが、ただ授業中に英語で発言するだけで点数をもらえる。現時点での成績はいつでも見ることができるので、積極的に発言していれば最後の方の授業は全て切ることができる。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 6
+ },
  "193661": {
   "n": 1,
   "exam_hard": 0.889,
@@ -5006,6 +6437,25 @@
   "scored": false,
   "n_old": 1,
   "shared_classes": 5
+ },
+ "194019": {
+  "n": 1,
+  "exam_hard": 0.444,
+  "exam_hard10": 3.0,
+  "report_words": null,
+  "exam_bring": "不可",
+  "exam_bring_raw": null,
+  "attendance": 2.0,
+  "in_class": 0.0,
+  "out_class": 0.0,
+  "notes": [
+   "中間はペーパーテスト、期末はグループプレゼン。先生が気さくでやりやすい。あとなんか英語が聞き取りやすい。"
+  ],
+  "conflicts": [],
+  "n_distinct": 1,
+  "scored": false,
+  "n_old": 1,
+  "shared_classes": 3
  },
  "194049": {
   "n": 1,

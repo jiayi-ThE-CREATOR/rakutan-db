@@ -1,0 +1,45 @@
+name: 口コミの取り込み（毎朝）
+
+# 毎朝 05:00（JST）に、D1 の受け箱から口コミを取り込み、負担ランクを計算し直して main へ載せる。
+# 設計: docs/superpowers/specs/2026-10-21-review-auto-ingest-design.md
+# 手で回すときは Actions の画面の「Run workflow」。
+on:
+  schedule:
+    - cron: "0 20 * * *"     # UTC 20:00 = JST 05:00
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: review-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+
+      - name: 受け箱 → D1 reviews → reviews.json（手元だけ・commit しない）
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_D1_TOKEN: ${{ secrets.CF_D1_TOKEN }}
+        run: python3 tools/review_sync.py
+
+      - name: 負担ランクを計算し直す
+        run: python3 build.py --rescore
+
+      - name: 変わったものだけ main へ（データだけ・版には載せない）
+        run: |
+          git config user.name "rakuhan-bot"
+          git config user.email "rakuhan-bot@users.noreply.github.com"
+          git add data/reviews.agg.json web/data web/c web/sitemap-courses.xml
+          if git diff --cached --quiet; then
+            echo "変化なし"
+            exit 0
+          fi
+          git commit -m "data: 口コミの取り込み（$(TZ=Asia/Tokyo date +%Y-%m-%d)）"
+          git push origin HEAD:main
