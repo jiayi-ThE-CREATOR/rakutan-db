@@ -17,6 +17,34 @@
 
 ---
 
+## 2026-10-22 ｜ 口コミの受け箱（D1）と Discord の「不公開にする」 ｜ Claude（wang） → 全員
+
+設計: `docs/superpowers/specs/2026-10-21-review-auto-ingest-design.md`。口コミの取り込みを自動化する段①。
+
+### 1. 何が動く状態か
+
+    node tools/test_reviewinbox.mjs && node tools/test_kuchikomi_relay.mjs
+
+- `/api/kuchikomi` が GAS で成功したら、科目ごとに D1 `review_inbox` へ1行（原文のまま）
+- Discord の口コミ通知に、一言の本文と「不公開にする」リンク。リンクは確認のボタンだけのページ → 押すと hidden=1
+- `tools/reviews_to_d1.py`：手元の `data/reviews.json` を D1 `reviews` へ移す SQL（引っ越し用・何度流しても増えない）
+
+### 2. 何をしていないか
+
+- **受け箱から reviews への取り込みと、毎朝の再計算（GitHub Actions）はまだ**（段②）。それまでは今まで通り手で取り込む
+- 「不公開」はサイトにはまだ効かない（段②の取り込みで publish:false になる）
+
+### 3. 次の人が最初に打つコマンド
+
+    npx wrangler d1 execute rakutan-favorites --remote --file=db/schema.sql
+
+### 4. 踏んだ罠
+
+- Discord の webhook は押せるボタンを載せられない（bot のアプリが要る）。リンク＋確認ページにした
+- 通知は2000字まで。リンクを途中で切らないよう、入りきらない一言は数だけ書く
+
+---
+
 ## 2026-10-20 ｜ LINE とメールを1つのアカウントにした ｜ Claude（wang） → 全員
 
 設計: `docs/superpowers/specs/2026-10-19-mail-login-design.md` §8。wang 決定（同日、「合わせない」を撤回）。

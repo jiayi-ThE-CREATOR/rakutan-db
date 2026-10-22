@@ -44,6 +44,7 @@ import {
 } from "./linelogin.js";
 import { cleanGrade, cleanFaculty, cleanIds, handleProfile } from "./profile.js";
 import { handleMailStart, handleMailLoginPage, handleMailLogin, handleMailPoll } from "./maillogin.js";
+import { saveToInbox, inboxNotice, handleHidePage, handleHide } from "./reviewinbox.js";
 
 // LINEに載せる「サイトのURL」は固定でこちらを使う。
 // リクエストを受けたドメイン（request.url）を使うと、LINE Developersに
@@ -945,23 +946,30 @@ async function handleKuchikomi(request, env, ctx) {
   const body = await gasRes.text();
 
   // ここから先は付随。何が起きても投稿の応答（下の return）には影響させない。
+  let ok = false;
+  try {
+    ok = JSON.parse(body)?.status === "success";
+  } catch {
+    ok = false; // GAS が JSON を返さなかった＝入ったか分からない。保存も通知もしない
+  }
+  /* 口コミの受け箱（D1 review_inbox）にも入れる（2026-10-21・口コミの取り込みの自動化）。
+     シートと同じく「GAS が受け取った」ものだけ。毎朝の取り込み（GitHub Actions）がここから読む。 */
+  let saved = [];
+  if (ok) {
+    try { saved = await saveToInbox(env, JSON.parse(raw)); }
+    catch (e) { console.error("inbox save failed", e); saved = []; }
+  }
   const webhook = env.REVIEW_DISCORD_WEBHOOK;
-  if (webhook) {
-    let ok = false;
+  if (webhook && ok) {
+    let content = null;
     try {
-      ok = JSON.parse(body)?.status === "success";
+      /* 一言があれば本文と「不公開にする」リンクも載せる（先に公開・問題があれば下げる、wang 決定） */
+      const head = kkMessage(JSON.parse(raw));
+      content = head ? head + (await inboxNotice(env, saved, 1990 - head.length)) : null;
     } catch {
-      ok = false; // GAS が JSON を返さなかった＝入ったか分からない。鳴らさない
+      content = null; // 中身が読めないなら通知は諦める。投稿は通す
     }
-    if (ok) {
-      let content = null;
-      try {
-        content = kkMessage(JSON.parse(raw));
-      } catch {
-        content = null; // 中身が読めないなら通知は諦める。投稿は通す
-      }
-      if (content) ctx.waitUntil(kkNotify(webhook, content));
-    }
+    if (content) ctx.waitUntil(kkNotify(webhook, content));
   }
 
   return new Response(body, {
@@ -1244,6 +1252,9 @@ async function route(request, env, ctx) {
       return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
     }
     return handleMailStart(request, env);
+  }
+  if (url.pathname === "/review/hide") {
+    return request.method === "POST" ? handleHide(request, env) : handleHidePage(request, env);
   }
   if (url.pathname === "/mail/poll") {
     return handleMailPoll(request, env);

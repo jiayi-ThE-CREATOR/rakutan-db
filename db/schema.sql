@@ -76,3 +76,27 @@ CREATE TABLE IF NOT EXISTS identities (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_identities_account ON identities (account);
+
+-- 口コミの受け箱（2026-10-21・取り込みの自動化。docs/superpowers/specs/2026-10-21-review-auto-ingest-design.md）。
+-- /api/kuchikomi が GAS へ中継して成功したら、科目ごとに1行ずつ原文（payload）のまま入れる。
+-- 毎朝の取り込み（GitHub Actions）が done=0 の行を整えて reviews へ移し、done=1 にする。
+-- hidden=1 は Discord の「不公開にする」から（一言だけ伏せる。publish:false と同じ）。
+CREATE TABLE IF NOT EXISTS review_inbox (
+  id TEXT PRIMARY KEY,
+  at INTEGER NOT NULL,          -- 受けた時刻（ms）
+  course_id TEXT NOT NULL,
+  payload TEXT NOT NULL,        -- 1科目ぶんの投稿（JSON）
+  hidden INTEGER NOT NULL DEFAULT 0,
+  done INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_review_inbox_done ON review_inbox (done);
+
+-- 整えた後の口コミ（今までの data/reviews.json の1行＝row）。これが口コミの正本。
+-- src は受け箱の id（受け箱から来た行だけ）。hidden=1 なら取り込みで publish:false にする。
+CREATE TABLE IF NOT EXISTS reviews (
+  id TEXT PRIMARY KEY,
+  row TEXT NOT NULL,
+  hidden INTEGER NOT NULL DEFAULT 0,
+  src TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_src ON reviews (src);
