@@ -23,6 +23,10 @@ async function newPage(w, h){
     try { localStorage.setItem("rk_onboarded", "1"); } catch (e) {}
     try { sessionStorage.setItem("rk_splash_seen", "1"); } catch (e) {}
   });
+  /* Cloudflare の beacon（analytics.js）は外へ出さない。#197 で送るようになってから、
+     127.0.0.1 では rum が CORS で弾かれてエラーが出る ―― 本番の挙動で、このテストの対象ではない。
+     止めた分は「Failed to load resource」になるので下で数えない。 */
+  await p.route(/cloudflareinsights\.com/, r => r.abort());
   p.errors = [];
   p.on("pageerror", e => p.errors.push(String(e)));
   /* 「Failed to load resource」は数えない。静的配信（tools/serve.py）では
