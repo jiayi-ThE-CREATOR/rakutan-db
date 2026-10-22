@@ -17,6 +17,35 @@
 
 ---
 
+## 2026-10-22 ｜ 毎朝 05:00 に口コミを取り込む（GitHub Actions） ｜ Claude（wang） → 全員
+
+設計: `docs/superpowers/specs/2026-10-21-review-auto-ingest-design.md`。取り込みの自動化の段②。
+
+### 1. 何が動く状態か
+
+    python3 tools/test_review_sync.py
+
+- `.github/workflows/review-sync.yml`：毎朝 05:00（JST）と手動（Run workflow）
+- `tools/review_sync.py`：受け箱（done=0）→ `ingest_reviews.normalize` で整える → D1 `reviews`（重複は科目・日付・一言で弾く）→ 全行から `data/reviews.json`（Actions の中だけ）→ 集計
+- 続けて `build.py --rescore`、変わったファイルだけ rakuhan-bot が main へ commit（データだけ・版には載せない）
+- `tools/reviews_to_d1.py --push`：引っ越し用。D1 の HTTP API で直接入れる（wrangler の --file が OAuth で認証エラーになったため）
+
+### 2. 何をしていないか
+
+- **GitHub の Secrets（`CF_ACCOUNT_ID`・`CF_D1_TOKEN`）が要る。** 無いとワークフローは止まる
+- **引っ越しが済むまで動かさない。** D1 `reviews` が空だと review_sync.py は止まる（reviews.json を空で上書きしないため）
+- 「不公開」をすぐ反映する仕組みは無い（翌朝）
+
+### 3. 次の人が最初に打つコマンド
+
+    CF_ACCOUNT_ID=… CF_D1_TOKEN=… python3 tools/reviews_to_d1.py --push
+
+### 4. 踏んだ罠
+
+- シートの X1 の見出しは今も頭にタブが付いている（「\tテスト(0-5)」）。取り込みは見出しの前後の空白を落として読むので困らない
+
+---
+
 ## 2026-10-22 ｜ 口コミの受け箱（D1）と Discord の「不公開にする」 ｜ Claude（wang） → 全員
 
 設計: `docs/superpowers/specs/2026-10-21-review-auto-ingest-design.md`。口コミの取り込みを自動化する段①。
