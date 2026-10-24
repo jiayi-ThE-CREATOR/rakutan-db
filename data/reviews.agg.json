@@ -1005,7 +1005,7 @@
   "n_old": 1
  },
  "135297": {
-  "n": 1,
+  "n": 2,
   "exam_hard": 0.889,
   "exam_hard10": 5.0,
   "report_words": null,
@@ -1018,9 +1018,28 @@
    "睡眠学習を家で代わりに行いました"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
-  "n_old": 1
+  "n_old": 1,
+  "v5": {
+   "n": 1,
+   "n_distinct": 1,
+   "burden": 2.273,
+   "items": {
+    "exam": 5.0,
+    "presentation": 0.0,
+    "report": 0.0,
+    "attendance": 0.0,
+    "quiz": 0.0
+   },
+   "zero": {
+    "exam": 0,
+    "presentation": 1,
+    "report": 1,
+    "attendance": 1,
+    "quiz": 1
+   }
+  }
  },
  "135302": {
   "n": 7,
@@ -4204,7 +4223,7 @@
   "shared_classes": 3
  },
  "191455": {
-  "n": 1,
+  "n": 2,
   "exam_hard": 0.444,
   "exam_hard10": 3.0,
   "report_words": null,
@@ -4214,12 +4233,32 @@
   "in_class": null,
   "out_class": 0.0,
   "notes": [
+   "先生が優しい",
    "UNOとかあってたのしい。たまにドイツ留学の思い出が挟まる。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
   "n_old": 1,
+  "v5": {
+   "n": 1,
+   "n_distinct": 1,
+   "burden": 2.318,
+   "items": {
+    "exam": 3.0,
+    "presentation": 0.0,
+    "report": 0.0,
+    "attendance": 5.0,
+    "quiz": 3.0
+   },
+   "zero": {
+    "exam": 0,
+    "presentation": 1,
+    "report": 1,
+    "attendance": 0,
+    "quiz": 0
+   }
+  },
   "shared_classes": 3
  },
  "191457": {
@@ -4325,7 +4364,7 @@
   "shared_classes": 3
  },
  "191487": {
-  "n": 1,
+  "n": 2,
   "exam_hard": 0.444,
   "exam_hard10": 3.0,
   "report_words": null,
@@ -4335,16 +4374,36 @@
   "in_class": null,
   "out_class": 0.0,
   "notes": [
+   "先生が優しい",
    "UNOとかあってたのしい。たまにドイツ留学の思い出が挟まる。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
   "n_old": 1,
+  "v5": {
+   "n": 1,
+   "n_distinct": 1,
+   "burden": 2.318,
+   "items": {
+    "exam": 3.0,
+    "presentation": 0.0,
+    "report": 0.0,
+    "attendance": 5.0,
+    "quiz": 3.0
+   },
+   "zero": {
+    "exam": 0,
+    "presentation": 1,
+    "report": 1,
+    "attendance": 0,
+    "quiz": 0
+   }
+  },
   "shared_classes": 3
  },
  "191493": {
-  "n": 1,
+  "n": 2,
   "exam_hard": 0.444,
   "exam_hard10": 3.0,
   "report_words": null,
@@ -4354,12 +4413,32 @@
   "in_class": null,
   "out_class": 0.0,
   "notes": [
+   "先生が優しい",
    "UNOとかあってたのしい。たまにドイツ留学の思い出が挟まる。"
   ],
   "conflicts": [],
-  "n_distinct": 1,
+  "n_distinct": 2,
   "scored": false,
   "n_old": 1,
+  "v5": {
+   "n": 1,
+   "n_distinct": 1,
+   "burden": 2.318,
+   "items": {
+    "exam": 3.0,
+    "presentation": 0.0,
+    "report": 0.0,
+    "attendance": 5.0,
+    "quiz": 3.0
+   },
+   "zero": {
+    "exam": 0,
+    "presentation": 1,
+    "report": 1,
+    "attendance": 0,
+    "quiz": 0
+   }
+  },
   "shared_classes": 3
  },
  "191495": {
