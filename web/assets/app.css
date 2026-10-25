@@ -1534,3 +1534,13 @@ html{scroll-behavior:smooth}
 .dRv{padding:var(--sp-3)}
 .dRv .rvf span{padding:var(--sp-2)}
 .dRv .rvf b{white-space:nowrap}
+
+/* ── 意味の分からない数字をなくす（2026-10-25 hayashi）──────────
+   配点の目盛りの数字と「既定 N」は隠す（重みの絶対値には意味が無い）。
+   要素は消さない ―― つまみの処理が書き換える。列も1つ詰める。 */
+.sl{grid-template-columns:84px 1fr 26px}
+.sl .v,.sl .def{display:none}
+.slHelp{font-size:var(--fs-xs);color:var(--soft);margin:0 0 var(--sp-3);line-height:1.6}
+/* チップの数字は件数。「件」は見た目だけで足す ―― 中身の数字はテストや並び替えが数として読む */
+.chips .n::after,.chip .n::after{content:"件"}
+.gridHelp{font-size:var(--fs-xs);color:var(--muted);margin:-4px 0 var(--sp-2)}

@@ -440,7 +440,13 @@ function buildSliders(){
      テストがいちばん大きい＝みんなの既定をそのまま画面に出している。
      ✕ は「その項目がある授業を見ない」＝しぼり込みで、caps（0 か 100）が持つ。
      2つを同じ行に置くが、状態は別 ―― 混ぜると「しぼったら好みまで変わった」になる。 */
-  $("#sliders").innerHTML = CAP_AXES.map(k =>
+  /* 目盛りの数字（15・既定 15 など）は画面に出さない（2026-10-25 hayashi）。
+     重みの絶対値には意味が無く、「何の数字か分からない」だけだったため。
+     要素は残す（つまみを動かす処理が書き換える／読み上げは aria-valuetext 側で足りる）。
+     代わりに、何をするものかを1行で先に言う。 */
+  $("#sliders").innerHTML =
+    `<p class="slHelp">自分にとって<b>重い項目ほど右へ</b>。動かすと、カードに「あなたとの相性度」が出ます。✕ はその項目がある授業を外します。</p>`
+    + CAP_AXES.map(k =>
     `<div class="sl"><label for="s_${k}">${esc(CAP_LABEL[k])}</label>
        <input type="range" id="s_${k}" min="0" max="100" step="${PREF_STEP}"
               value="${state.pref[k]}" data-k="${k}"
@@ -919,6 +925,8 @@ async function fetchReviewsData(){
 
 // 課題の軽重は rvLv（集計側と同じ）を使い回す。同じ対応表を2つ持たない。
 const attFull = v => (v === null || v === undefined) ? "―" : RV_ATT[Math.round(v)];
+/* 新しい形式の口コミ（項目ごとに 1〜5）の言葉。kuchikomi.html の設問3の説明と同じ。 */
+const V5_WORD = ["", "ほぼ負担なし", "軽い", "ふつう", "重め", "かなり大変"];
 
 /* null は「―」のまま出す。埋めると「無回答だった」という情報が消える。
    並びは 受講年 → 本人が書いた一言 → 選択式の答え（2026-09-06）。
@@ -932,17 +940,24 @@ function panelEntry(row){
   const age = row.taken_year == null ? 0 : curYear - row.taken_year;
   const old = row.taken_year != null && age >= 3;
 
-  const facts = [`出席 ${attFull(row.attendance)}`,
-                 `授業中の課題 ${rvLv(row.in_class)}`,
-                 `授業外の課題 ${rvLv(row.out_class)}`];
-  if (row.exam_hard10 != null) facts.push(`テスト ${row.exam_hard10}/10`);
-  if (row.exam_bring)          facts.push(`持ち込み ${row.exam_bring}`);
+  /* 答えていない項目（null）は出さない ―― 「出席 ―」を並べても読めない（2026-10-25）。
+     新しい形式（form v5・2026-10-14〜）の答えは row.items に 0〜5 で入っている。
+     1〜5 は口コミのフォームの言葉（kuchikomi.html の設問3）で出す。0 は「なかった」だが、
+     フォームに出さなかった項目も 0 で送られてくるので区別できない ―― だから出さない。 */
+  const facts = [];
+  if (row.attendance != null)   facts.push(`出席 ${attFull(row.attendance)}`);
+  if (row.in_class != null)     facts.push(`授業中の課題 ${rvLv(row.in_class)}`);
+  if (row.out_class != null)    facts.push(`授業外の課題 ${rvLv(row.out_class)}`);
+  for (const [k, v] of Object.entries(row.items || {}))
+    if (v >= 1 && v <= 5) facts.push(`${ITEM_LABEL[k] || k} ${V5_WORD[v]}`);
+  if (row.exam_hard10 != null)  facts.push(`テストの難しさ 10段階で${row.exam_hard10}`);
+  if (row.exam_bring)           facts.push(`持ち込み ${row.exam_bring}`);
   if (row.report_words != null) facts.push(`レポート 約${row.report_words.toLocaleString()}字`);
 
   return `<div class="pEntry">
       <div class="pYear">${esc(yearLabel)}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
       ${row.note ? `<div class="pNote">${esc(row.note)}</div>` : ""}
-      <div class="pFacts">${facts.map(t => `<span>${esc(t)}</span>`).join("")}</div>
+      ${facts.length ? `<div class="pFacts">${facts.map(t => `<span>${esc(t)}</span>`).join("")}</div>` : ""}
     </div>`;
 }
 
@@ -1773,7 +1788,7 @@ function renderPager(){
     `aria-label="${label}">${sign}</button>`;
 
   el.innerHTML =
-    `<div class="pagerPos">${shownTo} / ${courses.length}件</div>` +
+    `<div class="pagerPos">${courses.length}件中 ${shownTo}件を表示</div>` +
     `<div class="pagerNums">` +
       arrow(page - 1, "前のページ", "‹", page <= 1) +
       nums.map(x => x === "…"
