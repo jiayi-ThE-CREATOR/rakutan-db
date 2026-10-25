@@ -19,7 +19,7 @@ function futanSrc(c){
   const f = c.rakutan.futan;
   if (!f) return "";
   if (f.source === "kuchikomi") return `口コミ${f.people}人から`;
-  if (f.source === "syllabus_kuchikomi") return `シラバス＋口コミ${c.reviews?.n_old || c.reviews?.n || 0}人から`;
+  if (f.source === "syllabus_kuchikomi") return `シラバスと口コミ${c.reviews?.n_old || c.reviews?.n || 0}人から`;
   return "シラバスから推定";
 }
 
@@ -802,7 +802,7 @@ function cardActsHtml(c){
   /* 一言のプレビューは口コミ本文そのもの。未登録に見せると、ゲートの意味が
      一覧の時点で崩れる（2026-09-22 きむら指摘）。件数は出してよい ――
      何が読めるようになるのか分からないと、登録する理由も伝わらない。 */
-  const first = gateLocked() ? "" : ((c.reviews?.notes || [])[0] || "");
+  const first = "";   // 試作：カードに一言を出さない（文字を減らす）
   const write = `/kuchikomi?c=${encodeURIComponent(c.id)}`;
   let read;
   if (readable){
@@ -837,15 +837,13 @@ function rankBlockHtml(c){
   const r = c.rakutan, m = c.match, f = r.futan;
   const rank = f && f.rank;
   const big = rank
-    ? `<div class="fit rank"><b class="rk${RANKS.includes(rank) ? rank : ""}">${esc(rank)}</b><small>負担</small></div>`
-    : `<div class="fit"><b>—</b><small>負担</small></div>`;
+    ? `<div class="fit rank"><b class="rk${RANKS.includes(rank) ? rank : ""}">${esc(rank)}</b><small>ラク度</small></div>`
+    : `<div class="fit"><b>—</b><small>ラク度</small></div>`;
   const src = futanSrc(c);
   const low = r.band === "参考値" ? "（参考値）" : "";
-  const pct = (false && rank && m.fit !== null && m.fit !== undefined)
-    ? (prefChanged()
-        ? `<span class="pct">あなたとの相性度 <b>${Math.round(m.fit)}%</b></span>`
-        : `<span class="pctHint">配分を動かすと、あなたとの相性度が出ます</span>`)
-    : "";
+  /* 試作：相性度は目盛りを動かした人にだけ出す。「動かすと出ます」のヒントは出さない（文字を減らす） */
+  const pct = (rank && m.fit !== null && m.fit !== undefined && prefChanged())
+    ? `<span class="pct">あなたとの相性度 <b>${Math.round(m.fit)}%</b></span>` : "";
   const mis = (f && f.mismatch && f.mismatch.length)
     ? `<span class="mismatch">シラバスと実際が違うようです（${f.mismatch.map(k => ITEM_LABEL[k] || k).join("・")}がなかった）</span>`
     : "";
@@ -886,7 +884,7 @@ function card(c){
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.room||c.campus||"—")}</span></div>
+        <div class="meta"><span>${esc(dp === "他" ? "曜限なし" : dp)}</span>${insMetaSpan(c)}${(c.room||c.campus) ? `<span>${esc(c.room||c.campus)}</span>` : ""}</div>
       </div>
       ${rankBlockHtml(c)}
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
@@ -1720,7 +1718,7 @@ function renderPage(n, scroll = false){
     const box = document.createElement("section");
     box.className = "picks";
     box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
-      `<span class="sub">人が確認ずみの科目から</span></h2>`;
+      `<span class="sub">口コミで確かめられた科目から</span></h2>`;
     appendCards(box, picks);
     list.appendChild(box);
   }
@@ -1799,7 +1797,7 @@ async function load(retry){
   buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
   subjectFacets = d.subject_facets || {}; subjectCount = d.count;
   window.rkSubjects?.render();
-  $("#count").textContent = d.count;
+  $("#count").textContent = Number(d.count).toLocaleString();
   syncRailTog();   // 条件が変われば畳んでいるときのバッジも変わる
   syncSheet();     // スマホの「絞り込み」の数字とシート下の件数も
   syncResetBtn();  // 同じ理由。条件が0になったらリセットも引っ込める

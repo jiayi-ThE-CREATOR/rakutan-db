@@ -869,7 +869,7 @@ function renderFavorites(){
   const ids = rkStore.getFavorites();
   if (!ids.length){
     $("#mpFavList").innerHTML =
-      `<p class="mpEmpty">まだありません。科目の一覧で ☆ を押すと、ここに溜まります。</p>`;
+      `<p class="mpEmpty">まだありません。科目の一覧で ☆ を押すと、ここに並びます。</p>`;
     return;
   }
   const tt = rkStore.getTimetable(term);

@@ -143,7 +143,6 @@ const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flow
    クリップボードへ入れておくので、KOAN で「未登録」を押したら貼るだけで済む。
    mypage.js の時間割の上のボタンも同じ URL を使う（window.rkDetail 経由）。 */
 const KOAN_TOP = "https://koan.osaka-u.ac.jp/campusweb/campusportal.do";
-const COOP_URL = "https://www.u-coop.net/textbook/osaka-u/toyonaka/indicate.php";
 
 /* 試作（2026-10-25）：絵文字は AI が作った感じに見えるので、線のアイコンにそろえる。 */
 const svg = d => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
@@ -303,19 +302,10 @@ function detailHtml(c, opts = {}){
   const bookLine = b => [b.author, b.title && `『${b.title}』`, b.publisher,
     b.year && (b.year_ref ? `${b.year}（参考）` : b.year)]
     .map(v => `<span>${esc(v || "—")}</span>`).join("");
-  /* 試作（2026-10-25）：教科書マーケットへの口。キーは tools/build_market.py の key() と同じ
-     （NFKC にして空白をつめた書名）。 */
-  const mkKey = t => String(t || "").normalize("NFKC").replace(/\s+/g, "");
-  const bookBuy = b => b.title ? `<div class="bookBuy">
-      <a class="bookUsed" href="/market?k=${encodeURIComponent(mkKey(b.title))}">${ICON.book}中古を見る（教科書マーケット）</a>
-      <a href="${COOP_URL}" target="_blank" rel="noopener noreferrer">生協で新品 ↗</a>
-      <a href="https://www.amazon.co.jp/s?k=${encodeURIComponent(b.title)}" target="_blank" rel="noopener noreferrer">Amazon ↗</a>
-    </div>` : "";
   const book = books.length
     ? `<div class="dSec">
         <div class="secH">教科書</div>
-        <ul class="bookList">${books.map(b => `<li>${bookLine(b)}${bookBuy(b)}</li>`).join("")}</ul>
-        <div class="compNote">生協で探すときは時間割コード ${esc(c.id)} で検索できます</div>
+        <ul class="bookList">${books.map(b => `<li>${bookLine(b)}</li>`).join("")}</ul>
         ${books.some(b => b.year_ref)
           ? `<div class="compNote">（参考）の出版年はシラバスに無く、ISBN から調べた値です。指定の版と違うことがあります</div>` : ""}
       </div>`
