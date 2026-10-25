@@ -70,3 +70,69 @@
 /* 実物のスクショだが、口コミ件数やスコアは日々変わる。撮影時点の一例だと
  * 分かるようにする注記（参考サイトの「画像はイメージです」に合わせた）。 */
 .strNote{margin-top:var(--sp-3);text-align:center;font-size:var(--fs-xs);color:var(--muted)}
+
+/* ── About の作り直し（2026-10-25 hayashi）────────────
+ * 上から順に「何のサイトか → 使い方3つ → ランクの見方」を先に読ませ、
+ * 細かい理由は .abFaq（details）に畳む。色はすべて tokens.css の変数。 */
+.about section{margin-bottom:var(--sp-7)}
+.about section > h2{margin-top:0}
+
+/* 先頭：1文で何のサイトかを言い、数字を3つ並べる */
+.abHero h2{font-size:clamp(22px,4.6vw,30px);line-height:1.4;margin:0 0 var(--sp-3)}
+.abHero > p{color:var(--soft);margin-bottom:var(--sp-4)}
+.abBr{display:none}
+.abFacts{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(3,1fr);gap:var(--sp-2)}
+.abFacts li{background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);
+  padding:var(--sp-3) var(--sp-2);text-align:center;margin:0}
+.abFacts b{display:block;font-size:var(--fs-lg);color:var(--brand-text)}
+.abFacts small{display:block;font-size:var(--fs-xs);color:var(--soft);margin-top:2px}
+
+/* 使い方3つ：番号つきのカード */
+.abSteps{list-style:none;padding:0;margin:0 0 var(--sp-3);display:grid;gap:var(--sp-2);counter-reset:ab}
+.abSteps li{counter-increment:ab;display:grid;grid-template-columns:auto 1fr;gap:2px var(--sp-3);
+  background:var(--card);border:1px solid var(--rule);border-radius:var(--r-md);padding:var(--sp-3);margin:0}
+.abSteps li::before{content:counter(ab);grid-row:1/3;width:28px;height:28px;border-radius:50%;
+  background:var(--brand);color:var(--brand-ink);font-weight:700;display:grid;place-items:center}
+.abSteps b{font-size:var(--fs-base)}
+.abSteps span{font-size:var(--fs-sm);color:var(--soft)}
+.prose a.abCta{display:inline-block;padding:10px var(--sp-5);border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);font-weight:700;text-decoration:none}
+
+/* ランクの並び（app.css の .band.rkXX をそのまま使う） */
+.abRanks{list-style:none;padding:0;margin:0 0 var(--sp-3);display:flex;gap:var(--sp-2);align-items:flex-start}
+.abRanks li{flex:1;text-align:center;margin:0}
+.abRanks .band{display:block;font-size:var(--fs-lg);padding:var(--sp-2) 0}
+.abRanks small{display:block;font-size:var(--fs-xs);color:var(--soft);margin-top:4px}
+.abSrc{list-style:none;padding:0}
+.abSrc li{display:flex;flex-direction:column;gap:2px;font-size:var(--fs-sm);color:var(--soft);
+  border-left:3px solid var(--brand-line);padding-left:var(--sp-3);margin-bottom:var(--sp-2)}
+.abSrc b{color:var(--ink)}
+.abAxes{list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.abAxes li{background:var(--dim);border-radius:var(--r-pill);padding:4px var(--sp-3);font-size:var(--fs-sm);margin:0}
+.abAxes b{margin-left:.4em}
+.abNote{font-size:var(--fs-sm);color:var(--soft)}
+
+/* 口コミの呼びかけ */
+.abCallout{background:var(--brand-soft);border:1px solid var(--brand-line);border-radius:var(--r-lg);padding:var(--sp-4)}
+.abCallout h2{font-size:var(--fs-base)}
+.abCallout p:last-child{margin-bottom:0}
+
+/* くわしく：1問ずつ畳む */
+.abFaq{border-top:1px solid var(--rule)}
+.abFaq details{border-bottom:1px solid var(--rule)}
+.abFaq summary{cursor:pointer;list-style:none;padding:var(--sp-3) var(--sp-5) var(--sp-3) 0;
+  font-weight:700;position:relative}
+.abFaq summary::-webkit-details-marker{display:none}
+.abFaq summary::after{content:"＋";position:absolute;right:0;color:var(--brand-text)}
+.abFaq details[open] summary::after{content:"－"}
+.abFaq details > :not(summary){font-size:var(--fs-sm)}
+.abFaq details > :last-child{margin-bottom:var(--sp-4)}
+
+.abDisc p{font-size:var(--fs-sm);color:var(--soft)}
+
+@media (min-width:640px){
+  .abBr{display:inline}
+  .abSteps{grid-template-columns:repeat(3,1fr)}
+  .abSteps li{grid-template-columns:1fr}
+  .abSteps li::before{grid-row:auto}
+}
