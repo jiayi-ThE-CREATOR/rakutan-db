@@ -299,17 +299,33 @@ function detailHtml(c, opts = {}){
           ? `<div class="compNote">（参考）の出版年はシラバスに無く、ISBN から調べた値です。指定の版と違うことがあります</div>` : ""}
       </div>`
     : "";
-  return `${subj}<div class="dSec">
+  /* 口コミは詳細の先頭に置く（2026-10-25 hayashi）。ラクハンでいちばん読んでほしいのは
+     実際に受けた人の声なので、成績評価の内訳より上に、色の付いた箱で出す。
+     0件の科目にも箱を出して「書いてほしい」と言う ―― 7,906件のほとんどが0件で、
+     そこで黙ると口コミという仕組みがあること自体が伝わらない。
+     「すべて読む」は一覧のパネル（app.js の openPanel）を開く。マイページでは
+     パネルが無いので、href の /?c=<id>（共有リンクと同じ入口）へそのまま飛ぶ。 */
+  const write = `/kuchikomi?c=${encodeURIComponent(c.id)}`;
+  const rvBox = rn
+    ? `<div class="dSec dRv">
+        <div class="dRvH"><span class="secH">口コミ <b>${rn}件</b></span><span class="dRvSub">実際に受けた人の声</span></div>
+        ${gateLocked()
+          ? `<p class="gateLocked">口コミを読むには LINE 登録が要ります</p>`
+          : `${first ? `<p class="dQuote">${esc(first)}</p>` : ""}${reviewHtml(c)}`}
+        <div class="dRvActs">
+          <a class="dRvAll" href="/?c=${encodeURIComponent(c.id)}" data-rv-open="${esc(c.id)}">口コミをすべて読む ›</a>
+          <a class="dRvWrite" href="${esc(write)}">この科目の口コミを書く</a>
+        </div>
+      </div>`
+    : `<div class="dSec dRv dRvEmpty">
+        <p>まだ口コミがありません。受けたことがあれば、<b>最初の1件</b>を書いてください（選択式で1分）。</p>
+        <a class="dRvWrite" href="${esc(write)}">口コミを書く ›</a>
+      </div>`;
+  return `${rvBox}${subj}<div class="dSec">
         <div class="secH">成績評価の内訳</div>
         ${evalCompHtml(c)}
       </div>
       ${book}
-      ${rn ? `<div class="dSec">
-        <div class="secH">口コミ <b>${rn}件</b></div>
-        ${gateLocked()
-          ? `<p class="gateLocked">🔒 口コミを読むには LINE 登録が要ります</p>`
-          : `${reviewHtml(c)}${first ? `<p class="dQuote">${esc(first)}</p>` : ""}`}
-      </div>` : ""}
       <div class="dActs">
         <a class="koanLink koanReg" href="${KOAN_TOP}" target="_blank" rel="noopener noreferrer"
            data-code="${esc(c.id)}">KOANを開いて履修登録する ↗<small>時間割コード ${esc(c.id)} をコピーして開きます</small></a>
