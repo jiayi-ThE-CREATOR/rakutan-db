@@ -376,7 +376,7 @@ async function totalCount(p, id){
      回答の総数（n）が見える場所がここだけになったため（wang 指摘：帯は
      下のボタンと二重表示だった）。n はビルドで動くので data から読む。 */
   const total = await totalCount(p, ID);
-  check(cardBtn === `📊 口コミ ${total}件を見る`,
+  check(cardBtn.trim() === `口コミ ${total}件を見る`,   // 絵文字は線のアイコン（svg）に替えた
         `[readable=0] カードのボタン文言が違う（${cardBtn}）`);
   await p.close();
 }
@@ -394,7 +394,8 @@ async function totalCount(p, id){
   const label = await p.evaluate(id =>
     document.querySelector(`.card[data-id="${id}"] .cardActs .rvBtn span`)?.textContent.trim() || null,
     ID);
-  check(label === `💬 口コミ ${expected}件を読む ›`,
+  check(label.trim() === `口コミ ${expected}件を読む ›`,   // 絵文字は線のアイコン（svg）に替えた
+
         `[readable>0] カードの件数がwritten commentの数(${expected})と違う（${label}）`);
   await p.close();
 }

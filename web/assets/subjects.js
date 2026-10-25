@@ -65,7 +65,7 @@ function renderRail(){
   box.hidden = !picked.length;
   box.innerHTML = picked.map(k => chip(k, L[k], { on: true })).join("");
   document.getElementById("subjOpen").innerHTML =
-    (picked.length ? "タグを足す・変える" : "何の話？") + '<span aria-hidden="true"> ▸</span>';
+    (picked.length ? "タグを足す・変える" : "テーマを選ぶ") + '<span aria-hidden="true"> ▸</span>';
 }
 
 /* ── ダイアログ ───────────────────────────
@@ -80,7 +80,7 @@ function mountDialog(){
   dlg.setAttribute("aria-labelledby", "subjTitle");
   dlg.innerHTML = `<div class="subjCard">
     <div class="subjHead">
-      <h2 id="subjTitle">何の話がききたい？</h2>
+      <h2 id="subjTitle">どんなテーマの授業？</h2>
       <button type="button" class="subjClose" aria-label="閉じる">✕</button>
     </div>
     <input type="search" class="subjFind" id="subjFind" placeholder="タグを探す（例：歴史、AI）"
