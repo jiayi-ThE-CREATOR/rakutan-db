@@ -1476,3 +1476,32 @@ html{scroll-behavior:smooth}
 @media (prefers-reduced-motion:reduce){
   .rail,html.fsOn .rail,.fsScrim{transition:none}
 }
+
+/* ── 口コミを目立たせる（2026-10-25 hayashi）────────────
+   口コミはラクハンでいちばん読んでほしいもの。カードでも詳細でも、
+   ブランドの淡い地（--brand-soft）で囲んで、ほかの灰色の情報から浮かせる。 */
+/* カード：「口コミ N件を読む」を緑の札から、橙の枠の箱に。2行目の一言は本文の色で読ませる */
+.rvBtn{background:var(--brand-soft);color:var(--brand-text);border-color:var(--brand-line);
+  border-radius:var(--r-md)}
+.rvBtn small{color:var(--ink);font-size:var(--fs-sm)}
+.rvBtn:hover{border-color:var(--brand)}
+/* 詳細：先頭の口コミの箱 */
+.dRv{background:var(--brand-soft);border:1px solid var(--brand-line);border-radius:var(--r-md);
+  padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-4)}
+.dRvH{display:flex;align-items:baseline;gap:var(--sp-2);flex-wrap:wrap}
+.dRvH .secH{margin:0;color:var(--brand-text)}
+.dRvSub{font-size:var(--fs-xs);color:var(--soft)}
+.dRv .dQuote{margin-top:var(--sp-3);background:var(--card)}
+.dRv .rvf span{background:var(--card)}
+.dRvActs{display:flex;flex-wrap:wrap;gap:var(--sp-2) var(--sp-4);align-items:center;margin-top:var(--sp-3)}
+.dRvAll{display:inline-block;padding:10px var(--sp-4);border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);font-weight:700;font-size:var(--fs-sm);text-decoration:none}
+.dRvWrite{color:var(--brand-text);font-size:var(--fs-sm);font-weight:700;text-decoration:none}
+.dRvWrite:hover{text-decoration:underline}
+.dRvEmpty{background:var(--paper);border-style:dashed;border-color:var(--rule)}
+.dRvEmpty p{margin:0 0 var(--sp-2);font-size:var(--fs-sm);color:var(--soft)}
+/* 箱の中は幅が狭い（スマホのカード内・PC の右カラム）。余白を詰め、
+   「2.0 / 2」が途中で折れないようにする */
+.dRv{padding:var(--sp-3)}
+.dRv .rvf span{padding:var(--sp-2)}
+.dRv .rvf b{white-space:nowrap}

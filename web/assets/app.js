@@ -1646,6 +1646,16 @@ $("#list").addEventListener("click", e => {
   openPanel(btn.dataset.id);
 });
 
+/* 詳細の口コミの箱の「すべて読む」（2026-10-25）。PC の右カラム（#inspector）は
+   #list の外にあるので、document で受ける。href は /?c=<id> なので、
+   ここで止めなければ共有リンクと同じ道でパネルが開く（マイページはそちらを通る）。 */
+document.addEventListener("click", e => {
+  const a = e.target.closest("a[data-rv-open]");
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  e.preventDefault();
+  openPanel(a.dataset.rvOpen);
+});
+
 /* ── 一覧のページング ───────────────────
  * 無限スクロールをやめた理由：
  * 1,112件が終わりなく流れるだけで、終点も現在位置も分からなかった。
