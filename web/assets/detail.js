@@ -141,7 +141,10 @@ const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flow
    それでも置くのは、ラクハンで決めた科目を登録しに行くたびに
    新しいタブで KOAN を探す手間を省くため。押した瞬間に時間割コードを
    クリップボードへ入れておくので、KOAN で「未登録」を押したら貼るだけで済む。
-   mypage.js の時間割の上のボタンも同じ URL を使う（window.rkDetail 経由）。 */
+   mypage.js の時間割の上のボタンも同じ URL を使う（window.rkDetail 経由）。
+   2026-10-25：科目の詳細からは外した（hayashi の依頼）。詳細で開きたいのは
+   入口のログイン画面ではなく「この授業のページ」なので、詳細の主ボタンは
+   koanUrl(c)（この科目の公式シラバス）にした。入口はマイページの時間割の上に残る。 */
 const KOAN_TOP = "https://koan.osaka-u.ac.jp/campusweb/campusportal.do";
 
 /* リンクそのものはブラウザに開かせる（preventDefault しない）。
@@ -311,9 +314,7 @@ function detailHtml(c, opts = {}){
           : `${reviewHtml(c)}${first ? `<p class="dQuote">${esc(first)}</p>` : ""}`}
       </div>` : ""}
       <div class="dActs">
-        <a class="koanLink koanReg" href="${KOAN_TOP}" target="_blank" rel="noopener noreferrer"
-           data-code="${esc(c.id)}">KOANを開いて履修登録する ↗<small>時間割コード ${esc(c.id)} をコピーして開きます</small></a>
-        <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
+        <a class="koanLink koanMain" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗<small>授業の内容・日程・成績のつけ方が載った公式ページが開きます</small></a>
       </div>
       <p class="fbReportLine"><button type="button" class="fbReport"
         data-fb-report="${esc(c.title)}（${esc(c.id)}）">⚑ この科目の情報がおかしい？</button></p>`;
