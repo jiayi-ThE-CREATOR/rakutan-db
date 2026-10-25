@@ -144,6 +144,15 @@ const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flow
    mypage.js の時間割の上のボタンも同じ URL を使う（window.rkDetail 経由）。 */
 const KOAN_TOP = "https://koan.osaka-u.ac.jp/campusweb/campusportal.do";
 
+/* 試作（2026-10-25）：絵文字は AI が作った感じに見えるので、線のアイコンにそろえる。 */
+const svg = d => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  chat: svg('<path d="M4 5h16v11H9l-5 4z"/>'),
+  chart: svg('<path d="M5 20V10M12 20V4M19 20v-7"/>'),
+  flag: svg('<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'),
+  book: svg('<path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/>'),
+};
+
 /* リンクそのものはブラウザに開かせる（preventDefault しない）。
    window.open を自前で呼ぶとポップアップ扱いで止められることがあるため。
    コピーは開くのと同時に走らせるだけで、失敗しても KOAN は開く
@@ -182,7 +191,9 @@ const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 
    出さない（2026-09-22 きむら指摘）。gate.js がまだ無い・落ちたときは
    伏せない（fail-open）―― 覆いと同じ考え方。件数（secH の N件）は出す。 */
 function gateLocked(){
-  return !!(window.rkGate && window.rkGate.linked && !window.rkGate.linked());
+  /* 試作（2026-10-25 hayashi）：LINE は「もっと便利」の位置づけにして、
+     ログインしないと読めないものを無くす。 */
+  return false;
 }
 
 /* 口コミの集計。モーダルの先頭に出す。
@@ -299,30 +310,41 @@ function detailHtml(c, opts = {}){
           ? `<div class="compNote">（参考）の出版年はシラバスに無く、ISBN から調べた値です。指定の版と違うことがあります</div>` : ""}
       </div>`
     : "";
-  return `${subj}<div class="dSec">
-        <div class="secH">成績評価の内訳</div>
-        ${evalCompHtml(c)}
-      </div>
-      ${book}
-      ${rn ? `<div class="dSec">
-        <div class="secH">口コミ <b>${rn}件</b></div>
-        ${gateLocked()
-          ? `<p class="gateLocked">🔒 口コミを読むには LINE 登録が要ります</p>`
-          : `${reviewHtml(c)}${first ? `<p class="dQuote">${esc(first)}</p>` : ""}`}
-      </div>` : ""}
-      <div class="dActs">
+  /* 試作（2026-10-25 hayashi）：最初に見えるのは「登録しに行く口」と口コミ・教科書だけ。
+     授業内容タグ・成績評価の内訳・時間割コードは「くわしく見る」に畳む（消さない）。 */
+  return `<div class="dActs dActsTop">
         <a class="koanLink koanReg" href="${KOAN_TOP}" target="_blank" rel="noopener noreferrer"
            data-code="${esc(c.id)}">KOANを開いて履修登録する ↗<small>時間割コード ${esc(c.id)} をコピーして開きます</small></a>
-        <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
       </div>
+      ${rn ? `<div class="dSec">
+        <div class="secH">口コミ <b>${rn}件</b></div>
+        ${reviewHtml(c)}${first ? `<p class="dQuote">${esc(first)}</p>` : ""}
+      </div>` : ""}
+      ${book}
+      <details class="dMore">
+        <summary>くわしく見る<small>授業内容・成績評価の内訳・時間割コード</small></summary>
+        ${subj}
+        <div class="dSec">
+          <div class="secH">成績評価の内訳</div>
+          ${evalCompHtml(c)}
+        </div>
+        <div class="dSec">
+          <div class="secH">時間割コード</div>
+          <p class="dCode">${esc(c.id)} <button type="button" class="ccC" data-code="${esc(c.id)}"
+            aria-label="時間割コード ${esc(c.id)} をコピー">コピー</button></p>
+        </div>
+        <div class="dActs">
+          <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
+        </div>
+      </details>
       <p class="fbReportLine"><button type="button" class="fbReport"
-        data-fb-report="${esc(c.title)}（${esc(c.id)}）">⚑ この科目の情報がおかしい？</button></p>`;
+        data-fb-report="${esc(c.title)}（${esc(c.id)}）">${ICON.flag}この科目の情報がおかしい？</button></p>`;
 }
 
 /* 呼ぶ側（app.js / mypage.js）に渡すのはこれだけ。
    app.js は rvLv・RV_ATT も使う（口コミを1件ずつ出す panelEntry）ので出しておく。 */
 window.rkDetail = {
-  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl, KOAN_TOP, subjectTagsHtml,
+  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl, KOAN_TOP, subjectTagsHtml, ICON,
   RV_ATT, rvLv, rvAvg,
 };
 

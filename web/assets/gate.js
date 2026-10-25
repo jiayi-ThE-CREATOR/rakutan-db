@@ -238,8 +238,9 @@
     }
     linked = !!state.linked;
     const els = targets();
-    if (state.linked) els.forEach(unlock);
-    else els.forEach(el => lock(el, state));
+    /* 試作（2026-10-25 hayashi）：覆いはかけない。ログインは「もっと便利」の位置づけ。 */
+    linked = true;
+    els.forEach(unlock);
   }
 
   /* 最初の判定が終わるまでを、外から待てるようにする。

@@ -1476,3 +1476,35 @@ html{scroll-behavior:smooth}
 @media (prefers-reduced-motion:reduce){
   .rail,html.fsOn .rail,.fsScrim{transition:none}
 }
+
+/* ── 試作（2026-10-25 hayashi）：詳細を「登録の口 → 口コミ → 教科書 → くわしく（畳む）」に ── */
+.ico{width:1.05em;height:1.05em;vertical-align:-.17em;margin-right:.3em;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.dActsTop{margin-top:0;padding-top:0;border-top:0;margin-bottom:var(--sp-3)}
+.bookBuy{display:flex;flex-wrap:wrap;gap:6px 12px;margin:4px 0 2px;font-size:var(--fs-sm)}
+.bookBuy a{color:var(--brand-text);text-decoration:none;font-weight:600}
+.bookBuy a:hover{text-decoration:underline}
+.bookBuy .bookUsed{display:inline-flex;align-items:center;padding:4px 10px;border-radius:var(--r-pill);
+  background:var(--brand-soft);border:1px solid var(--brand-line)}
+.dMore{margin-top:var(--sp-4);border-top:1px solid var(--rule);padding-top:var(--sp-2)}
+.dMore>summary{cursor:pointer;font-weight:700;font-size:var(--fs-sm);padding:8px 0;list-style:none;color:var(--soft)}
+.dMore>summary::-webkit-details-marker{display:none}
+.dMore>summary::before{content:"＋";display:inline-block;width:1.4em;color:var(--brand-text)}
+.dMore[open]>summary::before{content:"－"}
+.dMore>summary small{font-weight:400;color:var(--muted);margin-left:.6em}
+.dCode{margin:0;font-variant-numeric:tabular-nums;font-size:var(--fs-sm)}
+.dCode .ccC{margin-left:.6em}
+
+/* ── 試作（2026-10-25 hayashi）：文字と色を減らして「どこを見ればいいか」をはっきりさせる ──
+   カードで目に入るのは「科目名」と「ラク度」の2つだけにする。 */
+/* 出どころは色付きの札ではなく、ランクに添える灰色の注記 */
+.card .reason .band[class*="rk"]{background:none;padding:0;font-weight:400;font-size:12px;color:var(--muted)}
+/* 先頭の見出しは小さく。一覧がすぐ下に見えるように */
+.hero{padding-top:var(--sp-4);padding-bottom:var(--sp-4)}
+.heroT{font-size:clamp(22px,3vw,32px);margin-bottom:var(--sp-2)}
+.heroP{margin-bottom:var(--sp-2);font-size:var(--fs-sm)}
+.heroCta{display:none}   /* 一覧はすぐ下にあるので「科目をさがす」ボタンは要らない */
+/* 操作の段は地の色を敷かない。口コミは塗りの帯ではなく文字のリンクに */
+.cardActs{background:none;padding-top:var(--sp-2);padding-bottom:var(--sp-2)}
+.rvBtn{background:none;color:var(--brand-text);padding-left:0;min-height:40px}
+.rvBtn:hover{border-color:transparent;text-decoration:underline}
