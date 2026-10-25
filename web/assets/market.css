@@ -1,0 +1,182 @@
+/* 教科書マーケット（試作）。モバイルを先に書き、PC は min-width で足す。 */
+.mk{ max-width:1180px; margin:0 auto; padding:16px 16px 72px; }
+.mkHead{ margin-bottom:12px; }
+.mkTitle{ font-size:22px; margin:4px 0 6px; }
+.mkProto{ margin:0; font-size:13px; color:var(--soft); background:var(--brand-soft);
+  border:1px solid var(--brand-line); border-radius:10px; padding:8px 12px; }
+
+.mkTabs{ display:flex; gap:4px; border-bottom:1px solid var(--rule); margin:14px 0 16px; }
+.mkTabs button{ flex:1; font:inherit; font-weight:700; font-size:15px; padding:12px 8px;
+  background:none; border:0; border-bottom:3px solid transparent; color:var(--muted); cursor:pointer; }
+.mkTabs button[aria-selected="true"]{ color:var(--ink); border-bottom-color:var(--brand); }
+
+/* 予約中・確認中（自分の分） */
+.mkMine{ border:1px solid var(--rule); background:var(--card); border-radius:12px; padding:12px 14px; margin-bottom:16px; }
+.mkMine h3{ font-size:14px; margin:0 0 8px; }
+.mkMine ul{ list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+.mkMine li{ display:flex; gap:8px; align-items:baseline; font-size:13px; flex-wrap:wrap; }
+.mkMine li b{ font-weight:700; }
+.mkMine li small{ color:var(--muted); }
+.mkMine button{ margin-left:auto; font:inherit; font-size:12px; background:none; border:0; color:var(--muted); text-decoration:underline; cursor:pointer; }
+
+.mkBody{ display:grid; gap:16px; }
+.mkSide{ display:grid; gap:12px; align-content:start; }
+.mkBox{ background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:12px; }
+.mkBoxH{ font-size:13px; font-weight:700; margin-bottom:8px; display:flex; align-items:center; }
+.mkClear{ margin-left:auto; font:inherit; font-size:12px; background:none; border:0; color:var(--brand-text); cursor:pointer; }
+.mkHint{ margin:6px 0 0; font-size:12px; color:var(--muted); }
+
+.mkChip{ font:inherit; font-size:13px; padding:7px 12px; border-radius:999px; cursor:pointer;
+  border:1px solid var(--rule); background:var(--card); color:var(--ink); }
+.mkChip[aria-pressed="true"]{ background:var(--brand-soft); border-color:var(--brand); color:var(--brand-text); font-weight:700; }
+
+/* スマホでは曜限・学期を畳む（棚を先に見せる）。PC では開いておく（market.js） */
+.mkMoreF{ display:grid; gap:12px; }
+.mkMoreF>summary{ cursor:pointer; font-size:14px; font-weight:700; padding:10px 12px; border-radius:12px;
+  border:1px solid var(--rule); background:var(--card); list-style:none; }
+.mkMoreF>summary::-webkit-details-marker{ display:none; }
+.mkMoreF>summary::after{ content:"＋"; float:right; color:var(--brand-text); }
+.mkMoreF[open]>summary::after{ content:"－"; }
+.mkMoreF[open]{ gap:12px; }
+.mkMoreF[open]>*+*{ margin-top:12px; }
+.mkUse .mine .mkTag{ margin-left:4px; }
+/* 曜限カレンダー（トップの空きコマグリッドと同じ並び） */
+.mkGrid{ display:grid; grid-template-columns:22px repeat(5,1fr); gap:3px; font-size:12px; }
+.mkGrid span{ text-align:center; color:var(--muted); align-self:center; }
+.mkGrid button{ font:inherit; font-size:11px; height:30px; border-radius:6px; cursor:pointer;
+  border:1px solid var(--dim); background:var(--paper); color:var(--muted); padding:0; }
+.mkGrid button.has{ color:var(--ink); background:var(--card); border-color:var(--rule); }
+.mkGrid button.mine{ box-shadow:inset 0 -3px 0 var(--brand-line); }
+.mkGrid button[aria-pressed="true"]{ background:var(--brand); border-color:var(--brand); color:var(--brand-ink); font-weight:700; }
+
+.mkSeg{ display:flex; gap:4px; }
+.mkSeg button{ flex:1; font:inherit; font-size:13px; padding:7px 4px; border-radius:8px; cursor:pointer;
+  border:1px solid var(--rule); background:var(--card); color:var(--ink); }
+.mkSeg button[aria-pressed="true"]{ background:var(--brand-soft); border-color:var(--brand); color:var(--brand-text); font-weight:700; }
+.mkCheck{ font-size:13px; display:flex; gap:8px; align-items:center; padding:2px 4px; }
+
+.mkBar{ display:flex; gap:10px; align-items:center; margin-bottom:12px; }
+.mkBar input{ flex:1; min-width:0; font:inherit; font-size:15px; padding:10px 12px;
+  border:1px solid var(--rule); border-radius:10px; background:var(--card); color:var(--ink); }
+.mkCount{ font-size:13px; color:var(--muted); white-space:nowrap; }
+
+/* 棚：横に並ぶ教科書カード（写真＋科目名） */
+.mkShelf{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.mkCard{ display:flex; flex-direction:column; text-align:left; font:inherit; color:inherit; cursor:pointer;
+  background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:0; overflow:hidden; }
+.mkCard:hover{ border-color:var(--brand-line); }
+.mkCard:focus-visible{ outline:2px solid var(--brand); outline-offset:2px; }
+.mkCardB{ padding:10px 10px 12px; display:grid; gap:4px; }
+.mkCardT{ font-size:13px; font-weight:700; line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.mkCardC{ font-size:12px; color:var(--soft); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+
+/* 仮の表紙。本番では出品者の写真に置き換える */
+.mkCover{ aspect-ratio:3/4; display:flex; flex-direction:column; justify-content:space-between;
+  padding:12px 10px; color:#fff; font-size:13px; font-weight:700; line-height:1.35; position:relative; }
+.mkCover small{ font-size:10px; font-weight:400; opacity:.85; }
+.mkCover .t{ display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical; overflow:hidden; }
+.mkCover img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+
+.mkSt{ font-size:12px; font-weight:700; display:flex; gap:6px; align-items:baseline; flex-wrap:wrap; }
+.mkSt.ok{ color:var(--brand-text); }
+.mkSt.wait{ color:var(--soft); }
+.mkSt.none{ color:var(--muted); font-weight:400; }
+.mkSt b{ font-size:15px; }
+.mkTag{ font-size:11px; font-weight:700; border-radius:4px; padding:1px 6px; background:var(--dim); color:var(--soft); }
+.mkTag.mine{ background:var(--brand-soft); color:var(--brand-text); }
+
+.mkMore{ display:block; margin:16px auto 0; font:inherit; font-size:14px; padding:10px 24px; border-radius:999px;
+  border:1px solid var(--rule); background:var(--card); color:var(--ink); cursor:pointer; }
+.mkEmpty{ grid-column:1/-1; color:var(--muted); font-size:14px; padding:24px 0; text-align:center; }
+
+/* ダイアログ（本の中身・予約） */
+.mkDlg{ border:0; border-radius:16px; padding:0; width:min(560px,94vw); max-height:90vh;
+  background:var(--card); color:var(--ink); box-shadow:0 10px 40px var(--shadow-modal); }
+.mkDlg::backdrop{ background:var(--scrim); }
+.mkDlgIn{ padding:20px; display:grid; gap:14px; }
+.mkDlgTop{ display:grid; grid-template-columns:96px 1fr; gap:14px; }
+.mkDlgTop .mkCover{ border-radius:8px; font-size:11px; padding:8px; }
+.mkDlg h3{ margin:0 0 4px; font-size:17px; line-height:1.4; }
+.mkMeta{ font-size:12px; color:var(--muted); line-height:1.6; }
+.mkX{ position:sticky; top:0; float:right; margin:10px 10px 0 0; font:inherit; font-size:20px; width:36px; height:36px;
+  border-radius:50%; border:0; background:var(--paper); color:var(--soft); cursor:pointer; }
+.mkSecH{ font-size:13px; font-weight:700; margin:0 0 6px; }
+.mkUse{ list-style:none; margin:0; padding:0; font-size:13px; display:grid; gap:4px; max-height:150px; overflow:auto; }
+.mkUse a{ color:var(--ink); }
+.mkUse i{ font-style:normal; color:var(--muted); font-size:12px; margin-right:6px; display:inline-block; min-width:3.2em; }
+.mkUse .mine{ font-weight:700; }
+
+.mkStock{ list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+.mkStock label{ display:flex; gap:10px; align-items:center; border:1px solid var(--rule); border-radius:10px; padding:10px 12px; cursor:pointer; font-size:14px; }
+.mkStock input{ accent-color:var(--brand); }
+.mkStock b{ margin-left:auto; font-size:16px; }
+.mkStock label:has(input:checked){ border-color:var(--brand); background:var(--brand-soft); }
+
+.mkNew{ display:flex; gap:8px; flex-wrap:wrap; }
+.mkExt{ font-size:13px; padding:8px 12px; border-radius:8px; border:1px solid var(--rule); color:var(--ink); text-decoration:none; background:var(--paper); }
+.mkExt small{ display:block; font-size:11px; color:var(--muted); }
+
+.mkSlots{ display:grid; gap:6px; }
+.mkSlot{ display:flex; gap:10px; align-items:center; border:1px solid var(--rule); border-radius:10px; padding:9px 12px; cursor:pointer; font-size:14px; }
+.mkSlot input{ accent-color:var(--brand); }
+.mkSlot small{ color:var(--muted); font-size:12px; }
+.mkSlot .free{ margin-left:auto; font-size:11px; font-weight:700; color:var(--brand-text); background:var(--brand-soft); border-radius:4px; padding:1px 6px; }
+.mkSlot .busy{ margin-left:auto; font-size:11px; color:var(--muted); }
+.mkSlot:has(input:checked){ border-color:var(--brand); background:var(--brand-soft); }
+.mkPlace{ font-size:12px; color:var(--muted); margin:0 0 6px; }
+
+.mkPrimary{ font:inherit; font-weight:700; font-size:15px; padding:13px 16px; border-radius:12px; border:0; cursor:pointer;
+  background:var(--brand); color:var(--brand-ink); width:100%; }
+.mkPrimary:disabled{ background:var(--dim); color:var(--muted); cursor:not-allowed; }
+.mkSub{ font:inherit; font-size:14px; padding:10px; border-radius:10px; border:1px solid var(--rule); background:none; color:var(--ink); cursor:pointer; width:100%; }
+.mkDone{ text-align:center; display:grid; gap:10px; padding:8px 0; }
+.mkDone .ok{ width:48px; height:48px; margin:0 auto; border-radius:50%; background:var(--brand-soft); display:grid; place-items:center; }
+.mkDone .ok svg{ width:26px; height:26px; fill:none; stroke:var(--brand-text); stroke-width:3; }
+.mkDone dl{ text-align:left; margin:0; font-size:14px; display:grid; grid-template-columns:auto 1fr; gap:6px 12px;
+  background:var(--paper); border-radius:10px; padding:12px; }
+.mkDone dt{ color:var(--muted); }
+.mkDone dd{ margin:0; font-weight:700; }
+
+/* 売る */
+.mkSellIntro h3{ font-size:16px; margin:0 0 6px; }
+.mkSellIntro p{ font-size:13px; color:var(--soft); margin:0 0 16px; line-height:1.7; }
+.mkSteps{ display:grid; gap:14px; max-width:640px; }
+.mkStep{ border:1px solid var(--rule); border-radius:12px; padding:12px 14px 14px; margin:0; background:var(--card); display:grid; gap:8px; min-width:0; }
+.mkStep legend{ font-weight:700; font-size:14px; padding:0 4px; display:flex; gap:8px; align-items:center; }
+.mkStep legend i{ font-style:normal; width:22px; height:22px; border-radius:50%; background:var(--brand); color:var(--brand-ink); display:grid; place-items:center; font-size:12px; }
+.mkStep input[type="search"]{ font:inherit; font-size:15px; padding:9px 12px; border:1px solid var(--rule); border-radius:10px; background:var(--card); color:var(--ink); }
+.mkSegWide button{ padding:10px 4px; }
+.mkPick{ display:grid; gap:4px; }
+.mkPick button, .mkSug button{ font:inherit; text-align:left; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--dim); background:var(--paper); color:var(--ink); cursor:pointer; }
+.mkPick small, .mkSug small{ display:block; color:var(--muted); font-size:11px; }
+.mkSug{ display:grid; gap:4px; }
+.mkSugH{ font-size:12px; color:var(--brand-text); font-weight:700; }
+.mkPicked{ display:flex; gap:8px; align-items:center; font-size:14px; font-weight:700; background:var(--brand-soft); border:1px solid var(--brand); border-radius:10px; padding:10px 12px; }
+.mkPicked button{ margin-left:auto; font:inherit; font-size:12px; font-weight:400; background:none; border:0; color:var(--brand-text); text-decoration:underline; cursor:pointer; }
+.mkPhoto{ display:inline-flex; align-items:center; gap:8px; font-size:14px; padding:10px 14px; border:1px dashed var(--rule); border-radius:10px; cursor:pointer; width:fit-content; }
+.mkPhoto input{ position:absolute; opacity:0; width:1px; height:1px; }
+.mkThumbs{ display:flex; gap:6px; flex-wrap:wrap; }
+.mkThumbs img{ width:64px; height:64px; object-fit:cover; border-radius:6px; border:1px solid var(--rule); }
+.mkRule{ font-size:12px; color:var(--muted); margin:0; }
+
+/* LINE は「もっと便利」。必須にはしない */
+.mkLine{ display:flex; gap:12px; align-items:flex-start; margin-top:28px; padding:14px 16px; border-radius:12px;
+  background:var(--card); border:1px solid var(--rule); font-size:13px; line-height:1.6; }
+.mkLine svg{ flex:none; width:26px; height:26px; fill:var(--sns-line); }
+.mkLine b{ display:block; font-size:14px; }
+.mkLine span{ color:var(--soft); }
+
+@media (min-width:640px){
+  .mkShelf{ grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media (min-width:1024px){
+  .mk{ padding-top:24px; }
+  .mkTabs{ max-width:420px; }
+  .mkBody{ grid-template-columns:260px 1fr; align-items:start; }
+  .mkSide{ position:sticky; top:16px; }
+  .mkMoreF>summary{ display:none; }
+  .mkShelf{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+}
+@media (min-width:1280px){
+  .mkShelf{ grid-template-columns:repeat(5,minmax(0,1fr)); }
+}

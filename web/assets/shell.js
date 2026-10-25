@@ -12,6 +12,7 @@
             : here.startsWith("/ads") ? "ads"
             : here.startsWith("/about") ? "about"
             : here.startsWith("/mypage") ? "mypage"
+            : here.startsWith("/market") ? "market"
             : here.startsWith("/kuchikomi") ? "kuchikomi" : null;
   if (!key) return;
   /* マイページはナビの外（ヘッダ右端の .hdMy）に出したので、

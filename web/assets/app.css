@@ -64,6 +64,8 @@ h1 small{font-size:var(--fs-hdr-sub);font-weight:400;letter-spacing:.02em;
              border-color var(--dur) var(--ease-out)}
 .nav a:hover{color:var(--on-dark)}
 .nav a[aria-current="page"]{color:var(--on-dark);border-bottom-color:var(--brand)}
+.nav .navS{display:none}
+@media (max-width:1023px){ .nav .navL{display:none} .nav .navS{display:inline} .nav{gap:var(--sp-3)} }
 .nav .ext{font-size:10px;margin-left:2px;opacity:.7}
 
 /* 口コミを書く。ナビの中でここだけ塗る。
@@ -1476,3 +1478,21 @@ html{scroll-behavior:smooth}
 @media (prefers-reduced-motion:reduce){
   .rail,html.fsOn .rail,.fsScrim{transition:none}
 }
+
+/* ── 試作（2026-10-25 hayashi）：詳細を「登録の口 → 口コミ → 教科書 → くわしく（畳む）」に ── */
+.ico{width:1.05em;height:1.05em;vertical-align:-.17em;margin-right:.3em;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.dActsTop{margin-top:0;padding-top:0;border-top:0;margin-bottom:var(--sp-3)}
+.bookBuy{display:flex;flex-wrap:wrap;gap:6px 12px;margin:4px 0 2px;font-size:var(--fs-sm)}
+.bookBuy a{color:var(--brand-text);text-decoration:none;font-weight:600}
+.bookBuy a:hover{text-decoration:underline}
+.bookBuy .bookUsed{display:inline-flex;align-items:center;padding:4px 10px;border-radius:var(--r-pill);
+  background:var(--brand-soft);border:1px solid var(--brand-line)}
+.dMore{margin-top:var(--sp-4);border-top:1px solid var(--rule);padding-top:var(--sp-2)}
+.dMore>summary{cursor:pointer;font-weight:700;font-size:var(--fs-sm);padding:8px 0;list-style:none;color:var(--soft)}
+.dMore>summary::-webkit-details-marker{display:none}
+.dMore>summary::before{content:"＋";display:inline-block;width:1.4em;color:var(--brand-text)}
+.dMore[open]>summary::before{content:"－"}
+.dMore>summary small{font-weight:400;color:var(--muted);margin-left:.6em}
+.dCode{margin:0;font-variant-numeric:tabular-nums;font-size:var(--fs-sm)}
+.dCode .ccC{margin-left:.6em}

@@ -747,7 +747,7 @@ document.addEventListener("click", async e => {
 /* 連携していないか。gate.js がまだ読めていない・落ちたときは false＝
    伏せない（fail-open）。覆いと同じ考え方（gate.js の冒頭参照）。 */
 function gateLocked(){
-  return !!(window.rkGate && window.rkGate.linked && !window.rkGate.linked());
+  return false;   // 試作（2026-10-25）：ログインは「もっと便利」。読めないものを作らない
 }
 
 /* band の下の ※ の行。「口コミが集まれば数字が出る」科目にだけ出す。
@@ -807,14 +807,14 @@ function cardActsHtml(c){
   let read;
   if (readable){
     read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
-         <span>💬 口コミ ${readable}件を読む ›</span>${
+         <span>${window.rkDetail.ICON.chat}口コミ ${readable}件を読む ›</span>${
            first ? `<small>「${esc(first)}」ほか</small>` : ""}
        </button>
        <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
           title="この科目の口コミを書く">✎</a>`;
   } else if (n){
     read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
-         <span>📊 口コミ ${n}件を見る</span>
+         <span>${window.rkDetail.ICON.chart}口コミ ${n}件を見る</span>
        </button>
        <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
           title="この科目の口コミを書く">✎</a>`;
@@ -841,7 +841,7 @@ function rankBlockHtml(c){
     : `<div class="fit"><b>—</b><small>負担</small></div>`;
   const src = futanSrc(c);
   const low = r.band === "参考値" ? "（参考値）" : "";
-  const pct = (rank && m.fit !== null && m.fit !== undefined)
+  const pct = (false && rank && m.fit !== null && m.fit !== undefined)
     ? (prefChanged()
         ? `<span class="pct">あなたとの相性度 <b>${Math.round(m.fit)}%</b></span>`
         : `<span class="pctHint">配分を動かすと、あなたとの相性度が出ます</span>`)
@@ -886,13 +886,11 @@ function card(c){
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.room||c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
+        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.room||c.campus||"—")}</span></div>
       </div>
       ${rankBlockHtml(c)}
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
-      ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
-    ${subj}
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
             aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
     ${cardActsHtml(c)}
