@@ -220,10 +220,10 @@ function reviewHtml(c){
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
   const rows = f.filter(([, v]) => v);
   if (!rows.length) return "";
-  /* 全幅にする条件は2つ（2026-09-07 の実測から）。値が長い／ラベルが長い。
+  /* 全幅にする条件は2つ（2026-09-07 の実測から）。値が長い（「人によって違う」の7文字から）／ラベルが長い。
      390px では半幅セルが 159px しかなく、ラベルは6文字までしか1行に収まらない。 */
   const cell = ([k, v]) =>
-    `<span${(String(v).length > 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
+    `<span${(String(v).length >= 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
   return `<div class="rv">
       <div class="rvf">${rows.map(cell).join("")}</div>
       <span class="bandNote">${r.n}人の答えをまとめたものです${
