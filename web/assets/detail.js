@@ -188,33 +188,46 @@ function gateLocked(){
 /* 口コミの集計。モーダルの先頭に出す。
    一言3件（.rvn）は廃止した ―― モーダルに全件が1件ずつ出るので重複になる。
    値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。 */
+/* 集計を言葉で出す（2026-10-25 hayashi）。
+ *
+ * それまでは「0.3 / 2」のような 0〜2 の平均を出していたが、何の数字か読めない
+ * （「2分の何がボスなのか分からない」本人指摘）。上の 2026-08-24 の注記が数字にした
+ * 理由は「平均を言葉に通すと、誰も答えていない選択肢を出す」こと（なし＋毎回＝平均1.0
+ * →「たまに」）。それは reviews.py の conflicts（いちばん軽い答えと重い答えが両方ある項目）
+ * が拾っているので、そこは「人によって違う」と出す。conflicts が無い項目は答えが
+ * 隣り合う2つの選択肢までにしか散っていないので、近い方の言葉にしても嘘にならない。 */
+const ATT_WORD  = v => v < 0.5 ? "取らない" : v < 1.5 ? "ときどき取る" : "毎回取る";
+const LOAD_WORD = v => v < 0.5 ? "軽い" : v < 1.5 ? "ふつう" : "重い";
+const HARD_WORD = v => v <= 3 ? "易しい" : v <= 6 ? "ふつう" : "難しい";
+
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
-  const f = [["出席", rvAvg(r.attendance)],
-             ["授業中の課題", rvAvg(r.in_class)],
-             ["授業外の課題", rvAvg(r.out_class)]];
-  if (r.exam_hard10 != null) f.push(["テストの難易度", `${r.exam_hard10} / 10`]);
+  const split = new Set(r.conflicts || []);
+  const word = (key, fn) => r[key] == null ? null : split.has(key) ? "人によって違う" : fn(r[key]);
+  /* 答えが無い項目（新しい形式の口コミだけの科目など）は行ごと出さない ―― 「―」を並べても読めない。 */
+  const f = [["出席", word("attendance", ATT_WORD)],
+             ["授業中の課題", word("in_class", LOAD_WORD)],
+             ["授業外の課題", word("out_class", LOAD_WORD)]];
+  if (r.exam_hard10 != null)
+    f.push(["テストの難しさ", split.has("exam_hard10") ? "人によって違う" : `${HARD_WORD(r.exam_hard10)}（10段階で${r.exam_hard10}）`]);
   /* 「その他（持ち帰り形式）」等は 可／不可 に畳むと情報が落ちるので、
      畳んだ値に原文を添えて出す ―― 「可（持ち帰り形式）」。 */
   if (r.exam_bring){
     const m = (r.exam_bring_raw || "").match(/^その他[（(](.+)[）)]$/);
-    f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
+    f.push(["持ち込み", split.has("exam_bring") ? "人によって違う" : (m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring)]);
   }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  /* 全幅にする条件は2つ。どちらも実データ・実測から引いた（2026-09-07）。
-     ・値が長い ―― 数値側の最長「2.0 / 2」＝7文字と、持ち込みの括弧つき最短
-       「可（オンライン）」＝8文字のあいだに境界を置く。
-     ・ラベルが長い ―― 390px では半幅セルが 159px しかなく、ラベルは6文字までしか
-       1行に収まらない（「授業中の課題」＝6文字は 21px の1行、
-       「テストの難易度」＝7文字は 42px の2行になる。実測）。
-       ラベルは固定文字列なので、値の長さでは拾えない。 */
+  const rows = f.filter(([, v]) => v);
+  if (!rows.length) return "";
+  /* 全幅にする条件は2つ（2026-09-07 の実測から）。値が長い（「人によって違う」の7文字から）／ラベルが長い。
+     390px では半幅セルが 159px しかなく、ラベルは6文字までしか1行に収まらない。 */
   const cell = ([k, v]) =>
-    `<span${(String(v).length > 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
+    `<span${(String(v).length >= 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
   return `<div class="rv">
-      <div class="rvf">${f.map(cell).join("")}</div>
-      <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
-        r.conflicts?.length ? "。<b>答えが割れている項目があります</b>ので、下の1件ずつを読んでください" : ""}</span>
+      <div class="rvf">${rows.map(cell).join("")}</div>
+      <span class="bandNote">${r.n}人の答えをまとめたものです${
+        split.size ? "。「人によって違う」の項目は、1件ずつの口コミを読んでください" : ""}</span>
     </div>`;
 }
 
