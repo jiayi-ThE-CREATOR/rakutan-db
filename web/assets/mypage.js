@@ -159,7 +159,7 @@ function renderLine(){
   /* メールでログインした人。LINE につながっていなければ「LINE でもログイン」を残す（wang 指定）。 */
   if (lineState && lineState.configured && lineState.loggedIn && lineState.via === "mail"){
     body.innerHTML = `
-      <p class="mpLineOk"><span>✉️ メールでログイン中</span></p>
+      <p class="mpLineOk"><span>メールでログイン中</span></p>
       ${methodsRow()}
       ${methods.line ? "" : `
         <button type="button" class="mpLineBtn" id="mpLineLink">${LINE_MARK}<span>LINE でもログイン（つなぐ）</span></button>
@@ -869,7 +869,7 @@ function renderFavorites(){
   const ids = rkStore.getFavorites();
   if (!ids.length){
     $("#mpFavList").innerHTML =
-      `<p class="mpEmpty">まだありません。科目の一覧で ☆ を押すと、ここに溜まります。</p>`;
+      `<p class="mpEmpty">まだありません。科目の一覧で ☆ を押すと、ここに並びます。</p>`;
     return;
   }
   const tt = rkStore.getTimetable(term);

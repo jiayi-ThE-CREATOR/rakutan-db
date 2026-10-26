@@ -51,3 +51,15 @@
 
   sync();
 })();
+
+/* #data・#userdata は「くわしく知りたい人へ」の中に畳んである（2026-10-25）。
+   外からそこへ飛んできた人に閉じたままの見出しだけ見せないよう、開いてから寄せる。 */
+(() => {
+  const openTarget = () => {
+    const id = decodeURIComponent(location.hash.slice(1));
+    const el = id && document.getElementById(id);
+    if (el && el.tagName === "DETAILS" && !el.open){ el.open = true; el.scrollIntoView(); }
+  };
+  openTarget();
+  window.addEventListener("hashchange", openTarget);
+})();

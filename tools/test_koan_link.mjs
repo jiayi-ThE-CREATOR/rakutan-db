@@ -3,7 +3,8 @@
  *   node tools/test_koan_link.mjs http://127.0.0.1:8833
  *
  * 見ること:
- *   - 詳細の a.koanReg が KOAN の入口を新しいタブで開き、押すと時間割コードがクリップボードに入る
+ *   - 詳細の主ボタン（a.koanMain）が、その科目の KOAN 公式シラバスを新しいタブで開く
+ *     （2026-10-25 に「KOANを開いて履修登録する」から置き換えた）
  *   - マイページの #mpKoan が同じ URL を指す
  *   - 360px 幅でマイページのツールバーが横にはみ出さない（ボタンが2つになったため）
  * KOAN へは実際には繋がない（新しいタブは開いた瞬間に中止する）。 */
@@ -33,16 +34,16 @@ for (const [label, viewport] of [["PC", { width: 1280, height: 900 }], ["スマ�
   const card = page.locator("#list > .card").first();
   const id = await card.getAttribute("data-id");
   await card.locator(".head .title").click();
-  const reg = page.locator(`a.koanReg[data-code="${id}"]`).first();
-  await reg.waitFor({ state: "visible" });
-  check(await reg.getAttribute("href") === KOAN, `[${label}] 詳細の KOAN ボタンの href が違う`);
-  check(await reg.getAttribute("target") === "_blank", `[${label}] 詳細の KOAN ボタンが新しいタブで開かない`);
-  const [popup] = await Promise.all([ctx.waitForEvent("page"), reg.click()]);
+  const main = page.locator(".detail a.koanMain, #inspector a.koanMain").first();
+  await main.waitFor({ state: "visible" });
+  const href = await main.getAttribute("href");
+  check(href.includes("SYW4201600-flow") && href.includes(`j_cd=${id}`), `[${label}] 詳細の主ボタンがこの科目のシラバスを指していない: ${href}`);
+  check(await main.getAttribute("target") === "_blank", `[${label}] 詳細の主ボタンが新しいタブで開かない`);
+  const [popup] = await Promise.all([ctx.waitForEvent("page"), main.click()]);
   await popup.waitForLoadState().catch(() => {});
-  check(koanHits.includes(KOAN), `[${label}] 押しても KOAN のタブが開かない: ${JSON.stringify(koanHits)}`);
+  check(koanHits.some(u => u.includes(`j_cd=${id}`)), `[${label}] 押してもシラバスのタブが開かない: ${JSON.stringify(koanHits)}`);
   await popup.close();
-  const clip = await page.evaluate(() => navigator.clipboard.readText());
-  check(clip === id, `[${label}] コピーされたのが時間割コードではない: "${clip}" / 期待 "${id}"`);
+  check(await page.locator("a.koanReg").count() === 0, `[${label}] 詳細に「履修登録する」ボタンが残っている`);
   await page.screenshot({ path: `${process.env.SHOT_DIR || "."}/koan_detail_${label}.png` });
 
   /* ローカルの serve.py は /mypage → mypage.html を読み替えない（本番の Cloudflare は読み替える）。 */

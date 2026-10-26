@@ -798,6 +798,10 @@ h2{font-size:12px;letter-spacing:.1em;color:var(--muted);margin:0 0 9px;font-wei
 /* KOAN の入口へ（detail.js の KOAN_TOP）。2行目に「コードをコピーして開く」と
    書いておく ―― 押したら何が起きるか（クリップボードが書き換わる）を先に言う。 */
 .koanReg small{display:block;margin-top:2px;font-size:var(--fs-xs);font-weight:400}
+/* 詳細の主ボタン（2026-10-25）：この科目の KOAN 公式シラバスを開く。
+   詳細でいちばん押してほしいものなので面を塗る。2行目で「何が開くか」を先に言う。 */
+.koanMain{background:var(--brand);color:var(--brand-ink)}
+.koanMain small{display:block;margin-top:2px;font-size:var(--fs-xs);font-weight:400}
 
 /* ── 口コミを1件ずつ読む ─────────────────
    カードの中にあるのは集計（複数件なら平均）で、「2件の平均で出席はたまに」
@@ -1476,3 +1480,67 @@ html{scroll-behavior:smooth}
 @media (prefers-reduced-motion:reduce){
   .rail,html.fsOn .rail,.fsScrim{transition:none}
 }
+
+/* ── 試作（2026-10-25 hayashi）：詳細を「登録の口 → 口コミ → 教科書 → くわしく（畳む）」に ── */
+.ico{width:1.05em;height:1.05em;vertical-align:-.17em;margin-right:.3em;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.dActsTop{margin-top:0;padding-top:0;border-top:0;margin-bottom:var(--sp-3)}
+.dMore{margin-top:var(--sp-4);border-top:1px solid var(--rule);padding-top:var(--sp-2)}
+.dMore>summary{cursor:pointer;font-weight:700;font-size:var(--fs-sm);padding:8px 0;list-style:none;color:var(--soft)}
+.dMore>summary::-webkit-details-marker{display:none}
+.dMore>summary::before{content:"＋";display:inline-block;width:1.4em;color:var(--brand-text)}
+.dMore[open]>summary::before{content:"－"}
+.dMore>summary small{font-weight:400;color:var(--muted);margin-left:.6em}
+.dCode{margin:0;font-variant-numeric:tabular-nums;font-size:var(--fs-sm)}
+.dCode .ccC{margin-left:.6em}
+
+/* ── 試作（2026-10-25 hayashi）：文字と色を減らして「どこを見ればいいか」をはっきりさせる ──
+   カードで目に入るのは「科目名」と「ラク度」の2つだけにする。 */
+/* 出どころは色付きの札ではなく、ランクに添える灰色の注記 */
+.card .reason .band[class*="rk"]{background:none;padding:0;font-weight:400;font-size:12px;color:var(--muted)}
+/* 先頭の見出しは小さく。一覧がすぐ下に見えるように */
+.hero{padding-top:var(--sp-4);padding-bottom:var(--sp-4)}
+.heroT{font-size:clamp(22px,3vw,32px);margin-bottom:var(--sp-2)}
+.heroP{margin-bottom:var(--sp-2);font-size:var(--fs-sm)}
+.heroCta{display:none}   /* 一覧はすぐ下にあるので「科目をさがす」ボタンは要らない */
+/* 操作の段は地の色を敷かない（口コミの箱だけを浮かせる） */
+.cardActs{background:none;padding-top:var(--sp-2);padding-bottom:var(--sp-2)}
+
+/* ── 口コミを目立たせる（2026-10-25 hayashi）────────────
+   口コミはラクハンでいちばん読んでほしいもの。カードでも詳細でも、
+   ブランドの淡い地（--brand-soft）で囲んで、ほかの灰色の情報から浮かせる。 */
+/* カード：「口コミ N件を読む」を緑の札から、橙の枠の箱に。2行目の一言は本文の色で読ませる */
+.rvBtn{background:var(--brand-soft);color:var(--brand-text);border-color:var(--brand-line);
+  border-radius:var(--r-md)}
+.rvBtn small{color:var(--ink);font-size:var(--fs-sm)}
+.rvBtn:hover{border-color:var(--brand)}
+/* 詳細：先頭の口コミの箱 */
+.dRv{background:var(--brand-soft);border:1px solid var(--brand-line);border-radius:var(--r-md);
+  padding:var(--sp-3) var(--sp-4);margin-bottom:var(--sp-4)}
+.dRvH{display:flex;align-items:baseline;gap:var(--sp-2);flex-wrap:wrap}
+.dRvH .secH{margin:0;color:var(--brand-text)}
+.dRvSub{font-size:var(--fs-xs);color:var(--soft)}
+.dRv .dQuote{margin-top:var(--sp-3);background:var(--card)}
+.dRv .rvf span{background:var(--card)}
+.dRvActs{display:flex;flex-wrap:wrap;gap:var(--sp-2) var(--sp-4);align-items:center;margin-top:var(--sp-3)}
+.dRvAll{display:inline-block;padding:10px var(--sp-4);border-radius:var(--r-pill);
+  background:var(--brand);color:var(--brand-ink);font-weight:700;font-size:var(--fs-sm);text-decoration:none}
+.dRvWrite{color:var(--brand-text);font-size:var(--fs-sm);font-weight:700;text-decoration:none}
+.dRvWrite:hover{text-decoration:underline}
+.dRvEmpty{background:var(--paper);border-style:dashed;border-color:var(--rule)}
+.dRvEmpty p{margin:0 0 var(--sp-2);font-size:var(--fs-sm);color:var(--soft)}
+/* 箱の中は幅が狭い（スマホのカード内・PC の右カラム）。余白を詰め、
+   「2.0 / 2」が途中で折れないようにする */
+.dRv{padding:var(--sp-3)}
+.dRv .rvf span{padding:var(--sp-2)}
+.dRv .rvf b{white-space:nowrap}
+
+/* ── 意味の分からない数字をなくす（2026-10-25 hayashi）──────────
+   配点の目盛りの数字と「既定 N」は隠す（重みの絶対値には意味が無い）。
+   要素は消さない ―― つまみの処理が書き換える。列も1つ詰める。 */
+.sl{grid-template-columns:84px 1fr 26px}
+.sl .v,.sl .def{display:none}
+.slHelp{font-size:var(--fs-xs);color:var(--soft);margin:0 0 var(--sp-3);line-height:1.6}
+/* チップの数字は件数。「件」は見た目だけで足す ―― 中身の数字はテストや並び替えが数として読む */
+.chips .n::after,.chip .n::after{content:"件"}
+.gridHelp{font-size:var(--fs-xs);color:var(--muted);margin:-4px 0 var(--sp-2)}

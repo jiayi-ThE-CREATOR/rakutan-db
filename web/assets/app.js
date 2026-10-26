@@ -19,7 +19,7 @@ function futanSrc(c){
   const f = c.rakutan.futan;
   if (!f) return "";
   if (f.source === "kuchikomi") return `口コミ${f.people}人から`;
-  if (f.source === "syllabus_kuchikomi") return `シラバス＋口コミ${c.reviews?.n_old || c.reviews?.n || 0}人から`;
+  if (f.source === "syllabus_kuchikomi") return `シラバスと口コミ${c.reviews?.n_old || c.reviews?.n || 0}人から`;
   return "シラバスから推定";
 }
 
@@ -440,7 +440,13 @@ function buildSliders(){
      テストがいちばん大きい＝みんなの既定をそのまま画面に出している。
      ✕ は「その項目がある授業を見ない」＝しぼり込みで、caps（0 か 100）が持つ。
      2つを同じ行に置くが、状態は別 ―― 混ぜると「しぼったら好みまで変わった」になる。 */
-  $("#sliders").innerHTML = CAP_AXES.map(k =>
+  /* 目盛りの数字（15・既定 15 など）は画面に出さない（2026-10-25 hayashi）。
+     重みの絶対値には意味が無く、「何の数字か分からない」だけだったため。
+     要素は残す（つまみを動かす処理が書き換える／読み上げは aria-valuetext 側で足りる）。
+     代わりに、何をするものかを1行で先に言う。 */
+  $("#sliders").innerHTML =
+    `<p class="slHelp">自分にとって<b>重い項目ほど右へ</b>。動かすと、カードに「あなたとの相性度」が出ます。✕ はその項目がある授業を外します。</p>`
+    + CAP_AXES.map(k =>
     `<div class="sl"><label for="s_${k}">${esc(CAP_LABEL[k])}</label>
        <input type="range" id="s_${k}" min="0" max="100" step="${PREF_STEP}"
               value="${state.pref[k]}" data-k="${k}"
@@ -747,7 +753,7 @@ document.addEventListener("click", async e => {
 /* 連携していないか。gate.js がまだ読めていない・落ちたときは false＝
    伏せない（fail-open）。覆いと同じ考え方（gate.js の冒頭参照）。 */
 function gateLocked(){
-  return !!(window.rkGate && window.rkGate.linked && !window.rkGate.linked());
+  return false;   // 試作（2026-10-25）：ログインは「もっと便利」。読めないものを作らない
 }
 
 /* band の下の ※ の行。「口コミが集まれば数字が出る」科目にだけ出す。
@@ -807,14 +813,14 @@ function cardActsHtml(c){
   let read;
   if (readable){
     read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
-         <span>💬 口コミ ${readable}件を読む ›</span>${
+         <span>${window.rkDetail.ICON.chat}口コミ ${readable}件を読む ›</span>${
            first ? `<small>「${esc(first)}」ほか</small>` : ""}
        </button>
        <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
           title="この科目の口コミを書く">✎</a>`;
   } else if (n){
     read = `<button class="rvBtn" data-id="${esc(c.id)}" aria-haspopup="dialog">
-         <span>📊 口コミ ${n}件を見る</span>
+         <span>${window.rkDetail.ICON.chart}口コミ ${n}件を見る</span>
        </button>
        <a class="wrBtn" href="${esc(write)}" aria-label="この科目の口コミを書く"
           title="この科目の口コミを書く">✎</a>`;
@@ -837,15 +843,13 @@ function rankBlockHtml(c){
   const r = c.rakutan, m = c.match, f = r.futan;
   const rank = f && f.rank;
   const big = rank
-    ? `<div class="fit rank"><b class="rk${RANKS.includes(rank) ? rank : ""}">${esc(rank)}</b><small>負担</small></div>`
-    : `<div class="fit"><b>—</b><small>負担</small></div>`;
+    ? `<div class="fit rank"><b class="rk${RANKS.includes(rank) ? rank : ""}">${esc(rank)}</b><small>ラク度</small></div>`
+    : `<div class="fit"><b>—</b><small>ラク度</small></div>`;
   const src = futanSrc(c);
   const low = r.band === "参考値" ? "（参考値）" : "";
-  const pct = (rank && m.fit !== null && m.fit !== undefined)
-    ? (prefChanged()
-        ? `<span class="pct">あなたとの相性度 <b>${Math.round(m.fit)}%</b></span>`
-        : `<span class="pctHint">配分を動かすと、あなたとの相性度が出ます</span>`)
-    : "";
+  /* 試作：相性度は目盛りを動かした人にだけ出す。「動かすと出ます」のヒントは出さない（文字を減らす） */
+  const pct = (rank && m.fit !== null && m.fit !== undefined && prefChanged())
+    ? `<span class="pct">あなたとの相性度 <b>${Math.round(m.fit)}%</b></span>` : "";
   const mis = (f && f.mismatch && f.mismatch.length)
     ? `<span class="mismatch">シラバスと実際が違うようです（${f.mismatch.map(k => ITEM_LABEL[k] || k).join("・")}がなかった）</span>`
     : "";
@@ -886,13 +890,11 @@ function card(c){
     <div class="head" role="button" tabindex="0">
       <div>
         <h3 class="title"><span class="titleT">${esc(c.title)}</span></h3>
-        <div class="meta"><span>${esc(dp)}</span>${insMetaSpan(c)}<span>${esc(c.room||c.campus||"—")}</span><span>${esc(c.category)}</span>${codeMetaSpan(c)}</div>
+        <div class="meta"><span>${esc(dp === "他" ? "曜限なし" : dp)}</span>${insMetaSpan(c)}${(c.room||c.campus) ? `<span>${esc(c.room||c.campus)}</span>` : ""}</div>
       </div>
       ${rankBlockHtml(c)}
       ${note ? `<div class="bandNote">${esc(note)}</div>` : ""}
-      ${tags.length ? `<div class="tags">${tags.slice(0,4).map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>` : ""}
     </div>
-    ${subj}
     <button class="favBtn" data-id="${esc(c.id)}" aria-pressed="${fav}"
             aria-label="お気に入り：${esc(c.title)}">${fav ? "★" : "☆"}</button>
     ${cardActsHtml(c)}
@@ -923,6 +925,8 @@ async function fetchReviewsData(){
 
 // 課題の軽重は rvLv（集計側と同じ）を使い回す。同じ対応表を2つ持たない。
 const attFull = v => (v === null || v === undefined) ? "―" : RV_ATT[Math.round(v)];
+/* 新しい形式の口コミ（項目ごとに 1〜5）の言葉。kuchikomi.html の設問3の説明と同じ。 */
+const V5_WORD = ["", "ほぼ負担なし", "軽い", "ふつう", "重め", "かなり大変"];
 
 /* null は「―」のまま出す。埋めると「無回答だった」という情報が消える。
    並びは 受講年 → 本人が書いた一言 → 選択式の答え（2026-09-06）。
@@ -936,17 +940,24 @@ function panelEntry(row){
   const age = row.taken_year == null ? 0 : curYear - row.taken_year;
   const old = row.taken_year != null && age >= 3;
 
-  const facts = [`出席 ${attFull(row.attendance)}`,
-                 `授業中の課題 ${rvLv(row.in_class)}`,
-                 `授業外の課題 ${rvLv(row.out_class)}`];
-  if (row.exam_hard10 != null) facts.push(`テスト ${row.exam_hard10}/10`);
-  if (row.exam_bring)          facts.push(`持ち込み ${row.exam_bring}`);
+  /* 答えていない項目（null）は出さない ―― 「出席 ―」を並べても読めない（2026-10-25）。
+     新しい形式（form v5・2026-10-14〜）の答えは row.items に 0〜5 で入っている。
+     1〜5 は口コミのフォームの言葉（kuchikomi.html の設問3）で出す。0 は「なかった」だが、
+     フォームに出さなかった項目も 0 で送られてくるので区別できない ―― だから出さない。 */
+  const facts = [];
+  if (row.attendance != null)   facts.push(`出席 ${attFull(row.attendance)}`);
+  if (row.in_class != null)     facts.push(`授業中の課題 ${rvLv(row.in_class)}`);
+  if (row.out_class != null)    facts.push(`授業外の課題 ${rvLv(row.out_class)}`);
+  for (const [k, v] of Object.entries(row.items || {}))
+    if (v >= 1 && v <= 5) facts.push(`${ITEM_LABEL[k] || k} ${V5_WORD[v]}`);
+  if (row.exam_hard10 != null)  facts.push(`テストの難しさ 10段階で${row.exam_hard10}`);
+  if (row.exam_bring)           facts.push(`持ち込み ${row.exam_bring}`);
   if (row.report_words != null) facts.push(`レポート 約${row.report_words.toLocaleString()}字`);
 
   return `<div class="pEntry">
       <div class="pYear">${esc(yearLabel)}${old ? `<span class="pOld">${age}年前の情報</span>` : ""}</div>
       ${row.note ? `<div class="pNote">${esc(row.note)}</div>` : ""}
-      <div class="pFacts">${facts.map(t => `<span>${esc(t)}</span>`).join("")}</div>
+      ${facts.length ? `<div class="pFacts">${facts.map(t => `<span>${esc(t)}</span>`).join("")}</div>` : ""}
     </div>`;
 }
 
@@ -1646,6 +1657,16 @@ $("#list").addEventListener("click", e => {
   openPanel(btn.dataset.id);
 });
 
+/* 詳細の口コミの箱の「すべて読む」（2026-10-25）。PC の右カラム（#inspector）は
+   #list の外にあるので、document で受ける。href は /?c=<id> なので、
+   ここで止めなければ共有リンクと同じ道でパネルが開く（マイページはそちらを通る）。 */
+document.addEventListener("click", e => {
+  const a = e.target.closest("a[data-rv-open]");
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return;
+  e.preventDefault();
+  openPanel(a.dataset.rvOpen);
+});
+
 /* ── 一覧のページング ───────────────────
  * 無限スクロールをやめた理由：
  * 1,112件が終わりなく流れるだけで、終点も現在位置も分からなかった。
@@ -1722,7 +1743,7 @@ function renderPage(n, scroll = false){
     const box = document.createElement("section");
     box.className = "picks";
     box.innerHTML = `<h2 class="picksH">あなたに合う${picks.length}件` +
-      `<span class="sub">人が確認ずみの科目から</span></h2>`;
+      `<span class="sub">口コミで確かめられた科目から</span></h2>`;
     appendCards(box, picks);
     list.appendChild(box);
   }
@@ -1767,7 +1788,7 @@ function renderPager(){
     `aria-label="${label}">${sign}</button>`;
 
   el.innerHTML =
-    `<div class="pagerPos">${shownTo} / ${courses.length}件</div>` +
+    `<div class="pagerPos">${courses.length}件中 ${shownTo}件を表示</div>` +
     `<div class="pagerNums">` +
       arrow(page - 1, "前のページ", "‹", page <= 1) +
       nums.map(x => x === "…"
@@ -1801,7 +1822,7 @@ async function load(retry){
   buildGrid(d.slots); buildConds(d.facets); buildFaculty(d.division_facets);
   subjectFacets = d.subject_facets || {}; subjectCount = d.count;
   window.rkSubjects?.render();
-  $("#count").textContent = d.count;
+  $("#count").textContent = Number(d.count).toLocaleString();
   syncRailTog();   // 条件が変われば畳んでいるときのバッジも変わる
   syncSheet();     // スマホの「絞り込み」の数字とシート下の件数も
   syncResetBtn();  // 同じ理由。条件が0になったらリセットも引っ込める

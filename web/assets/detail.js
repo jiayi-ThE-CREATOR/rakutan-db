@@ -141,8 +141,20 @@ const koanUrl = c => `https://koan.osaka-u.ac.jp/campusweb/campussquare.do?_flow
    それでも置くのは、ラクハンで決めた科目を登録しに行くたびに
    新しいタブで KOAN を探す手間を省くため。押した瞬間に時間割コードを
    クリップボードへ入れておくので、KOAN で「未登録」を押したら貼るだけで済む。
-   mypage.js の時間割の上のボタンも同じ URL を使う（window.rkDetail 経由）。 */
+   mypage.js の時間割の上のボタンも同じ URL を使う（window.rkDetail 経由）。
+   2026-10-25：科目の詳細からは外した（hayashi の依頼）。詳細で開きたいのは
+   入口のログイン画面ではなく「この授業のページ」なので、詳細の主ボタンは
+   koanUrl(c)（この科目の公式シラバス）にした。入口はマイページの時間割の上に残る。 */
 const KOAN_TOP = "https://koan.osaka-u.ac.jp/campusweb/campusportal.do";
+
+/* 試作（2026-10-25）：絵文字は AI が作った感じに見えるので、線のアイコンにそろえる。 */
+const svg = d => `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+const ICON = {
+  chat: svg('<path d="M4 5h16v11H9l-5 4z"/>'),
+  chart: svg('<path d="M5 20V10M12 20V4M19 20v-7"/>'),
+  flag: svg('<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>'),
+  book: svg('<path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/>'),
+};
 
 /* リンクそのものはブラウザに開かせる（preventDefault しない）。
    window.open を自前で呼ぶとポップアップ扱いで止められることがあるため。
@@ -182,39 +194,54 @@ const rvAvg = v => (v === null || v === undefined) ? "―" : `${v.toFixed(1)} / 
    出さない（2026-09-22 きむら指摘）。gate.js がまだ無い・落ちたときは
    伏せない（fail-open）―― 覆いと同じ考え方。件数（secH の N件）は出す。 */
 function gateLocked(){
-  return !!(window.rkGate && window.rkGate.linked && !window.rkGate.linked());
+  /* 試作（2026-10-25 hayashi）：LINE は「もっと便利」の位置づけにして、
+     ログインしないと読めないものを無くす。 */
+  return false;
 }
 
 /* 口コミの集計。モーダルの先頭に出す。
    一言3件（.rvn）は廃止した ―― モーダルに全件が1件ずつ出るので重複になる。
    値を <b> で包むのは、ラベルより数字を大きくするため（CSS 側で効かせる）。 */
+/* 集計を言葉で出す（2026-10-25 hayashi）。
+ *
+ * それまでは「0.3 / 2」のような 0〜2 の平均を出していたが、何の数字か読めない
+ * （「2分の何がボスなのか分からない」本人指摘）。上の 2026-08-24 の注記が数字にした
+ * 理由は「平均を言葉に通すと、誰も答えていない選択肢を出す」こと（なし＋毎回＝平均1.0
+ * →「たまに」）。それは reviews.py の conflicts（いちばん軽い答えと重い答えが両方ある項目）
+ * が拾っているので、そこは「人によって違う」と出す。conflicts が無い項目は答えが
+ * 隣り合う2つの選択肢までにしか散っていないので、近い方の言葉にしても嘘にならない。 */
+const ATT_WORD  = v => v < 0.5 ? "取らない" : v < 1.5 ? "ときどき取る" : "毎回取る";
+const LOAD_WORD = v => v < 0.5 ? "軽い" : v < 1.5 ? "ふつう" : "重い";
+const HARD_WORD = v => v <= 3 ? "易しい" : v <= 6 ? "ふつう" : "難しい";
+
 function reviewHtml(c){
   const r = c.reviews;
   if (!r || !r.n) return "";
-  const f = [["出席", rvAvg(r.attendance)],
-             ["授業中の課題", rvAvg(r.in_class)],
-             ["授業外の課題", rvAvg(r.out_class)]];
-  if (r.exam_hard10 != null) f.push(["テストの難易度", `${r.exam_hard10} / 10`]);
+  const split = new Set(r.conflicts || []);
+  const word = (key, fn) => r[key] == null ? null : split.has(key) ? "人によって違う" : fn(r[key]);
+  /* 答えが無い項目（新しい形式の口コミだけの科目など）は行ごと出さない ―― 「―」を並べても読めない。 */
+  const f = [["出席", word("attendance", ATT_WORD)],
+             ["授業中の課題", word("in_class", LOAD_WORD)],
+             ["授業外の課題", word("out_class", LOAD_WORD)]];
+  if (r.exam_hard10 != null)
+    f.push(["テストの難しさ", split.has("exam_hard10") ? "人によって違う" : `${HARD_WORD(r.exam_hard10)}（10段階で${r.exam_hard10}）`]);
   /* 「その他（持ち帰り形式）」等は 可／不可 に畳むと情報が落ちるので、
      畳んだ値に原文を添えて出す ―― 「可（持ち帰り形式）」。 */
   if (r.exam_bring){
     const m = (r.exam_bring_raw || "").match(/^その他[（(](.+)[）)]$/);
-    f.push(["持ち込み", m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring]);
+    f.push(["持ち込み", split.has("exam_bring") ? "人によって違う" : (m ? `${r.exam_bring}（${m[1]}）` : r.exam_bring)]);
   }
   if (r.report_words)        f.push(["レポート", `1本あたり約${r.report_words.toLocaleString()}字`]);
-  /* 全幅にする条件は2つ。どちらも実データ・実測から引いた（2026-09-07）。
-     ・値が長い ―― 数値側の最長「2.0 / 2」＝7文字と、持ち込みの括弧つき最短
-       「可（オンライン）」＝8文字のあいだに境界を置く。
-     ・ラベルが長い ―― 390px では半幅セルが 159px しかなく、ラベルは6文字までしか
-       1行に収まらない（「授業中の課題」＝6文字は 21px の1行、
-       「テストの難易度」＝7文字は 42px の2行になる。実測）。
-       ラベルは固定文字列なので、値の長さでは拾えない。 */
+  const rows = f.filter(([, v]) => v);
+  if (!rows.length) return "";
+  /* 全幅にする条件は2つ（2026-09-07 の実測から）。値が長い（「人によって違う」の7文字から）／ラベルが長い。
+     390px では半幅セルが 159px しかなく、ラベルは6文字までしか1行に収まらない。 */
   const cell = ([k, v]) =>
-    `<span${(String(v).length > 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
+    `<span${(String(v).length >= 7 || k.length > 6) ? ` class="w"` : ""}><i>${esc(k)}</i><b>${esc(v)}</b></span>`;
   return `<div class="rv">
-      <div class="rvf">${f.map(cell).join("")}</div>
-      <span class="bandNote">数字は${r.n}件の平均。出席は 0 なし〜2 毎回、課題は 0 軽い〜2 重い${
-        r.conflicts?.length ? "。<b>答えが割れている項目があります</b>ので、下の1件ずつを読んでください" : ""}</span>
+      <div class="rvf">${rows.map(cell).join("")}</div>
+      <span class="bandNote">${r.n}人の答えをまとめたものです${
+        split.size ? "。「人によって違う」の項目は、1件ずつの口コミを読んでください" : ""}</span>
     </div>`;
 }
 
@@ -299,30 +326,55 @@ function detailHtml(c, opts = {}){
           ? `<div class="compNote">（参考）の出版年はシラバスに無く、ISBN から調べた値です。指定の版と違うことがあります</div>` : ""}
       </div>`
     : "";
-  return `${subj}<div class="dSec">
-        <div class="secH">成績評価の内訳</div>
-        ${evalCompHtml(c)}
+  /* 並び（まとめ版・2026-10-25 hayashi）：
+       口コミの箱（いちばん読んでほしいもの） → この科目の KOAN 公式シラバス（主ボタン）
+       → 教科書 → くわしく見る（授業内容タグ・成績評価の内訳・時間割コード。消さずに畳む）
+     0件の科目にも箱を出して「書いてほしい」と言う ―― 7,906件のほとんどが0件で、
+     そこで黙ると口コミという仕組みがあること自体が伝わらない。
+     「すべて読む」は一覧のパネル（app.js の openPanel）を開く。マイページでは
+     パネルが無いので、href の /?c=<id>（共有リンクと同じ入口）へそのまま飛ぶ。 */
+  const write = `/kuchikomi?c=${encodeURIComponent(c.id)}`;
+  const rvBox = rn
+    ? `<div class="dSec dRv">
+        <div class="dRvH"><span class="secH">口コミ <b>${rn}件</b></span><span class="dRvSub">実際に受けた人の声</span></div>
+        ${gateLocked()
+          ? `<p class="gateLocked">口コミを読むには LINE 登録が要ります</p>`
+          : `${first ? `<p class="dQuote">${esc(first)}</p>` : ""}${reviewHtml(c)}`}
+        <div class="dRvActs">
+          <a class="dRvAll" href="/?c=${encodeURIComponent(c.id)}" data-rv-open="${esc(c.id)}">口コミをすべて読む ›</a>
+          <a class="dRvWrite" href="${esc(write)}">この科目の口コミを書く</a>
+        </div>
+      </div>`
+    : `<div class="dSec dRv dRvEmpty">
+        <p>まだ口コミがありません。受けたことがあれば、<b>最初の1件</b>を書いてください（選択式で1分）。</p>
+        <a class="dRvWrite" href="${esc(write)}">口コミを書く ›</a>
+      </div>`;
+  return `${rvBox}
+      <div class="dActs dActsTop">
+        <a class="koanLink koanMain" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗<small>授業の内容・日程・成績のつけ方が載った公式ページが開きます</small></a>
       </div>
       ${book}
-      ${rn ? `<div class="dSec">
-        <div class="secH">口コミ <b>${rn}件</b></div>
-        ${gateLocked()
-          ? `<p class="gateLocked">🔒 口コミを読むには LINE 登録が要ります</p>`
-          : `${reviewHtml(c)}${first ? `<p class="dQuote">${esc(first)}</p>` : ""}`}
-      </div>` : ""}
-      <div class="dActs">
-        <a class="koanLink koanReg" href="${KOAN_TOP}" target="_blank" rel="noopener noreferrer"
-           data-code="${esc(c.id)}">KOANを開いて履修登録する ↗<small>時間割コード ${esc(c.id)} をコピーして開きます</small></a>
-        <a class="koanLink" href="${esc(koanUrl(c))}" target="_blank" rel="noopener noreferrer">この科目のKOAN公式シラバスを見る ↗</a>
-      </div>
+      <details class="dMore">
+        <summary>くわしく見る<small>授業内容・成績評価の内訳・時間割コード</small></summary>
+        ${subj}
+        <div class="dSec">
+          <div class="secH">成績評価の内訳</div>
+          ${evalCompHtml(c)}
+        </div>
+        <div class="dSec">
+          <div class="secH">時間割コード</div>
+          <p class="dCode">${esc(c.id)} <button type="button" class="ccC" data-code="${esc(c.id)}"
+            aria-label="時間割コード ${esc(c.id)} をコピー">コピー</button></p>
+        </div>
+      </details>
       <p class="fbReportLine"><button type="button" class="fbReport"
-        data-fb-report="${esc(c.title)}（${esc(c.id)}）">⚑ この科目の情報がおかしい？</button></p>`;
+        data-fb-report="${esc(c.title)}（${esc(c.id)}）">${ICON.flag}この科目の情報がおかしい？</button></p>`;
 }
 
 /* 呼ぶ側（app.js / mypage.js）に渡すのはこれだけ。
    app.js は rvLv・RV_ATT も使う（口コミを1件ずつ出す panelEntry）ので出しておく。 */
 window.rkDetail = {
-  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl, KOAN_TOP, subjectTagsHtml,
+  detailHtml, reviewHtml, evalCompHtml, evalNoteHtml, koanUrl, KOAN_TOP, subjectTagsHtml, ICON,
   RV_ATT, rvLv, rvAvg,
 };
 
