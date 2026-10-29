@@ -65,6 +65,18 @@ export async function linkIdentity(env, accA, identB) {
     }
   }
   await env.DB.batch(stmts);
+
+  /* 時間割の写し（timetable_docs・2026-10-29）も時間割と同じく新しい方。
+     上の batch とは分けて流す ―― 表をまだ作っていない D1 でも、つなぐこと自体は落とさないため。 */
+  try {
+    const docSecondaryNewer = (await newest("timetable_docs")) > (await newestP("timetable_docs"));
+    await env.DB.batch(docSecondaryNewer
+      ? [P("DELETE FROM timetable_docs WHERE line_user_id = ?", primary),
+         P("UPDATE timetable_docs SET line_user_id = ? WHERE line_user_id = ?", primary, secondary)]
+      : [P("DELETE FROM timetable_docs WHERE line_user_id = ?", secondary)]);
+  } catch (e) {
+    console.error("linkIdentity timetable_docs error", e);
+  }
   return primary;
 }
 

@@ -44,6 +44,15 @@ CREATE TABLE IF NOT EXISTS timetables (
   PRIMARY KEY (line_user_id, term_group, course_id)
 );
 
+-- 時間割を端末どうしでそろえるための写し（2026-10-29・docs/superpowers/specs/2026-10-29-timetable-sync-design.md）。
+-- timetables は科目 ID だけ（数える用）で、どのコマに置いたか（曜限の無い科目を置いたコマ等）が残らない。
+-- こちらはブラウザの rk_timetable をそのまま1行に持つ。GET /api/profile が返し、PUT /api/profile が上書きする。
+CREATE TABLE IF NOT EXISTS timetable_docs (
+  line_user_id TEXT PRIMARY KEY,
+  doc TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
 -- メールでログイン（2026-10-19・docs/superpowers/specs/2026-10-19-mail-login-design.md）。
 -- アドレスそのものは持たない。数えるのは識別子（HMAC）と時間帯だけで、24時間より古い行は消す。
 CREATE TABLE IF NOT EXISTS mail_rate (
