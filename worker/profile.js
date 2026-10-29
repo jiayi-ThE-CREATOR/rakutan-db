@@ -57,6 +57,27 @@ function json(status, body) {
 
 const TERMS = ["haru", "aki"];
 
+/* ブラウザの rk_timetable（{ v:1, haru:{slots,extra}, aki:{slots,extra} }）を検証して、
+   決まった形に作り直す。コマは store.js の slotsOf と同じ「月〜金 × 1〜6」だけ、
+   科目 ID は cleanIds と同じ形だけを通す。変なものは黙って落とす（画面は止めない）。
+   形が違う（オブジェクトでない）ときは null ＝「送られてこなかった」と同じ扱い。 */
+const SLOT_RE = /^[月火水木金][1-6]$/;
+export function cleanDoc(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const out = { v: 1 };
+  for (const t of TERMS) {
+    const src = (v[t] && typeof v[t] === "object") ? v[t] : {};
+    const slots = {};
+    if (src.slots && typeof src.slots === "object" && !Array.isArray(src.slots)) {
+      for (const [k, id] of Object.entries(src.slots).slice(0, MAX_SCAN)) {
+        if (SLOT_RE.test(k) && COURSE_ID_RE.test(String(id))) slots[k] = String(id);
+      }
+    }
+    out[t] = { slots, extra: cleanIds(src.extra) };
+  }
+  return out;
+}
+
 /* ── PUT /api/profile ─────────────────────────────────────
  * ログインした人の学年・学部・時間割を、毎回まるごと受け取って置き換える。
  * 追加・削除の差分を送る形にしないのは、取りこぼした1回で D1 とブラウザが
@@ -67,14 +88,29 @@ const TERMS = ["haru", "aki"];
  *
  * 学年・学部は line_profiles（LINE の問診と同じ表）に書く。空の項目は
  * COALESCE で既存の値を残す ―― サイトで未回答の人が、LINE で答えた値を
- * 空で消さないため。両方空なら line_profiles は触らない。 */
+ * 空で消さないため。両方空なら line_profiles は触らない。
+ *
+ * ── GET /api/profile（2026-10-29）──
+ * 本人の時間割の写し（timetable_docs）を返す。{ ok, doc, at }。まだ無ければ doc:null。
+ * 別の端末で作った時間割を、ログインした端末へ持ってくるため（usersync.js が使う）。 */
 export async function handleProfile(request, env) {
-  if (request.method !== "PUT") {
-    return new Response("method not allowed", { status: 405, headers: { allow: "PUT" } });
+  if (request.method !== "PUT" && request.method !== "GET") {
+    return new Response("method not allowed", { status: 405, headers: { allow: "GET, PUT" } });
   }
   if (!env.DB) return json(503, { ok: false, error: "not_configured" });
   const userId = await sessionUser(request, env);
   if (!userId) return json(401, { ok: false, error: "not_logged_in" });
+
+  if (request.method === "GET") {
+    try {
+      const row = await env.DB.prepare("SELECT doc, updated_at FROM timetable_docs WHERE line_user_id = ?").bind(userId).first();
+      const doc = row ? cleanDoc(JSON.parse(row.doc)) : null;
+      return json(200, { ok: true, doc, at: doc ? row.updated_at : null });
+    } catch (e) {
+      console.error("handleProfile get error", e);
+      return json(500, { ok: false, error: "db_error" });
+    }
+  }
 
   let body;
   try { body = await request.json(); } catch { return json(400, { ok: false, error: "bad_json" }); }
@@ -107,6 +143,21 @@ export async function handleProfile(request, env) {
   } catch (e) {
     console.error("handleProfile error", e);
     return json(500, { ok: false, error: "db_error" });
+  }
+
+  /* 時間割の写し（端末どうしでそろえる用）。上の batch とは分けて書く ――
+     timetable_docs をまだ作っていない D1 でも、今までの保存（数える用）は落とさないため。
+     doc が無い本文（古い画面から来た PUT）は触らない。 */
+  const doc = cleanDoc(body?.doc);
+  if (doc) {
+    try {
+      await env.DB.prepare(
+        "INSERT INTO timetable_docs (line_user_id, doc, updated_at) VALUES (?, ?, ?) " +
+          "ON CONFLICT (line_user_id) DO UPDATE SET doc = excluded.doc, updated_at = excluded.updated_at"
+      ).bind(userId, JSON.stringify(doc), now).run();
+    } catch (e) {
+      console.error("handleProfile doc error", e);
+    }
   }
   return json(200, { ok: true });
 }

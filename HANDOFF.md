@@ -17,6 +17,37 @@
 
 ---
 
+## 2026-10-29 ｜ 時間割を端末どうしでそろえる（違えば本人に聞く） ｜ Claude（wang） → 全員
+
+設計: `docs/superpowers/specs/2026-10-29-timetable-sync-design.md`。教科書マーケットとマイページの統合の段①。
+
+### 1. 何が動く状態か
+
+    node tools/test_user_stats.mjs && node tools/test_account.mjs
+
+- `GET /api/profile`：本人の時間割の写し（`timetable_docs`）を返す。`PUT /api/profile` は今までの本文に `doc`（rk_timetable そのもの）を足して写しも上書き
+- `usersync.js`：ログインしたら送る前に保存を聞く。この端末が空なら保存を使って読み直す／違えば「時間割が2つあります」で本人に聞く（答えるまで送らない）
+- アカウントをつなぐとき、写しも時間割と同じく新しい方（account.js）
+- メールの人がマイページの門を通れること（統合の段②）は前から動いていた。テストは `test_maillogin.mjs`・`test_gate.mjs`
+
+### 2. 何をしていないか
+
+- **本番の D1 に `timetable_docs` をまだ作っていない。** 作るまでは GET が 500 → 画面は今まで通り送るだけ（壊れはしない）
+- 学年・学部はそろえていない（端末ごとのまま）
+- カレンダー連携（段③）は教科書マーケットと一緒。about に足す文の案は設計書 §6
+- テスト版では LINE ログインが通らないので、聞くダイアログは手元（Playwright で /api/me・/api/profile を差し替え）でしか見ていない
+
+### 3. 次の人が最初に打つコマンド
+
+    npx wrangler d1 execute rakutan-favorites --remote --command "CREATE TABLE IF NOT EXISTS timetable_docs (line_user_id TEXT PRIMARY KEY, doc TEXT NOT NULL, updated_at INTEGER NOT NULL);"
+
+### 4. 踏んだ罠
+
+- `test_user_stats.mjs` は 2026-10-20（アカウント統一 #219）から落ちていた。`sessionUser` が `resolveAccount` の `.first()` を呼ぶのに、テストの D1 の偽物に `first` が無かった。偽物に足した
+- 新しい表への書き込みを今までの batch に混ぜると、表を作る前にデプロイした瞬間に今までの保存（数える用）とアカウントの連結まで落ちる。だから別に流している
+
+---
+
 ## 2026-10-22 ｜ 毎朝 05:00 に口コミを取り込む（GitHub Actions） ｜ Claude（wang） → 全員
 
 設計: `docs/superpowers/specs/2026-10-21-review-auto-ingest-design.md`。取り込みの自動化の段②。

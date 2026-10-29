@@ -97,12 +97,28 @@ const { __test: login } = await import(path.join(ROOT, "worker/linelogin.js"));
 const SECRET = "test-secret-key";
 const USER = "U" + "a".repeat(32);
 
-/* D1 の偽物。batch で流れた SQL と引数を順に残す。 */
-function fakeDB({ fail = false } = {}) {
+/* D1 の偽物。batch・run で流れた SQL と引数を順に残す。
+   first() は SELECT 用：identities（アカウントの引き直し）は行なし、timetable_docs は docRow を返す。
+   ※ 2026-10-20 にアカウント統一（sessionUser → resolveAccount の first()）が入ってから、
+     first の無い偽物ではこのテストが落ちていた。2026-10-29 に足した。 */
+function fakeDB({ fail = false, docRow = null, docFail = false } = {}) {
   const log = [];
   return {
     log,
-    prepare(sql) { return { sql, args: [], bind(...a) { this.args = a; return this; } }; },
+    prepare(sql) {
+      return {
+        sql, args: [],
+        bind(...a) { this.args = a; return this; },
+        async first() {
+          if (/FROM timetable_docs/.test(sql)) { if (docFail) throw new Error("no such table"); return docRow; }
+          return null;
+        },
+        async run() {
+          if (docFail && /timetable_docs/.test(sql)) throw new Error("no such table");
+          log.push([sql, this.args]); return {};
+        },
+      };
+    },
     async batch(stmts) {
       if (fail) throw new Error("D1 down");
       for (const s of stmts) log.push([s.sql, s.args]);
@@ -180,22 +196,72 @@ const sessCookie = async (sub = USER, exp = Math.floor(Date.now() / 1000) + 600)
   check(down.res.status === 500, "D1 が落ちたときに 500 を返していない");
 }
 
+// ── 3b. 時間割の写し（timetable_docs・2026-10-29 端末間の同期） ──
+const { cleanDoc } = await import(path.join(ROOT, "worker/profile.js"));
+{ // 検証：コマは月〜金×1〜6、ID は決まった形だけ。形の違うものは null
+  const d = cleanDoc({ v: 1, haru: { slots: { "月1": "138531", "土1": "138531", "火2": "<x>" }, extra: ["00Z008", "bad id"] }, aki: "x" });
+  check(JSON.stringify(d) === '{"v":1,"haru":{"slots":{"月1":"138531"},"extra":["00Z008"]},"aki":{"slots":{},"extra":[]}}',
+    `cleanDoc の結果が違う: ${JSON.stringify(d)}`);
+  check(cleanDoc(null) === null && cleanDoc([]) === null && cleanDoc("x") === null, "形の違う doc を null にしていない");
+}
+{ // PUT に doc があれば timetable_docs へ本人の1行を書く（batch とは別に）
+  const doc = { v: 1, haru: { slots: { "月1": "138531" }, extra: [] }, aki: { slots: {}, extra: ["00Z008"] } };
+  const { res, log } = await putProfile({ grade: "1", faculty: "law", tt: { haru: ["138531"], aki: ["00Z008"] }, doc }, { cookie: await sessCookie() });
+  const w = log.find(([sql]) => sql.startsWith("INSERT INTO timetable_docs"));
+  check(res.status === 200 && w?.[1][0] === USER && JSON.parse(w?.[1][1] ?? "{}").haru?.slots?.["月1"] === "138531",
+    "PUT の doc を timetable_docs に書いていない");
+}
+{ // doc の無い PUT（古い画面）では timetable_docs を触らない
+  const { log } = await putProfile({ grade: "1", tt: { haru: [], aki: [] } }, { cookie: await sessCookie() });
+  check(!log.some(([sql]) => /timetable_docs/.test(sql)), "doc の無い PUT で timetable_docs を書いている");
+}
+{ // timetable_docs がまだ無い D1 でも、今までの保存は 200 で通る
+  const db = fakeDB({ docFail: true });
+  const { res, log } = await putProfile({ grade: "1", tt: { haru: ["138531"], aki: [] }, doc: { v: 1 } }, { cookie: await sessCookie(), db });
+  check(res.status === 200 && log.some(([sql]) => sql.startsWith("INSERT INTO timetables")),
+    "timetable_docs が無いと今までの保存まで落ちる");
+}
+{ // GET：本人の写しを返す／無ければ null／未ログインは 401
+  const row = { doc: JSON.stringify({ v: 1, haru: { slots: { "水2": "138531" }, extra: [] }, aki: {} }), updated_at: 1761700000000 };
+  const got = await (await putProfile(null, { cookie: await sessCookie(), method: "GET", db: fakeDB({ docRow: row }) })).res.json();
+  check(got.ok && got.doc?.haru?.slots?.["水2"] === "138531" && got.at === 1761700000000, `GET が写しを返さない: ${JSON.stringify(got)}`);
+  const none = await (await putProfile(null, { cookie: await sessCookie(), method: "GET" })).res.json();
+  check(none.ok && none.doc === null && none.at === null, `写しが無いときに doc:null を返さない: ${JSON.stringify(none)}`);
+  check((await putProfile(null, { method: "GET" })).res.status === 401, "未ログインの GET に 401 を返していない");
+  check((await putProfile(null, { cookie: await sessCookie(), method: "GET", db: fakeDB({ docFail: true }) })).res.status === 500,
+    "読めないときに 500 を返していない（画面は今まで通り送るだけ）");
+}
+
 // スキーマに表がある
 check(/CREATE TABLE IF NOT EXISTS timetables/.test(read("db/schema.sql")), "db/schema.sql に timetables が無い");
+check(/CREATE TABLE IF NOT EXISTS timetable_docs/.test(read("db/schema.sql")), "db/schema.sql に timetable_docs が無い");
 
 // ── 4. usersync.js（送る時機） ─────────────────
 const SYNC_SRC = read("web/assets/usersync.js");
 
-/* 偽ブラウザ。イベントは自前で配る。setTimeout は手で進める。 */
-function runSync({ wait = "", loggedIn = true, gate = true, snap = null } = {}) {
+/* 偽ブラウザ。イベントは自前で配る。setTimeout は手で進める。
+   GET /api/profile は saved を返す（既定は「写しが無い」）。getFail なら届かない。
+   local は端末の rk_timetable（store.getTimetableDoc）。 */
+const DOC = (haru = {}, extra = []) => ({ v: 1, haru: { slots: haru, extra }, aki: { slots: {}, extra: [] } });
+function runSync({ wait = "", loggedIn = true, gate = true, snap = null,
+                   saved = { ok: true, doc: null, at: null }, getFail = false, local = DOC({ "月1": "138531" }), storageOk = true } = {}) {
   const listeners = {};
   const timers = [];
   const puts = [];
+  const gets = [];
   const snaps = [];
+  const written = [];
+  const dialogs = [];
+  let reloads = 0;
   const SNAP = snap || { grade: "1", faculty: "law", tt: { haru: ["138531"], aki: [] } };
   const window = {
     addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
-    rkStore: { snapshot: () => SNAP },
+    rkStore: {
+      snapshot: () => SNAP,
+      getTimetableDoc: () => local,
+      setTimetableDoc: (d) => written.push(d),
+      timetableSaved: () => storageOk,
+    },
     rkSnap: (s) => snaps.push(s),
   };
   let resolveGate;
@@ -207,8 +273,26 @@ function runSync({ wait = "", loggedIn = true, gate = true, snap = null } = {}) 
   }
   const ctx = {
     window,
-    document: { currentScript: { dataset: wait ? { wait } : {} } },
-    fetch: (url, opts) => { puts.push({ url, opts }); return Promise.resolve({ ok: true }); },
+    document: {
+      currentScript: { dataset: wait ? { wait } : {} },
+      /* 聞くダイアログの偽物。pick("saved" | "local" | "later") で押したことにする */
+      createElement: () => ({
+        attrs: {}, listeners: {}, shown: false,
+        setAttribute(k, v) { this.attrs[k] = v; },
+        addEventListener(t, fn) { (this.listeners[t] ||= []).push(fn); },
+        showModal() { this.shown = true; }, close() {}, remove() {},
+        pick(p) { (this.listeners.click || []).forEach((fn) => fn({ target: { closest: () => ({ dataset: { pick: p } }) } })); },
+      }),
+      body: { appendChild: (d) => dialogs.push(d) },
+    },
+    location: { reload: () => { reloads++; } },
+    fetch: (url, opts) => {
+      if (!opts || !opts.method || opts.method === "GET") {
+        gets.push(url);
+        return getFail ? Promise.reject(new Error("offline")) : Promise.resolve({ ok: true, json: async () => saved });
+      }
+      puts.push({ url, opts }); return Promise.resolve({ ok: true });
+    },
     setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
     clearTimeout: (id) => { if (timers[id - 1]) timers[id - 1].fn = null; },
     JSON, Promise, console,
@@ -218,7 +302,8 @@ function runSync({ wait = "", loggedIn = true, gate = true, snap = null } = {}) 
   vm.runInContext(SYNC_SRC, ctx);
   const fire = (type) => (listeners[type] || []).forEach((fn) => fn({}));
   const flushTimers = () => { for (const t of timers) if (t.fn) { const f = t.fn; t.fn = null; f(); } };
-  return { puts, snaps, timers, fire, flushTimers, openGate: async () => { resolveGate?.(); await new Promise((r) => setImmediate(r)); } };
+  return { puts, gets, snaps, timers, written, dialogs, reloads: () => reloads, fire, flushTimers,
+           openGate: async () => { resolveGate?.(); await new Promise((r) => setImmediate(r)); } };
 }
 
 { // マイページ（待たない）: 読み込んだ時点でスナップショット
@@ -262,6 +347,69 @@ function runSync({ wait = "", loggedIn = true, gate = true, snap = null } = {}) 
   const s = runSync({ gate: false });
   await new Promise((r) => setImmediate(r));
   check(s.puts.length === 0, "gate.js が無いページで PUT している");
+}
+
+// ── 4b. 端末間の同期（2026-10-29・wang 決定「違えば毎回聞く」） ──
+const SAVED = (doc, at = 1761700000000) => ({ ok: true, doc, at });
+{ // 送る前に保存を聞く。PUT には rk_timetable そのもの（doc）も添える
+  const s = runSync();
+  await s.openGate();
+  check(s.gets.length === 1 && s.gets[0] === "/api/profile", "ログインしたのに保存されている時間割を聞いていない");
+  check(s.puts.length === 1 && JSON.parse(s.puts[0].opts.body).doc?.haru?.slots?.["月1"] === "138531", "PUT に doc を添えていない");
+}
+{ // 未ログインは聞かない
+  const s = runSync({ loggedIn: false });
+  await s.openGate();
+  check(s.gets.length === 0, "未ログインで GET /api/profile を叩いている");
+}
+{ // 新しい端末（この端末が空）：保存されている方を黙って使い、読み直す。空で上書きしない
+  const s = runSync({ local: DOC(), saved: SAVED(DOC({ "水2": "200001" })), snap: { grade: "", faculty: "", tt: { haru: [], aki: [] } } });
+  await s.openGate();
+  check(s.written.length === 1 && s.written[0].haru.slots["水2"] === "200001", "空の端末に保存されている時間割を書き戻していない");
+  check(s.reloads() === 1 && s.dialogs.length === 0, "空の端末で聞いている、または読み直していない");
+  check(s.puts.length === 0, "空の端末が保存を上書きしうる");
+}
+{ // 書き戻せない端末（保存できない）では読み直さない（空に戻って同じことを繰り返すため）
+  const s = runSync({ local: DOC(), saved: SAVED(DOC({ "水2": "200001" })), storageOk: false });
+  await s.openGate();
+  check(s.written.length === 1 && s.reloads() === 0, "保存できない端末で読み直している（無限に繰り返す）");
+}
+{ // 同じ（サーバーが通さない値の違いは無視）：聞かずに今まで通り
+  const s = runSync({ local: DOC({ "月1": "138531", "土1": "138531" }), saved: SAVED(DOC({ "月1": "138531" })) });
+  await s.openGate();
+  check(s.dialogs.length === 0 && s.written.length === 0 && s.puts.length === 1, "同じ時間割なのに聞いた／書き戻した");
+}
+{ // 違う：聞く。答えるまでは送らない
+  const s = runSync({ local: DOC({ "月1": "138531" }), saved: SAVED(DOC({ "水2": "200001" })) });
+  await s.openGate();
+  check(s.dialogs.length === 1 && s.dialogs[0].shown, "違うのに聞いていない");
+  s.fire("rk:store-changed"); s.flushTimers();
+  check(s.puts.length === 0, "答える前に送っている（保存されている方を上書きする）");
+  s.dialogs[0].pick("local");
+  check(s.puts.length === 1 && JSON.parse(s.puts[0].opts.body).doc?.haru?.slots?.["月1"] === "138531",
+    "「この端末」を選んだのにこの端末の時間割を送っていない");
+}
+{ // 違う → 「保存されている方」：書き戻して読み直す。送らない
+  const s = runSync({ local: DOC({ "月1": "138531" }), saved: SAVED(DOC({ "水2": "200001" })) });
+  await s.openGate();
+  s.dialogs[0].pick("saved");
+  check(s.written.length === 1 && s.written[0].haru.slots["水2"] === "200001" && s.reloads() === 1, "「保存されている方」を書き戻していない");
+  check(s.puts.length === 0, "「保存されている方」を選んだのに端末の時間割を送った");
+}
+{ // 違う → ✕（あとで）：何も送らず、書き戻さない
+  const s = runSync({ local: DOC({ "月1": "138531" }), saved: SAVED(DOC({ "水2": "200001" })) });
+  await s.openGate();
+  s.dialogs[0].pick("later");
+  s.fire("rk:store-changed"); s.flushTimers();
+  check(s.puts.length === 0 && s.written.length === 0, "✕ で閉じたのに送った／書き戻した");
+}
+{ // 保存が無い（初めて）・聞けない（障害・古い Worker）：今まで通り送る
+  const a = runSync({ saved: { ok: true, doc: null, at: null } });
+  await a.openGate();
+  check(a.puts.length === 1 && a.dialogs.length === 0, "保存が無いときに今まで通り送っていない");
+  const b = runSync({ getFail: true });
+  await b.openGate();
+  check(b.puts.length === 1 && b.dialogs.length === 0, "GET が届かないときに今まで通り送っていない");
 }
 // 読み込み順（rkStore・rkGate・rkSnap が先にあること）
 for (const page of ["web/index.html", "web/mypage.html"]) {

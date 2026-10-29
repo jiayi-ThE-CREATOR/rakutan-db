@@ -60,6 +60,26 @@ const q = (DB, sql, ...a) => DB.raw.prepare(sql).all(...a).map(r => ({ ...r }));
   check(await linkIdentity(env, U1, M) === U1, "つなぎ済みをもう一度つなぐと壊れる");
 }
 
+/* ── 時間割の写し（timetable_docs・2026-10-29）も新しい方 ── */
+{
+  const DB = d1(); const env = { ...base, DB };
+  const ins = (sql, ...a) => DB.raw.prepare(sql).run(...a);
+  ins("INSERT INTO timetable_docs VALUES (?, ?, 300)", "m:dd", '{"v":1,"from":"mail"}');   // メールの方が新しい
+  ins("INSERT INTO timetable_docs VALUES (?, ?, 100)", U1, '{"v":1,"from":"line"}');
+  await linkIdentity(env, "m:dd", U1);
+  const docs = q(DB, "SELECT line_user_id, doc FROM timetable_docs");
+  check(docs.length === 1 && docs[0].line_user_id === U1 && docs[0].doc.includes("mail"),
+        `時間割の写しが新しい方（メール）で主アカウントに残っていない: ${JSON.stringify(docs)}`);
+
+  const DB2 = d1(); const env2 = { ...base, DB: DB2 };
+  DB2.raw.prepare("INSERT INTO timetable_docs VALUES (?, ?, 100)").run("m:ee", '{"v":1,"from":"mail"}');
+  DB2.raw.prepare("INSERT INTO timetable_docs VALUES (?, ?, 300)").run(U2, '{"v":1,"from":"line"}');   // LINE の方が新しい
+  await linkIdentity(env2, "m:ee", U2);
+  const d2 = q(DB2, "SELECT line_user_id, doc FROM timetable_docs");
+  check(d2.length === 1 && d2[0].line_user_id === U2 && d2[0].doc.includes("line"),
+        `時間割の写しが新しい方（LINE）で残っていない: ${JSON.stringify(d2)}`);
+}
+
 /* ── LINE のアカウントにメールをつなぐ（メールの流れ・別の端末で押す） ── */
 {
   const DB = d1(); const env = { ...base, DB };

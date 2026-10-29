@@ -156,6 +156,22 @@
     },
 
     getTimetable(t) { return readTT()[term(t)]; },
+    /* 時間割まるごと（端末どうしでそろえる用・2026-10-29）。usersync.js が PUT /api/profile に
+       添えて送り、別の端末で保存した方を選んだときは丸ごと書き戻す。 */
+    getTimetableDoc() { return readTT(); },
+    setTimetableDoc(doc) {
+      const tt = { v: 1 };
+      for (const t of TERMS) {
+        const s = doc && doc[t];
+        tt[t] = { slots: (s && s.slots && typeof s.slots === "object" && !Array.isArray(s.slots)) ? { ...s.slots } : {},
+                  extra: (s && Array.isArray(s.extra)) ? [...s.extra] : [] };
+      }
+      writeTT(tt);
+    },
+    /* 時間割が localStorage に本当に書けているか（memFallback に退避していないか）。
+       usersync.js が、書き戻したあとページを読み直してよいかを決めるのに使う ――
+       書けていないのに読み直すと、空に戻って同じ書き戻しを繰り返すため。 */
+    timetableSaved() { return !memFallback.has(K_TT); },
     setSlot(t, slot, id) {
       const tt = readTT(); tt[term(t)].slots[slot] = id; writeTT(tt);
     },
